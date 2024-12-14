@@ -6,7 +6,7 @@ class ThemeDataStyle {
     brightness: Brightness.light,
     colorScheme: ColorScheme.light(
       surface: const Color.fromARGB(255, 245, 248, 255),
-      primary: Colors.deepPurple.shade200,
+      primary: const Color.fromARGB(255, 160, 157, 219),
       secondary: Colors.deepPurple.shade300,
     ),
   );

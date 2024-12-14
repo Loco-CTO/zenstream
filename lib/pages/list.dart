@@ -14,7 +14,7 @@ class ListPage extends StatelessWidget {
         itemBuilder: (context, index) {
           return ListTile(
             title: Text(items[index]),
-          );
+          ); 
         },
       ),
     );

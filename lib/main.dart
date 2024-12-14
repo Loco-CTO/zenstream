@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'menu_page.dart';
+import 'package:zenstream/pages/home.dart';
 
 void main() {
   runApp(MyApp());
@@ -9,11 +9,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'ZenStream',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: MenuPage(),
+      theme: ThemeData(fontFamily: "GoNotoKurrent"),
+      home: HomePage(),
     );
   }
 }

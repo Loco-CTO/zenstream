@@ -1,36 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:zenstream/utils/theme_notifier.dart';
+import 'package:zenstream/widgets/layout.dart';
+import 'package:zenstream/pages/list.dart';
+import 'package:zenstream/widgets/featured_bar.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final themeNotifier = Provider.of<ThemeNotifier>(context);
+  _HomePageState createState() => _HomePageState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'ZenStream',
-          style: TextStyle(
-            fontSize: 24.0,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(themeNotifier.themeMode == ThemeMode.light
-                ? Icons.dark_mode
-                : Icons.light_mode),
-            onPressed: () {
-              themeNotifier.toggleTheme();
-            },
-          ),
-        ],
-      ),
+class _HomePageState extends State<HomePage> {
+  @override
+  Widget build(BuildContext context) {
+    return LayoutScaffold(
       body: Center(
-        child: Text('ようだい！'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const FeaturedBar(),
+            const SizedBox(height: 20),
+            const Text('ようだい！'),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ListPage()),
+                );
+              },
+              child: const Text('Go to List Page'),
+            ),
+          ],
+        ),
       ),
     );
   }

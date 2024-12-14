@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   provider: ^6.0.0
   bitsdojo_window: ^0.1.6
+  smooth_page_indicator: ^1.2.0+3
 
 dev_dependencies:
   flutter_test:
@@ -47,6 +48,14 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: "^0.14.2"
+
+flutter_launcher_icons:
+  image_path: "assets/icons/icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icons/icon.png"
+    icon_size: 48 # min:48, max:256, default: 48
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -81,3 +90,8 @@ fonts:
         fontWeight: 700
       - asset: fonts/GoNotoKurrent-Regular.ttf
         fontWeight: 400
+
+  - family: Nunito
+    fonts:
+      - asset: fonts/Nunito-Medium.ttf
+        fontWeight: 500

@@ -43,22 +43,34 @@ class FeaturedBarState extends State<FeaturedBar> {
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16.0),
-            child: SizedBox(
-              height: 300.0,
-              child: PageView(
-                controller: _pageController,
-                children: [
-                  Image.network('https://via.placeholder.com/800x300',
-                      fit: BoxFit.cover),
-                  Image.network('https://via.placeholder.com/800x300',
-                      fit: BoxFit.cover),
-                  Image.network('https://via.placeholder.com/800x300',
-                      fit: BoxFit.cover),
-                  Image.network('https://via.placeholder.com/800x300',
-                      fit: BoxFit.cover),
-                ],
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16.0),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color.fromARGB(88, 0, 0, 0),
+                  blurRadius: 10.0,
+                  offset: Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16.0),
+              child: SizedBox(
+                height: 300.0,
+                child: PageView(
+                  controller: _pageController,
+                  children: [
+                    Image.network('https://via.placeholder.com/800x300',
+                        fit: BoxFit.cover),
+                    Image.network('https://via.placeholder.com/800x300',
+                        fit: BoxFit.cover),
+                    Image.network('https://via.placeholder.com/800x300',
+                        fit: BoxFit.cover),
+                    Image.network('https://via.placeholder.com/800x300',
+                        fit: BoxFit.cover),
+                  ],
+                ),
               ),
             ),
           ),

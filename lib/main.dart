@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:zenstream/pages/home.dart';
 import 'package:zenstream/utils/theme_notifier.dart';
 import 'package:zenstream/utils/theme_style.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 
 void main() {
   runApp(
@@ -11,6 +12,15 @@ void main() {
       child: MyApp(),
     ),
   );
+
+  doWhenWindowReady(() {
+    final win = appWindow;
+    win.minSize = Size(600, 450);
+    win.size = Size(1280, 720);
+    win.alignment = Alignment.center;
+    win.title = "ZenStream";
+    win.show();
+  });
 }
 
 class MyApp extends StatelessWidget {

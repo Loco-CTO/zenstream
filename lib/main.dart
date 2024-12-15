@@ -9,7 +9,7 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
-      child: MyApp(),
+      child: ZenStream(),
     ),
   );
 
@@ -23,8 +23,8 @@ void main() {
   });
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ZenStream extends StatelessWidget {
+  const ZenStream({super.key});
 
   @override
   Widget build(BuildContext context) {

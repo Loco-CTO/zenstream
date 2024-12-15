@@ -52,11 +52,16 @@ dev_dependencies:
   flutter_launcher_icons: "^0.14.2"
 
 flutter_launcher_icons:
-  image_path: "assets/icons/icon.png"
+  android: true
+  ios: true
+  web:
+    generate: true
   windows:
     generate: true
-    image_path: "assets/icons/icon.png"
-    icon_size: 48 # min:48, max:256, default: 48
+    icon_size: 64
+  macos:
+    generate: true
+  image_path: "assets/icons/icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -67,6 +72,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/icons/icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

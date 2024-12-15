@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 
-final closeButtonColors = WindowButtonColors(
-  mouseOver: const Color.fromARGB(255, 93, 47, 211),
-  mouseDown: const Color.fromARGB(255, 70, 35, 159),
-);
-
 class LayoutScaffold extends StatefulWidget {
   final Widget body;
 
@@ -19,54 +14,79 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Row(
         children: [
-          WindowTitleBarBox(
-            child: Row(
+          Container(
+            width: 90,
+            decoration: BoxDecoration(
+              color: Colors.grey[850], // Sidebar background color
+            ),
+            child: Column(
               children: [
-                Expanded(
-                  child: MoveWindow(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(15, 5, 0, 0),
-                      child: Text(
-                        'ZenStream',
-                        style: TextStyle(
-                          fontSize: 13.0,
-                          fontFamily: 'Nunito',
-                          fontWeight: FontWeight.w500,
+                WindowTitleBarBox(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: MoveWindow(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(15, 5, 0, 0),
+                            child: Text(
+                              'ZenStream',
+                              style: TextStyle(
+                                fontSize: 13.0,
+                                fontFamily: 'Nunito',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                MinimizeWindowButton(),
-                MaximizeWindowButton(),
-                CloseWindowButton(colors: closeButtonColors),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.home, color: Colors.white),
+                        onPressed: () {},
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.list, color: Colors.white),
+                        onPressed: () {},
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.settings, color: Colors.white),
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          Row(
-            children: [
-              Column(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.home),
-                    onPressed: () {},
+          Expanded(
+            child: Column(
+              children: [
+                WindowTitleBarBox(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: MoveWindow(
+                          child:
+                              Container(), // Empty container to make the area draggable
+                        ),
+                      ),
+                      MinimizeWindowButton(),
+                      MaximizeWindowButton(),
+                      CloseWindowButton(),
+                    ],
                   ),
-                  IconButton(
-                    icon: Icon(Icons.list),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.settings),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-              Expanded(
-                child: widget.body,
-              ),
-            ],
+                ),
+                widget.body, // Ensure this starts at the top
+              ],
+            ),
           ),
         ],
       ),

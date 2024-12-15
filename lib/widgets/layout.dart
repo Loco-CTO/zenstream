@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:provider/provider.dart';
+import 'package:zenstream/utils/theme_notifier.dart';
 
 class LayoutScaffold extends StatefulWidget {
   final Widget body;
@@ -13,13 +15,17 @@ class LayoutScaffold extends StatefulWidget {
 class LayoutScaffoldState extends State<LayoutScaffold> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sidebarColor = theme.colorScheme.surfaceDim;
+    final iconColor = theme.iconTheme.color;
+
     return Scaffold(
       body: Row(
         children: [
           Container(
             width: 90,
             decoration: BoxDecoration(
-              color: Colors.grey[850], // Sidebar background color
+              color: sidebarColor, // Sidebar background color
             ),
             child: Column(
               children: [
@@ -29,7 +35,7 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
                       Expanded(
                         child: MoveWindow(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(15, 5, 0, 0),
+                            padding: const EdgeInsets.fromLTRB(15, 8, 0, 0),
                             child: Text(
                               'ZenStream',
                               style: TextStyle(
@@ -49,19 +55,26 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.home, color: Colors.white),
+                        icon: Icon(Icons.home, color: iconColor),
                         onPressed: () {},
                       ),
                       IconButton(
-                        icon: Icon(Icons.list, color: Colors.white),
+                        icon: Icon(Icons.list, color: iconColor),
                         onPressed: () {},
                       ),
                       IconButton(
-                        icon: Icon(Icons.settings, color: Colors.white),
+                        icon: Icon(Icons.settings, color: iconColor),
                         onPressed: () {},
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.brightness_6, color: iconColor),
+                  onPressed: () {
+                    Provider.of<ThemeNotifier>(context, listen: false)
+                        .toggleTheme();
+                  },
                 ),
               ],
             ),

@@ -50,17 +50,17 @@ class FeaturedBarState extends State<FeaturedBar> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
               child: SizedBox(
-                height: 300.0,
+                height: 400,
                 child: PageView(
                   controller: _pageController,
                   children: [
-                    Image.network('https://via.placeholder.com/800x300',
+                    Image.network('https://via.placeholder.com/800x400',
                         fit: BoxFit.cover),
-                    Image.network('https://via.placeholder.com/800x300',
+                    Image.network('https://via.placeholder.com/800x400',
                         fit: BoxFit.cover),
-                    Image.network('https://via.placeholder.com/800x300',
+                    Image.network('https://via.placeholder.com/800x400',
                         fit: BoxFit.cover),
-                    Image.network('https://via.placeholder.com/800x300',
+                    Image.network('https://via.placeholder.com/800x400',
                         fit: BoxFit.cover),
                   ],
                 ),

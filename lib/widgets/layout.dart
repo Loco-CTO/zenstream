@@ -13,6 +13,14 @@ class LayoutScaffold extends StatefulWidget {
 }
 
 class LayoutScaffoldState extends State<LayoutScaffold> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -103,7 +111,17 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
                     ],
                   ),
                 ),
-                widget.body,
+                Expanded(
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    controller: _scrollController,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.vertical,
+                      child: widget.body,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

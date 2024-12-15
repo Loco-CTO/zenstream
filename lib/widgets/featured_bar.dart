@@ -46,13 +46,6 @@ class FeaturedBarState extends State<FeaturedBar> {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16.0),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color.fromARGB(88, 0, 0, 0),
-                  blurRadius: 10.0,
-                  offset: Offset(0, 5),
-                ),
-              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16.0),

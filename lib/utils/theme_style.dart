@@ -6,8 +6,9 @@ class ThemeDataStyle {
     brightness: Brightness.light,
     colorScheme: ColorScheme.light(
       surface: const Color.fromARGB(255, 245, 248, 255),
+      surfaceDim: const Color.fromARGB(255, 235, 238, 245),
       primary: const Color.fromARGB(255, 160, 157, 219),
-      secondary: Colors.deepPurple.shade300,
+      secondary: const Color.fromARGB(255, 160, 157, 219),
     ),
   );
 
@@ -15,9 +16,10 @@ class ThemeDataStyle {
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: ColorScheme.dark(
-      surface: const Color.fromARGB(255, 35, 35, 37),
-      primary: Colors.deepPurple.shade500,
-      secondary: Colors.deepPurple.shade700,
+      surface: const Color.fromARGB(255, 22, 24, 29),
+      surfaceDim: const Color.fromARGB(255, 13, 15, 18),
+      primary: const Color.fromARGB(255, 160, 157, 219),
+      secondary: const Color.fromARGB(255, 160, 157, 219),
     ),
   );
 }

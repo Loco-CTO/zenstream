@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/widgets/layout.dart';
 import 'package:zenstream/widgets/featured_bar.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,7 +20,7 @@ class HomePageState extends State<HomePage> {
           children: [
             const FeaturedBar(),
             const SizedBox(height: 20),
-            const Text('ようだい！'),
+            Text('Server URL: ${dotenv.env['WEB_URL'] ?? 'Unknown'}'),
           ],
         ),
       ),

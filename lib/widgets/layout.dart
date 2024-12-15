@@ -56,25 +56,32 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
                     children: [
                       IconButton(
                         icon: Icon(Icons.home, color: iconColor),
+                        iconSize: 30.0,
                         onPressed: () {},
                       ),
                       IconButton(
                         icon: Icon(Icons.list, color: iconColor),
+                        iconSize: 30.0,
                         onPressed: () {},
                       ),
                       IconButton(
                         icon: Icon(Icons.settings, color: iconColor),
+                        iconSize: 30.0,
                         onPressed: () {},
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.brightness_6, color: iconColor),
-                  onPressed: () {
-                    Provider.of<ThemeNotifier>(context, listen: false)
-                        .toggleTheme();
-                  },
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: IconButton(
+                    icon: Icon(Icons.brightness_6, color: iconColor),
+                    iconSize: 25.0,
+                    onPressed: () {
+                      Provider.of<ThemeNotifier>(context, listen: false)
+                          .toggleTheme();
+                    },
+                  ),
                 ),
               ],
             ),

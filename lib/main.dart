@@ -4,8 +4,11 @@ import 'package:zenstream/pages/home.dart';
 import 'package:zenstream/utils/theme_notifier.dart';
 import 'package:zenstream/utils/theme_style.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),

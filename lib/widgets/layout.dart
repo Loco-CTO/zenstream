@@ -25,7 +25,7 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
           Container(
             width: 90,
             decoration: BoxDecoration(
-              color: sidebarColor, // Sidebar background color
+              color: sidebarColor,
             ),
             child: Column(
               children: [
@@ -87,8 +87,7 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
                     children: [
                       Expanded(
                         child: MoveWindow(
-                          child:
-                              Container(), // Empty container to make the area draggable
+                          child: Container(),
                         ),
                       ),
                       MinimizeWindowButton(),
@@ -97,7 +96,7 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
                     ],
                   ),
                 ),
-                widget.body, // Ensure this starts at the top
+                widget.body,
               ],
             ),
           ),

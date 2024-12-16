@@ -41,7 +41,7 @@ class FeaturedBarState extends State<FeaturedBar> {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [

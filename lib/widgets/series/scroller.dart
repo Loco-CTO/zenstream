@@ -52,50 +52,53 @@ class _ScrollerState extends State<Scroller> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 50.0, vertical: 20.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (widget.title != null)
-                Text(
-                  widget.title!,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              Row(
+    return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 20.0),
+        child: Column(
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 50.0, vertical: 5.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: _scrollLeft,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_forward),
-                    onPressed: _scrollRight,
+                  if (widget.title != null)
+                    Text(
+                      widget.title!,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: _scrollLeft,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward),
+                        onPressed: _scrollRight,
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 50.0),
-          child: GestureDetector(
-            onHorizontalDragStart: _onHorizontalDragStart,
-            onHorizontalDragUpdate: _onHorizontalDragUpdate,
-            onHorizontalDragEnd: _onHorizontalDragEnd,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: BouncingScrollPhysics(),
-              child: Row(
-                children: widget.items,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 50.0),
+              child: GestureDetector(
+                onHorizontalDragStart: _onHorizontalDragStart,
+                onHorizontalDragUpdate: _onHorizontalDragUpdate,
+                onHorizontalDragEnd: _onHorizontalDragEnd,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: BouncingScrollPhysics(),
+                  child: Row(
+                    children: widget.items,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ],
-    );
+          ],
+        ));
   }
 }

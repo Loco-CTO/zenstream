@@ -29,14 +29,11 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
           const Sidebar(),
           Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 WindowTitleBarBox(
                   child: Row(
                     children: [
-                      Expanded(
-                        child: MoveWindow(),
-                      ),
+                      Expanded(child: MoveWindow()),
                       MinimizeWindowButton(),
                       MaximizeWindowButton(),
                       CloseWindowButton(),

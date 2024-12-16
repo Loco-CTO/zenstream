@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/widgets/layout.dart';
 import 'package:zenstream/widgets/featured_bar.dart';
+import 'package:zenstream/widgets/series/scroller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HomePage extends StatefulWidget {
@@ -20,7 +21,28 @@ class HomePageState extends State<HomePage> {
           children: [
             const FeaturedBar(),
             const SizedBox(height: 20),
-            Text('Server URL: ${dotenv.env['WEB_URL'] ?? 'Unknown'}'),
+            Scroller(
+              title: 'Featured Items',
+              items: List.generate(
+                50,
+                (index) => Container(
+                  width: 250,
+                  color: const Color.fromARGB(255, 255, 255, 255),
+                  margin: const EdgeInsets.all(8.0),
+                  child: Image.network(
+                    'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Server Address: ${dotenv.env['WEB_URL'] ?? 'Unknown'}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontFamily: 'GoNotoKurrent',
+                  fontWeight: FontWeight.w400,
+                )),
           ],
         ),
       ),

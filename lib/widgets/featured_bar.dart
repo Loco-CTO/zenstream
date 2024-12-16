@@ -38,6 +38,8 @@ class FeaturedBarState extends State<FeaturedBar> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Stack(
@@ -50,7 +52,7 @@ class FeaturedBarState extends State<FeaturedBar> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
               child: SizedBox(
-                height: 400,
+                height: 450,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width,
@@ -58,13 +60,17 @@ class FeaturedBarState extends State<FeaturedBar> {
                   child: PageView(
                     controller: _pageController,
                     children: [
-                      Image.network('https://via.placeholder.com/800x400',
+                      Image.network(
+                          'http://localhost:8096/Items/da676de3fefca05971961fcb7ac4584a/Images/Backdrop/0?tag=6a3bbf7c2a38bccc8076cac288f1a18d&maxWidth=1920',
                           fit: BoxFit.cover),
-                      Image.network('https://via.placeholder.com/800x400',
+                      Image.network(
+                          'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Backdrop/0?tag=4a2ee96169101034d153c45e5fc97c88&maxWidth=1280',
                           fit: BoxFit.cover),
-                      Image.network('https://via.placeholder.com/800x400',
+                      Image.network(
+                          'http://localhost:8096/Items/3f8de89d877357e6e3921837ec2cb4eb/Images/Backdrop/0?tag=92e53a98106bebf5dc28c52c239c5919&maxWidth=1920',
                           fit: BoxFit.cover),
-                      Image.network('https://via.placeholder.com/800x400',
+                      Image.network(
+                          'http://localhost:8096/Items/0b9f7abd2dd49aa0f950dbe0c73dfa88/Images/Backdrop/0?tag=ccc8b33c5e893923c347f6eaad40df2b&maxWidth=1920',
                           fit: BoxFit.cover),
                     ],
                   ),
@@ -78,8 +84,8 @@ class FeaturedBarState extends State<FeaturedBar> {
               controller: _pageController,
               count: 4,
               effect: SlideEffect(
-                activeDotColor: Colors.blue,
-                dotColor: Colors.grey,
+                activeDotColor: theme.colorScheme.primary,
+                dotColor: theme.colorScheme.surfaceBright,
                 dotHeight: 10,
                 dotWidth: 10,
               ),

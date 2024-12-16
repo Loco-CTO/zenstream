@@ -22,16 +22,43 @@ class HomePageState extends State<HomePage> {
             const FeaturedBar(),
             const SizedBox(height: 20),
             Scroller(
-              title: 'Featured Items',
+              title: 'New Releases',
               items: List.generate(
                 50,
-                (index) => Container(
-                  width: 250,
-                  color: const Color.fromARGB(255, 255, 255, 255),
-                  margin: const EdgeInsets.all(8.0),
-                  child: Image.network(
-                    'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
-                    fit: BoxFit.cover,
+                (index) => MouseRegion(
+                  onEnter: (_) => setState(() {}),
+                  onExit: (_) => setState(() {}),
+                  child: Container(
+                    width: 220,
+                    margin: const EdgeInsets.all(8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Scroller(
+              title: 'New Releases',
+              items: List.generate(
+                50,
+                (index) => MouseRegion(
+                  onEnter: (_) => setState(() {}),
+                  onExit: (_) => setState(() {}),
+                  child: Container(
+                    width: 220,
+                    margin: const EdgeInsets.all(8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
               ),

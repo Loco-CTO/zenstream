@@ -41,7 +41,7 @@ class FeaturedBarState extends State<FeaturedBar> {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+      padding: const EdgeInsets.fromLTRB(50.0, 0, 50.0, 0),
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -52,7 +52,7 @@ class FeaturedBarState extends State<FeaturedBar> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
               child: SizedBox(
-                height: 450,
+                height: 560,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width,

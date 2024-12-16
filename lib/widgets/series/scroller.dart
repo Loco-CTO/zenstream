@@ -4,13 +4,13 @@ class Scroller extends StatefulWidget {
   final List<Widget> items;
   final String? title;
 
-  const Scroller({super.key, required this.items, this.title});
+  const Scroller({Key? key, required this.items, this.title}) : super(key: key);
 
   @override
-  ScrollerState createState() => ScrollerState();
+  _ScrollerState createState() => _ScrollerState();
 }
 
-class ScrollerState extends State<Scroller> {
+class _ScrollerState extends State<Scroller> {
   final ScrollController _scrollController = ScrollController();
   double _dragStartPosition = 0.0;
 
@@ -35,8 +35,8 @@ class ScrollerState extends State<Scroller> {
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    double dragDistance =
-        (details.globalPosition.dx - _dragStartPosition) * 0.5;
+    double dragDistance = (details.globalPosition.dx - _dragStartPosition) *
+        0.5; // Reduce drag distance for smoother scrolling
     _scrollController.jumpTo(_scrollController.offset - dragDistance);
     _dragStartPosition = details.globalPosition.dx;
   }

@@ -1,0 +1,82 @@
+import 'package:flutter/material.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:provider/provider.dart';
+import 'package:zenstream/utils/theme_notifier.dart';
+
+class Sidebar extends StatelessWidget {
+  const Sidebar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sidebarColor = theme.colorScheme.surface;
+    final iconColor = theme.iconTheme.color;
+
+    return Container(
+      width: 90,
+      decoration: BoxDecoration(
+        color: sidebarColor,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WindowTitleBarBox(
+            child: Row(
+              children: [
+                Expanded(
+                  child: MoveWindow(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(15, 8, 0, 0),
+                      child: Text(
+                        'ZenStream',
+                        style: TextStyle(
+                          fontSize: 13.0,
+                          fontFamily: 'Nunito',
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.home, color: iconColor),
+                  iconSize: 30.0,
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: Icon(Icons.list, color: iconColor),
+                  iconSize: 30.0,
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: Icon(Icons.settings, color: iconColor),
+                  iconSize: 30.0,
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20.0),
+            child: IconButton(
+              icon: Icon(Icons.brightness_6, color: iconColor),
+              iconSize: 25.0,
+              onPressed: () {
+                Provider.of<ThemeNotifier>(context, listen: false)
+                    .toggleTheme();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

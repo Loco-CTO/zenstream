@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:zenstream/pages/home.dart';
 import 'package:zenstream/utils/theme_notifier.dart';
 import 'package:zenstream/utils/theme_style.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:zenstream/widgets/splash_screen.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -39,7 +39,7 @@ class ZenStream extends StatelessWidget {
       theme: ThemeDataStyle.light,
       darkTheme: ThemeDataStyle.dark,
       themeMode: themeNotifier.themeMode,
-      home: HomePage(),
+      home: SplashScreen(),
     );
   }
 }

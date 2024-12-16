@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:zenstream/widgets/sidebar.dart';
 
-class BaseLayoutScaffold extends StatefulWidget {
+class LayoutScaffold extends StatefulWidget {
   final Widget body;
 
-  const BaseLayoutScaffold({required this.body, super.key});
+  const LayoutScaffold({required this.body, super.key});
 
   @override
-  BaseLayoutScaffoldState createState() => BaseLayoutScaffoldState();
+  LayoutScaffoldState createState() => LayoutScaffoldState();
 }
 
-class BaseLayoutScaffoldState extends State<BaseLayoutScaffold> {
+class LayoutScaffoldState extends State<LayoutScaffold> {
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -23,58 +23,38 @@ class BaseLayoutScaffoldState extends State<BaseLayoutScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [
-                Expanded(
-                  child: MoveWindow(
-                    child: Container(),
-                  ),
-                ),
-                MinimizeWindowButton(),
-                MaximizeWindowButton(),
-                CloseWindowButton(),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Scrollbar(
-              thumbVisibility: true,
-              controller: _scrollController,
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                scrollDirection: Axis.vertical,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight:
-                        MediaQuery.of(context).size.height - kToolbarHeight,
-                  ),
-                  child: widget.body,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class LayoutScaffold extends StatelessWidget {
-  final Widget body;
-
-  const LayoutScaffold({required this.body, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BaseLayoutScaffold(
       body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Sidebar(),
           Expanded(
-            child: body,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                WindowTitleBarBox(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: MoveWindow(),
+                      ),
+                      MinimizeWindowButton(),
+                      MaximizeWindowButton(),
+                      CloseWindowButton(),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    controller: _scrollController,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      child: widget.body,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

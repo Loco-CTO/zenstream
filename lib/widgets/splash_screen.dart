@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/pages/home.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:zenstream/widgets/layout.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -28,13 +29,33 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseLayoutScaffold(
-      body: Center(
-        child: Image.asset(
-          'assets/icons/icon.png',
-          width: 150,
-          height: 150,
-        ),
+    return Scaffold(
+      body: Column(
+        children: [
+          WindowTitleBarBox(
+            child: Row(
+              children: [
+                Expanded(
+                  child: MoveWindow(
+                    child: Container(),
+                  ),
+                ),
+                MinimizeWindowButton(),
+                MaximizeWindowButton(),
+                CloseWindowButton(),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Image.asset(
+                'assets/icons/icon.png',
+                width: 150,
+                height: 150,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

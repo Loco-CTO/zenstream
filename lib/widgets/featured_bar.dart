@@ -51,18 +51,23 @@ class FeaturedBarState extends State<FeaturedBar> {
               borderRadius: BorderRadius.circular(16.0),
               child: SizedBox(
                 height: 400,
-                child: PageView(
-                  controller: _pageController,
-                  children: [
-                    Image.network('https://via.placeholder.com/800x400',
-                        fit: BoxFit.cover),
-                    Image.network('https://via.placeholder.com/800x400',
-                        fit: BoxFit.cover),
-                    Image.network('https://via.placeholder.com/800x400',
-                        fit: BoxFit.cover),
-                    Image.network('https://via.placeholder.com/800x400',
-                        fit: BoxFit.cover),
-                  ],
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width,
+                  ),
+                  child: PageView(
+                    controller: _pageController,
+                    children: [
+                      Image.network('https://via.placeholder.com/800x400',
+                          fit: BoxFit.cover),
+                      Image.network('https://via.placeholder.com/800x400',
+                          fit: BoxFit.cover),
+                      Image.network('https://via.placeholder.com/800x400',
+                          fit: BoxFit.cover),
+                      Image.network('https://via.placeholder.com/800x400',
+                          fit: BoxFit.cover),
+                    ],
+                  ),
                 ),
               ),
             ),

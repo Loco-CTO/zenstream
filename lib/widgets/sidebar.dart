@@ -9,7 +9,7 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sidebarColor = theme.colorScheme.surface;
+    final sidebarColor = theme.colorScheme.surfaceDim;
     final iconColor = theme.iconTheme.color;
 
     return Container(

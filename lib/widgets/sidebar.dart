@@ -13,7 +13,7 @@ class Sidebar extends StatelessWidget {
     final iconColor = theme.iconTheme.color;
 
     return Container(
-      width: 90,
+      width: 92,
       decoration: BoxDecoration(
         color: sidebarColor,
       ),

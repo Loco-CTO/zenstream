@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/pages/home.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:zenstream/widgets/layout.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

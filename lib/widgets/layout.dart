@@ -63,49 +63,56 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
             Expanded(
               child: Column(
                 children: [
-                  WindowTitleBarBox(
-                    child: Row(
-                      children: [
-                        Expanded(child: MoveWindow()),
-                        MinimizeWindowButton(),
-                        MaximizeWindowButton(),
-                        CloseWindowButton(),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ScrollbarTheme(
-                      data: ScrollbarThemeData(
-                        thumbColor: WidgetStateProperty.resolveWith<Color>(
-                          (Set<WidgetState> states) {
-                            if (_isScrolling || _isMouseNearEdge) {
-                              return const Color.fromARGB(255, 195, 163, 255)
-                                  .withAlpha((0.2 * 255).toInt());
-                            }
-                            return Colors.transparent;
-                          },
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                            top: 8.0, right: 4.0, bottom: 8.0),
-                        child: Scrollbar(
-                          controller: _scrollController,
-                          thumbVisibility: true,
-                          thickness: 8.0,
-                          radius: Radius.circular(4.0),
-                          child: SingleChildScrollView(
-                            controller: _scrollController,
-                            child: widget.body,
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
+                  _buildWindowTitleBar(),
+                  _buildScrollableContent(),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWindowTitleBar() {
+    return WindowTitleBarBox(
+      child: Row(
+        children: [
+          Expanded(child: MoveWindow()),
+          MinimizeWindowButton(),
+          MaximizeWindowButton(),
+          CloseWindowButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrollableContent() {
+    return Expanded(
+      child: ScrollbarTheme(
+        data: ScrollbarThemeData(
+          thumbColor: WidgetStateProperty.resolveWith<Color>(
+            (Set<WidgetState> states) {
+              if (_isScrolling || _isMouseNearEdge) {
+                return const Color.fromARGB(255, 195, 163, 255)
+                    .withAlpha((0.2 * 255).toInt());
+              }
+              return Colors.transparent;
+            },
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8.0, right: 4.0, bottom: 8.0),
+          child: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: true,
+            thickness: 8.0,
+            radius: Radius.circular(4.0),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: widget.body,
+            ),
+          ),
         ),
       ),
     );

@@ -10,72 +10,77 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sidebarColor = theme.colorScheme.surfaceDim;
-    final iconColor = theme.iconTheme.color;
+    final iconColor = theme.iconTheme.color ?? Colors.black;
 
     return Container(
       width: 92,
-      decoration: BoxDecoration(
-        color: sidebarColor,
-      ),
+      decoration: BoxDecoration(color: sidebarColor),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [
-                Expanded(
-                  child: MoveWindow(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(15, 8, 0, 0),
-                      child: Text(
-                        'ZenStream',
-                        style: TextStyle(
-                          fontSize: 13.0,
-                          fontFamily: 'Nunito',
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+          _buildTitleBar(),
+          _buildIconButtons(iconColor),
+          _buildThemeToggleButton(context, iconColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitleBar() {
+    return WindowTitleBarBox(
+      child: Row(
+        children: [
+          Expanded(
+            child: MoveWindow(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(15, 8, 0, 0),
+                child: Text(
+                  'ZenStream',
+                  style: TextStyle(
+                    fontSize: 13.0,
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
-          ),
-          Flexible(
-            fit: FlexFit.loose,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.home, color: iconColor),
-                  iconSize: 30.0,
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: Icon(Icons.list, color: iconColor),
-                  iconSize: 30.0,
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: Icon(Icons.settings, color: iconColor),
-                  iconSize: 30.0,
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20.0),
-            child: IconButton(
-              icon: Icon(Icons.brightness_6, color: iconColor),
-              iconSize: 25.0,
-              onPressed: () {
-                Provider.of<ThemeNotifier>(context, listen: false)
-                    .toggleTheme();
-              },
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIconButtons(Color iconColor) {
+    return Flexible(
+      fit: FlexFit.loose,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildIconButton(Icons.home, iconColor, () {}),
+          _buildIconButton(Icons.list, iconColor, () {}),
+          _buildIconButton(Icons.settings, iconColor, () {}),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, Color color, VoidCallback onPressed) {
+    return IconButton(
+      icon: Icon(icon, color: color),
+      iconSize: 30.0,
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _buildThemeToggleButton(BuildContext context, Color iconColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: IconButton(
+        icon: Icon(Icons.brightness_6, color: iconColor),
+        iconSize: 25.0,
+        onPressed: () {
+          Provider.of<ThemeNotifier>(context, listen: false).toggleTheme();
+        },
       ),
     );
   }

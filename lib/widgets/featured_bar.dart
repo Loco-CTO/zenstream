@@ -105,27 +105,24 @@ class FeaturedBarState extends State<FeaturedBar> {
     return [
       _buildPageViewItem(
         '絶園のテンペスト ～THE CIVILIZATION BLASTER～',
-        '''ある日、魔法使いの姫君が樽に詰められ置き去りにされた。ある日、ひとりの少女が唐突に殺され、犯人が捕まらず時が過ぎた。そしてある日、復讐と魔法をめぐる、時間と空間を超えた戦いが始まった！
-正気と狂気、理性と知性。自信と確信。悲劇で不合理な世の中で物語は始まる―――。
+        '''ある日、魔法使いの姫君が樽に詰められ置き去りにされた。ある日、ひとりの少女が唐突に殺され、犯人が捕まらず時が過ぎた。そしてある日、復讐と魔法をめぐる、時間と空間を超えた戦いが始まった！正気と狂気、理性と知性。自信と確信。悲劇で不合理な世の中で物語は始まる―――。
 
-“はじまりの樹”の加護を受ける魔法使いの一族・鎖部一族。その姫宮にして、最強の魔法使い鎖部葉風。彼女は“はじまりの樹”と対をなし、破壊の力を司る“絶園の樹”を復活させようとする同族の鎖部左門によって、無人島に樽に詰められて置き去りにされてしまう。
-葉風が孤島から流したメッセージを、妹・愛花を殺した犯人に復讐を誓う少年・不破真広が拾う。
-真広は犯人を魔法の力で見つけることを条件に、葉風に協力する。そして真広の親友で、愛花の恋人である滝川吉野は、危機を真広に助けられたことから、その復讐劇に巻き込まれることになる。''',
+“はじまりの樹”の加護を受ける魔法使いの一族・鎖部一族。その姫宮にして、最強の魔法使い鎖部葉風。彼女は“はじまりの樹”と対をなし、破壊の力を司る“絶園の樹”を復活させようとする同族の鎖部左門によって、無人島に樽に詰められて置き去りにされてしまう。葉風が孤島から流したメッセージを、妹・愛花を殺した犯人に復讐を誓う少年・不破真広が拾う。真広は犯人を魔法の力で見つけることを条件に、葉風に協力する。そして真広の親友で、愛花の恋人である滝川吉野は、危機を真広に助けられたことから、その復讐劇に巻き込まれることになる。''',
         'http://localhost:8096/Items/da676de3fefca05971961fcb7ac4584a/Images/Backdrop/0?tag=6a3bbf7c2a38bccc8076cac288f1a18d&maxWidth=1920',
       ),
       _buildPageViewItem(
-        'Show Title 2',
-        'Description of Show 2',
+        'コードギアス 反逆のルルーシュ',
+        '他人を支配する不思議な力を与えられた後、追放された王子は、すべての強力な帝国に対する反乱の覆面をしたリーダーになります',
         'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Backdrop/0?tag=4a2ee96169101034d153c45e5fc97c88&maxWidth=1280',
       ),
       _buildPageViewItem(
-        'Show Title 3',
-        'Description of Show 3',
+        '陰の実力者になりたくて!',
+        '彼は子供の頃から、影の中で活動するシャドウブローカーになりたいと思っていました。 彼は体を鍛え、世界で可能な限りのことをすべて行い、ある日トレーニングセッションの1つで魔法に遭遇するまで、 しかし、これは魔法ではなく、実際には車のヘッドライトでした。 そして、彼は死にました。',
         'http://localhost:8096/Items/3f8de89d877357e6e3921837ec2cb4eb/Images/Backdrop/0?tag=92e53a98106bebf5dc28c52c239c5919&maxWidth=1920',
       ),
       _buildPageViewItem(
-        'Show Title 4',
-        'Description of Show 4',
+        'ようこそ実力至上主義の教室へ',
+        'この社会は平等であるか否か。真の『実力』とは何か——。東京都高度育成高等学校。それは徹底した実力至上主義を掲げ、進学率・就職率１００％を誇る進学校である。そこに入学して１年Ｄクラスに配属された綾小路清隆だったが、学校は実力至上主義の看板とは裏腹に、生徒に現金と同価値のポイントを月１０万円分も与え、授業や生活態度についても放任主義を貫く。夢のような高校生活の中で、散財を続け自堕落な日々を送るクラスメイトたち。しかし、間もなく彼らは学校のシステムの真実を知り、絶望の淵に叩き落とされるのだった……！落ちこぼれが集められたＤクラスから少年少女たちが見出すものは、世界の矛盾か、それとも正当なる実力社会か。',
         'http://localhost:8096/Items/0b9f7abd2dd49aa0f950dbe0c73dfa88/Images/Backdrop/0?tag=ccc8b33c5e893923c347f6eaad40df2b&maxWidth=1920',
       ),
     ];
@@ -140,11 +137,26 @@ class FeaturedBarState extends State<FeaturedBar> {
           width: double.infinity,
           height: double.infinity,
         ),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context)
+                    .colorScheme
+                    .surface
+                    .withAlpha((0.8 * 255).toInt()),
+                Colors.transparent,
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+          ),
+        ),
         Center(
           child: Align(
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 600),
+              constraints: BoxConstraints(maxWidth: 450),
               child: Padding(
                 padding: const EdgeInsets.only(left: 20.0),
                 child: Column(
@@ -153,29 +165,23 @@ class FeaturedBarState extends State<FeaturedBar> {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineLarge
-                          ?.copyWith(
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .headlineLarge
-                                  ?.color,
-                              fontWeight: FontWeight.bold,
-                              fontSize: Theme.of(context)
-                                  .textTheme
-                                  .headlineLarge
-                                  ?.fontSize),
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .displayMedium
+                                    ?.color,
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
                     SizedBox(height: 10),
                     Text(
                       description,
-                      maxLines: 6,
+                      maxLines: 5,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                             color:
                                 Theme.of(context).textTheme.displaySmall?.color,
-                            fontWeight: FontWeight.w400,
                             fontSize: 16,
                           ),
                     ),
@@ -188,11 +194,14 @@ class FeaturedBarState extends State<FeaturedBar> {
         Positioned(
           bottom: 20,
           right: 20,
-          child: IconButton(
-            icon: Icon(Icons.info, color: Colors.white),
+          child: TextButton(
             onPressed: () {
               // Handle info button press
             },
+            child: Text(
+              'More Info',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ),
       ],
@@ -217,8 +226,8 @@ class FeaturedBarState extends State<FeaturedBar> {
           controller: _pageController,
           count: 4,
           effect: WormEffect(
-            dotColor: theme.primaryColorLight,
-            activeDotColor: theme.primaryColor,
+            dotColor: theme.colorScheme.surface,
+            activeDotColor: theme.colorScheme.primary,
             dotHeight: 12.0,
             dotWidth: 12.0,
           ),

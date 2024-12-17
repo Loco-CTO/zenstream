@@ -41,7 +41,9 @@ class LoginScreenState extends State<LoginScreen> {
       final token = jsonDecode(response.body)['AccessToken'];
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);
-      Navigator.of(context).pushReplacementNamed('/home');
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
     } else {
       setState(() {
         _errorMessage = 'Login failed. Please check your credentials.';

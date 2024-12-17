@@ -5,6 +5,8 @@ import 'package:zenstream/utils/theme_style.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zenstream/widgets/splash_screen.dart';
+import 'package:zenstream/pages/home.dart';
+import 'package:zenstream/pages/login.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -12,14 +14,14 @@ Future<void> main() async {
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
-      child: ZenStream(),
+      child: const ZenStream(),
     ),
   );
 
   doWhenWindowReady(() {
     final win = appWindow;
-    win.minSize = Size(600, 450);
-    win.size = Size(1280, 720);
+    win.minSize = const Size(600, 450);
+    win.size = const Size(1280, 720);
     win.alignment = Alignment.center;
     win.title = "ZenStream";
     win.show();
@@ -39,7 +41,12 @@ class ZenStream extends StatelessWidget {
       theme: ThemeDataStyle.light,
       darkTheme: ThemeDataStyle.dark,
       themeMode: themeNotifier.themeMode,
-      home: SplashScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/home': (context) => const HomePage(),
+        '/login': (context) => const LoginScreen(),
+      },
     );
   }
 }

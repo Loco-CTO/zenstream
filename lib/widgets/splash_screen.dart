@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/pages/home.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:zenstream/widgets/base_layout.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,31 +24,7 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          _buildWindowTitleBar(),
-          _buildLogo(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWindowTitleBar() {
-    return WindowTitleBarBox(
-      child: Row(
-        children: [
-          Expanded(child: MoveWindow(child: Container())),
-          MinimizeWindowButton(),
-          MaximizeWindowButton(),
-          CloseWindowButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return Expanded(
+    return BaseLayout(
       child: Center(
         child: Image.asset(
           'assets/icons/icon.png',

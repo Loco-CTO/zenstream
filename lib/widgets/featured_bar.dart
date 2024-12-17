@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'dart:async';
@@ -144,9 +146,10 @@ class FeaturedBarState extends State<FeaturedBar> {
                 Theme.of(context)
                     .colorScheme
                     .surface
-                    .withAlpha((0.8 * 255).toInt()),
+                    .withAlpha((0.6 * 255).toInt()),
                 Colors.transparent,
               ],
+              stops: [0.0, 0.75],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
@@ -192,15 +195,31 @@ class FeaturedBarState extends State<FeaturedBar> {
           ),
         ),
         Positioned(
-          bottom: 20,
-          right: 20,
-          child: TextButton(
-            onPressed: () {
-              // Handle info button press
-            },
-            child: Text(
-              'More Info',
-              style: TextStyle(color: Colors.white),
+          bottom: 50,
+          right: 50,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16.0),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surface
+                    .withAlpha((0.2 * 255).toInt()),
+                child: TextButton(
+                  onPressed: () {
+                    // Handle info button press
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 36.0, vertical: 24.0),
+                  ),
+                  child: Text(
+                    '詳細を確認',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -211,27 +230,22 @@ class FeaturedBarState extends State<FeaturedBar> {
   Widget _buildPageIndicator(ThemeData theme) {
     return Positioned(
       bottom: 10.0,
-      child: GestureDetector(
-        onTapDown: (details) {
-          RenderBox box = context.findRenderObject() as RenderBox;
-          Offset localOffset = box.globalToLocal(details.globalPosition);
-          int tappedIndex = (localOffset.dx / (box.size.width / 4)).floor();
+      child: SmoothPageIndicator(
+        controller: _pageController,
+        count: 4,
+        effect: WormEffect(
+          dotColor: theme.colorScheme.surface,
+          activeDotColor: theme.colorScheme.primary,
+          dotHeight: 12.0,
+          dotWidth: 12.0,
+        ),
+        onDotClicked: (index) {
           _pageController.animateToPage(
-            tappedIndex,
+            index,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeIn,
           );
         },
-        child: SmoothPageIndicator(
-          controller: _pageController,
-          count: 4,
-          effect: WormEffect(
-            dotColor: theme.colorScheme.surface,
-            activeDotColor: theme.colorScheme.primary,
-            dotHeight: 12.0,
-            dotWidth: 12.0,
-          ),
-        ),
       ),
     );
   }

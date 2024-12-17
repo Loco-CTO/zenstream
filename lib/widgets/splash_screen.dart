@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:zenstream/pages/home.dart';
+import 'package:zenstream/utils/precheck.dart';
 import 'package:zenstream/widgets/base_layout.dart';
+import 'package:zenstream/pages/home.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,7 +17,8 @@ class SplashScreenState extends State<SplashScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          MaterialPageRoute(
+              builder: (context) => const PreCheck(nextPage: HomePage())),
         );
       }
     });

@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zenstream/widgets/splash_screen.dart';
 import 'package:zenstream/pages/home.dart';
 import 'package:zenstream/pages/login.dart';
+import 'package:zenstream/pages/precheck.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -46,6 +47,7 @@ class ZenStream extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/home': (context) => const HomePage(),
         '/login': (context) => const LoginScreen(),
+        '/precheck': (context) => const PreCheck(),
       },
     );
   }

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class ItemBanner extends StatefulWidget {
@@ -15,10 +13,10 @@ class ItemBanner extends StatefulWidget {
   });
 
   @override
-  _ItemBannerState createState() => _ItemBannerState();
+  ItemBannerState createState() => ItemBannerState();
 }
 
-class _ItemBannerState extends State<ItemBanner> {
+class ItemBannerState extends State<ItemBanner> {
   bool _isHovered = false;
   bool _isTitleHovered = false;
   bool _isPlayButtonHovered = false;

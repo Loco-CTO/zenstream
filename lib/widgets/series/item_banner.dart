@@ -144,6 +144,7 @@ class ItemBannerState extends State<ItemBanner> {
         style: Theme.of(context).textTheme.displaySmall?.copyWith(
               fontSize: 12,
               overflow: TextOverflow.ellipsis,
+              color: Theme.of(context).textTheme.displaySmall?.color,
             ),
       ),
     );

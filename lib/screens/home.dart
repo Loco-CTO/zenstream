@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/widgets/layout.dart';
 import 'package:zenstream/widgets/featured_bar.dart';
+import 'package:zenstream/widgets/series/item_banner.dart';
 import 'package:zenstream/widgets/series/scroller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -42,12 +43,11 @@ class HomeScreenState extends State<HomeScreen> {
           child: Container(
             width: 220,
             margin: const EdgeInsets.all(8),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
-                fit: BoxFit.cover,
-              ),
+            child: ItemBanner(
+              imageUrl:
+                  'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
+              title: 'コードギアス：反逆のルルーシュ',
+              subtitle: 'シーズン2 第一話：超合集国決議第壱號 ',
             ),
           ),
         ),

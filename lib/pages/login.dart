@@ -23,19 +23,15 @@ class LoginScreenState extends State<LoginScreen> {
       Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Authorization':
+            'MediaBrowser Client="ZenStream", Device="Rystal", DeviceId="1234", Version="0.0.1b"',
       },
       body: jsonEncode({
-        'Username': _usernameController.text,
-        'Pw': _passwordController.text,
+        'Username': _usernameController.text.trim(),
+        'Pw': _passwordController.text.trim(),
       }),
     );
-
-    print(url);
-    print(_usernameController.text);
-    print(_passwordController.text);
-    print(response.statusCode);
-    print(response.body);
 
     if (response.statusCode == 200) {
       final token = jsonDecode(response.body)['AccessToken'];

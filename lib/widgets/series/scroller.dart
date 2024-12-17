@@ -4,13 +4,13 @@ class Scroller extends StatefulWidget {
   final String? title;
   final List<Widget> items;
 
-  const Scroller({Key? key, this.title, required this.items}) : super(key: key);
+  const Scroller({super.key, this.title, required this.items});
 
   @override
-  _ScrollerState createState() => _ScrollerState();
+  ScrollerState createState() => ScrollerState();
 }
 
-class _ScrollerState extends State<Scroller> {
+class ScrollerState extends State<Scroller> {
   final ScrollController _scrollController = ScrollController();
   double _dragStartPosition = 0.0;
 

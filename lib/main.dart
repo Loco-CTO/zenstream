@@ -4,8 +4,7 @@ import 'package:zenstream/utils/theme_notifier.dart';
 import 'package:zenstream/utils/theme_style.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:zenstream/utils/route_observer.dart';
-import 'package:zenstream/routes/app_routes.dart';
+import 'package:zenstream/routes/routes.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -41,8 +40,7 @@ class ZenStream extends StatelessWidget {
       darkTheme: ThemeDataStyle.dark,
       themeMode: themeNotifier.themeMode,
       initialRoute: '/',
-      navigatorObservers: [PreCheckRouteObserver()],
-      routes: AppRoutes.getRoutes(),
+      onGenerateRoute: AppRoutes.generateRoute,
     );
   }
 }

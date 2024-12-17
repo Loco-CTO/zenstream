@@ -22,6 +22,7 @@ class LoginScreenState extends State<LoginScreen> {
         _usernameController.text,
         _passwordController.text,
       );
+
       final token = response['AccessToken'];
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);

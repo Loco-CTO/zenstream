@@ -14,7 +14,7 @@ class JellyfinApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization':
-            'MediaBrowser Client="ZenStream", Device="ZenStream", DeviceId="1234", Version="0.0.1b"',
+            'MediaBrowser Client="Windows", Device="ZenStream", DeviceId="1234", Version="0.0.1b"',
       },
       body: jsonEncode({
         'Username': username.trim(),
@@ -37,7 +37,7 @@ class JellyfinApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization':
-            'MediaBrowser Token="$token", Client="ZenStream", Device="ZenStream", DeviceId="1234", Version="0.0.1b"',
+            'MediaBrowser Token="$token", Client="Windows", Device="ZenStream", DeviceId="1234", Version="0.0.1b"',
       },
     );
 

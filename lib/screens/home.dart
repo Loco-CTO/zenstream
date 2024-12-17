@@ -4,14 +4,14 @@ import 'package:zenstream/widgets/featured_bar.dart';
 import 'package:zenstream/widgets/series/scroller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  HomePageState createState() => HomePageState();
+  HomeScreenState createState() => HomeScreenState();
 }
 
-class HomePageState extends State<HomePage> {
+class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return LayoutScaffold(

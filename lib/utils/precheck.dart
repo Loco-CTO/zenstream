@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zenstream/pages/login.dart';
+import 'package:zenstream/screens/login.dart';
 import 'package:zenstream/jellyfin/api_services.swagger.dart';
 
 class PreCheck extends StatefulWidget {

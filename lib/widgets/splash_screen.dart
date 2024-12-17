@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zenstream/utils/precheck.dart';
 import 'package:zenstream/widgets/base_layout.dart';
-import 'package:zenstream/pages/home.dart';
+import 'package:zenstream/screens/home.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -18,7 +18,7 @@ class SplashScreenState extends State<SplashScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-              builder: (context) => const PreCheck(nextPage: HomePage())),
+              builder: (context) => const PreCheck(nextPage: HomeScreen())),
         );
       }
     });

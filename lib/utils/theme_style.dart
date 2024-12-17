@@ -24,7 +24,7 @@ class ThemeDataStyle {
       fontSize: 20,
       fontWeight: FontWeight.w700,
       letterSpacing: 0.25,
-      color: const Color.fromARGB(255, 52, 52, 52),
+      color: const Color.fromARGB(255, 100, 100, 100),
     ),
     headlineLarge: baseTextStyle.copyWith(
       fontSize: 36,
@@ -57,7 +57,7 @@ class ThemeDataStyle {
       fontSize: 20,
       fontWeight: FontWeight.w700,
       letterSpacing: 0.25,
-      color: const Color.fromARGB(255, 184, 184, 184),
+      color: const Color.fromARGB(255, 155, 155, 155),
     ),
     headlineLarge: baseTextStyle.copyWith(
       fontSize: 36,

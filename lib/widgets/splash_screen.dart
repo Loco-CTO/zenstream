@@ -6,17 +6,19 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  SplashScreenState createState() => SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
     Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
     });
   }
 

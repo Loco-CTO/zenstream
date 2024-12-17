@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 
 class Scroller extends StatefulWidget {
-  final List<Widget> items;
   final String? title;
+  final List<Widget> items;
 
-  const Scroller({super.key, required this.items, this.title});
+  const Scroller({Key? key, this.title, required this.items}) : super(key: key);
 
   @override
-  ScrollerState createState() => ScrollerState();
+  _ScrollerState createState() => _ScrollerState();
 }
 
-class ScrollerState extends State<Scroller> {
+class _ScrollerState extends State<Scroller> {
   final ScrollController _scrollController = ScrollController();
   double _dragStartPosition = 0.0;
 
   void _scrollLeft() {
     _scrollController.animateTo(
-      _scrollController.offset - 1500,
-      duration: const Duration(milliseconds: 300),
+      _scrollController.offset - 200,
+      duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
   }
 
   void _scrollRight() {
     _scrollController.animateTo(
-      _scrollController.offset + 1500,
-      duration: const Duration(milliseconds: 300),
+      _scrollController.offset + 200,
+      duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
   }
@@ -53,52 +53,54 @@ class ScrollerState extends State<Scroller> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 20.0),
-        child: Column(
-          children: [
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 50.0, vertical: 5.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (widget.title != null)
-                    Text(
-                      widget.title!,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: _scrollLeft,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_forward),
-                        onPressed: _scrollRight,
-                      ),
-                    ],
+      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 5.0),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 65.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (widget.title != null)
+                  Text(
+                    widget.title!,
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                ],
-              ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: _scrollLeft,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_forward),
+                      onPressed: _scrollRight,
+                    ),
+                  ],
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 50.0),
-              child: GestureDetector(
-                onHorizontalDragStart: _onHorizontalDragStart,
-                onHorizontalDragUpdate: _onHorizontalDragUpdate,
-                onHorizontalDragEnd: _onHorizontalDragEnd,
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  physics: BouncingScrollPhysics(),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 50.0),
+            child: GestureDetector(
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: ClipRect(
                   child: Row(
                     children: widget.items,
                   ),
                 ),
               ),
             ),
-          ],
-        ));
+          ),
+        ],
+      ),
+    );
   }
 }

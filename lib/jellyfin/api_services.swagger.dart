@@ -1,9 +1,54 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:platform/platform.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class JellyfinApiService {
-  final String baseUrl = dotenv.env['WEB_URL'] ?? '';
+  final String baseUrl;
+
+  JellyfinApiService() : baseUrl = dotenv.env['WEB_URL'] ?? 'Unknown';
+
+  String _getClient() {
+    final platform = LocalPlatform();
+    if (platform.isWindows) return 'Windows';
+    if (platform.isLinux) return 'Linux';
+    if (platform.isMacOS) return 'MacOS';
+    if (platform.isAndroid) return 'Android';
+    if (platform.isIOS) return 'iOS';
+    return 'Unknown';
+  }
+
+  Future<String> _getDeviceId() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (LocalPlatform().isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id;
+    } else if (LocalPlatform().isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? 'Unknown';
+    } else if (LocalPlatform().isWindows) {
+      final windowsInfo = await deviceInfo.windowsInfo;
+      return windowsInfo.deviceId;
+    } else if (LocalPlatform().isLinux) {
+      final linuxInfo = await deviceInfo.linuxInfo;
+      return linuxInfo.machineId ?? 'Unknown';
+    } else if (LocalPlatform().isMacOS) {
+      final macInfo = await deviceInfo.macOsInfo;
+      return macInfo.systemGUID ?? 'Unknown';
+    }
+    return 'Unknown';
+  }
+
+  Future<String> _buildAuthorizationHeader({String? token}) async {
+    final client = _getClient();
+    final deviceId = await _getDeviceId();
+    if (token != null) {
+      return 'MediaBrowser Token="$token", Client="$client", Device="ZenStream", DeviceId="$deviceId", Version="0.0.1b"';
+    } else {
+      return 'MediaBrowser Client="$client", Device="ZenStream", DeviceId="$deviceId", Version="0.0.1b"';
+    }
+  }
 
   Future<Map<String, dynamic>> authenticateByName(
       String username, String password) async {
@@ -13,8 +58,7 @@ class JellyfinApiService {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization':
-            'MediaBrowser Client="Windows", Device="ZenStream", DeviceId="1234", Version="0.0.1b"',
+        'Authorization': await _buildAuthorizationHeader(),
       },
       body: jsonEncode({
         'Username': username.trim(),
@@ -36,8 +80,7 @@ class JellyfinApiService {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization':
-            'MediaBrowser Token="$token", Client="Windows", Device="ZenStream", DeviceId="1234", Version="0.0.1b"',
+        'Authorization': await _buildAuthorizationHeader(token: token),
       },
     );
 

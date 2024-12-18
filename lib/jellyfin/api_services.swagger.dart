@@ -3,9 +3,11 @@ import 'package:http/http.dart' as http;
 import 'package:platform/platform.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:logger/logger.dart';
 
 class JellyfinApiService {
   final String baseUrl;
+  final Logger _logger = Logger();
 
   JellyfinApiService() : baseUrl = dotenv.env['WEB_URL'] ?? 'Unknown';
 
@@ -53,6 +55,7 @@ class JellyfinApiService {
   Future<Map<String, dynamic>> authenticateByName(
       String username, String password) async {
     final url = '$baseUrl/Users/AuthenticateByName';
+    _logger.i('Authenticating user: $username');
     final response = await http.post(
       Uri.parse(url),
       headers: {
@@ -66,9 +69,13 @@ class JellyfinApiService {
       }),
     );
 
+    _logger.i('Response status code: ${response.statusCode}');
+
     if (response.statusCode == 200) {
+      _logger.i('Authentication successful for user: $username');
       return jsonDecode(response.body);
     } else {
+      _logger.e('Authentication failed for user: $username');
       throw Exception('Failed to authenticate');
     }
   }

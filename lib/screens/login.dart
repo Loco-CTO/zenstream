@@ -13,6 +13,8 @@ class LoginScreen extends StatefulWidget {
 class LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _usernameFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
   String? _errorMessage;
 
   Future<void> _login() async {
@@ -41,67 +43,73 @@ class LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return BaseLayout(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.all(50.0),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceDim,
-              borderRadius: BorderRadius.circular(10.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 10.0,
-                  offset: Offset(0, 5),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10.0,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Login',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/icons/icon.png',
-                  width: 100,
-                  height: 100,
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: _usernameController,
+                focusNode: _usernameFocusNode,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  errorText: _errorMessage,
                 ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20.0),
-                  child: SizedBox(
-                    width: 350,
-                    child: TextField(
-                      controller: _usernameController,
-                      decoration: const InputDecoration(labelText: 'Username'),
-                    ),
-                  ),
+                onSubmitted: (_) {
+                  _passwordFocusNode.requestFocus();
+                },
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                focusNode: _passwordFocusNode,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  errorText: _errorMessage,
                 ),
-                SizedBox(
-                  width: 350,
-                  child: TextField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    obscureText: true,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _login,
-                  child: const Text('Login'),
-                ),
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 20),
-                  Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ],
-              ],
-            ),
+                obscureText: true,
+                onSubmitted: (_) {
+                  _login();
+                },
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _login,
+                child: Text('Login'),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _usernameFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
   }
 }

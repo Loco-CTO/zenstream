@@ -198,14 +198,14 @@ class FeaturedBarState extends State<FeaturedBar> {
           bottom: 50,
           right: 50,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(50.0),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
               child: Container(
                 color: Theme.of(context)
                     .colorScheme
                     .surface
-                    .withAlpha((0.2 * 255).toInt()),
+                    .withAlpha((0.25 * 255).toInt()),
                 child: TextButton(
                   onPressed: () {
                     // Handle info button press

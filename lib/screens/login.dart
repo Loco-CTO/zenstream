@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenstream/widgets/base_layout.dart';
+import 'package:zenstream/jellyfin/api_services.swagger.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,33 +16,20 @@ class LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
 
   Future<void> _login() async {
-    final url = '${dotenv.env['WEB_URL']}/Users/AuthenticateByName';
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: jsonEncode({
-        'Username': _usernameController.text,
-        'Pw': _passwordController.text,
-      }),
-    );
+    final apiService = JellyfinApiService();
+    try {
+      final response = await apiService.authenticateByName(
+        _usernameController.text,
+        _passwordController.text,
+      );
 
-    print(url);
-    print(_usernameController.text);
-    print(_passwordController.text);
-    print(response.statusCode);
-    print(response.body);
-
-    if (response.statusCode == 200) {
-      final token = jsonDecode(response.body)['AccessToken'];
+      final token = response['AccessToken'];
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
-    } else {
+    } catch (e) {
       setState(() {
         _errorMessage = 'Login failed. Please check your credentials.';
       });

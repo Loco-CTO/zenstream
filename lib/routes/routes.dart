@@ -9,7 +9,7 @@ class AppRoutes {
     switch (settings.name) {
       case '/':
         return MaterialPageRoute(
-          builder: (context) => PreCheck(nextPage: const SplashScreen()),
+          builder: (context) => const SplashScreen(),
         );
       case '/home':
         return MaterialPageRoute(
@@ -17,11 +17,11 @@ class AppRoutes {
         );
       case '/login':
         return MaterialPageRoute(
-          builder: (context) => PreCheck(nextPage: const LoginScreen()),
+          builder: (context) => const LoginScreen(),
         );
       default:
         return MaterialPageRoute(
-          builder: (context) => PreCheck(nextPage: const SplashScreen()),
+          builder: (context) => const SplashScreen(),
         );
     }
   }

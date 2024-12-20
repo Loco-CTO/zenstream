@@ -25,7 +25,17 @@
 
 ## Key Features
 
-- Responsive design
+- Stream media from your jellyfin server
+- Very very cool design
+- Offline support for media
+- Trickplay support
+- Intro/Credit skipping
+- Light/Dark mode
+- Load subtitles from file
+- Supported platforms
+  - Web
+  - Windows
+  - Andriod (coming soon)
 
 ## Built with
 This software is built with the following technologies

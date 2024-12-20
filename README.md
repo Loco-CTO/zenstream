@@ -26,7 +26,7 @@
 > [!IMPORTANT]
 > This project is still under development, and some features may not work as expected. Please report any issues you encounter.
 
-## Key Features
+## ✨ Key Features
 
 - Stream media from your jellyfin server
 - Very very cool design
@@ -40,26 +40,26 @@
   - Windows
   - Andriod (coming soon)
 
-## Download
+## 💾 Download
 
 The latest release can be downloaded from the [releases page](). <br>
 The docker version can be pulled with the following tag: `rystal/zenstream:latest`
 > [!TIP]
 > You can also build the app from the source code, by including your server url as an environment variable `WEB_URL`, users will no longer need to input the server url.
 
-## Built with
+## 💻 Built with
 This software is built with the following technologies
 
 - [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
 - [![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev/)
 
 
-## Development
+## 🛠️ Development
 
-### Prerequisites
+### Installing Flutter
 
-- Flutter SDK
-- Dart SDK
+To install Flutter, follow the instructions on the [Flutter installation guide](https://flutter.dev/docs/get-started/install).
+
 
 ### Installation
 
@@ -88,6 +88,6 @@ flutter build <platform>
 Replace `<platform>` with `apk`, `ios`, `web`, `windows`, `macos`, or `linux`.
 
 
-## License
+## 📜 License
 
 Distributed under the MIT License. See [`LICENSE`](/LICENSE) for more information.

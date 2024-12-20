@@ -23,9 +23,6 @@
 
 </div>
 
----
-<br>
-
 > [!IMPORTANT]
 > This project is still under development, and some features may not work as expected. Please report any issues you encounter.
 

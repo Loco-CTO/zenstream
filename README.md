@@ -37,6 +37,13 @@
   - Windows
   - Andriod (coming soon)
 
+## Download
+
+The latest release can be downloaded from the [releases page](). <br>
+The docker version can be pulled with the following tag: `rystal/zenstream:latest`
+> [!TIP]
+> You can also build the app from the source code, by including your server url as an environment variable `WEB_URL`, users will no longer need to input the server url.
+
 ## Built with
 This software is built with the following technologies
 

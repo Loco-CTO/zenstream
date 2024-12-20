@@ -28,13 +28,13 @@
 
 ## ✨ Key Features
 
-- Stream media from your jellyfin server
+- Stream media from your jellyfin server (coming soon)
 - Very very cool design
-- Offline support for media
-- Trickplay support
-- Intro/Credit skipping
+- Offline support for media (coming soon)
+- Trickplay support (coming soon)
+- Intro/Credit skipping (coming soon)
 - Light/Dark mode
-- Load subtitles from file
+- Load subtitles from file (coming soon)
 - Supported platforms
   - Web
   - Windows

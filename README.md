@@ -38,6 +38,7 @@
 - Supported platforms
   - Web
   - Windows
+  - Docker
   - Andriod (coming soon)
 
 ## 💾 Download

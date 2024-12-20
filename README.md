@@ -24,7 +24,7 @@
 </div>
 
 > [!IMPORTANT]
-> This project is still under development, and some features may not work as expected. Please report any issues you encounter.
+> This project is still under development, and some features may not work as expected. Please report any [issues](https://github.com/Rystal-Team/zenstream/issues) you encounter.
 
 ## ✨ Key Features
 

@@ -197,30 +197,60 @@ class FeaturedBarState extends State<FeaturedBar> {
         Positioned(
           bottom: 50,
           right: 50,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(50.0),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-              child: Container(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surface
-                    .withAlpha((0.25 * 255).toInt()),
-                child: TextButton(
-                  onPressed: () {
-                    // Handle info button press
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 36.0, vertical: 24.0),
-                  ),
-                  child: Text(
-                    '詳細を確認',
-                    style: TextStyle(color: Colors.white),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(50.0),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: Container(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .secondary
+                        .withAlpha((0.85 * 255).toInt()),
+                    child: TextButton(
+                      onPressed: () {
+                        // Handle play button press
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 36.0, vertical: 24.0),
+                      ),
+                      child: Text(
+                        '再生',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+              SizedBox(width: 5),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(50.0),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: Container(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withAlpha((0.25 * 255).toInt()),
+                    child: TextButton(
+                      onPressed: () {
+                        // Handle info button press
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 36.0, vertical: 24.0),
+                      ),
+                      child: Text(
+                        '詳細を確認',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

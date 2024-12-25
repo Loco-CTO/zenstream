@@ -1,6 +1,6 @@
 <div align="center">
   <a href="./assets/icons/icon.png">
-    <img src="./assets/icons/icon.png" alt="Logo" width="80" height="80">
+    <img src="./assets/icons/icon.png" alt="Logo" width="120" height="120">
   </a>
   <h3 align="center">ZenStream</h3>
   <p align="center">

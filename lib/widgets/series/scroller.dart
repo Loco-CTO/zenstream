@@ -16,7 +16,7 @@ class ScrollerState extends State<Scroller> {
 
   void _scrollLeft() {
     _scrollController.animateTo(
-      _scrollController.offset - 200,
+      _scrollController.offset - 1200,
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
@@ -24,7 +24,7 @@ class ScrollerState extends State<Scroller> {
 
   void _scrollRight() {
     _scrollController.animateTo(
-      _scrollController.offset + 200,
+      _scrollController.offset + 1200,
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );

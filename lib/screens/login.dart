@@ -26,6 +26,7 @@ class LoginScreenState extends State<LoginScreen> {
       final token = response['AccessToken'];
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);
+
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }

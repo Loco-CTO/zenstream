@@ -22,6 +22,7 @@ class SplashScreenState extends State<SplashScreen> {
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+    if (!mounted) return;
     if (token == null) {
       _navigateToLogin();
     } else {

@@ -48,7 +48,7 @@ The docker version can be pulled with the following tag: `rystal/zenstream:lates
 > [!TIP]
 > You can also build the app from the source code, by including your server url as an environment variable `WEB_URL`, users will no longer need to input the server url.
 
-## 💻 Built with
+## 🚀 Built with
 This software is built with the following technologies
 
 - [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)

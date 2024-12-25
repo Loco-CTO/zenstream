@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenstream/utils/theme_notifier.dart';
+import 'package:zenstream/screens/login.dart';
 
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
@@ -21,6 +23,7 @@ class Sidebar extends StatelessWidget {
           _buildTitleBar(),
           _buildIconButtons(iconColor),
           _buildThemeToggleButton(context, iconColor),
+          _buildLogoutButton(context, iconColor),
         ],
       ),
     );
@@ -80,6 +83,24 @@ class Sidebar extends StatelessWidget {
         iconSize: 25.0,
         onPressed: () {
           Provider.of<ThemeNotifier>(context, listen: false).toggleTheme();
+        },
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context, Color iconColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: IconButton(
+        icon: Icon(Icons.logout, color: iconColor),
+        iconSize: 25.0,
+        onPressed: () async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('token');
+          if (!context.mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
         },
       ),
     );

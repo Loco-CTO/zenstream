@@ -14,6 +14,7 @@ class PreCheck extends StatefulWidget {
 
 class PreCheckState extends State<PreCheck> {
   final JellyfinApiService _apiService = JellyfinApiService();
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -26,6 +27,9 @@ class PreCheckState extends State<PreCheck> {
     final token = prefs.getString('token');
     if (token == null || !(await _apiService.checkAuthToken(token))) {
       await prefs.remove('token');
+      setState(() {
+        _errorMessage = 'You have been logged out';
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -42,9 +46,14 @@ class PreCheckState extends State<PreCheck> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
-        child: CircularProgressIndicator(),
+        child: _errorMessage != null
+            ? Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              )
+            : const CircularProgressIndicator(),
       ),
     );
   }

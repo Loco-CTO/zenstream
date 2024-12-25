@@ -92,7 +92,9 @@ Replace `<platform>` with `apk`, `ios`, `web`, `windows`, `macos`, or `linux`.
 ## 📜 License
 
 Distributed under the MIT License. See [`LICENSE`](/LICENSE) for more information.
-
+<br>
+<br>
+<br>
 <div align="center">
 	<p><small>Copyright © 2024 <a href="https://rystal.net">Rystal</a>. All rights reserved.</small></p>
 </div>

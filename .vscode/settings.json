@@ -1,4 +1,5 @@
 {
     "editor.indentSize": "tabSize",
     "editor.detectIndentation": true,
+    "cmake.ignoreCMakeListsMissing": true,
 }

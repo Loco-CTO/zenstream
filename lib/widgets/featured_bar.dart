@@ -25,7 +25,7 @@ class FeaturedBarState extends State<FeaturedBar> {
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 8), (Timer timer) {
       int nextPage = (_pageController.page?.toInt() ?? 0) + 1;
-      if (nextPage >= 4) {
+      if (nextPage >= 5) {
         nextPage = 0;
       }
       _pageController.animateToPage(
@@ -109,23 +109,30 @@ class FeaturedBarState extends State<FeaturedBar> {
         '絶園のテンペスト ～THE CIVILIZATION BLASTER～',
         '''ある日、魔法使いの姫君が樽に詰められ置き去りにされた。ある日、ひとりの少女が唐突に殺され、犯人が捕まらず時が過ぎた。そしてある日、復讐と魔法をめぐる、時間と空間を超えた戦いが始まった！正気と狂気、理性と知性。自信と確信。悲劇で不合理な世の中で物語は始まる―――。
 
-“はじまりの樹”の加護を受ける魔法使いの一族・鎖部一族。その姫宮にして、最強の魔法使い鎖部葉風。彼女は“はじまりの樹”と対をなし、破壊の力を司る“絶園の樹”を復活させようとする同族の鎖部左門によって、無人島に樽に詰められて置き去りにされてしまう。葉風が孤島から流したメッセージを、妹・愛花を殺した犯人に復讐を誓う少年・不破真広が拾う。真広は犯人を魔法の力で見つけることを条件に、葉風に協力する。そして真広の親友で、愛花の恋人である滝川吉野は、危機を真広に助けられたことから、その復讐劇に巻き込まれることになる。''',
-        'http://localhost:8096/Items/da676de3fefca05971961fcb7ac4584a/Images/Backdrop/0?tag=6a3bbf7c2a38bccc8076cac288f1a18d&maxWidth=1920',
+        “はじまりの樹”の加護を受ける魔法使いの一族・鎖部一族。その姫宮にして、最強の魔法使い鎖部葉風。彼女は“はじまりの樹”と対をなし、破壊の力を司る“絶園の樹”を復活させようとする同族の鎖部左門によって、無人島に樽に詰められて置き去りにされてしまう。葉風が孤島から流したメッセージを、妹・愛花を殺した犯人に復讐を誓う少年・不破真広が拾う。真広は犯人を魔法の力で見つけることを条件に、葉風に協力する。そして真広の親友で、愛花の恋人である滝川吉野は、危機を真広に助けられたことから、その復讐劇に巻き込まれることになる。''',
+        'http://localhost:8096/Items/da676de3fefca05971961fcb7ac4584a/Images/Backdrop/0?tag=6a3bbf7c2a38bccc8076cac288f1a18d',
+      ),
+      _buildPageViewItem(
+        'Fate/EXTRA Last Encore',
+        '''それは、忘れ去られた月で 開演 ひらかれる"EXTRA"の物語。
+        
+        月に存在するあらゆる願いを叶える力を持った霊子コンピュータ「ムーンセル・オートマトン」。ムーンセル内につくられた霊子虚構世界「SE.RA.PH」。"聖杯"をかけた、 魔術師 ウィザードと 英霊 サーヴァントによる、新たな月の聖杯戦争、開演。''',
+        'http://localhost:8096/Items/0f1acb07c7dd5b6664a9108885f30160/Images/Backdrop/0?tag=614d4bf84e20306cef8510772c7cd48e',
       ),
       _buildPageViewItem(
         'コードギアス 反逆のルルーシュ',
         '他人を支配する不思議な力を与えられた後、追放された王子は、すべての強力な帝国に対する反乱の覆面をしたリーダーになります',
-        'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Backdrop/0?tag=4a2ee96169101034d153c45e5fc97c88&maxWidth=1280',
+        'http://localhost:8096/Items/329e09da86188f42c1f304be2a60946a/Images/Backdrop/0?tag=4a2ee96169101034d153c45e5fc97c88',
       ),
       _buildPageViewItem(
         '陰の実力者になりたくて!',
         '彼は子供の頃から、影の中で活動するシャドウブローカーになりたいと思っていました。 彼は体を鍛え、世界で可能な限りのことをすべて行い、ある日トレーニングセッションの1つで魔法に遭遇するまで、 しかし、これは魔法ではなく、実際には車のヘッドライトでした。 そして、彼は死にました。',
-        'http://localhost:8096/Items/3f8de89d877357e6e3921837ec2cb4eb/Images/Backdrop/0?tag=92e53a98106bebf5dc28c52c239c5919&maxWidth=1920',
+        'http://localhost:8096/Items/3f8de89d877357e6e3921837ec2cb4eb/Images/Backdrop/0?tag=92e53a98106bebf5dc28c52c239c5919',
       ),
       _buildPageViewItem(
         'ようこそ実力至上主義の教室へ',
         'この社会は平等であるか否か。真の『実力』とは何か——。東京都高度育成高等学校。それは徹底した実力至上主義を掲げ、進学率・就職率１００％を誇る進学校である。そこに入学して１年Ｄクラスに配属された綾小路清隆だったが、学校は実力至上主義の看板とは裏腹に、生徒に現金と同価値のポイントを月１０万円分も与え、授業や生活態度についても放任主義を貫く。夢のような高校生活の中で、散財を続け自堕落な日々を送るクラスメイトたち。しかし、間もなく彼らは学校のシステムの真実を知り、絶望の淵に叩き落とされるのだった……！落ちこぼれが集められたＤクラスから少年少女たちが見出すものは、世界の矛盾か、それとも正当なる実力社会か。',
-        'http://localhost:8096/Items/0b9f7abd2dd49aa0f950dbe0c73dfa88/Images/Backdrop/0?tag=ccc8b33c5e893923c347f6eaad40df2b&maxWidth=1920',
+        'http://localhost:8096/Items/0b9f7abd2dd49aa0f950dbe0c73dfa88/Images/Backdrop/0?tag=ccc8b33c5e893923c347f6eaad40df2b',
       ),
     ];
   }
@@ -262,7 +269,7 @@ class FeaturedBarState extends State<FeaturedBar> {
       bottom: 10.0,
       child: SmoothPageIndicator(
         controller: _pageController,
-        count: 4,
+        count: 5,
         effect: WormEffect(
           dotColor: theme.colorScheme.surface,
           activeDotColor: theme.colorScheme.primary,

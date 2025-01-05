@@ -73,7 +73,6 @@ class LoginScreenState extends State<LoginScreen> {
                   child: SizedBox(
                     width: 350,
                     child: TextField(
-                      
                       controller: _usernameController,
                       decoration: const InputDecoration(labelText: 'Username'),
                     ),

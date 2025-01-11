@@ -222,17 +222,17 @@ class FeaturedBarState extends State<FeaturedBar> {
                       icon: const Icon(
                         Icons.play_arrow,
                         color: Colors.white,
-                        size: 32,
+                        size: 28,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 18.0,
-                        vertical: 10.0,
+                        horizontal: 30.0,
+                        vertical: 16.0,
                       ),
                     ),
                   ),
                 ),
               ),
-              SizedBox(width: 5),
+              SizedBox(width: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(50.0),
                 child: BackdropFilter(
@@ -248,7 +248,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 36.0, vertical: 24.0),
+                            horizontal: 36.0, vertical: 28.0),
                       ),
                       child: Text(
                         '詳細を確認',

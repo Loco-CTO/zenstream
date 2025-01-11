@@ -213,7 +213,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                   child: Container(
                     color: Theme.of(context)
                         .colorScheme
-                        .secondary
+                        .primary
                         .withAlpha((0.85 * 255).toInt()),
                     child: IconButton(
                       onPressed: () {
@@ -225,7 +225,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                         size: 32,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10.0,
+                        horizontal: 18.0,
                         vertical: 10.0,
                       ),
                     ),

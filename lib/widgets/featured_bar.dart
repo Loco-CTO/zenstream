@@ -244,7 +244,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                         .withAlpha((0.25 * 255).toInt()),
                     child: TextButton(
                       onPressed: () {
-                        // Handle info button press
+                        // TODO: Handle info button press
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(

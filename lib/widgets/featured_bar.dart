@@ -215,17 +215,18 @@ class FeaturedBarState extends State<FeaturedBar> {
                         .colorScheme
                         .secondary
                         .withAlpha((0.85 * 255).toInt()),
-                    child: TextButton(
+                    child: IconButton(
                       onPressed: () {
-                        // Handle play button press
+                        // TODO: Handle play button press
                       },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 36.0, vertical: 24.0),
+                      icon: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 32,
                       ),
-                      child: Text(
-                        '再生',
-                        style: TextStyle(color: Colors.white),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10.0,
+                        vertical: 10.0,
                       ),
                     ),
                   ),
@@ -269,12 +270,14 @@ class FeaturedBarState extends State<FeaturedBar> {
       bottom: 10.0,
       child: SmoothPageIndicator(
         controller: _pageController,
-        count: 5,
-        effect: WormEffect(
-          dotColor: theme.colorScheme.surface,
+        count: 15,
+        effect: ScrollingDotsEffect(
+          dotColor: theme.colorScheme.onSurface,
           activeDotColor: theme.colorScheme.primary,
-          dotHeight: 12.0,
-          dotWidth: 12.0,
+          dotHeight: 8.0,
+          dotWidth: 8.0,
+          maxVisibleDots: 7,
+          spacing: 12.0,
         ),
         onDotClicked: (index) {
           _pageController.animateToPage(

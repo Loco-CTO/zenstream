@@ -16,37 +16,49 @@ class SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    Future.delayed(const Duration(seconds: 2), () {
+      _checkLoginStatus();
+    });
+  }
+
+  void _navigateToLogin() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen(),
+      ),
+    );
   }
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+
     if (!mounted) return;
+
     if (token == null) {
       _navigateToLogin();
     } else {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-            builder: (context) => PreCheck(nextPage: const HomeScreen())),
+          builder: (context) => PreCheck(nextPage: const HomeScreen()),
+        ),
       );
     }
-  }
-
-  void _navigateToLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return BaseLayout(
       child: Center(
-        child: Image.asset(
-          'assets/icons/icon.png',
-          width: 150,
-          height: 150,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/icons/icon.png',
+              width: 150,
+              height: 150,
+            ),
+          ],
         ),
       ),
     );

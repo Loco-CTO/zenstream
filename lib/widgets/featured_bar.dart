@@ -11,6 +11,8 @@ class FeaturedBar extends StatefulWidget {
   FeaturedBarState createState() => FeaturedBarState();
 }
 
+const animateToPageDuration = Duration(milliseconds: 250);
+
 class FeaturedBarState extends State<FeaturedBar> {
   final PageController _pageController = PageController();
   Timer? _timer;
@@ -116,7 +118,7 @@ class FeaturedBarState extends State<FeaturedBar> {
         'Fate/EXTRA Last Encore',
         '''それは、忘れ去られた月で 開演 ひらかれる"EXTRA"の物語。
         
-        月に存在するあらゆる願いを叶える力を持った霊子コンピュータ「ムーンセル・オートマトン」。ムーンセル内につくられた霊子虚構世界「SE.RA.PH」。"聖杯"をかけた、 魔術師 ウィザードと 英霊 サーヴァントによる、新たな月の聖杯戦争、開演。''',
+月に存在するあらゆる願いを叶える力を持った霊子コンピュータ「ムーンセル・オートマトン」。ムーンセル内につくられた霊子虚構世界「SE.RA.PH」。"聖杯"をかけた、 魔術師 ウィザードと 英霊 サーヴァントによる、新たな月の聖杯戦争、開演。''',
         'http://localhost:8096/Items/0f1acb07c7dd5b6664a9108885f30160/Images/Backdrop/0?tag=614d4bf84e20306cef8510772c7cd48e',
       ),
       _buildPageViewItem(
@@ -225,8 +227,8 @@ class FeaturedBarState extends State<FeaturedBar> {
                         size: 28,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 30.0,
-                        vertical: 16.0,
+                        horizontal: 32.0,
+                        vertical: 22.0,
                       ),
                     ),
                   ),
@@ -248,7 +250,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 36.0, vertical: 28.0),
+                            horizontal: 44.0, vertical: 34.0),
                       ),
                       child: Text(
                         '詳細を確認',
@@ -270,15 +272,16 @@ class FeaturedBarState extends State<FeaturedBar> {
       bottom: 10.0,
       child: SmoothPageIndicator(
         controller: _pageController,
-        count: 15,
+        count: 5,
         effect: ScrollingDotsEffect(
-          dotColor: theme.colorScheme.onSurface,
-          activeDotColor: theme.colorScheme.primary,
-          dotHeight: 8.0,
-          dotWidth: 8.0,
-          maxVisibleDots: 7,
-          spacing: 12.0,
-        ),
+            dotColor: theme.colorScheme.onSurface,
+            activeDotColor: theme.colorScheme.primary,
+            dotHeight: 8.0,
+            dotWidth: 8.0,
+            maxVisibleDots: 7,
+            activeDotScale: 1.5,
+            spacing: 8.0,
+            radius: 4.0),
         onDotClicked: (index) {
           _pageController.animateToPage(
             index,

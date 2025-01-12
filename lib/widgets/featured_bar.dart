@@ -243,14 +243,14 @@ class FeaturedBarState extends State<FeaturedBar> {
                     color: Theme.of(context)
                         .colorScheme
                         .surface
-                        .withAlpha((0.25 * 255).toInt()),
+                        .withAlpha((0.5 * 255).toInt()),
                     child: TextButton(
                       onPressed: () {
                         // TODO: Handle info button press
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 44.0, vertical: 30.0),
+                            horizontal: 40.0, vertical: 30.0),
                       ),
                       child: Text(
                         '詳細を確認',

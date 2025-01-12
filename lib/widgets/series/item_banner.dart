@@ -55,11 +55,11 @@ class ItemBannerState extends State<ItemBanner> {
                 ),
                 borderRadius: BorderRadius.circular(8.0),
                 border: Border.all(
-                  color: _isHovered
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.transparent,
-                  width: 2.0,
-                ),
+                    color: _isHovered
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
+                    width: 1.0,
+                    strokeAlign: BorderSide.strokeAlignOutside),
               ),
               child: Stack(
                 children: [

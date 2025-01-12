@@ -228,7 +228,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32.0,
-                        vertical: 22.0,
+                        vertical: 18.0,
                       ),
                     ),
                   ),
@@ -250,7 +250,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 44.0, vertical: 34.0),
+                            horizontal: 44.0, vertical: 30.0),
                       ),
                       child: Text(
                         '詳細を確認',

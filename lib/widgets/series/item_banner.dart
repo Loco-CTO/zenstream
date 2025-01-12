@@ -96,7 +96,7 @@ class ItemBannerState extends State<ItemBanner> {
             // TODO: Handle play button tap
           },
           child: Icon(
-            Icons.play_circle_fill,
+            Icons.play_arrow_rounded,
             color: _isPlayButtonHovered
                 ? Theme.of(context).colorScheme.secondary
                 : Theme.of(context).colorScheme.primary,

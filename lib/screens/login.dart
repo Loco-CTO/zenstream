@@ -75,6 +75,7 @@ class LoginScreenState extends State<LoginScreen> {
                     child: TextField(
                       controller: _usernameController,
                       decoration: const InputDecoration(labelText: 'Username'),
+                      onSubmitted: (_) => _login(),
                     ),
                   ),
                 ),
@@ -84,6 +85,7 @@ class LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     decoration: const InputDecoration(labelText: 'Password'),
                     obscureText: true,
+                    onSubmitted: (_) => _login(),
                   ),
                 ),
                 const SizedBox(height: 20),

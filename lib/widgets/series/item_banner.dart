@@ -54,12 +54,15 @@ class ItemBannerState extends State<ItemBanner> {
                   fit: BoxFit.cover,
                 ),
                 borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(
-                    color: _isHovered
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.transparent,
-                    width: 1.0,
-                    strokeAlign: BorderSide.strokeAlignOutside),
+                boxShadow: _isHovered
+                    ? [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary,
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        )
+                      ]
+                    : [],
               ),
               child: Stack(
                 children: [

@@ -30,7 +30,7 @@ class FeaturedBarState extends State<FeaturedBar> {
       }
       _pageController.animateToPage(
         nextPage,
-        duration: const Duration(milliseconds: 300),
+        duration: animateToPageDuration,
         curve: Curves.easeIn,
       );
     });
@@ -73,7 +73,7 @@ class FeaturedBarState extends State<FeaturedBar> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16.0),
         child: SizedBox(
-          height: 560,
+          height: 760,
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width,
@@ -82,12 +82,12 @@ class FeaturedBarState extends State<FeaturedBar> {
               onPanUpdate: (details) {
                 if (details.delta.dx < 0) {
                   _pageController.nextPage(
-                    duration: const Duration(milliseconds: 300),
+                    duration: animateToPageDuration,
                     curve: Curves.easeIn,
                   );
                 } else if (details.delta.dx > 0) {
                   _pageController.previousPage(
-                    duration: const Duration(milliseconds: 300),
+                    duration: animateToPageDuration,
                     curve: Curves.easeIn,
                   );
                 }
@@ -282,7 +282,7 @@ class FeaturedBarState extends State<FeaturedBar> {
         onDotClicked: (index) {
           _pageController.animateToPage(
             index,
-            duration: const Duration(milliseconds: 300),
+            duration: animateToPageDuration,
             curve: Curves.easeIn,
           );
         },

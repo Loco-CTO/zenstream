@@ -28,7 +28,7 @@ class LoginScreenState extends State<LoginScreen> {
       await prefs.setString("token", token);
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed("/home");
+        Navigator.pushNamed(context, '/home');
       }
     } catch (e) {
       setState(() {

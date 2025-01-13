@@ -35,7 +35,11 @@ class PreCheckState extends State<PreCheck> {
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => widget.nextPage),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                widget.nextPage,
+            transitionDuration: Duration.zero,
+          ),
         );
       });
     }

@@ -99,6 +99,7 @@ class ThemeDataStyle {
       surfaceTint: const Color.fromARGB(65, 22, 24, 29),
       primary: const Color.fromARGB(255, 162, 116, 255),
       secondary: const Color.fromARGB(255, 70, 44, 123),
+      outline: const Color.fromARGB(255, 174, 146, 228),
       tertiary: const Color.fromARGB(255, 255, 255, 255),
       onSurface: const Color.fromARGB(255, 255, 255, 255),
     ),

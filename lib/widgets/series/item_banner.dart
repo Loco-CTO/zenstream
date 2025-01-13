@@ -58,7 +58,7 @@ class ItemBannerState extends State<ItemBanner> {
                 boxShadow: _isHovered
                     ? [
                         BoxShadow(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: Theme.of(context).colorScheme.outline,
                           blurRadius: 4,
                           spreadRadius: 1,
                         )

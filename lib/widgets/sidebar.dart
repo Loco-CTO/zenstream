@@ -18,10 +18,9 @@ class Sidebar extends StatelessWidget {
       width: 92,
       decoration: BoxDecoration(color: sidebarColor),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           _buildTitleBar(),
-          _buildIconButtons(iconColor),
+          const Spacer(),
           _buildThemeToggleButton(context, iconColor),
           _buildLogoutButton(context, iconColor),
         ],
@@ -50,28 +49,6 @@ class Sidebar extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildIconButtons(Color iconColor) {
-    return Flexible(
-      fit: FlexFit.loose,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildIconButton(Icons.home, iconColor, () {}),
-          _buildIconButton(Icons.list, iconColor, () {}),
-          _buildIconButton(Icons.settings, iconColor, () {}),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon, Color color, VoidCallback onPressed) {
-    return IconButton(
-      icon: Icon(icon, color: color),
-      iconSize: 30.0,
-      onPressed: onPressed,
     );
   }
 

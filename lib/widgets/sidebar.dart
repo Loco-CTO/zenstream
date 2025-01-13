@@ -3,7 +3,6 @@ import "package:bitsdojo_window/bitsdojo_window.dart";
 import "package:provider/provider.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:zenstream/utils/theme_notifier.dart";
-import "package:zenstream/screens/login.dart";
 
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
@@ -75,9 +74,7 @@ class Sidebar extends StatelessWidget {
           final prefs = await SharedPreferences.getInstance();
           await prefs.remove("token");
           if (!context.mounted) return;
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
+          Navigator.pushNamed(context, '/login');
         },
       ),
     );

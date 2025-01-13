@@ -1,9 +1,6 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:zenstream/widgets/base_layout.dart";
-import "package:zenstream/screens/login.dart";
-import "package:zenstream/utils/precheck.dart";
-import "package:zenstream/screens/home.dart";
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -22,11 +19,7 @@ class SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateToLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => const LoginScreen(),
-      ),
-    );
+    Navigator.pushNamed(context, '/login');
   }
 
   Future<void> _checkLoginStatus() async {
@@ -38,11 +31,7 @@ class SplashScreenState extends State<SplashScreen> {
     if (token == null) {
       _navigateToLogin();
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => PreCheck(nextPage: const HomeScreen()),
-        ),
-      );
+      Navigator.pushNamed(context, '/home');
     }
   }
 

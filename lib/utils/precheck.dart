@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:zenstream/screens/login.dart";
 import "package:zenstream/jellyfin/api_services.swagger.dart";
 
 class PreCheck extends StatefulWidget {
@@ -31,9 +30,7 @@ class PreCheckState extends State<PreCheck> {
         _errorMessage = "You have been logged out";
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        Navigator.pushNamed(context, '/login');
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {

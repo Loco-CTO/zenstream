@@ -29,7 +29,7 @@ class AppRoutes {
       case "/test":
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const TestScreen(),
+              PreCheck(nextPage: const TestScreen()),
           transitionDuration: Duration.zero,
         );
       default:

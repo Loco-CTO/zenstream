@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import "package:flutter/material.dart";
+import "package:shared_preferences/shared_preferences.dart";
 
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.light;
@@ -22,13 +22,13 @@ class ThemeNotifier extends ChangeNotifier {
 
   void _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? 0;
+    final themeIndex = prefs.getInt("themeMode") ?? 0;
     _themeMode = ThemeMode.values[themeIndex];
     notifyListeners();
   }
 
   void _saveTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setInt('themeMode', _themeMode.index);
+    prefs.setInt("themeMode", _themeMode.index);
   }
 }

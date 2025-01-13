@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+import "package:flutter/material.dart";
 
 class ThemeDataStyle {
   static final TextStyle baseTextStyle = TextStyle(
-    fontFamily: 'GoNotoKurrent',
+    fontFamily: "GoNotoKurrent",
     fontWeight: FontWeight.w600,
     letterSpacing: 0.15,
   );

@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zenstream/widgets/base_layout.dart';
-import 'package:zenstream/screens/login.dart';
-import 'package:zenstream/utils/precheck.dart';
-import 'package:zenstream/screens/home.dart';
+import "package:flutter/material.dart";
+import "package:shared_preferences/shared_preferences.dart";
+import "package:zenstream/widgets/base_layout.dart";
+import "package:zenstream/screens/login.dart";
+import "package:zenstream/utils/precheck.dart";
+import "package:zenstream/screens/home.dart";
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -31,7 +31,7 @@ class SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString("token");
 
     if (!mounted) return;
 
@@ -54,7 +54,7 @@ class SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/icons/icon.png',
+              "assets/icons/icon.png",
               width: 150,
               height: 150,
             ),

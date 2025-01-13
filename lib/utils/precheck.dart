@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zenstream/screens/login.dart';
-import 'package:zenstream/jellyfin/api_services.swagger.dart';
+import "package:flutter/material.dart";
+import "package:shared_preferences/shared_preferences.dart";
+import "package:zenstream/screens/login.dart";
+import "package:zenstream/jellyfin/api_services.swagger.dart";
 
 class PreCheck extends StatefulWidget {
   final Widget nextPage;
@@ -24,11 +24,11 @@ class PreCheckState extends State<PreCheck> {
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString("token");
     if (token == null || !(await _apiService.checkAuthToken(token))) {
-      await prefs.remove('token');
+      await prefs.remove("token");
       setState(() {
-        _errorMessage = 'You have been logged out';
+        _errorMessage = "You have been logged out";
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(

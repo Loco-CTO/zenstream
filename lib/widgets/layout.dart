@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:zenstream/widgets/sidebar.dart';
-import 'dart:async';
+import "package:flutter/material.dart";
+import "package:bitsdojo_window/bitsdojo_window.dart";
+import "package:zenstream/widgets/sidebar.dart";
+import "dart:async";
 
 class LayoutScaffold extends StatefulWidget {
   final Widget body;

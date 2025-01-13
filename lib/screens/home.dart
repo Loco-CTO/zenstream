@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:zenstream/widgets/layout.dart';
-import 'package:zenstream/widgets/featured_bar.dart';
-import 'package:zenstream/widgets/series/item_banner.dart';
-import 'package:zenstream/widgets/series/scroller.dart';
-import 'package:zenstream/jellyfin/api_services.swagger.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import "package:flutter/material.dart";
+import "package:zenstream/widgets/layout.dart";
+import "package:zenstream/widgets/featured_bar.dart";
+import "package:zenstream/widgets/series/item_banner.dart";
+import "package:zenstream/widgets/series/scroller.dart";
+import "package:zenstream/jellyfin/api_services.swagger.dart";
+import "package:flutter_dotenv/flutter_dotenv.dart";
+import "package:shared_preferences/shared_preferences.dart";
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,7 +26,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchLibraries() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString("token");
 
     if (token != null) {
       final libraries = await _apiService.getUserLibraries(token);
@@ -45,8 +45,8 @@ class HomeScreenState extends State<HomeScreen> {
           children: [
             const FeaturedBar(),
             const SizedBox(height: 20),
-            _buildScroller('最新なアニメ'),
-            _buildScroller('最新なアニメ'),
+            _buildScroller("最新なアニメ"),
+            _buildScroller("最新なアニメ"),
             const SizedBox(height: 20),
             _buildServerAddress(),
           ],
@@ -68,9 +68,9 @@ class HomeScreenState extends State<HomeScreen> {
             margin: const EdgeInsets.all(8),
             child: ItemBanner(
               imageUrl:
-                  'https://theatre.lococto.me/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4',
-              title: 'コードギアス 反逆のルルーシュ',
-              subtitle: 'シーズン2 第一話：超合集国決議第壱號 ',
+                  "https://theatre.lococto.me/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4",
+              title: "コードギアス 反逆のルルーシュ",
+              subtitle: "シーズン2 第一話：超合集国決議第壱號 ",
             ),
           ),
         ),
@@ -80,10 +80,10 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildServerAddress() {
     return Text(
-      'Server Address: ${dotenv.env['WEB_URL'] ?? 'Unknown'}',
+      "Server Address: ${dotenv.env["WEB_URL"] ?? "Unknown"}",
       style: const TextStyle(
         fontSize: 12,
-        fontFamily: 'GoNotoKurrent',
+        fontFamily: "GoNotoKurrent",
         fontWeight: FontWeight.w400,
       ),
     );

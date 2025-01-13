@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zenstream/widgets/base_layout.dart';
-import 'package:zenstream/jellyfin/api_services.swagger.dart';
+import "package:flutter/material.dart";
+import "package:shared_preferences/shared_preferences.dart";
+import "package:zenstream/widgets/base_layout.dart";
+import "package:zenstream/jellyfin/api_services.swagger.dart";
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,16 +23,16 @@ class LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      final token = response['AccessToken'];
+      final token = response["AccessToken"];
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', token);
+      await prefs.setString("token", token);
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        Navigator.of(context).pushReplacementNamed("/home");
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Login failed. Please check your credentials.';
+        _errorMessage = "Login failed. Please check your credentials.";
       });
     }
   }
@@ -63,7 +63,7 @@ class LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
-                  'assets/icons/icon.png',
+                  "assets/icons/icon.png",
                   width: 100,
                   height: 100,
                 ),
@@ -74,7 +74,7 @@ class LoginScreenState extends State<LoginScreen> {
                     width: 350,
                     child: TextField(
                       controller: _usernameController,
-                      decoration: const InputDecoration(labelText: 'Username'),
+                      decoration: const InputDecoration(labelText: "Username"),
                       onSubmitted: (_) => _login(),
                     ),
                   ),
@@ -83,7 +83,7 @@ class LoginScreenState extends State<LoginScreen> {
                   width: 350,
                   child: TextField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: 'Password'),
+                    decoration: const InputDecoration(labelText: "Password"),
                     obscureText: true,
                     onSubmitted: (_) => _login(),
                   ),
@@ -91,7 +91,7 @@ class LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _login,
-                  child: const Text('Login'),
+                  child: const Text("Login"),
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 20),

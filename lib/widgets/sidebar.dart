@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:zenstream/utils/theme_notifier.dart';
-import 'package:zenstream/screens/login.dart';
+import "package:flutter/material.dart";
+import "package:bitsdojo_window/bitsdojo_window.dart";
+import "package:provider/provider.dart";
+import "package:shared_preferences/shared_preferences.dart";
+import "package:zenstream/utils/theme_notifier.dart";
+import "package:zenstream/screens/login.dart";
 
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
@@ -38,10 +38,10 @@ class Sidebar extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(15, 8, 0, 0),
                 child: Text(
-                  'ZenStream',
+                  "ZenStream",
                   style: TextStyle(
                     fontSize: 13.0,
-                    fontFamily: 'Nunito',
+                    fontFamily: "Nunito",
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -96,7 +96,7 @@ class Sidebar extends StatelessWidget {
         iconSize: 25.0,
         onPressed: () async {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('token');
+          await prefs.remove("token");
           if (!context.mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const LoginScreen()),

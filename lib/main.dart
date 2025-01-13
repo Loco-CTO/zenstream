@@ -6,10 +6,15 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zenstream/routes/routes.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 Future<void> main() async {
-  if (File('.env').existsSync()) {
-    await dotenv.load(fileName: ".env");
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb) {
+    if (File('.env').existsSync()) {
+      await dotenv.load(fileName: '.env');
+    }
   }
 
   runApp(

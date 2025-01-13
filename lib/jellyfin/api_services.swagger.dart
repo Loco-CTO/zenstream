@@ -47,9 +47,9 @@ class JellyfinApiService {
     final client = _getClient();
     final deviceId = await _getDeviceId();
     if (token != null) {
-      return "MediaBrowser Token='$token', Client='$client', Device='ZenStream', DeviceId='$deviceId', Version='0.0.1b'";
+      return 'MediaBrowser Token="$token", Client="$client", Device="ZenStream", DeviceId="$deviceId", Version="0.0.1b"';
     } else {
-      return "MediaBrowser Client='$client', Device='ZenStream', DeviceId='$deviceId', Version='0.0.1b'";
+      return 'MediaBrowser Client="$client", Device="ZenStream", DeviceId="$deviceId", Version="0.0.1b"';
     }
   }
 

@@ -3,6 +3,7 @@ import "package:zenstream/widgets/splash_screen.dart";
 import "package:zenstream/screens/home.dart";
 import "package:zenstream/screens/login.dart";
 import "package:zenstream/utils/precheck.dart";
+import "package:zenstream/screens/test_screen.dart";
 
 class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -23,6 +24,12 @@ class AppRoutes {
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
               const LoginScreen(),
+          transitionDuration: Duration.zero,
+        );
+      case "/test":
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const TestScreen(),
           transitionDuration: Duration.zero,
         );
       default:

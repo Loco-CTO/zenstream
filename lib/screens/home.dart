@@ -49,6 +49,10 @@ class HomeScreenState extends State<HomeScreen> {
             _buildScroller("最新なアニメ"),
             const SizedBox(height: 20),
             _buildServerAddress(),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/test'),
+              child: const Text('Go to Test Screen'),
+            ),
           ],
         ),
       ),

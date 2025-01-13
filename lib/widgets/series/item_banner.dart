@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class ItemBanner extends StatefulWidget {
   final String imageUrl;
@@ -69,11 +70,14 @@ class ItemBannerState extends State<ItemBanner> {
                   if (_isHovered)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
-                      child: Container(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withAlpha((0.5 * 255).toInt()),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
+                        child: Container(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withAlpha((0.5 * 255).toInt()),
+                        ),
                       ),
                     ),
                   if (_isHovered) _buildPlayButton(context),
@@ -95,12 +99,20 @@ class ItemBannerState extends State<ItemBanner> {
           onTap: () {
             // TODO: Handle play button tap
           },
-          child: Icon(
-            Icons.play_arrow_rounded,
-            color: _isPlayButtonHovered
-                ? Theme.of(context).colorScheme.secondary
-                : Theme.of(context).colorScheme.primary,
-            size: 64,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 220),
+              scale: _isPlayButtonHovered ? 1.25 : 1.0,
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: _isPlayButtonHovered
+                    ? Theme.of(context).colorScheme.secondary
+                    : Theme.of(context).colorScheme.primary,
+                size: 64,
+              ),
+            ),
           ),
         ),
       ),

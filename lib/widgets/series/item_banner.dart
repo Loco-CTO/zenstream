@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ItemBanner extends StatefulWidget {
   final String imageUrl;
@@ -50,10 +51,6 @@ class ItemBannerState extends State<ItemBanner> {
               width: 200,
               height: 300,
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(widget.imageUrl),
-                  fit: BoxFit.cover,
-                ),
                 borderRadius: BorderRadius.circular(8.0),
                 boxShadow: _isHovered
                     ? [
@@ -65,12 +62,28 @@ class ItemBannerState extends State<ItemBanner> {
                       ]
                     : [],
               ),
-              child: Stack(
-                children: [
-                  if (_isHovered)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: BackdropFilter(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Stack(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: widget.imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      placeholder: (context, url) => Container(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Theme.of(context).colorScheme.surface,
+                        child: const Icon(Icons.error),
+                      ),
+                    ),
+                    if (_isHovered) ...[
+                      BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
                         child: Container(
                           color: Theme.of(context)
@@ -79,9 +92,10 @@ class ItemBannerState extends State<ItemBanner> {
                               .withAlpha((0.5 * 255).toInt()),
                         ),
                       ),
-                    ),
-                  if (_isHovered) _buildPlayButton(context),
-                ],
+                      _buildPlayButton(context),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),

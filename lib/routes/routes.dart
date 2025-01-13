@@ -8,20 +8,28 @@ class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case "/":
-        return MaterialPageRoute(
-          builder: (context) => const SplashScreen(),
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const SplashScreen(),
+          transitionDuration: Duration.zero,
         );
       case "/home":
-        return MaterialPageRoute(
-          builder: (context) => PreCheck(nextPage: const HomeScreen()),
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              PreCheck(nextPage: const HomeScreen()),
+          transitionDuration: Duration.zero,
         );
       case "/login":
-        return MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const LoginScreen(),
+          transitionDuration: Duration.zero,
         );
       default:
-        return MaterialPageRoute(
-          builder: (context) => const SplashScreen(),
+        return PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const SplashScreen(),
+          transitionDuration: Duration.zero,
         );
     }
   }

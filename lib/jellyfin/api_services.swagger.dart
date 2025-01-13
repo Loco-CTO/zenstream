@@ -133,7 +133,7 @@ class JellyfinApiService {
             items.map((item) => JellyfinLibrary.fromJson(item)).toList();
 
         _logger.i("Successfully fetched ${libraries.length} libraries");
-        _logger.d("Response: ${response.body}");
+        _logger.d("Libraries: ${libraries.map((lib) => lib.name).join(", ")}");
 
         return libraries;
       } on FormatException catch (e) {

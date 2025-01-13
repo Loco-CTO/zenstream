@@ -97,4 +97,48 @@ class JellyfinApiService {
       return false;
     }
   }
+
+  Future<List<dynamic>> getUserLibraries(String token) async {
+    _logger.i('Fetching user libraries');
+
+    final url = '$baseUrl/UserViews';
+
+    try {
+      final header = await _buildAuthorizationHeader(token: token);
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': header,
+        },
+      );
+
+      _logger.i('Response status code: ${response.statusCode}');
+
+      if (response.statusCode != 200) {
+        throw Exception('Server returned ${response.statusCode}');
+      }
+
+      if (response.body.isEmpty) {
+        _logger.w('Empty response received');
+        return [];
+      }
+
+      try {
+        final data = jsonDecode(response.body);
+        _logger
+            .i('Successfully fetched ${data['Items']?.length ?? 0} libraries');
+        _logger.d('Response: ${response.body}');
+        return data['Items'] ?? [];
+      } on FormatException catch (e) {
+        _logger
+            .e('Failed to parse response: $e\nResponse was: ${response.body}');
+        throw Exception('Invalid response format');
+      }
+    } catch (e) {
+      _logger.e('Error fetching libraries: $e');
+      throw Exception('Error fetching libraries: $e');
+    }
+  }
 }

@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:zenstream/jellyfin/api_services.swagger.dart";
-import "package:zenstream/widgets/base_layout.dart";
 import "package:zenstream/widgets/layout.dart";
 
 class PreCheck extends StatefulWidget {

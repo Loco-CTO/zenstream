@@ -14,7 +14,7 @@ class Sidebar extends StatelessWidget {
       decoration: BoxDecoration(color: sidebarColor),
       child: Column(
         children: [
-          Container(
+          SizedBox(
             height: 40,
             child: WindowTitleBarBox(
               child: MoveWindow(

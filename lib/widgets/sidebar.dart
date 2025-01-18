@@ -86,7 +86,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                         icon: Icon(Icons.widgets_rounded, color: iconColor),
                         iconSize: 35.0,
                         onPressed: () {
-                          // TODO: Handle Menu
+                          Scaffold.of(context).openDrawer();
                         },
                       ),
                     );

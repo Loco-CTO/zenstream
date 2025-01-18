@@ -51,6 +51,14 @@ class NavigationState extends State<NavigationMenu> {
                 child: Icon(Icons.broken_image, size: 50),
               ),
             ),
+            Text(
+              library.name ?? 'Unknown Library',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),

@@ -3,9 +3,7 @@ import "package:zenstream/widgets/layout.dart";
 import "package:zenstream/widgets/featured_bar.dart";
 import "package:zenstream/widgets/series/item_banner.dart";
 import "package:zenstream/widgets/series/scroller.dart";
-import "package:zenstream/jellyfin/api_services.swagger.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
-import "package:shared_preferences/shared_preferences.dart";
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,25 +13,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  final JellyfinApiService _apiService = JellyfinApiService();
-  List<dynamic> _libraries = [];
-
   @override
   void initState() {
     super.initState();
-    _fetchLibraries();
-  }
-
-  Future<void> _fetchLibraries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
-
-    if (token != null) {
-      final libraries = await _apiService.getUserLibraries(token);
-      setState(() {
-        _libraries = libraries;
-      });
-    }
   }
 
   @override

@@ -31,6 +31,10 @@ class NavigationState extends State<NavigationMenu> {
         _libraries = libraries;
       });
     }
+
+    for (var library in _libraries) {
+      print(library.collectionType);
+    }
   }
 
   Widget _buildLibraryBanner(dynamic library) {
@@ -51,14 +55,16 @@ class NavigationState extends State<NavigationMenu> {
                 child: Icon(Icons.broken_image, size: 50),
               ),
             ),
-            Text(
-              library.name ?? 'Unknown Library',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            library.collectionType != 'playlists'
+                ? Text(
+                    library.name ?? 'Unknown Library',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : SizedBox.shrink(),
           ],
         ),
       ),

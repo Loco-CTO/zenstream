@@ -14,6 +14,15 @@ class NavigationMenu extends StatefulWidget {
 class NavigationState extends State<NavigationMenu> {
   final JellyfinApiService _apiService = JellyfinApiService();
   List<dynamic> _libraries = [];
+  Map<String, bool> _hoverStates = {};
+
+  final Map<String, IconData> _collectionTypeIcons = {
+    'tvshows': Icons.tv,
+    'movies': Icons.movie,
+    'musicvideos': Icons.music_video,
+    'music': Icons.music_note,
+    'playlists': Icons.playlist_play,
+  };
 
   @override
   void initState() {
@@ -32,39 +41,74 @@ class NavigationState extends State<NavigationMenu> {
       });
     }
 
-    for (var library in _libraries) {
+    for (final library in _libraries) {
       print(library.collectionType);
     }
   }
 
   Widget _buildLibraryBanner(dynamic library) {
-    return Container(
-      height: 200,
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoverStates[library.id] = true),
+      onExit: (_) => setState(() => _hoverStates[library.id] = false),
+      child: SizedBox(
+        height: 60,
         child: Stack(
           children: [
-            Image.network(
-              '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: Colors.grey[900],
-                child: Icon(Icons.broken_image, size: 50),
+            AnimatedOpacity(
+              opacity: _hoverStates[library.id] == true ? 1.0 : 0.0,
+              duration: Duration(milliseconds: 200),
+              child: Image.network(
+                '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey[900],
+                  child: Icon(Icons.broken_image, size: 50),
+                ),
               ),
             ),
-            library.collectionType != 'playlists'
-                ? Text(
-                    library.name ?? 'Unknown Library',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : SizedBox.shrink(),
+            AnimatedOpacity(
+              opacity: _hoverStates[library.id] == true ? 1.0 : 0.0,
+              duration: Duration(milliseconds: 200),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.black.withOpacity(0.8),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 0, 0),
+                child: Icon(
+                  _collectionTypeIcons[library.collectionType] ?? Icons.folder,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 20,
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(60, 0, 0, 0),
+                child: Text(
+                  library.name ?? 'Unknown Library',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            )
           ],
         ),
       ),
@@ -77,7 +121,7 @@ class NavigationState extends State<NavigationMenu> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Drawer(
-          width: 592,
+          width: 350,
           backgroundColor: Colors.black.withAlpha((0.3 * 255).toInt()),
           child: Container(
             color: Colors.black.withAlpha((0.3 * 255).toInt()),

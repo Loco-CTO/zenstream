@@ -55,8 +55,8 @@ class NavigationState extends State<NavigationMenu> {
         child: Stack(
           children: [
             AnimatedOpacity(
-              opacity: _hoverStates[library.id] == true ? 1.0 : 0.0,
-              duration: Duration(milliseconds: 200),
+              opacity: _hoverStates[library.id] == true ? 1.0 : 0,
+              duration: Duration(milliseconds: 150),
               child: Image.network(
                 '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
                 fit: BoxFit.cover,
@@ -70,14 +70,14 @@ class NavigationState extends State<NavigationMenu> {
             ),
             AnimatedOpacity(
               opacity: _hoverStates[library.id] == true ? 1.0 : 0.0,
-              duration: Duration(milliseconds: 200),
+              duration: Duration(milliseconds: 100),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.black.withOpacity(0.8),
+                      Colors.black.withAlpha((0.8 * 255).toInt()),
                       Colors.transparent,
                     ],
                   ),
@@ -87,7 +87,7 @@ class NavigationState extends State<NavigationMenu> {
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 0, 0),
+                padding: EdgeInsets.fromLTRB(50, 0, 0, 0),
                 child: Icon(
                   _collectionTypeIcons[library.collectionType] ?? Icons.folder,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -98,13 +98,13 @@ class NavigationState extends State<NavigationMenu> {
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(60, 0, 0, 0),
+                padding: EdgeInsets.fromLTRB(110, 0, 0, 0),
                 child: Text(
                   library.name ?? 'Unknown Library',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.normal,
                   ),
                 ),
               ),

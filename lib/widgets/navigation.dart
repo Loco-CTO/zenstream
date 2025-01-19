@@ -180,7 +180,10 @@ class NavigationState extends State<NavigationMenu> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.brightness_6_rounded,
+                        icon: Icon(
+                            Theme.of(context).brightness == Brightness.light
+                                ? Icons.dark_mode_outlined
+                                : Icons.dark_mode,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () =>

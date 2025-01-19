@@ -112,7 +112,7 @@ class FeaturedBarState extends State<FeaturedBar> {
         "絶園のテンペスト ～THE CIVILIZATION BLASTER～",
         """ある日、魔法使いの姫君が樽に詰められ置き去りにされた。ある日、ひとりの少女が唐突に殺され、犯人が捕まらず時が過ぎた。そしてある日、復讐と魔法をめぐる、時間と空間を超えた戦いが始まった！正気と狂気、理性と知性。自信と確信。悲劇で不合理な世の中で物語は始まる―――。
 
-        “はじまりの樹”の加護を受ける魔法使いの一族・鎖部一族。その姫宮にして、最強の魔法使い鎖部葉風。彼女は“はじまりの樹”と対をなし、破壊の力を司る“絶園の樹”を復活させようとする同族の鎖部左門によって、無人島に樽に詰められて置き去りにされてしまう。葉風が孤島から流したメッセージを、妹・愛花を殺した犯人に復讐を誓う少年・不破真広が拾う。真広は犯人を魔法の力で見つけることを条件に、葉風に協力する。そして真広の親友で、愛花の恋人である滝川吉野は、危機を真広に助けられたことから、その復讐劇に巻き込まれることになる。""",
+“はじまりの樹”の加護を受ける魔法使いの一族・鎖部一族。その姫宮にして、最強の魔法使い鎖部葉風。彼女は“はじまりの樹”と対をなし、破壊の力を司る“絶園の樹”を復活させようとする同族の鎖部左門によって、無人島に樽に詰められて置き去りにされてしまう。葉風が孤島から流したメッセージを、妹・愛花を殺した犯人に復讐を誓う少年・不破真広が拾う。真広は犯人を魔法の力で見つけることを条件に、葉風に協力する。そして真広の親友で、愛花の恋人である滝川吉野は、危機を真広に助けられたことから、その復讐劇に巻き込まれることになる。""",
         "https://theatre.lococto.me/Items/da676de3fefca05971961fcb7ac4584a/Images/Backdrop/0?tag=6a3bbf7c2a38bccc8076cac288f1a18d",
       ),
       _buildPageViewItem(
@@ -179,7 +179,7 @@ class FeaturedBarState extends State<FeaturedBar> {
           child: Align(
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 450),
+              constraints: BoxConstraints(maxWidth: 550),
               child: Padding(
                 padding: const EdgeInsets.only(left: 20.0),
                 child: Column(
@@ -200,7 +200,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                     SizedBox(height: 10),
                     Text(
                       description,
-                      maxLines: 5,
+                      maxLines: 10,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                             color:

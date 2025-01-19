@@ -87,7 +87,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                         highlightColor: Colors.transparent,
                         hoverColor: Colors.transparent,
                         icon: Icon(Icons.widgets_rounded, color: iconColor),
-                        iconSize: 35.0,
+                        iconSize: 35,
                         onPressed: () {
                           Scaffold.of(context).openDrawer();
                         },
@@ -97,6 +97,11 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                 ),
               ),
             ),
+          ),
+          Divider(
+            color: theme.colorScheme.surfaceBright,
+            thickness: 1,
+            height: 1,
           ),
           Padding(
             padding: EdgeInsets.only(top: 8, bottom: 8.0),
@@ -109,7 +114,6 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                   width: 45,
                   height: 45,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant,
                     image: DecorationImage(
                       image: NetworkImage(
                           "https://theatre.lococto.me/Users/8eff4cbbd8224764bbc0d24b9ecedec8/Images/Primary"),

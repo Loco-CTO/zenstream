@@ -134,7 +134,7 @@ class NavigationState extends State<NavigationMenu> {
                     'Library',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 18,
+                      fontSize: 22,
                       fontWeight: FontWeight.normal,
                     ),
                   ),

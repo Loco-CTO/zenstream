@@ -89,13 +89,24 @@ class FeaturedBarState extends State<FeaturedBar> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(50, 15, 50, 0),
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          _buildPageView(),
-          _buildPageIndicator(theme),
-        ],
-      ),
+      child: _isLoading
+          ? Container(
+              height: 760,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceDim,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                _buildPageView(),
+                _buildPageIndicator(theme),
+              ],
+            ),
     );
   }
 
@@ -167,13 +178,13 @@ class FeaturedBarState extends State<FeaturedBar> {
           placeholder: (context, url) => blurHash != null
               ? BlurHash(hash: blurHash)
               : Container(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: Theme.of(context).colorScheme.surfaceDim,
                   child: const Center(
                     child: CircularProgressIndicator(),
                   ),
                 ),
           errorWidget: (context, url, error) => Container(
-            color: Theme.of(context).colorScheme.surface,
+            color: Theme.of(context).colorScheme.surfaceDim,
             child: const Icon(Icons.error),
           ),
         ),

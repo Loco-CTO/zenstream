@@ -51,7 +51,7 @@ class NavigationState extends State<NavigationMenu> {
       onEnter: (_) => setState(() => _hoverStates[library.id] = true),
       onExit: (_) => setState(() => _hoverStates[library.id] = false),
       child: SizedBox(
-        height: 60,
+        height: 65,
         child: Stack(
           children: [
             AnimatedOpacity(

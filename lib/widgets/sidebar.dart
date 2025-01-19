@@ -82,6 +82,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                         ..rotateZ(_rotationAnimation.value)
                         ..scale(_scaleAnimation.value),
                       child: IconButton(
+                        highlightColor: Colors.transparent,
                         hoverColor: Colors.transparent,
                         icon: Icon(Icons.widgets_rounded, color: iconColor),
                         iconSize: 35.0,

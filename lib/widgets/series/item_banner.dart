@@ -38,63 +38,69 @@ class ItemBannerState extends State<ItemBanner> {
   Widget _buildImageBanner(BuildContext context) {
     return Stack(
       children: [
-        MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: GestureDetector(
-            onTap: () {
-              // TODO: Handle banner tap
-            },
-            child: AnimatedContainer(
-              duration: Duration(milliseconds: 300),
-              margin: EdgeInsets.all(8.0),
-              width: 200,
-              height: 300,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8.0),
-                boxShadow: _isHovered
-                    ? [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.outline,
-                          blurRadius: 4,
-                          spreadRadius: 1,
-                        )
-                      ]
-                    : [],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Stack(
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: widget.imageUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      placeholder: (context, url) => Container(
-                        color: Theme.of(context).colorScheme.surface,
-                        child: Center(
-                          child: CircularProgressIndicator(),
+        Center(
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: GestureDetector(
+              onTap: () {
+                // TODO: Handle banner tap
+              },
+              child: AnimatedScale(
+                scale: _isHovered ? 1.02 : 1.0,
+                alignment: Alignment.center,
+                duration: Duration(milliseconds: 300),
+                child: Container(
+                  margin: EdgeInsets.all(8.0),
+                  width: 200,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.0),
+                    boxShadow: _isHovered
+                        ? [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.outline,
+                              blurRadius: 4,
+                              spreadRadius: 1,
+                            )
+                          ]
+                        : [],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Stack(
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: widget.imageUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          placeholder: (context, url) => Container(
+                            color: Theme.of(context).colorScheme.surface,
+                            child: Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Theme.of(context).colorScheme.surface,
+                            child: Icon(Icons.error),
+                          ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Theme.of(context).colorScheme.surface,
-                        child: Icon(Icons.error),
-                      ),
+                        if (_isHovered) ...[
+                          BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
+                            child: Container(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surface
+                                  .withAlpha((0.5 * 255).toInt()),
+                            ),
+                          ),
+                          _buildPlayButton(context),
+                        ],
+                      ],
                     ),
-                    if (_isHovered) ...[
-                      BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
-                        child: Container(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surface
-                              .withAlpha((0.5 * 255).toInt()),
-                        ),
-                      ),
-                      _buildPlayButton(context),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),

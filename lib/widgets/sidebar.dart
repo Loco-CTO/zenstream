@@ -66,7 +66,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
           ),
           Spacer(),
           Padding(
-            padding: EdgeInsets.only(bottom: 0),
+            padding: EdgeInsets.only(bottom: 8),
             child: MouseRegion(
               child: MouseRegion(
                 onEnter: (_) {
@@ -87,7 +87,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                         highlightColor: Colors.transparent,
                         hoverColor: Colors.transparent,
                         icon: Icon(Icons.widgets_rounded, color: iconColor),
-                        iconSize: 35,
+                        iconSize: 40,
                         onPressed: () {
                           Scaffold.of(context).openDrawer();
                         },

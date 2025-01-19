@@ -78,7 +78,6 @@ class FeaturedBarState extends State<FeaturedBar> {
   }
 
   void refreshContent() {
-    print("Refreshing featured bar content");
     _fetchLatestShows(initialLoad: false);
   }
 

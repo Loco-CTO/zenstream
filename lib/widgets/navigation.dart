@@ -71,36 +71,38 @@ class NavigationState extends State<NavigationMenu> {
                           .colorScheme
                           .surfaceDim
                           .withAlpha((0.5 * 255).toInt()),
-                  ),
-                ],
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(50, 0, 0, 0),
-                child: Icon(
-                  _collectionTypeIcons[library.collectionType] ?? Icons.folder,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  size: 22,
+                    ),
+                  ],
                 ),
               ),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(110, 0, 0, 0),
-                child: Text(
-                  library.name ?? 'Unknown Library',
-                  style: TextStyle(
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(50, 0, 0, 0),
+                  child: Icon(
+                    _collectionTypeIcons[library.collectionType] ??
+                        Icons.folder,
                     color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.normal,
+                    size: 22,
                   ),
                 ),
               ),
-            )
-          ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(110, 0, 0, 0),
+                  child: Text(
+                    library.name ?? 'Unknown Library',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );

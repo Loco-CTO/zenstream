@@ -7,6 +7,8 @@ import "package:logger/logger.dart";
 import "api_enums.swagger.dart";
 
 class JellyfinApiService {
+  static User? currentUser;
+
   final String baseUrl;
   final Logger _logger = Logger();
 
@@ -73,8 +75,12 @@ class JellyfinApiService {
     _logger.i("Response status code: ${response.statusCode}");
 
     if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      currentUser = User(
+          userId: responseData['User']['Id'],
+          username: responseData['User']['Name']);
       _logger.i("Authentication successful for user: $username");
-      return jsonDecode(response.body);
+      return responseData;
     } else {
       _logger.e("Authentication failed for user: $username");
       throw Exception("Failed to authenticate");
@@ -93,8 +99,11 @@ class JellyfinApiService {
     );
 
     if (response.statusCode == 200) {
+      final userData = jsonDecode(response.body);
+      currentUser = User.fromJson(userData);
       return true;
     } else {
+      currentUser = null;
       return false;
     }
   }

@@ -10,7 +10,8 @@ import 'package:flutter_blurhash/flutter_blurhash.dart';
 import "../jellyfin/api_services.swagger.dart";
 
 class FeaturedBar extends StatefulWidget {
-  const FeaturedBar({super.key});
+  final VoidCallback? onRefresh;
+  const FeaturedBar({super.key, this.onRefresh});
 
   @override
   FeaturedBarState createState() => FeaturedBarState();
@@ -25,25 +26,40 @@ class FeaturedBarState extends State<FeaturedBar> {
   List<dynamic> _shows = [];
   Timer? _timer;
   bool _isLoading = true;
+  int _currentPage = 0;
+  bool _isRefreshing = false;
 
-  Future<void> _fetchLatestShows() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchLatestShows({bool initialLoad = true}) async {
+    if (initialLoad) {
+      setState(() => _isLoading = true);
+    } else {
+      setState(() => _isRefreshing = true);
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("token");
 
       if (token != null) {
-        final shows = await _apiService.getLatestShows(token);
+        final newShows = await _apiService.getLatestShows(token);
         setState(() {
-          _shows = shows;
+          _shows = newShows;
           _isLoading = false;
+          _isRefreshing = false;
+          if (!initialLoad && _pageController.hasClients) {
+            _pageController.animateToPage(
+              0,
+              duration: animateToPageDuration,
+              curve: Curves.easeIn,
+            );
+          }
         });
       }
     } catch (e) {
       setState(() {
-        _shows = [];
+        if (initialLoad) _shows = [];
         _isLoading = false;
+        _isRefreshing = false;
       });
     }
   }
@@ -51,17 +67,30 @@ class FeaturedBarState extends State<FeaturedBar> {
   @override
   void initState() {
     super.initState();
-    _fetchLatestShows();
+    _fetchLatestShows(initialLoad: true);
     _startTimer();
-    _pageController.addListener(_resetTimer);
+    _pageController.addListener(() {
+      if (_pageController.hasClients) {
+        _currentPage = _pageController.page?.toInt() ?? 0;
+      }
+      _resetTimer();
+    });
+  }
+
+  void refreshContent() {
+    print("Refreshing featured bar content");
+    _fetchLatestShows(initialLoad: false);
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 8), (Timer timer) {
-      int nextPage = (_pageController.page?.toInt() ?? 0) + 1;
+      if (!_pageController.hasClients) return;
+
+      int nextPage = _currentPage + 1;
       if (nextPage >= 5) {
         nextPage = 0;
       }
+
       _pageController.animateToPage(
         nextPage,
         duration: animateToPageDuration,
@@ -85,28 +114,38 @@ class FeaturedBarState extends State<FeaturedBar> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(50, 15, 50, 0),
-      child: _isLoading
-          ? Container(
-              height: 760,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceDim,
-                borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          _isLoading
+              ? Container(
+                  height: 760,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(child: CircularProgressIndicator()),
+                )
+              : Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    _buildPageView(),
+                    _buildPageIndicator(Theme.of(context)),
+                  ],
+                ),
+          if (_isRefreshing)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha((0.5 * 255).toInt()),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
               ),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-          : Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                _buildPageView(),
-                _buildPageIndicator(theme),
-              ],
             ),
+        ],
+      ),
     );
   }
 

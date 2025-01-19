@@ -45,7 +45,7 @@ class HomeScreenState extends State<HomeScreen> {
     return Scroller(
       title: title,
       items: List.generate(
-        50,
+        15,
         (index) => MouseRegion(
           onEnter: (_) => setState(() {}),
           onExit: (_) => setState(() {}),

@@ -64,22 +64,6 @@ class NavigationState extends State<NavigationMenu> {
                 ),
               ),
             ),
-            AnimatedOpacity(
-              opacity: _hoverStates[library.id] == true ? 1.0 : 0.0,
-              duration: Duration(milliseconds: 100),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.black.withAlpha((0.8 * 255).toInt()),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(

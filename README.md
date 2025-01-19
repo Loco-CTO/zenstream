@@ -41,6 +41,9 @@
   - Docker
   - Andriod (coming soon)
 
+> [!WARNING]
+> Note that although light mode is implemented, it is VERY UGLY so please be prepared for a flashbang upon toggling.
+
 ## 💾 Download
 
 The latest release can be downloaded from the [releases page](). <br>

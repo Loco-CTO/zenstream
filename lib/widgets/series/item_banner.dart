@@ -48,8 +48,9 @@ class ItemBannerState extends State<ItemBanner> {
               },
               child: AnimatedScale(
                 scale: _isHovered ? 1.02 : 1.0,
+                curve: Curves.easeOutQuint,
                 alignment: Alignment.center,
-                duration: Duration(milliseconds: 300),
+                duration: Duration(milliseconds: 500),
                 child: Container(
                   margin: EdgeInsets.all(8.0),
                   width: 200,
@@ -121,10 +122,10 @@ class ItemBannerState extends State<ItemBanner> {
             duration: Duration(milliseconds: 220),
             scale: _isPlayButtonHovered ? 1.1 : 1.0,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
               child: _isPlayButtonHovered
                   ? BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                       child: _buildButtonContent(context),
                     )
                   : _buildButtonContent(context),
@@ -137,10 +138,10 @@ class ItemBannerState extends State<ItemBanner> {
 
   Widget _buildButtonContent(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(4),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withAlpha((0.45 * 255).toInt()),
       ),
       child: AnimatedScale(
         duration: Duration(milliseconds: 220),
@@ -150,7 +151,7 @@ class ItemBannerState extends State<ItemBanner> {
           color: _isPlayButtonHovered
               ? Theme.of(context).colorScheme.secondary
               : Theme.of(context).colorScheme.primary,
-          size: 64,
+          size: 45,
         ),
       ),
     );

@@ -5,7 +5,7 @@ import "package:shared_preferences/shared_preferences.dart";
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NavigationMenu extends StatefulWidget {
-  NavigationMenu({super.key});
+  const NavigationMenu({super.key});
 
   @override
   NavigationState createState() => NavigationState();

@@ -7,7 +7,7 @@ class ItemBanner extends StatefulWidget {
   final String title;
   final String subtitle;
 
-  ItemBanner({
+  const ItemBanner({
     required this.imageUrl,
     required this.title,
     required this.subtitle,

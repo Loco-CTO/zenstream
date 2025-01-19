@@ -53,15 +53,23 @@ class NavigationState extends State<NavigationMenu> {
             AnimatedOpacity(
               opacity: _hoverStates[library.id] == true ? 1.0 : 0,
               duration: Duration(milliseconds: 150),
-              child: Image.network(
-                '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey[900],
-                  child: Icon(Icons.broken_image, size: 50),
-                ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[900],
+                      child: Icon(Icons.broken_image, size: 50),
+                    ),
+                  ),
+                  Container(
+                    color: Colors.black.withAlpha((0.5 * 255).toInt()),
+                  ),
+                ],
               ),
             ),
             Align(

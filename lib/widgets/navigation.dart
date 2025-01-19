@@ -114,7 +114,7 @@ class NavigationState extends State<NavigationMenu> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.all(Radius.circular(25)),
+      borderRadius: BorderRadius.all(Radius.circular(15)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Drawer(

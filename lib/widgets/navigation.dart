@@ -67,7 +67,10 @@ class NavigationState extends State<NavigationMenu> {
                     ),
                   ),
                   Container(
-                    color: Colors.black.withAlpha((0.5 * 255).toInt()),
+                    color: Theme.of(context)
+                          .colorScheme
+                          .surfaceDim
+                          .withAlpha((0.5 * 255).toInt()),
                   ),
                 ],
               ),
@@ -111,9 +114,15 @@ class NavigationState extends State<NavigationMenu> {
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Drawer(
           width: 320,
-          backgroundColor: Colors.black.withAlpha((0.3 * 255).toInt()),
+          backgroundColor: Theme.of(context)
+              .colorScheme
+              .surfaceDim
+              .withAlpha((0.3 * 255).toInt()),
           child: Container(
-            color: Colors.black.withAlpha((0.3 * 255).toInt()),
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceDim
+                .withAlpha((0.3 * 255).toInt()),
             child: ListView(
               padding: EdgeInsets.zero,
               children: [

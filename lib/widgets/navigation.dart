@@ -73,10 +73,23 @@ class NavigationState extends State<NavigationMenu> {
                       ),
                     ),
                     Container(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceDim
-                          .withAlpha((0.5 * 255).toInt()),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Theme.of(context)
+                                .colorScheme
+                                .surfaceDim
+                                .withAlpha((0.8 * 255).toInt()),
+                            Colors.transparent,
+                            Theme.of(context)
+                                .colorScheme
+                                .surfaceDim
+                                .withAlpha((0.8 * 255).toInt()),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),

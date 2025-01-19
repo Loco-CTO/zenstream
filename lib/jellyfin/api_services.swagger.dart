@@ -157,7 +157,6 @@ class JellyfinApiService {
               "Authorization": header,
             },
           );
-          print(response.body);
           seriesData.add(JellyfinShow.fromJson(jsonDecode(response.body)));
         }
 

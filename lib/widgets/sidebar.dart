@@ -66,7 +66,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
           ),
           Spacer(),
           Padding(
-            padding: EdgeInsets.only(bottom: 2.0),
+            padding: EdgeInsets.only(bottom: 0),
             child: MouseRegion(
               child: MouseRegion(
                 onEnter: (_) {
@@ -99,21 +99,32 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
             ),
           ),
           Padding(
-            padding: EdgeInsets.only(bottom: 20.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.all(
-                Radius.circular(12.0),
+            padding: EdgeInsets.only(top: 8, bottom: 8.0),
+            child: IconButton(
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              icon: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 45,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    image: DecorationImage(
+                      image: NetworkImage(
+                          "https://theatre.lococto.me/Users/8eff4cbbd8224764bbc0d24b9ecedec8/Images/Primary"),
+                      fit: BoxFit.cover,
+                      onError: (_, __) => Icon(Icons.account_circle,
+                          size: 45.0,
+                          color: Theme.of(context).colorScheme.primary),
+                    ),
+                  ),
+                ),
               ),
-              child: IconButton(
-                highlightColor: Colors.transparent,
-                hoverColor: Colors.transparent,
-                icon: Image.network(
-                    "https://theatre.lococto.me/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4"),
-                iconSize: 35.0,
-                onPressed: () {
-                  // TODO: Implement user account view
-                },
-              ),
+              iconSize: 45.0,
+              onPressed: () {
+                // TODO: Implement user account view
+              },
             ),
           ),
         ],

@@ -129,7 +129,7 @@ class NavigationState extends State<NavigationMenu> {
               padding: EdgeInsets.zero,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(25, 25, 0, 10),
+                  padding: const EdgeInsets.fromLTRB(45, 25, 0, 10),
                   child: Text(
                     'Library',
                     style: TextStyle(

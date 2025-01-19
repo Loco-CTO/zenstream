@@ -37,7 +37,16 @@ class ScrollerState extends State<Scroller> {
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     final double dragDistance =
         (details.globalPosition.dx - _dragStartPosition) * 0.5;
-    _scrollController.jumpTo(_scrollController.offset - dragDistance);
+    final double newOffset = _scrollController.offset - dragDistance;
+
+    if (newOffset < 0) {
+      _scrollController.jumpTo(0);
+    } else if (newOffset > _scrollController.position.maxScrollExtent) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    } else {
+      _scrollController.jumpTo(newOffset);
+    }
+
     _dragStartPosition = details.globalPosition.dx;
   }
 
@@ -90,7 +99,6 @@ class ScrollerState extends State<Scroller> {
               child: SingleChildScrollView(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
-                physics: BouncingScrollPhysics(),
                 child: ClipRect(
                   child: Row(
                     children: widget.items,

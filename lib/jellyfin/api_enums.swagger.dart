@@ -44,3 +44,5 @@ class JellyfinLibrary {
         "Etag": etag,
       };
 }
+
+class User {}

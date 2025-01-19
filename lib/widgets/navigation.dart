@@ -14,7 +14,7 @@ class NavigationMenu extends StatefulWidget {
 class NavigationState extends State<NavigationMenu> {
   final JellyfinApiService _apiService = JellyfinApiService();
   List<dynamic> _libraries = [];
-  Map<String, bool> _hoverStates = {};
+  final Map<String, bool> _hoverStates = {};
 
   final Map<String, IconData> _collectionTypeIcons = {
     'tvshows': Icons.tv_rounded,

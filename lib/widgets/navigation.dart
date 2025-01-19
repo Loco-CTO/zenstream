@@ -40,10 +40,6 @@ class NavigationState extends State<NavigationMenu> {
         _libraries = libraries;
       });
     }
-
-    for (final library in _libraries) {
-      print(library.collectionType);
-    }
   }
 
   Widget _buildLibraryBanner(dynamic library) {

@@ -127,9 +127,20 @@ class NavigationState extends State<NavigationMenu> {
             color: Colors.black.withAlpha((0.3 * 255).toInt()),
             child: ListView(
               padding: EdgeInsets.zero,
-              children: _libraries
-                  .map((library) => _buildLibraryBanner(library))
-                  .toList(),
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(25, 25, 0, 10),
+                  child: Text(
+                    'Library',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 18,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ),
+                ..._libraries.map((library) => _buildLibraryBanner(library)),
+              ],
             ),
           ),
         ),

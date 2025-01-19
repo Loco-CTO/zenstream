@@ -108,6 +108,74 @@ class JellyfinApiService {
     }
   }
 
+  Future<List<JellyfinShow>> getLatestShows(String token) async {
+    _logger.i("Fetching user's latest shows");
+
+    if (currentUser?.userId == null) {
+      _logger.e("No user ID available");
+      throw Exception("User not logged in");
+    }
+
+    final url =
+        "$baseUrl/Users/${currentUser!.userId}/Items/Latest?Limit=10&Recursive=true&IncludeItemTypes=Series&Fields=Id";
+
+    try {
+      final header = await _buildAuthorizationHeader(token: token);
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": header,
+        },
+      );
+
+      _logger.i("Response status code: ${response.statusCode}");
+
+      if (response.statusCode != 200) {
+        throw Exception("Server returned ${response.statusCode}");
+      }
+
+      if (response.body.isEmpty) {
+        _logger.w("Empty response received");
+        return [];
+      }
+
+      try {
+        final List<dynamic> data = jsonDecode(response.body);
+        final shows = data.map((item) => JellyfinShow.fromJson(item)).toList();
+
+        final seriesData = <JellyfinShow>[];
+        for (var i = 0; i < shows.length; i++) {
+          final url =
+              "$baseUrl/Users/${currentUser!.userId}/Items/${shows[i].id}?&Fields=Id%2CName%2COverview%2CImageTags";
+          final response = await http.get(
+            Uri.parse(url),
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "Authorization": header,
+            },
+          );
+          print(response.body);
+          seriesData.add(JellyfinShow.fromJson(jsonDecode(response.body)));
+        }
+
+        _logger.i("Successfully fetched ${shows.length} latest shows");
+        _logger.d("Shows: ${shows.map((show) => show.name).join(", ")}");
+
+        return seriesData;
+      } on FormatException catch (e) {
+        _logger
+            .e("Failed to parse response: $e\nResponse was: ${response.body}");
+        throw Exception("Invalid response format");
+      }
+    } catch (e) {
+      _logger.e("Error fetching latest shows: $e");
+      throw Exception("Error fetching latest shows: $e");
+    }
+  }
+
   Future<List<JellyfinLibrary>> getUserLibraries(String token) async {
     _logger.i("Fetching user libraries");
 

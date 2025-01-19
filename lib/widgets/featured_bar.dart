@@ -1,9 +1,12 @@
 import "dart:ui";
 
 import "package:flutter/material.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "package:smooth_page_indicator/smooth_page_indicator.dart";
 import "dart:async";
 import "package:cached_network_image/cached_network_image.dart";
+
+import "../jellyfin/api_services.swagger.dart";
 
 class FeaturedBar extends StatefulWidget {
   const FeaturedBar({super.key});
@@ -15,11 +18,27 @@ class FeaturedBar extends StatefulWidget {
 const animateToPageDuration = Duration(milliseconds: 250);
 
 class FeaturedBarState extends State<FeaturedBar> {
+  final JellyfinApiService _apiService = JellyfinApiService();
   final PageController _pageController = PageController();
+
+  List<dynamic> _shows = [];
   Timer? _timer;
+
+  Future<void> _fetchLatestShows() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token != null) {
+      final shows = await _apiService.getLatestShows(token);
+      setState(() {
+        _shows = shows;
+      });
+    }
+  }
 
   @override
   void initState() {
+    _fetchLatestShows();
     super.initState();
     _startTimer();
     _pageController.addListener(_resetTimer);
@@ -107,6 +126,7 @@ class FeaturedBarState extends State<FeaturedBar> {
   }
 
   List<Widget> _buildPageViewChildren() {
+    print(_shows);
     return [
       _buildPageViewItem(
         "絶園のテンペスト ～THE CIVILIZATION BLASTER～",

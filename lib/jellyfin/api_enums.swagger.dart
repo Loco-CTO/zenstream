@@ -32,4 +32,19 @@ class JellyfinLibrary {
       };
 }
 
-class User {}
+class User {
+  final String userId;
+  final String username;
+
+  User({
+    required this.userId,
+    required this.username,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      userId: json['Id'] as String,
+      username: json['Name'] as String,
+    );
+  }
+}

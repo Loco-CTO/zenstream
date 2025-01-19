@@ -92,8 +92,6 @@ class JellyfinApiService {
       },
     );
 
-    print(response.body);
-
     if (response.statusCode == 200) {
       return true;
     } else {

@@ -4,6 +4,7 @@ import "../widgets/featured_bar.dart";
 import "../widgets/series/item_banner.dart";
 import "../widgets/series/scroller.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
+import "../routes/observer.dart";
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,7 +13,27 @@ class HomeScreen extends StatefulWidget {
   HomeScreenState createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> with RouteAware {
+  final _featuredBarKey = GlobalKey<FeaturedBarState>();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    super.didPopNext();
+    _featuredBarKey.currentState?.refreshContent();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +46,7 @@ class HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FeaturedBar(),
+            FeaturedBar(key: _featuredBarKey),
             SizedBox(height: 20),
             _buildScroller("最新なアニメ"),
             _buildScroller("最新なアニメ"),

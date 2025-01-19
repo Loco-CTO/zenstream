@@ -3,6 +3,8 @@ import 'dart:ui';
 import "../jellyfin/api_services.swagger.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import '../utils/theme_notifier.dart';
 
 class NavigationMenu extends StatefulWidget {
   const NavigationMenu({super.key});
@@ -43,31 +45,35 @@ class NavigationState extends State<NavigationMenu> {
   }
 
   Widget _buildLibraryBanner(dynamic library) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hoverStates[library.id] = true),
-      onExit: (_) => setState(() => _hoverStates[library.id] = false),
-      child: SizedBox(
-        height: 65,
-        child: Stack(
-          children: [
-            AnimatedOpacity(
-              opacity: _hoverStates[library.id] == true ? 1.0 : 0,
-              duration: Duration(milliseconds: 150),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[900],
-                      child: Icon(Icons.broken_image, size: 50),
+    return InkWell(
+      onTap: () {
+        // TODO: Navigate to library view
+      },
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoverStates[library.id] = true),
+        onExit: (_) => setState(() => _hoverStates[library.id] = false),
+        child: SizedBox(
+          height: 65,
+          child: Stack(
+            children: [
+              AnimatedOpacity(
+                opacity: _hoverStates[library.id] == true ? 1.0 : 0,
+                duration: Duration(milliseconds: 150),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      '${dotenv.env["WEB_URL"]}/Items/${library.id}/Images/Primary',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Colors.grey[900],
+                        child: Icon(Icons.broken_image, size: 50),
+                      ),
                     ),
-                  ),
-                  Container(
-                    color: Theme.of(context)
+                    Container(
+                      color: Theme.of(context)
                           .colorScheme
                           .surfaceDim
                           .withAlpha((0.5 * 255).toInt()),
@@ -128,21 +134,58 @@ class NavigationState extends State<NavigationMenu> {
                 .colorScheme
                 .surfaceDim
                 .withAlpha((0.3 * 255).toInt()),
-            child: ListView(
-              padding: EdgeInsets.zero,
+            child: Column(
               children: [
-                Container(
-                  padding: EdgeInsets.fromLTRB(45, 25, 0, 10),
-                  child: Text(
-                    'ライブラリ',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 22,
-                      fontWeight: FontWeight.normal,
-                    ),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.fromLTRB(45, 25, 0, 10),
+                        child: Text(
+                          'ライブラリ',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 22,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      ..._libraries
+                          .map((library) => _buildLibraryBanner(library)),
+                    ],
                   ),
                 ),
-                ..._libraries.map((library) => _buildLibraryBanner(library)),
+                Divider(
+                    height: 1,
+                    color: Theme.of(context).colorScheme.surfaceBright),
+                Container(
+                  color: Theme.of(context).colorScheme.surfaceDim,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.brightness_6,
+                            color: Theme.of(context).colorScheme.onSurface),
+                        onPressed: () =>
+                            Provider.of<ThemeNotifier>(context, listen: false)
+                                .toggleTheme(),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.settings,
+                            color: Theme.of(context).colorScheme.onSurface),
+                        onPressed: () {}, // TODO: Implement settings
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.account_circle,
+                            color: Theme.of(context).colorScheme.onSurface),
+                        onPressed: () {}, // TODO: Implement profile
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

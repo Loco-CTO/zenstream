@@ -43,17 +43,17 @@ class LoginScreenState extends State<LoginScreen> {
 
     return BaseLayout(
       child: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(16),
         child: Center(
           child: Container(
-            padding: EdgeInsets.all(50.0),
+            padding: EdgeInsets.all(50),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceDim,
-              borderRadius: BorderRadius.circular(10.0),
+              borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black26,
-                  blurRadius: 10.0,
+                  blurRadius: 10,
                   offset: Offset(0, 5),
                 ),
               ],
@@ -69,7 +69,7 @@ class LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 20),
                 Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.0),
+                  padding: EdgeInsets.symmetric(vertical: 20),
                   child: SizedBox(
                     width: 350,
                     child: TextField(

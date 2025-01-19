@@ -104,12 +104,12 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.only(top: 8.0, right: 4.0, bottom: 8.0),
+          padding: const EdgeInsets.only(top: 8, right: 4, bottom: 8),
           child: Scrollbar(
             controller: _scrollController,
             thumbVisibility: true,
-            thickness: 8.0,
-            radius: Radius.circular(4.0),
+            thickness: 8,
+            radius: Radius.circular(4),
             child: SingleChildScrollView(
               controller: _scrollController,
               child: widget.body,

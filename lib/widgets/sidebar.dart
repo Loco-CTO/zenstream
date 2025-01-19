@@ -25,7 +25,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
     _rotationAnimation = Tween<double>(begin: 0, end: 0.785398).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutQuint),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+    _scaleAnimation = Tween<double>(begin: 1, end: 1.2).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutQuint),
     );
   }
@@ -55,7 +55,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                   child: Text(
                     "ZenStream",
                     style: TextStyle(
-                      fontSize: 13.0,
+                      fontSize: 13,
                       fontFamily: "Nunito",
                       fontWeight: FontWeight.w500,
                     ),
@@ -104,7 +104,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
             height: 1,
           ),
           Padding(
-            padding: EdgeInsets.only(top: 8, bottom: 8.0),
+            padding: EdgeInsets.only(top: 8, bottom: 8),
             child: IconButton(
               highlightColor: Colors.transparent,
               hoverColor: Colors.transparent,
@@ -119,13 +119,13 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                           "https://theatre.lococto.me/Users/8eff4cbbd8224764bbc0d24b9ecedec8/Images/Primary"),
                       fit: BoxFit.cover,
                       onError: (_, __) => Icon(Icons.account_circle,
-                          size: 45.0,
+                          size: 45,
                           color: Theme.of(context).colorScheme.primary),
                     ),
                   ),
                 ),
               ),
-              iconSize: 45.0,
+              iconSize: 45,
               onPressed: () {
                 // TODO: Implement user account view
               },

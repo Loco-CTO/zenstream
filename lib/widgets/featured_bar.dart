@@ -57,7 +57,7 @@ class FeaturedBarState extends State<FeaturedBar> {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(50.0, 15.0, 50.0, 0),
+      padding: const EdgeInsets.fromLTRB(50, 15, 50, 0),
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -71,10 +71,10 @@ class FeaturedBarState extends State<FeaturedBar> {
   Widget _buildPageView() {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(16),
         child: SizedBox(
           height: 760,
           child: ConstrainedBox(
@@ -169,7 +169,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                     .withAlpha((0.6 * 255).toInt()),
                 Colors.transparent,
               ],
-              stops: [0.0, 0.75],
+              stops: [0, 0.75],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
@@ -181,7 +181,7 @@ class FeaturedBarState extends State<FeaturedBar> {
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: 550),
               child: Padding(
-                padding: const EdgeInsets.only(left: 20.0),
+                padding: const EdgeInsets.only(left: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,9 +220,9 @@ class FeaturedBarState extends State<FeaturedBar> {
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(50.0),
+                borderRadius: BorderRadius.circular(50),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     color: Theme.of(context)
                         .colorScheme
@@ -238,8 +238,8 @@ class FeaturedBarState extends State<FeaturedBar> {
                         size: 28,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 18.0,
+                        horizontal: 24,
+                        vertical: 18,
                       ),
                     ),
                   ),
@@ -247,9 +247,9 @@ class FeaturedBarState extends State<FeaturedBar> {
               ),
               SizedBox(width: 10),
               ClipRRect(
-                borderRadius: BorderRadius.circular(50.0),
+                borderRadius: BorderRadius.circular(50),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     color: Theme.of(context)
                         .colorScheme
@@ -261,7 +261,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 36.0, vertical: 30.0),
+                            horizontal: 36, vertical: 30),
                       ),
                       child: Text(
                         "詳細を確認",
@@ -280,19 +280,19 @@ class FeaturedBarState extends State<FeaturedBar> {
 
   Widget _buildPageIndicator(ThemeData theme) {
     return Positioned(
-      bottom: 10.0,
+      bottom: 10,
       child: SmoothPageIndicator(
         controller: _pageController,
         count: 5,
         effect: ScrollingDotsEffect(
             dotColor: theme.colorScheme.onSurface,
             activeDotColor: theme.colorScheme.primary,
-            dotHeight: 8.0,
-            dotWidth: 8.0,
+            dotHeight: 8,
+            dotWidth: 8,
             maxVisibleDots: 7,
             activeDotScale: 1.5,
-            spacing: 8.0,
-            radius: 4.0),
+            spacing: 8,
+            radius: 4),
         onDotClicked: (index) {
           _pageController.animateToPage(
             index,

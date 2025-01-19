@@ -62,11 +62,11 @@ class ScrollerState extends State<Scroller> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0.0, vertical: 5.0),
+      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 5),
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 65.0),
+            padding: EdgeInsets.symmetric(horizontal: 65),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -91,7 +91,7 @@ class ScrollerState extends State<Scroller> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 50.0),
+            padding: EdgeInsets.symmetric(horizontal: 50),
             child: GestureDetector(
               onHorizontalDragStart: _onHorizontalDragStart,
               onHorizontalDragUpdate: _onHorizontalDragUpdate,

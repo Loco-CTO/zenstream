@@ -47,16 +47,16 @@ class ItemBannerState extends State<ItemBanner> {
                 // TODO: Handle banner tap
               },
               child: AnimatedScale(
-                scale: _isHovered ? 1.02 : 1.0,
+                scale: _isHovered ? 1.02 : 1,
                 curve: Curves.easeOutQuint,
                 alignment: Alignment.center,
                 duration: Duration(milliseconds: 500),
                 child: Container(
-                  margin: EdgeInsets.all(8.0),
+                  margin: EdgeInsets.all(8),
                   width: 200,
                   height: 300,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8.0),
+                    borderRadius: BorderRadius.circular(8),
                     boxShadow: _isHovered
                         ? [
                             BoxShadow(
@@ -68,7 +68,7 @@ class ItemBannerState extends State<ItemBanner> {
                         : [],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
+                    borderRadius: BorderRadius.circular(8),
                     child: Stack(
                       children: [
                         CachedNetworkImage(
@@ -120,7 +120,7 @@ class ItemBannerState extends State<ItemBanner> {
           },
           child: AnimatedScale(
             duration: Duration(milliseconds: 220),
-            scale: _isPlayButtonHovered ? 1.1 : 1.0,
+            scale: _isPlayButtonHovered ? 1.1 : 1,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: _isPlayButtonHovered
@@ -145,7 +145,7 @@ class ItemBannerState extends State<ItemBanner> {
       ),
       child: AnimatedScale(
         duration: Duration(milliseconds: 220),
-        scale: _isPlayButtonHovered ? 0.99 : 1.0,
+        scale: _isPlayButtonHovered ? 0.99 : 1,
         child: Icon(
           Icons.play_arrow_rounded,
           color: _isPlayButtonHovered
@@ -159,7 +159,7 @@ class ItemBannerState extends State<ItemBanner> {
 
   Widget _buildTitle(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8.0),
+      padding: EdgeInsets.symmetric(horizontal: 8),
       child: MouseRegion(
         onEnter: (_) => setState(() {
           _isTitleHovered = true;
@@ -191,7 +191,7 @@ class ItemBannerState extends State<ItemBanner> {
 
   Widget _buildSubtitle(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8.0),
+      padding: EdgeInsets.symmetric(horizontal: 8),
       child: Text(
         widget.subtitle,
         style: Theme.of(context).textTheme.displaySmall?.copyWith(

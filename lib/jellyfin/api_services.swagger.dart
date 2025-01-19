@@ -117,7 +117,7 @@ class JellyfinApiService {
     }
 
     final url =
-        "$baseUrl/Users/${currentUser!.userId}/Items/Latest?Limit=10&Recursive=true&IncludeItemTypes=Series&Fields=Id";
+        "$baseUrl/Users/${currentUser!.userId}/Items/Latest?Limit=14&Recursive=true&IncludeItemTypes=Series&Fields=Id";
 
     try {
       final header = await _buildAuthorizationHeader(token: token);

@@ -51,23 +51,38 @@ class JellyfinShow {
     this.tags,
   });
 
-  factory JellyfinShow.fromJson(Map<String, dynamic> json) {
+  factory JellyfinShow.fromJson(dynamic json) {
     try {
+      final Map<String, dynamic> data;
+      if (json is List) {
+        data = json.first as Map<String, dynamic>;
+      } else if (json is Map) {
+        data = json as Map<String, dynamic>;
+      } else {
+        throw FormatException('Invalid JSON type: ${json.runtimeType}');
+      }
+
+      if (!data.containsKey('Id') || !data.containsKey('Name')) {
+        throw FormatException('Missing required fields (Id or Name)');
+      }
+
       return JellyfinShow(
-        id: json['Id'] as String,
-        name: json['Name'] as String,
-        overview: json['Overview'] as String?,
-        imageTags: json['ImageTags'] != null
-            ? Map<String, dynamic>.from(json['ImageTags'])
+        id: data['Id'] as String,
+        name: data['Name'] as String,
+        overview: data['Overview'] as String?,
+        imageTags: data['ImageTags'] != null
+            ? Map<String, dynamic>.from(data['ImageTags'])
             : null,
-        backdropImageTags: json['BackdropImageTags'] != null
-            ? Map<String, dynamic>.from(json['BackdropImageTags'])
+        backdropImageTags: data['BackdropImageTags'] != null
+            ? (data['BackdropImageTags'] is List
+                ? {data['BackdropImageTags'].first: ''}
+                : Map<String, dynamic>.from(data['BackdropImageTags']))
             : null,
-        parentId: json['ParentId'] as String?,
-        tags: json['Tags'] != null ? List<String>.from(json['Tags']) : null,
+        parentId: data['ParentId'] as String?,
+        tags: data['Tags'] != null ? List<String>.from(data['Tags']) : null,
       );
     } catch (e) {
-      throw FormatException('Failed to parse JellyfinShow: $e\nJSON: $json');
+      throw FormatException('Failed to parse JellyfinShow: $e');
     }
   }
 

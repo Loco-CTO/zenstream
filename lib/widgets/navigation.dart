@@ -162,13 +162,14 @@ class NavigationState extends State<NavigationMenu> {
                 Container(
                   color: Theme.of(context).colorScheme.surfaceDim,
                   padding:
-                      const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 60),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.brightness_6,
+                        icon: Icon(Icons.brightness_6_rounded,
                             color: Theme.of(context).colorScheme.onSurface),
+                        iconSize: 26,
                         onPressed: () =>
                             Provider.of<ThemeNotifier>(context, listen: false)
                                 .toggleTheme(),
@@ -176,12 +177,22 @@ class NavigationState extends State<NavigationMenu> {
                       IconButton(
                         icon: Icon(Icons.settings,
                             color: Theme.of(context).colorScheme.onSurface),
+                        iconSize: 26,
                         onPressed: () {}, // TODO: Implement settings
                       ),
                       IconButton(
-                        icon: Icon(Icons.account_circle,
+                        icon: Icon(Icons.logout_outlined,
                             color: Theme.of(context).colorScheme.onSurface),
-                        onPressed: () {}, // TODO: Implement profile
+                        iconSize: 26,
+                        onPressed: () async {
+                          final navigator = Navigator.of(context);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.remove('token');
+                          if (mounted) {
+                            navigator.pushNamedAndRemoveUntil(
+                                '/login', (route) => false);
+                          }
+                        },
                       ),
                     ],
                   ),

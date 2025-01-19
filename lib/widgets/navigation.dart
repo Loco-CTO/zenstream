@@ -91,7 +91,7 @@ class NavigationState extends State<NavigationMenu> {
                 child: Icon(
                   _collectionTypeIcons[library.collectionType] ?? Icons.folder,
                   color: Theme.of(context).colorScheme.onSurface,
-                  size: 20,
+                  size: 22,
                 ),
               ),
             ),

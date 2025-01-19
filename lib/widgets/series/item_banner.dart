@@ -90,10 +90,8 @@ class ItemBannerState extends State<ItemBanner> {
                           BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
                             child: Container(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surface
-                                  .withAlpha((0.5 * 255).toInt()),
+                              color:
+                                  Colors.black.withAlpha((0.3 * 255).toInt()),
                             ),
                           ),
                           _buildPlayButton(context),
@@ -124,30 +122,35 @@ class ItemBannerState extends State<ItemBanner> {
             scale: _isPlayButtonHovered ? 1.1 : 1.0,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Container(
-                  padding: EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color:
-                        Theme.of(context).colorScheme.surface.withOpacity(0.3),
-                  ),
-                  child: AnimatedScale(
-                    duration: Duration(milliseconds: 220),
-                    scale: _isPlayButtonHovered ? 0.99 : 1.0,
-                    child: Icon(
-                      Icons.play_arrow_rounded,
-                      color: _isPlayButtonHovered
-                          ? Theme.of(context).colorScheme.secondary
-                          : Theme.of(context).colorScheme.primary,
-                      size: 64,
-                    ),
-                  ),
-                ),
-              ),
+              child: _isPlayButtonHovered
+                  ? BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                      child: _buildButtonContent(context),
+                    )
+                  : _buildButtonContent(context),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButtonContent(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.black.withOpacity(0.5),
+      ),
+      child: AnimatedScale(
+        duration: Duration(milliseconds: 220),
+        scale: _isPlayButtonHovered ? 0.99 : 1.0,
+        child: Icon(
+          Icons.play_arrow_rounded,
+          color: _isPlayButtonHovered
+              ? Theme.of(context).colorScheme.secondary
+              : Theme.of(context).colorScheme.primary,
+          size: 64,
         ),
       ),
     );

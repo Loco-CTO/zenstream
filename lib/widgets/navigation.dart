@@ -121,7 +121,7 @@ class NavigationState extends State<NavigationMenu> {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Drawer(
-          width: 350,
+          width: 320,
           backgroundColor: Colors.black.withAlpha((0.3 * 255).toInt()),
           child: Container(
             color: Colors.black.withAlpha((0.3 * 255).toInt()),

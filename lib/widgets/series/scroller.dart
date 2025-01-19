@@ -4,7 +4,7 @@ class Scroller extends StatefulWidget {
   final String? title;
   final List<Widget> items;
 
-  Scroller({super.key, this.title, required this.items});
+  const Scroller({super.key, this.title, required this.items});
 
   @override
   ScrollerState createState() => ScrollerState();

@@ -6,7 +6,7 @@ import "../widgets/layout.dart";
 class PreCheck extends StatefulWidget {
   final Widget nextPage;
 
-  PreCheck({super.key, required this.nextPage});
+  const PreCheck({super.key, required this.nextPage});
 
   @override
   PreCheckState createState() => PreCheckState();

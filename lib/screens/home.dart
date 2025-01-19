@@ -6,7 +6,7 @@ import "../widgets/series/scroller.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 
 class HomeScreen extends StatefulWidget {
-  HomeScreen({super.key});
+  const HomeScreen({super.key});
 
   @override
   HomeScreenState createState() => HomeScreenState();

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/layout.dart';
 
 class TestScreen extends StatelessWidget {
-  TestScreen({super.key});
+  const TestScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

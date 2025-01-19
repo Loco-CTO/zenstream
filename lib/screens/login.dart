@@ -4,7 +4,7 @@ import "../widgets/base_layout.dart";
 import "../jellyfin/api_services.swagger.dart";
 
 class LoginScreen extends StatefulWidget {
-  LoginScreen({super.key});
+  const LoginScreen({super.key});
 
   @override
   LoginScreenState createState() => LoginScreenState();

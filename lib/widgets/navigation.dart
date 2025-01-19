@@ -17,11 +17,11 @@ class NavigationState extends State<NavigationMenu> {
   Map<String, bool> _hoverStates = {};
 
   final Map<String, IconData> _collectionTypeIcons = {
-    'tvshows': Icons.tv,
-    'movies': Icons.movie,
-    'musicvideos': Icons.music_video,
-    'music': Icons.music_note,
-    'playlists': Icons.playlist_play,
+    'tvshows': Icons.tv_rounded,
+    'movies': Icons.movie_rounded,
+    'musicvideos': Icons.music_video_rounded,
+    'music': Icons.music_note_rounded,
+    'playlists': Icons.playlist_play_rounded,
   };
 
   @override

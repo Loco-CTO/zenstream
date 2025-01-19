@@ -5,6 +5,7 @@ import "utils/theme_style.dart";
 import "package:bitsdojo_window/bitsdojo_window.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "routes/routes.dart";
+import "routes/observer.dart";
 import "dart:io";
 import "package:flutter/foundation.dart" show kIsWeb;
 
@@ -48,6 +49,7 @@ class ZenStream extends StatelessWidget {
       darkTheme: ThemeDataStyle.dark,
       themeMode: themeNotifier.themeMode,
       initialRoute: "/",
+      navigatorObservers: [routeObserver],
       onGenerateRoute: AppRoutes.generateRoute,
     );
   }

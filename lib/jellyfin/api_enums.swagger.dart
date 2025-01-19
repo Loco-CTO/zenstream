@@ -38,6 +38,7 @@ class JellyfinShow {
   final String? overview;
   final Map<String, dynamic>? imageTags;
   final Map<String, dynamic>? backdropImageTags;
+  final Map<String, dynamic>? imageBlurHashes;
   final String? parentId;
   final List<String>? tags;
 
@@ -47,6 +48,7 @@ class JellyfinShow {
     this.overview,
     this.imageTags,
     this.backdropImageTags,
+    this.imageBlurHashes,
     this.parentId,
     this.tags,
   });
@@ -78,17 +80,20 @@ class JellyfinShow {
                 ? {data['BackdropImageTags'].first: ''}
                 : Map<String, dynamic>.from(data['BackdropImageTags']))
             : null,
+        imageBlurHashes: data['ImageBlurHashes'] != null
+            ? Map<String, dynamic>.from(data['ImageBlurHashes'])
+            : null,
         parentId: data['ParentId'] as String?,
         tags: data['Tags'] != null ? List<String>.from(data['Tags']) : null,
       );
     } catch (e) {
-      throw FormatException('Failed to parse JellyfinShow: $e');
+      throw FormatException('Failed to parse JellyfinShow: $e\nJSON: $json');
     }
   }
 
   @override
   String toString() {
-    return 'JellyfinShow(id: $id, name: $name, overview: $overview, imageTags: $imageTags, parentId: $parentId, tags: $tags)';
+    return 'JellyfinShow(id: $id, name: $name, hasOverview: ${overview != null}, imageTags: $imageTags, backdropImageTags: $backdropImageTags, parentId: $parentId, tags: $tags)';
   }
 }
 

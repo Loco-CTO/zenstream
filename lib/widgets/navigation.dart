@@ -131,7 +131,7 @@ class NavigationState extends State<NavigationMenu> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(45, 25, 0, 10),
                   child: Text(
-                    'Library',
+                    'ライブラリ',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 22,

@@ -119,18 +119,32 @@ class ItemBannerState extends State<ItemBanner> {
           onTap: () {
             // TODO: Handle play button tap
           },
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            child: AnimatedScale(
-              duration: Duration(milliseconds: 220),
-              scale: _isPlayButtonHovered ? 1.25 : 1.0,
-              child: Icon(
-                Icons.play_arrow_rounded,
-                color: _isPlayButtonHovered
-                    ? Theme.of(context).colorScheme.secondary
-                    : Theme.of(context).colorScheme.primary,
-                size: 64,
+          child: AnimatedScale(
+            duration: Duration(milliseconds: 220),
+            scale: _isPlayButtonHovered ? 1.1 : 1.0,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  padding: EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color:
+                        Theme.of(context).colorScheme.surface.withOpacity(0.3),
+                  ),
+                  child: AnimatedScale(
+                    duration: Duration(milliseconds: 220),
+                    scale: _isPlayButtonHovered ? 0.99 : 1.0,
+                    child: Icon(
+                      Icons.play_arrow_rounded,
+                      color: _isPlayButtonHovered
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.primary,
+                      size: 64,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

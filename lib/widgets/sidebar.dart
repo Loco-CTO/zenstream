@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import '../jellyfin/api_services.swagger.dart';
 
 class Sidebar extends StatefulWidget {
   const Sidebar({super.key});
@@ -12,6 +13,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _rotationAnimation;
   late Animation<double> _scaleAnimation;
+  final JellyfinApiService _apiService = JellyfinApiService();
 
   @override
   void initState() {
@@ -64,7 +66,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
           ),
           Spacer(),
           Padding(
-            padding: EdgeInsets.only(bottom: 20.0),
+            padding: EdgeInsets.only(bottom: 2.0),
             child: MouseRegion(
               child: MouseRegion(
                 onEnter: (_) {
@@ -93,6 +95,24 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                     );
                   },
                 ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(bottom: 20.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(
+                Radius.circular(12.0),
+              ),
+              child: IconButton(
+                highlightColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+                icon: Image.network(
+                    "https://theatre.lococto.me/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4"),
+                iconSize: 35.0,
+                onPressed: () {
+                  // TODO: Implement user account view
+                },
               ),
             ),
           ),

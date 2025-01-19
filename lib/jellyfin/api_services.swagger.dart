@@ -4,7 +4,7 @@ import "package:platform/platform.dart";
 import "package:device_info_plus/device_info_plus.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:logger/logger.dart";
-import "package:zenstream/jellyfin/api_enums.swagger.dart";
+import "api_enums.swagger.dart";
 
 class JellyfinApiService {
   final String baseUrl;

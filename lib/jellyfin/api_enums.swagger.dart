@@ -18,7 +18,7 @@ class JellyfinLibrary {
   final Map<String, String> imageTags;
   final String etag;
 
-  const JellyfinLibrary({
+  JellyfinLibrary({
     required this.id,
     required this.name,
     this.collectionType,

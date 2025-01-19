@@ -4,7 +4,7 @@ import "package:bitsdojo_window/bitsdojo_window.dart";
 class BaseLayout extends StatelessWidget {
   final Widget child;
 
-  const BaseLayout({required this.child, super.key});
+  BaseLayout({required this.child, super.key});
 
   @override
   Widget build(BuildContext context) {

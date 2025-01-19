@@ -4,7 +4,7 @@ class Scroller extends StatefulWidget {
   final String? title;
   final List<Widget> items;
 
-  const Scroller({super.key, this.title, required this.items});
+  Scroller({super.key, this.title, required this.items});
 
   @override
   ScrollerState createState() => ScrollerState();
@@ -17,7 +17,7 @@ class ScrollerState extends State<Scroller> {
   void _scrollLeft() {
     _scrollController.animateTo(
       _scrollController.offset - 1200,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
   }
@@ -25,7 +25,7 @@ class ScrollerState extends State<Scroller> {
   void _scrollRight() {
     _scrollController.animateTo(
       _scrollController.offset + 1200,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
   }
@@ -35,17 +35,17 @@ class ScrollerState extends State<Scroller> {
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    double dragDistance =
+    final double dragDistance =
         (details.globalPosition.dx - _dragStartPosition) * 0.5;
     _scrollController.jumpTo(_scrollController.offset - dragDistance);
     _dragStartPosition = details.globalPosition.dx;
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    double velocity = details.primaryVelocity ?? 0.0;
+    final double velocity = details.primaryVelocity ?? 0.0;
     _scrollController.animateTo(
       _scrollController.offset - velocity / 2,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
       curve: Curves.decelerate,
     );
   }
@@ -53,11 +53,11 @@ class ScrollerState extends State<Scroller> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 5.0),
+      padding: EdgeInsets.symmetric(horizontal: 0.0, vertical: 5.0),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 65.0),
+            padding: EdgeInsets.symmetric(horizontal: 65.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -69,11 +69,11 @@ class ScrollerState extends State<Scroller> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back),
                       onPressed: _scrollLeft,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.arrow_forward),
+                      icon: Icon(Icons.arrow_forward),
                       onPressed: _scrollRight,
                     ),
                   ],
@@ -82,7 +82,7 @@ class ScrollerState extends State<Scroller> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 50.0),
+            padding: EdgeInsets.symmetric(horizontal: 50.0),
             child: GestureDetector(
               onHorizontalDragStart: _onHorizontalDragStart,
               onHorizontalDragUpdate: _onHorizontalDragUpdate,
@@ -90,7 +90,7 @@ class ScrollerState extends State<Scroller> {
               child: SingleChildScrollView(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
+                physics: BouncingScrollPhysics(),
                 child: ClipRect(
                   child: Row(
                     children: widget.items,

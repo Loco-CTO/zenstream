@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "package:bitsdojo_window/bitsdojo_window.dart";
-import "package:zenstream/widgets/navigation.dart";
-import "package:zenstream/widgets/sidebar.dart";
+import "navigation.dart";
+import "sidebar.dart";
 import "dart:async";
 
 class LayoutScaffold extends StatefulWidget {
@@ -55,13 +55,13 @@ class LayoutScaffoldState extends State<LayoutScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const NavigationMenu(),
+      drawer: NavigationMenu(),
       body: MouseRegion(
         onHover: _onPointerHover,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Sidebar(),
+            Sidebar(),
             Expanded(
               child: Column(
                 children: [

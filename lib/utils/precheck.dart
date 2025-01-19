@@ -1,12 +1,12 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:zenstream/jellyfin/api_services.swagger.dart";
-import "package:zenstream/widgets/layout.dart";
+import "../jellyfin/api_services.swagger.dart";
+import "../widgets/layout.dart";
 
 class PreCheck extends StatefulWidget {
   final Widget nextPage;
 
-  const PreCheck({super.key, required this.nextPage});
+  PreCheck({super.key, required this.nextPage});
 
   @override
   PreCheckState createState() => PreCheckState();
@@ -53,9 +53,9 @@ class PreCheckState extends State<PreCheck> {
       child: _errorMessage != null
           ? Text(
               _errorMessage!,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: Colors.red),
             )
-          : const CircularProgressIndicator(),
+          : CircularProgressIndicator(),
     ));
   }
 }

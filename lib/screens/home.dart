@@ -1,12 +1,12 @@
 import "package:flutter/material.dart";
-import "package:zenstream/widgets/layout.dart";
-import "package:zenstream/widgets/featured_bar.dart";
-import "package:zenstream/widgets/series/item_banner.dart";
-import "package:zenstream/widgets/series/scroller.dart";
+import "../widgets/layout.dart";
+import "../widgets/featured_bar.dart";
+import "../widgets/series/item_banner.dart";
+import "../widgets/series/scroller.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  HomeScreen({super.key});
 
   @override
   HomeScreenState createState() => HomeScreenState();
@@ -25,15 +25,15 @@ class HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const FeaturedBar(),
-            const SizedBox(height: 20),
+            FeaturedBar(),
+            SizedBox(height: 20),
             _buildScroller("最新なアニメ"),
             _buildScroller("最新なアニメ"),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _buildServerAddress(),
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/test'),
-              child: const Text('Go to Test Screen'),
+              child: Text('Go to Test Screen'),
             ),
           ],
         ),
@@ -51,7 +51,7 @@ class HomeScreenState extends State<HomeScreen> {
           onExit: (_) => setState(() {}),
           child: Container(
             width: 220,
-            margin: const EdgeInsets.all(8),
+            margin: EdgeInsets.all(8),
             child: ItemBanner(
               imageUrl:
                   "https://theatre.lococto.me/Items/329e09da86188f42c1f304be2a60946a/Images/Primary?fillHeight=656&fillWidth=446&quality=96&tag=31562f151b0cfa4e0c98801a022928d4",
@@ -67,7 +67,7 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildServerAddress() {
     return Text(
       "Server Address: ${dotenv.env["WEB_URL"] ?? "Unknown"}",
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12,
         fontFamily: "GoNotoKurrent",
         fontWeight: FontWeight.w400,

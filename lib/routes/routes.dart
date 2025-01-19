@@ -1,9 +1,9 @@
 import "package:flutter/material.dart";
-import "package:zenstream/widgets/splash_screen.dart";
-import "package:zenstream/screens/home.dart";
-import "package:zenstream/screens/login.dart";
-import "package:zenstream/utils/precheck.dart";
-import "package:zenstream/screens/test_screen.dart";
+import "../widgets/splash_screen.dart";
+import "../screens/home.dart";
+import "../screens/login.dart";
+import "../utils/precheck.dart";
+import "../screens/test_screen.dart";
 
 class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -11,31 +11,31 @@ class AppRoutes {
       case "/":
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const SplashScreen(),
+              SplashScreen(),
           transitionDuration: Duration.zero,
         );
       case "/home":
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              PreCheck(nextPage: const HomeScreen()),
+              PreCheck(nextPage: HomeScreen()),
           transitionDuration: Duration.zero,
         );
       case "/login":
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const LoginScreen(),
+              LoginScreen(),
           transitionDuration: Duration.zero,
         );
       case "/test":
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              PreCheck(nextPage: const TestScreen()),
+              PreCheck(nextPage: TestScreen()),
           transitionDuration: Duration.zero,
         );
       default:
         return PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const SplashScreen(),
+              SplashScreen(),
           transitionDuration: Duration.zero,
         );
     }

@@ -1,6 +1,6 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:zenstream/widgets/base_layout.dart";
+import "base_layout.dart";
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,7 +13,7 @@ class SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(Duration(seconds: 2), () {
       _checkLoginStatus();
     });
   }

@@ -7,7 +7,7 @@ class ItemBanner extends StatefulWidget {
   final String title;
   final String subtitle;
 
-  const ItemBanner({
+  ItemBanner({
     required this.imageUrl,
     required this.title,
     required this.subtitle,
@@ -46,8 +46,8 @@ class ItemBannerState extends State<ItemBanner> {
               // TODO: Handle banner tap
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.all(8.0),
+              duration: Duration(milliseconds: 300),
+              margin: EdgeInsets.all(8.0),
               width: 200,
               height: 300,
               decoration: BoxDecoration(
@@ -73,13 +73,13 @@ class ItemBannerState extends State<ItemBanner> {
                       height: double.infinity,
                       placeholder: (context, url) => Container(
                         color: Theme.of(context).colorScheme.surface,
-                        child: const Center(
+                        child: Center(
                           child: CircularProgressIndicator(),
                         ),
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: Theme.of(context).colorScheme.surface,
-                        child: const Icon(Icons.error),
+                        child: Icon(Icons.error),
                       ),
                     ),
                     if (_isHovered) ...[
@@ -114,10 +114,10 @@ class ItemBannerState extends State<ItemBanner> {
             // TODO: Handle play button tap
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
+            duration: Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             child: AnimatedScale(
-              duration: const Duration(milliseconds: 220),
+              duration: Duration(milliseconds: 220),
               scale: _isPlayButtonHovered ? 1.25 : 1.0,
               child: Icon(
                 Icons.play_arrow_rounded,
@@ -135,7 +135,7 @@ class ItemBannerState extends State<ItemBanner> {
 
   Widget _buildTitle(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: EdgeInsets.symmetric(horizontal: 8.0),
       child: MouseRegion(
         onEnter: (_) => setState(() {
           _isTitleHovered = true;
@@ -167,7 +167,7 @@ class ItemBannerState extends State<ItemBanner> {
 
   Widget _buildSubtitle(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: EdgeInsets.symmetric(horizontal: 8.0),
       child: Text(
         widget.subtitle,
         style: Theme.of(context).textTheme.displaySmall?.copyWith(

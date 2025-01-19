@@ -1,10 +1,10 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
-import "package:zenstream/utils/theme_notifier.dart";
-import "package:zenstream/utils/theme_style.dart";
+import "utils/theme_notifier.dart";
+import "utils/theme_style.dart";
 import "package:bitsdojo_window/bitsdojo_window.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
-import "package:zenstream/routes/routes.dart";
+import "routes/routes.dart";
 import "dart:io";
 import "package:flutter/foundation.dart" show kIsWeb;
 
@@ -20,14 +20,14 @@ Future<void> main() async {
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
-      child: const ZenStream(),
+      child: ZenStream(),
     ),
   );
 
   doWhenWindowReady(() {
     final win = appWindow;
-    win.minSize = const Size(600, 450);
-    win.size = const Size(1280, 720);
+    win.minSize = Size(600, 450);
+    win.size = Size(1280, 720);
     win.alignment = Alignment.center;
     win.title = "ZenStream";
     win.show();

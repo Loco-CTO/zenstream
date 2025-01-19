@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import "package:zenstream/jellyfin/api_services.swagger.dart";
+import "../jellyfin/api_services.swagger.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NavigationMenu extends StatefulWidget {
-  const NavigationMenu({super.key});
+  NavigationMenu({super.key});
 
   @override
   NavigationState createState() => NavigationState();
@@ -118,7 +118,7 @@ class NavigationState extends State<NavigationMenu> {
               padding: EdgeInsets.zero,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(45, 25, 0, 10),
+                  padding: EdgeInsets.fromLTRB(45, 25, 0, 10),
                   child: Text(
                     'ライブラリ',
                     style: TextStyle(

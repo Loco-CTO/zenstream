@@ -17,7 +17,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 350),
+      duration: Duration(milliseconds: 350),
       vsync: this,
     );
     _rotationAnimation = Tween<double>(begin: 0, end: 0.785398).animate(
@@ -62,9 +62,9 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
               ),
             ),
           ),
-          const Spacer(),
+          Spacer(),
           Padding(
-            padding: const EdgeInsets.only(bottom: 20.0),
+            padding: EdgeInsets.only(bottom: 20.0),
             child: MouseRegion(
               child: MouseRegion(
                 onEnter: (_) {

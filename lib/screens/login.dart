@@ -1,10 +1,10 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:zenstream/widgets/base_layout.dart";
-import "package:zenstream/jellyfin/api_services.swagger.dart";
+import "../widgets/base_layout.dart";
+import "../jellyfin/api_services.swagger.dart";
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  LoginScreen({super.key});
 
   @override
   LoginScreenState createState() => LoginScreenState();
@@ -43,10 +43,10 @@ class LoginScreenState extends State<LoginScreen> {
 
     return BaseLayout(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(16.0),
         child: Center(
           child: Container(
-            padding: const EdgeInsets.all(50.0),
+            padding: EdgeInsets.all(50.0),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceDim,
               borderRadius: BorderRadius.circular(10.0),
@@ -67,14 +67,14 @@ class LoginScreenState extends State<LoginScreen> {
                   width: 100,
                   height: 100,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  padding: EdgeInsets.symmetric(vertical: 20.0),
                   child: SizedBox(
                     width: 350,
                     child: TextField(
                       controller: _usernameController,
-                      decoration: const InputDecoration(labelText: "Username"),
+                      decoration: InputDecoration(labelText: "Username"),
                       onSubmitted: (_) => _login(),
                     ),
                   ),
@@ -83,21 +83,21 @@ class LoginScreenState extends State<LoginScreen> {
                   width: 350,
                   child: TextField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: "Password"),
+                    decoration: InputDecoration(labelText: "Password"),
                     obscureText: true,
                     onSubmitted: (_) => _login(),
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _login,
-                  child: const Text("Login"),
+                  child: Text("Login"),
                 ),
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                   Text(
                     _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Colors.red),
                   ),
                 ],
               ],

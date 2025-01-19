@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zenstream/widgets/layout.dart';
+import '../widgets/layout.dart';
 
 class TestScreen extends StatelessWidget {
-  const TestScreen({super.key});
+  TestScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -11,14 +11,14 @@ class TestScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Test Screen',
               style: TextStyle(fontSize: 24),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Go Back'),
+              child: Text('Go Back'),
             ),
           ],
         ),

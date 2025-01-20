@@ -2,9 +2,9 @@ import "dart:convert";
 import "package:http/http.dart" as http;
 import "package:platform/platform.dart";
 import "package:device_info_plus/device_info_plus.dart";
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:logger/logger.dart";
 import "api_enums.swagger.dart";
+import "../environment.dart";
 
 class JellyfinApiService {
   static User? currentUser;
@@ -12,7 +12,9 @@ class JellyfinApiService {
   final String baseUrl;
   final Logger _logger = Logger();
 
-  JellyfinApiService() : baseUrl = dotenv.env["WEB_URL"] ?? "Unknown";
+  JellyfinApiService() : baseUrl = Environment.webURL {
+    _logger.i("Web URL: $baseUrl");
+  }
 
   String _getClient() {
     final platform = LocalPlatform();

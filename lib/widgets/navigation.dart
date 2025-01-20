@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../environment.dart';
 import "../jellyfin/api_services.swagger.dart";
-import "package:shared_preferences/shared_preferences.dart";
 import 'package:provider/provider.dart';
 import '../utils/preferences.dart';
 import '../utils/theme_notifier.dart';

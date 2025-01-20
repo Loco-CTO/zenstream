@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
-import "package:shared_preferences/shared_preferences.dart";
 import "../jellyfin/api_services.swagger.dart";
 import "../widgets/layout.dart";
+import "preferences.dart";
 
 class PreCheck extends StatefulWidget {
   final Widget nextPage;
@@ -23,10 +23,9 @@ class PreCheckState extends State<PreCheck> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
+    final token = await getPreference("token");
     if (token == null || !(await _apiService.checkAuthToken(token))) {
-      await prefs.remove("token");
+      deletePreference("token");
       setState(() {
         _errorMessage = "You have been logged out";
       });

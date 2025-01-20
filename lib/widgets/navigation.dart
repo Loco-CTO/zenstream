@@ -4,6 +4,7 @@ import '../environment.dart';
 import "../jellyfin/api_services.swagger.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import 'package:provider/provider.dart';
+import '../utils/preferences.dart';
 import '../utils/theme_notifier.dart';
 
 class NavigationMenu extends StatefulWidget {
@@ -33,15 +34,13 @@ class NavigationState extends State<NavigationMenu> {
   }
 
   Future<void> _fetchLibraries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
+    final token = await getPreference("token");
+    if (token == null) return;
 
-    if (token != null) {
-      final libraries = await _apiService.getUserLibraries(token);
-      setState(() {
-        _libraries = libraries;
-      });
-    }
+    final libraries = await _apiService.getUserLibraries(token);
+    setState(() {
+      _libraries = libraries;
+    });
   }
 
   Widget _buildLibraryBanner(dynamic library) {
@@ -202,8 +201,8 @@ class NavigationState extends State<NavigationMenu> {
                         iconSize: 26,
                         onPressed: () async {
                           final navigator = Navigator.of(context);
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.remove('token');
+                          final token = await getPreference("token");
+                          if (token == null) return;
                           if (mounted) {
                             navigator.pushNamedAndRemoveUntil(
                                 '/login', (route) => false);

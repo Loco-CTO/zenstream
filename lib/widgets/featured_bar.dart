@@ -8,6 +8,7 @@ import "package:cached_network_image/cached_network_image.dart";
 import 'package:flutter_blurhash/flutter_blurhash.dart';
 
 import "../jellyfin/api_services.swagger.dart";
+import "../utils/preferences.dart";
 
 class FeaturedBar extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -37,24 +38,22 @@ class FeaturedBarState extends State<FeaturedBar> {
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
+      final token = await getPreference("token");
+      if (token == null) return;
 
-      if (token != null) {
-        final newShows = await _apiService.getLatestShows(token);
-        setState(() {
-          _shows = newShows;
-          _isLoading = false;
-          _isRefreshing = false;
-          if (!initialLoad && _pageController.hasClients) {
-            _pageController.animateToPage(
-              0,
-              duration: animateToPageDuration,
-              curve: Curves.easeIn,
-            );
-          }
-        });
-      }
+      final newShows = await _apiService.getLatestShows(token);
+      setState(() {
+        _shows = newShows;
+        _isLoading = false;
+        _isRefreshing = false;
+        if (!initialLoad && _pageController.hasClients) {
+          _pageController.animateToPage(
+            0,
+            duration: animateToPageDuration,
+            curve: Curves.easeIn,
+          );
+        }
+      });
     } catch (e) {
       setState(() {
         if (initialLoad) _shows = [];

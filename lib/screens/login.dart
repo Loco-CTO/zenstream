@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
+import "package:flutter/foundation.dart" show kIsWeb;
 import "../widgets/base_layout.dart";
 import "../jellyfin/api_services.swagger.dart";
 
@@ -24,8 +25,10 @@ class LoginScreenState extends State<LoginScreen> {
       );
 
       final token = response["AccessToken"];
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString("token", token);
+      if (!kIsWeb) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("token", token);
+      }
 
       if (mounted) {
         Navigator.pushNamed(context, '/home');

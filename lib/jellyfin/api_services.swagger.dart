@@ -1,46 +1,51 @@
-import "dart:convert";
-import "package:http/http.dart" as http;
-import "package:platform/platform.dart";
-import "package:device_info_plus/device_info_plus.dart";
-import "package:logger/logger.dart";
-import "api_enums.swagger.dart";
-import "../environment.dart";
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:logger/logger.dart';
+import 'package:dio/dio.dart';
+import 'api_enums.swagger.dart';
+import '../environment.dart';
 
 class JellyfinApiService {
   static User? currentUser;
 
   final String baseUrl;
   final Logger _logger = Logger();
+  final Dio _dio;
 
-  JellyfinApiService() : baseUrl = Environment.webURL {
+  JellyfinApiService()
+      : baseUrl = Environment.webURL,
+        _dio = Dio() {
     _logger.i("Web URL: $baseUrl");
   }
 
   String _getClient() {
-    final platform = LocalPlatform();
-    if (platform.isWindows) return "Windows";
-    if (platform.isLinux) return "Linux";
-    if (platform.isMacOS) return "MacOS";
-    if (platform.isAndroid) return "Android";
-    if (platform.isIOS) return "iOS";
+    if (kIsWeb) return "Web";
+    if (Platform.isWindows) return "Windows";
+    if (Platform.isLinux) return "Linux";
+    if (Platform.isMacOS) return "MacOS";
+    if (Platform.isAndroid) return "Android";
+    if (Platform.isIOS) return "iOS";
     return "Unknown";
   }
 
   Future<String> _getDeviceId() async {
     final deviceInfo = DeviceInfoPlugin();
-    if (LocalPlatform().isAndroid) {
+    if (kIsWeb) {
+      return "Web";
+    } else if (Platform.isAndroid) {
       final androidInfo = await deviceInfo.androidInfo;
       return androidInfo.id;
-    } else if (LocalPlatform().isIOS) {
+    } else if (Platform.isIOS) {
       final iosInfo = await deviceInfo.iosInfo;
       return iosInfo.identifierForVendor ?? "Unknown";
-    } else if (LocalPlatform().isWindows) {
+    } else if (Platform.isWindows) {
       final windowsInfo = await deviceInfo.windowsInfo;
       return windowsInfo.deviceId;
-    } else if (LocalPlatform().isLinux) {
+    } else if (Platform.isLinux) {
       final linuxInfo = await deviceInfo.linuxInfo;
       return linuxInfo.machineId ?? "Unknown";
-    } else if (LocalPlatform().isMacOS) {
+    } else if (Platform.isMacOS) {
       final macInfo = await deviceInfo.macOsInfo;
       return macInfo.systemGUID ?? "Unknown";
     }
@@ -60,50 +65,58 @@ class JellyfinApiService {
   Future<Map<String, dynamic>> authenticateByName(
       String username, String password) async {
     final url = "$baseUrl/Users/AuthenticateByName";
-
     _logger.i("Authenticating user: $username");
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": await _buildAuthorizationHeader(),
-      },
-      body: jsonEncode({
-        "Username": username.trim(),
-        "Pw": password.trim(),
-      }),
-    );
+    try {
+      final response = await _dio.post(
+        url,
+        options: Options(
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": await _buildAuthorizationHeader(),
+          },
+        ),
+        data: {
+          "Username": username.trim(),
+          "Pw": password.trim(),
+        },
+      );
 
-    _logger.i("Response status code: ${response.statusCode}");
+      _logger.i("Response status code: ${response.statusCode}");
 
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      currentUser = User(
-          userId: responseData['User']['Id'],
-          username: responseData['User']['Name']);
-      _logger.i("Authentication successful for user: $username");
-      return responseData;
-    } else {
-      _logger.e("Authentication failed for user: $username");
-      throw Exception("Failed to authenticate");
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        currentUser = User(
+            userId: responseData['User']['Id'],
+            username: responseData['User']['Name']);
+        _logger.i("Authentication successful for user: $username");
+        return responseData;
+      } else {
+        _logger.e("Authentication failed for user: $username");
+        throw Exception("Failed to authenticate");
+      }
+    } on DioError catch (e) {
+      _logger.e("Dio error: ${e.message}");
+      throw Exception("Failed to authenticate: ${e.message}");
     }
   }
 
   Future<bool> checkAuthToken(String token) async {
     final url = "$baseUrl/Users/Me";
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": await _buildAuthorizationHeader(token: token),
-      },
+    final response = await _dio.get(
+      url,
+      options: Options(
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": await _buildAuthorizationHeader(token: token),
+        },
+      ),
     );
 
     if (response.statusCode == 200) {
-      final userData = jsonDecode(response.body);
+      final userData = response.data;
       currentUser = User.fromJson(userData);
       return true;
     } else {
@@ -125,13 +138,15 @@ class JellyfinApiService {
 
     try {
       final header = await _buildAuthorizationHeader(token: token);
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": header,
-        },
+      final response = await _dio.get(
+        url,
+        options: Options(
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": header,
+          },
+        ),
       );
 
       _logger.i("Response status code: ${response.statusCode}");
@@ -140,28 +155,30 @@ class JellyfinApiService {
         throw Exception("Server returned ${response.statusCode}");
       }
 
-      if (response.body.isEmpty) {
+      if (response.data.isEmpty) {
         _logger.w("Empty response received");
         return [];
       }
 
       try {
-        final List<dynamic> data = jsonDecode(response.body);
+        final List<dynamic> data = response.data;
         final shows = data.map((item) => JellyfinShow.fromJson(item)).toList();
 
         final seriesData = <JellyfinShow>[];
         for (var i = 0; i < shows.length; i++) {
           final url =
               "$baseUrl/Users/${currentUser!.userId}/Items/${shows[i].id}?&Fields=Id%2CName%2COverview%2CImageTags";
-          final response = await http.get(
-            Uri.parse(url),
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-              "Authorization": header,
-            },
+          final response = await _dio.get(
+            url,
+            options: Options(
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": header,
+              },
+            ),
           );
-          seriesData.add(JellyfinShow.fromJson(jsonDecode(response.body)));
+          seriesData.add(JellyfinShow.fromJson(response.data));
         }
 
         _logger.i("Successfully fetched ${shows.length} latest shows");
@@ -170,7 +187,7 @@ class JellyfinApiService {
         return seriesData;
       } on FormatException catch (e) {
         _logger
-            .e("Failed to parse response: $e\nResponse was: ${response.body}");
+            .e("Failed to parse response: $e\nResponse was: ${response.data}");
         throw Exception("Invalid response format");
       }
     } catch (e) {
@@ -186,13 +203,15 @@ class JellyfinApiService {
 
     try {
       final header = await _buildAuthorizationHeader(token: token);
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": header,
-        },
+      final response = await _dio.get(
+        url,
+        options: Options(
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": header,
+          },
+        ),
       );
 
       _logger.i("Response status code: ${response.statusCode}");
@@ -201,13 +220,13 @@ class JellyfinApiService {
         throw Exception("Server returned ${response.statusCode}");
       }
 
-      if (response.body.isEmpty) {
+      if (response.data.isEmpty) {
         _logger.w("Empty response received");
         return [];
       }
 
       try {
-        final data = jsonDecode(response.body);
+        final data = response.data;
         final items = data["Items"] as List<dynamic>;
         final libraries =
             items.map((item) => JellyfinLibrary.fromJson(item)).toList();
@@ -218,7 +237,7 @@ class JellyfinApiService {
         return libraries;
       } on FormatException catch (e) {
         _logger
-            .e("Failed to parse response: $e\nResponse was: ${response.body}");
+            .e("Failed to parse response: $e\nResponse was: ${response.data}");
         throw Exception("Invalid response format");
       }
     } catch (e) {

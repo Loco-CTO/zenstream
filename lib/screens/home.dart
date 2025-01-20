@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "../environment.dart";
 import "../widgets/layout.dart";
 import "../widgets/featured_bar.dart";
 import "../widgets/series/item_banner.dart";
@@ -87,7 +88,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
 
   Widget _buildServerAddress() {
     return Text(
-      "Server Address: ${dotenv.env["WEB_URL"] ?? "Unknown"}",
+      "Server Address: ${Environment.webURL}",
       style: TextStyle(
         fontSize: 12,
         fontFamily: "GoNotoKurrent",

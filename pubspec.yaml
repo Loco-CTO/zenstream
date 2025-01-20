@@ -15,7 +15,6 @@ dependencies:
   bitsdojo_window: ^0.1.6
   smooth_page_indicator: ^1.2.0+3
   shared_preferences: ^2.3.3
-  flutter_dotenv: ^5.0.2
   http: ^0.13.3
   platform: ^3.0.0
   device_info_plus: ^11.2.0

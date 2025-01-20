@@ -4,7 +4,6 @@ import "../widgets/layout.dart";
 import "../widgets/featured_bar.dart";
 import "../widgets/series/item_banner.dart";
 import "../widgets/series/scroller.dart";
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "../routes/observer.dart";
 
 class HomeScreen extends StatefulWidget {

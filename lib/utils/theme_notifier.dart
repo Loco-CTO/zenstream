@@ -11,13 +11,10 @@ class ThemeNotifier extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
 
   void toggleTheme() async {
-    if (_themeMode == ThemeMode.light) {
-      _themeMode = ThemeMode.dark;
-    } else {
-      _themeMode = ThemeMode.light;
-    }
+    _themeMode =
+        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
-    _saveTheme();
+    await _saveTheme();
   }
 
   void _loadTheme() async {
@@ -33,7 +30,7 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _saveTheme() async {
+  Future<void> _saveTheme() async {
     await setPreference(
         "theme", ThemeMode.values.indexOf(_themeMode).toString());
   }

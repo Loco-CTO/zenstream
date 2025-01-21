@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "utils/theme_notifier.dart";
-import "utils/theme_style.dart";
 import "package:bitsdojo_window/bitsdojo_window.dart";
 import "routes/routes.dart";
 import "routes/observer.dart";
@@ -36,8 +35,8 @@ class ZenStream extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: "ZenStream",
-      theme: ThemeDataStyle.light,
-      darkTheme: ThemeDataStyle.dark,
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
       themeMode: themeNotifier.themeMode,
       initialRoute: "/",
       navigatorObservers: [routeObserver],

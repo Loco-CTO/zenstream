@@ -1,108 +1,17 @@
-import "package:flutter/material.dart";
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:json_theme_plus/json_theme_plus.dart';
 
 class ThemeDataStyle {
-  static final TextStyle baseTextStyle = TextStyle(
-    fontFamily: "GoNotoKurrent",
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.15,
-  );
+  static Future<ThemeData> loadTheme(String path) async {
+    final String jsonString = await rootBundle.loadString(path);
+    final Map<String, dynamic> jsonMap = json.decode(jsonString);
+    return ThemeDecoder.decodeThemeData(jsonMap)!;
+  }
 
-  static final TextTheme lightTextTheme = TextTheme(
-    displayLarge: baseTextStyle.copyWith(
-      fontSize: 32,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.5,
-      color: Colors.black,
-    ),
-    displayMedium: baseTextStyle.copyWith(
-      fontSize: 24,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.25,
-      color: Colors.black,
-    ),
-    displaySmall: baseTextStyle.copyWith(
-      fontSize: 20,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.25,
-      color: Color.fromARGB(255, 100, 100, 100),
-    ),
-    headlineLarge: baseTextStyle.copyWith(
-      fontSize: 36,
-      color: Colors.black,
-    ),
-    headlineMedium: baseTextStyle.copyWith(
-      fontSize: 24,
-      color: Colors.black,
-    ),
-    headlineSmall: baseTextStyle.copyWith(
-      fontSize: 20,
-      color: Colors.black,
-    ),
-  );
-
-  static final TextTheme darkTextTheme = TextTheme(
-    displayLarge: baseTextStyle.copyWith(
-      fontSize: 32,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.5,
-      color: Colors.white,
-    ),
-    displayMedium: baseTextStyle.copyWith(
-      fontSize: 24,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.25,
-      color: Colors.white,
-    ),
-    displaySmall: baseTextStyle.copyWith(
-      fontSize: 20,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.25,
-      color: Color.fromARGB(255, 155, 155, 155),
-    ),
-    headlineLarge: baseTextStyle.copyWith(
-      fontSize: 36,
-      color: Colors.white,
-    ),
-    headlineMedium: baseTextStyle.copyWith(
-      fontSize: 24,
-      color: Colors.white,
-    ),
-    headlineSmall: baseTextStyle.copyWith(
-      fontSize: 20,
-      color: Colors.white,
-    ),
-  );
-
-  static ThemeData light = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    colorScheme: ColorScheme.light(
-      surface: Color.fromARGB(255, 245, 248, 255),
-      surfaceDim: Color.fromARGB(255, 235, 238, 245),
-      surfaceBright: Color.fromARGB(255, 255, 255, 255),
-      surfaceTint: Color.fromARGB(65, 245, 248, 255),
-      primary: Color.fromARGB(255, 162, 116, 255),
-      secondary: Color.fromARGB(255, 70, 44, 123),
-      tertiary: Color.fromARGB(255, 255, 255, 255),
-      onSurface: Color.fromARGB(255, 0, 0, 0),
-    ),
-    textTheme: lightTextTheme,
-  );
-
-  static ThemeData dark = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    colorScheme: ColorScheme.dark(
-      surface: Color.fromARGB(255, 22, 24, 29),
-      surfaceDim: Color.fromARGB(255, 13, 15, 18),
-      surfaceBright: Color.fromARGB(255, 32, 34, 39),
-      surfaceTint: Color.fromARGB(65, 22, 24, 29),
-      primary: Color.fromARGB(255, 162, 116, 255),
-      secondary: Color.fromARGB(255, 70, 44, 123),
-      outline: Color.fromARGB(255, 174, 146, 228),
-      tertiary: Color.fromARGB(255, 255, 255, 255),
-      onSurface: Color.fromARGB(255, 255, 255, 255),
-    ),
-    textTheme: darkTextTheme,
-  );
+  static Future<ThemeData> get light async =>
+      await loadTheme('themes/light.json');
+  static Future<ThemeData> get dark async =>
+      await loadTheme('themes/dark.json');
 }

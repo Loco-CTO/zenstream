@@ -24,6 +24,7 @@ dependencies:
   dio: ^4.0.0
   universal_html: ^2.0.6
   solar_icons: ^0.0.5
+  json_theme_plus: ^6.7.2
 
 dev_dependencies:
   flutter_test:
@@ -48,6 +49,8 @@ flutter:
   assets:
     - assets/icons/icon.png
     - .env
+    - themes/light.json
+    - themes/dark.json
 
 fonts:
   - family: GoNotoKurrent

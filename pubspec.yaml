@@ -23,6 +23,7 @@ dependencies:
   flutter_blurhash: ^0.8.2
   dio: ^4.0.0
   universal_html: ^2.0.6
+  fluentui_system_icons: ^1.1.271
 
 dev_dependencies:
   flutter_test:

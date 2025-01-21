@@ -86,9 +86,9 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                       child: IconButton(
                         highlightColor: Colors.transparent,
                         hoverColor: Colors.transparent,
-                        icon:
-                            Icon(SolarIconsBold.sidebarMinimalistic, color: iconColor),
-                        iconSize: 35,
+                        icon: Icon(SolarIconsBold.sidebarMinimalistic,
+                            color: iconColor),
+                        iconSize: 40,
                         onPressed: () {
                           Scaffold.of(context).openDrawer();
                         },

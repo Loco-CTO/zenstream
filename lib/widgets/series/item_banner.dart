@@ -23,6 +23,7 @@ class ItemBannerState extends State<ItemBanner> {
   bool _isHovered = false;
   bool _isTitleHovered = false;
   bool _isPlayButtonHovered = false;
+  final Map<IconData, bool> _isIconHovered = {};
 
   @override
   Widget build(BuildContext context) {
@@ -93,10 +94,41 @@ class ItemBannerState extends State<ItemBanner> {
                             filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
                             child: Container(
                               color:
-                                  Colors.black.withAlpha((0.3 * 255).toInt()),
+                                  Colors.black.withAlpha((0.65 * 255).toInt()),
                             ),
                           ),
                           _buildPlayButton(context),
+                          Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: Row(
+                              children: [
+                                _buildIconButton(
+                                  context,
+                                  icon: Icons.check,
+                                  onTap: () {
+                                    // TODO: Handle tick option tap
+                                  },
+                                ),
+                                SizedBox(width: 8),
+                                _buildIconButton(
+                                  context,
+                                  icon: Icons.favorite,
+                                  onTap: () {
+                                    // TODO: Handle heart option tap
+                                  },
+                                ),
+                                SizedBox(width: 8),
+                                _buildIconButton(
+                                  context,
+                                  icon: Icons.more_vert,
+                                  onTap: () {
+                                    // TODO: Handle other options tap
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -123,7 +155,7 @@ class ItemBannerState extends State<ItemBanner> {
             duration: Duration(milliseconds: 220),
             scale: _isPlayButtonHovered ? 1.1 : 1,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(26),
               child: _isPlayButtonHovered
                   ? BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
@@ -139,9 +171,9 @@ class ItemBannerState extends State<ItemBanner> {
 
   Widget _buildButtonContent(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(26),
         color: Colors.black.withAlpha((0.45 * 255).toInt()),
       ),
       child: AnimatedScale(
@@ -200,6 +232,32 @@ class ItemBannerState extends State<ItemBanner> {
               overflow: TextOverflow.ellipsis,
               color: Theme.of(context).textTheme.displaySmall?.color,
             ),
+      ),
+    );
+  }
+
+  Widget _buildIconButton(BuildContext context,
+      {required IconData icon, required VoidCallback onTap}) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isIconHovered[icon] = true),
+      onExit: (_) => setState(() => _isIconHovered[icon] = false),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedScale(
+          duration: Duration(milliseconds: 100),
+          scale: _isIconHovered[icon] == true ? 1.2 : 1,
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 100),
+            padding: EdgeInsets.all(4),
+            child: Icon(
+              icon,
+              color: _isIconHovered[icon] == true
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface,
+              size: 20,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -284,7 +284,8 @@ class ItemBannerState extends State<ItemBanner> {
                 context,
                 value: 1,
                 icon: SolarIconsBold.share,
-                text: "Share",
+                text: "共有",
+                subtitle: "このアイテムを共有する",
                 onTap: () {
                   // TODO: Handle share option tap
                 },
@@ -293,7 +294,8 @@ class ItemBannerState extends State<ItemBanner> {
                 context,
                 value: 2,
                 icon: SolarIconsBold.download,
-                text: "Download",
+                text: "ダウンロード",
+                subtitle: "このアイテムをダウンロードする",
                 onTap: () {
                   // TODO: Handle download option tap
                 },
@@ -302,7 +304,8 @@ class ItemBannerState extends State<ItemBanner> {
                 context,
                 value: 3,
                 icon: SolarIconsBold.infoCircle,
-                text: "Details",
+                text: "詳細",
+                subtitle: "詳細を表示",
                 onTap: () {
                   // TODO: Handle details option tap
                 },
@@ -333,15 +336,20 @@ class ItemBannerState extends State<ItemBanner> {
       {required int value,
       required IconData icon,
       required String text,
+      required String subtitle,
       required VoidCallback onTap}) {
     return PopupMenuItem<int>(
       value: value,
-      child: ListTile(
-        leading: Icon(icon,
-            color: Theme.of(context).colorScheme.onSurface, size: 16),
-        title: Text(text),
-        onTap: onTap,
-        hoverColor: Colors.transparent,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(5, 0, 0, 0),
+        child: ListTile(
+          leading: Icon(icon,
+              color: Theme.of(context).colorScheme.onSurface, size: 20),
+          title: Text(text),
+          subtitle: Text(subtitle),
+          onTap: onTap,
+          hoverColor: Colors.transparent,
+        ),
       ),
     );
   }

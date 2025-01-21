@@ -26,7 +26,7 @@ class NavigationState extends State<NavigationMenu> {
     'movies': SolarIconsBold.videoFramePlayHorizontal,
     'musicvideos': SolarIconsBold.videoLibrary,
     'music': SolarIconsBold.musicNote3,
-    'playlists': SolarIconsBold.playlistMinimalistic2,
+    'playlists': SolarIconsBold.playlistMinimalistic,
   };
 
   @override
@@ -183,8 +183,8 @@ class NavigationState extends State<NavigationMenu> {
                       IconButton(
                         icon: Icon(
                             Theme.of(context).brightness == Brightness.light
-                                ? SolarIconsBold.sun
-                                : SolarIconsBold.moonStars,
+                                ? SolarIconsBold.moonStars
+                                : SolarIconsBold.sun2,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () =>
@@ -192,13 +192,13 @@ class NavigationState extends State<NavigationMenu> {
                                 .toggleTheme(),
                       ),
                       IconButton(
-                        icon: Icon(SolarIconsBold.settingsMinimalistic,
+                        icon: Icon(SolarIconsBold.settings,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () {}, // TODO: Implement settings
                       ),
                       IconButton(
-                        icon: Icon(SolarIconsBold.logout,
+                        icon: Icon(SolarIconsBold.logout_3,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () async {

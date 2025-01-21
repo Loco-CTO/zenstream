@@ -20,6 +20,7 @@ class ItemBanner extends StatefulWidget {
 }
 
 class ItemBannerState extends State<ItemBanner> {
+  late Offset _tapPosition;
   bool _isHovered = false;
   bool _isTitleHovered = false;
   bool _isPlayButtonHovered = false;
@@ -113,19 +114,13 @@ class ItemBannerState extends State<ItemBanner> {
                                 SizedBox(width: 8),
                                 _buildIconButton(
                                   context,
-                                  icon: Icons.favorite,
+                                  icon: SolarIconsBold.heart,
                                   onTap: () {
                                     // TODO: Handle heart option tap
                                   },
                                 ),
                                 SizedBox(width: 8),
-                                _buildIconButton(
-                                  context,
-                                  icon: Icons.more_vert,
-                                  onTap: () {
-                                    // TODO: Handle other options tap
-                                  },
-                                ),
+                                _buildPopupMenuButton(context),
                               ],
                             ),
                           ),
@@ -258,6 +253,95 @@ class ItemBannerState extends State<ItemBanner> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPopupMenuButton(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isIconHovered[Icons.more_vert] = true),
+      onExit: (_) => setState(() => _isIconHovered[Icons.more_vert] = false),
+      onHover: (PointerEvent details) {
+        _tapPosition = details.position;
+      },
+      child: GestureDetector(
+        onTap: () {
+          final RenderBox overlay =
+              Overlay.of(context).context.findRenderObject() as RenderBox;
+
+          showMenu(
+            context: context,
+            color: Theme.of(context).colorScheme.surfaceDim,
+            position: RelativeRect.fromRect(
+              Rect.fromPoints(
+                overlay.localToGlobal(_tapPosition),
+                overlay.localToGlobal(_tapPosition),
+              ),
+              Offset.zero & overlay.size,
+            ),
+            items: [
+              _buildPopupMenuItem(
+                context,
+                value: 1,
+                icon: SolarIconsBold.share,
+                text: "Share",
+                onTap: () {
+                  // TODO: Handle share option tap
+                },
+              ),
+              _buildPopupMenuItem(
+                context,
+                value: 2,
+                icon: SolarIconsBold.download,
+                text: "Download",
+                onTap: () {
+                  // TODO: Handle download option tap
+                },
+              ),
+              _buildPopupMenuItem(
+                context,
+                value: 3,
+                icon: SolarIconsBold.infoCircle,
+                text: "Details",
+                onTap: () {
+                  // TODO: Handle details option tap
+                },
+              ),
+            ],
+          );
+        },
+        child: AnimatedScale(
+          duration: Duration(milliseconds: 100),
+          scale: _isIconHovered[Icons.more_vert] == true ? 1.3 : 1,
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 100),
+            padding: EdgeInsets.all(4),
+            child: Icon(
+              Icons.more_vert,
+              color: _isIconHovered[Icons.more_vert] == true
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<int> _buildPopupMenuItem(BuildContext context,
+      {required int value,
+      required IconData icon,
+      required String text,
+      required VoidCallback onTap}) {
+    return PopupMenuItem<int>(
+      value: value,
+      child: ListTile(
+        leading: Icon(icon,
+            color: Theme.of(context).colorScheme.onSurface, size: 16),
+        title: Text(text),
+        onTap: onTap,
+        hoverColor: Colors.transparent,
       ),
     );
   }

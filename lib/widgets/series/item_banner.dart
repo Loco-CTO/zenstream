@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "dart:ui";
 import "package:cached_network_image/cached_network_image.dart";
+import "package:solar_icons/solar_icons.dart";
 
 class ItemBanner extends StatefulWidget {
   final String imageUrl;
@@ -84,7 +85,7 @@ class ItemBannerState extends State<ItemBanner> {
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: Theme.of(context).colorScheme.surface,
-                            child: Icon(Icons.error),
+                            child: Icon(SolarIconsBold.folderError),
                           ),
                         ),
                         if (_isHovered) ...[
@@ -147,11 +148,11 @@ class ItemBannerState extends State<ItemBanner> {
         duration: Duration(milliseconds: 220),
         scale: _isPlayButtonHovered ? 0.99 : 1,
         child: Icon(
-          Icons.play_arrow_rounded,
+          SolarIconsBold.play,
           color: _isPlayButtonHovered
               ? Theme.of(context).colorScheme.secondary
               : Theme.of(context).colorScheme.primary,
-          size: 45,
+          size: 35,
         ),
       ),
     );

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+
 import 'dart:ui';
 import '../environment.dart';
 import "../jellyfin/api_services.swagger.dart";
 import 'package:provider/provider.dart';
 import '../utils/preferences.dart';
 import '../utils/theme_notifier.dart';
+
+import 'package:solar_icons/solar_icons.dart';
 
 class NavigationMenu extends StatefulWidget {
   const NavigationMenu({super.key});
@@ -19,11 +22,11 @@ class NavigationState extends State<NavigationMenu> {
   final Map<String, bool> _hoverStates = {};
 
   final Map<String, IconData> _collectionTypeIcons = {
-    'tvshows': Icons.tv_rounded,
-    'movies': Icons.movie_rounded,
-    'musicvideos': Icons.music_video_rounded,
-    'music': Icons.music_note_rounded,
-    'playlists': Icons.playlist_play_rounded,
+    'tvshows': SolarIconsBold.display,
+    'movies': SolarIconsBold.videoFramePlayHorizontal,
+    'musicvideos': SolarIconsBold.videoLibrary,
+    'music': SolarIconsBold.musicNote3,
+    'playlists': SolarIconsBold.playlistMinimalistic2,
   };
 
   @override
@@ -67,7 +70,7 @@ class NavigationState extends State<NavigationMenu> {
                       height: double.infinity,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey[900],
-                        child: Icon(Icons.broken_image, size: 50),
+                        child: Icon(SolarIconsBold.folderError, size: 50),
                       ),
                     ),
                     Container(
@@ -98,7 +101,7 @@ class NavigationState extends State<NavigationMenu> {
                   padding: EdgeInsets.fromLTRB(50, 0, 0, 0),
                   child: Icon(
                     _collectionTypeIcons[library.collectionType] ??
-                        Icons.folder,
+                        SolarIconsBold.folder2,
                     color: Theme.of(context).colorScheme.onSurface,
                     size: 22,
                   ),
@@ -180,8 +183,8 @@ class NavigationState extends State<NavigationMenu> {
                       IconButton(
                         icon: Icon(
                             Theme.of(context).brightness == Brightness.light
-                                ? Icons.dark_mode_outlined
-                                : Icons.dark_mode,
+                                ? SolarIconsBold.sun
+                                : SolarIconsBold.moonStars,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () =>
@@ -189,13 +192,13 @@ class NavigationState extends State<NavigationMenu> {
                                 .toggleTheme(),
                       ),
                       IconButton(
-                        icon: Icon(Icons.settings,
+                        icon: Icon(SolarIconsBold.settingsMinimalistic,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () {}, // TODO: Implement settings
                       ),
                       IconButton(
-                        icon: Icon(Icons.logout_outlined,
+                        icon: Icon(SolarIconsBold.logout,
                             color: Theme.of(context).colorScheme.onSurface),
                         iconSize: 26,
                         onPressed: () async {

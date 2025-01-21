@@ -5,6 +5,7 @@ import "package:smooth_page_indicator/smooth_page_indicator.dart";
 import "dart:async";
 import "package:cached_network_image/cached_network_image.dart";
 import 'package:flutter_blurhash/flutter_blurhash.dart';
+import 'package:solar_icons/solar_icons.dart';
 
 import "../jellyfin/api_services.swagger.dart";
 import "../utils/preferences.dart";
@@ -221,7 +222,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                 ),
           errorWidget: (context, url, error) => Container(
             color: Theme.of(context).colorScheme.surfaceDim,
-            child: const Icon(Icons.error),
+            child: const Icon(SolarIconsBold.folderError),
           ),
         ),
         Container(
@@ -302,7 +303,7 @@ class FeaturedBarState extends State<FeaturedBar> {
                         // TODO: Handle play button press
                       },
                       icon: const Icon(
-                        Icons.play_arrow,
+                        SolarIconsBold.play,
                         color: Colors.white,
                         size: 28,
                       ),

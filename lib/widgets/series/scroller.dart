@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:solar_icons/solar_icons.dart";
 
 class Scroller extends StatefulWidget {
   final String? title;
@@ -78,11 +79,11 @@ class ScrollerState extends State<Scroller> {
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back),
+                      icon: Icon(SolarIconsBold.altArrowLeft),
                       onPressed: _scrollLeft,
                     ),
                     IconButton(
-                      icon: Icon(Icons.arrow_forward),
+                      icon: Icon(SolarIconsBold.altArrowRight),
                       onPressed: _scrollRight,
                     ),
                   ],

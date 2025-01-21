@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../jellyfin/api_services.swagger.dart';
 
 class Sidebar extends StatefulWidget {
@@ -64,9 +65,8 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
               ),
             ),
           ),
-          Spacer(),
           Padding(
-            padding: EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(top: 8),
             child: MouseRegion(
               child: MouseRegion(
                 onEnter: (_) {
@@ -86,8 +86,9 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                       child: IconButton(
                         highlightColor: Colors.transparent,
                         hoverColor: Colors.transparent,
-                        icon: Icon(Icons.widgets_rounded, color: iconColor),
-                        iconSize: 40,
+                        icon:
+                            Icon(SolarIconsBold.sidebarMinimalistic, color: iconColor),
+                        iconSize: 35,
                         onPressed: () {
                           Scaffold.of(context).openDrawer();
                         },
@@ -98,11 +99,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
               ),
             ),
           ),
-          Divider(
-            color: theme.colorScheme.surfaceBright,
-            thickness: 1,
-            height: 1,
-          ),
+          Spacer(),
           Padding(
             padding: EdgeInsets.only(top: 8, bottom: 8),
             child: IconButton(
@@ -118,7 +115,7 @@ class SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
                       image: NetworkImage(
                           "https://theatre.lococto.me/Users/8eff4cbbd8224764bbc0d24b9ecedec8/Images/Primary"),
                       fit: BoxFit.cover,
-                      onError: (_, __) => Icon(Icons.account_circle,
+                      onError: (_, __) => Icon(SolarIconsBold.user,
                           size: 45,
                           color: Theme.of(context).colorScheme.primary),
                     ),

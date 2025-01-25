@@ -75,7 +75,8 @@ class JellyfinShow {
         imageTags: data['ImageTags'] != null
             ? Map<String, dynamic>.from(data['ImageTags'])
             : null,
-        backdropImageTags: data['BackdropImageTags'] != null
+        backdropImageTags: data['BackdropImageTags'] != null &&
+                data['BackdropImageTags'].isNotEmpty
             ? (data['BackdropImageTags'] is List
                 ? {data['BackdropImageTags'].first: ''}
                 : Map<String, dynamic>.from(data['BackdropImageTags']))

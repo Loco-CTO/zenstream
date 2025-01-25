@@ -192,13 +192,12 @@ class FeaturedBarState extends State<FeaturedBar> {
           : null;
 
       final String blurHash =
-          "${show.imageBlurHashes?['Backdrop']!.values.first}";
-
+          show.imageBlurHashes?['Backdrop']?.values.first ?? '';
       return _buildPageViewItem(
         show.name,
         show.overview ?? "No description available",
         backdropUrl ?? "",
-        blurHash,
+        blurHash.length >= 6 ? blurHash : null,
       );
     }).toList();
   }

@@ -65,7 +65,7 @@ class JellyfinApiService {
   Future<Map<String, dynamic>> authenticateByName(
       String username, String password) async {
     final url = "$baseUrl/Users/AuthenticateByName";
-    _logger.i("Authenticating user: $username");
+    _logger.i("Authenticating user: $username at $url");
 
     try {
       final response = await _dio.post(

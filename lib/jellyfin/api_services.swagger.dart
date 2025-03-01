@@ -118,8 +118,10 @@ class JellyfinApiService {
     if (response.statusCode == 200) {
       final userData = response.data;
       currentUser = User.fromJson(userData);
+      _logger.i("Successfully authenticated user: ${currentUser?.username}");
       return true;
     } else {
+      _logger.e("Failed to authenticate user");
       currentUser = null;
       return false;
     }

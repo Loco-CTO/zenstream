@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
+import "utils/theme_style.dart";
 import "utils/theme_notifier.dart";
 import "package:bitsdojo_window/bitsdojo_window.dart";
 import "routes/routes.dart";
@@ -11,7 +12,7 @@ Future<void> main() async {
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
-      child: ZenStream(),
+      child: const ZenStream(),
     ),
   );
 
@@ -35,8 +36,8 @@ class ZenStream extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: "ZenStream",
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
+      theme: ThemeDataStyle.light,
+      darkTheme: ThemeDataStyle.dark,
       themeMode: themeNotifier.themeMode,
       initialRoute: "/",
       navigatorObservers: [routeObserver],

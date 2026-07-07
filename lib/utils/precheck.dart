@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "../jellyfin/api_services.swagger.dart";
 import "../widgets/layout.dart";
 import "preferences.dart";
+import "responsive.dart";
 
 class PreCheck extends StatefulWidget {
   final Widget nextPage;
@@ -47,14 +48,30 @@ class PreCheckState extends State<PreCheck> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return LayoutScaffold(
-        body: Center(
-      child: _errorMessage != null
-          ? Text(
-              _errorMessage!,
-              style: TextStyle(color: Colors.red),
-            )
-          : CircularProgressIndicator(),
-    ));
+      body: Center(
+        child: DecoratedBox(
+          decoration: ResponsiveMetrics.panelDecoration(context, radius: 12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
+            child: _errorMessage != null
+                ? Text(
+                    _errorMessage!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.error,
+                    ),
+                  )
+                : const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -1,43 +1,39 @@
-import "dart:ui";
-
 import "package:cached_network_image/cached_network_image.dart";
 import "package:flutter/material.dart";
 import "package:tabler_icons/tabler_icons.dart";
 
 import "../../utils/responsive.dart";
 
-class ItemBanner extends StatefulWidget {
+class ResumeBanner extends StatefulWidget {
   final String imageUrl;
   final String title;
   final String subtitle;
   final double? progress;
-  final double? rating;
   final double? width;
   final double? height;
 
-  const ItemBanner({
+  const ResumeBanner({
     required this.imageUrl,
     required this.title,
     required this.subtitle,
     this.progress,
-    this.rating,
     this.width,
     this.height,
     super.key,
   });
 
   @override
-  State<ItemBanner> createState() => _ItemBannerState();
+  State<ResumeBanner> createState() => _ResumeBannerState();
 }
 
-class _ItemBannerState extends State<ItemBanner> {
+class _ResumeBannerState extends State<ResumeBanner> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final width = widget.width ?? ResponsiveMetrics.posterWidth(context);
+    final width = widget.width ?? ResponsiveMetrics.resumeWidth(context);
     final imageHeight =
-        widget.height ?? ResponsiveMetrics.posterHeight(context);
+        widget.height ?? ResponsiveMetrics.resumeHeight(context);
     final scheme = Theme.of(context).colorScheme;
 
     return Padding(
@@ -46,7 +42,7 @@ class _ItemBannerState extends State<ItemBanner> {
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
         child: AnimatedScale(
-          scale: _isHovered ? 1.018 : 1,
+          scale: _isHovered ? 1.012 : 1,
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOutCubic,
           child: SizedBox(
@@ -64,17 +60,17 @@ class _ItemBannerState extends State<ItemBanner> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _isHovered
-                          ? scheme.primary.withAlpha((0.72 * 255).toInt())
+                          ? scheme.primary.withAlpha((0.68 * 255).toInt())
                           : scheme.outlineVariant
-                              .withAlpha((0.56 * 255).toInt()),
+                              .withAlpha((0.52 * 255).toInt()),
                     ),
                     boxShadow: _isHovered
                         ? [
                             BoxShadow(
                               color: scheme.primary
-                                  .withAlpha((0.20 * 255).toInt()),
-                              blurRadius: 20,
-                              offset: const Offset(0, 12),
+                                  .withAlpha((0.16 * 255).toInt()),
+                              blurRadius: 18,
+                              offset: const Offset(0, 10),
                             ),
                           ]
                         : [],
@@ -106,29 +102,23 @@ class _ItemBannerState extends State<ItemBanner> {
                             ),
                           ),
                         ),
-                        const _PosterGradient(),
-                        if (widget.rating != null)
-                          Positioned(
-                            left: 10,
-                            top: 10,
-                            child: _RatingBadge(value: widget.rating!),
-                          ),
+                        const _ResumeGradient(),
+                        if (_isHovered) Center(child: _PlayButton()),
                         if (widget.progress != null)
                           Positioned(
-                            left: 10,
-                            right: 10,
-                            bottom: 10,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
                             child: _ProgressBar(value: widget.progress!),
                           ),
-                        if (_isHovered) Center(child: _PlayButton()),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                  height: 52,
-                  child: _CardFooter(
+                  height: 42,
+                  child: _ResumeFooter(
                     title: widget.title,
                     subtitle: widget.subtitle,
                   ),
@@ -142,8 +132,8 @@ class _ItemBannerState extends State<ItemBanner> {
   }
 }
 
-class _PosterGradient extends StatelessWidget {
-  const _PosterGradient();
+class _ResumeGradient extends StatelessWidget {
+  const _ResumeGradient();
 
   @override
   Widget build(BuildContext context) {
@@ -151,11 +141,11 @@ class _PosterGradient extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.black.withAlpha((0.05 * 255).toInt()),
             Colors.black.withAlpha((0.02 * 255).toInt()),
-            Colors.black.withAlpha((0.58 * 255).toInt()),
+            Colors.black.withAlpha((0.08 * 255).toInt()),
+            Colors.black.withAlpha((0.62 * 255).toInt()),
           ],
-          stops: const [0, 0.58, 1],
+          stops: const [0, 0.55, 1],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -164,10 +154,11 @@ class _PosterGradient extends StatelessWidget {
   }
 }
 
-class _CardFooter extends StatelessWidget {
+class _ResumeFooter extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _CardFooter({
+
+  const _ResumeFooter({
     required this.title,
     required this.subtitle,
   });
@@ -175,7 +166,6 @@ class _CardFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final scheme = theme.colorScheme;
 
     return Column(
@@ -183,14 +173,14 @@ class _CardFooter extends StatelessWidget {
       children: [
         Text(
           title,
-          maxLines: 2,
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleSmall?.copyWith(
             color: scheme.onSurface,
-            height: 1.16,
+            fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Row(
           children: [
             Expanded(
@@ -210,54 +200,6 @@ class _CardFooter extends StatelessWidget {
   }
 }
 
-class _RatingBadge extends StatelessWidget {
-  final double value;
-
-  const _RatingBadge({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(5);
-
-    return ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.black.withAlpha((0.48 * 255).toInt()),
-            borderRadius: radius,
-            border: Border.all(
-              color: Colors.white.withAlpha((0.16 * 255).toInt()),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  TablerIcons.star_filled,
-                  size: 12,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  value.toStringAsFixed(1),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ProgressBar extends StatelessWidget {
   final double value;
 
@@ -268,39 +210,17 @@ class _ProgressBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final clamped = value.clamp(0, 1).toDouble();
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withAlpha((0.44 * 255).toInt()),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withAlpha((0.10 * 255).toInt()),
+    return Row(
+      children: [
+        Expanded(
+          child: LinearProgressIndicator(
+            minHeight: 3,
+            value: clamped,
+            backgroundColor: Colors.white.withAlpha((0.18 * 255).toInt()),
+            valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  minHeight: 3,
-                  value: clamped,
-                  backgroundColor: Colors.white.withAlpha((0.18 * 255).toInt()),
-                  valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              "${(clamped * 100).round()}%",
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white.withAlpha((0.82 * 255).toInt()),
-                  ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
@@ -312,22 +232,16 @@ class _PlayButton extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withAlpha((0.56 * 255).toInt()),
+        color: Colors.black.withAlpha((0.52 * 255).toInt()),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withAlpha((0.36 * 255).toInt())),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.primary.withAlpha((0.28 * 255).toInt()),
-            blurRadius: 20,
-          ),
-        ],
+        border: Border.all(color: Colors.white.withAlpha((0.34 * 255).toInt())),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(11),
+        padding: const EdgeInsets.all(9),
         child: Icon(
           TablerIcons.player_play_filled,
           color: scheme.primary,
-          size: 22,
+          size: 20,
         ),
       ),
     );

@@ -2,7 +2,7 @@ import "package:flutter/material.dart";
 import "preferences.dart";
 
 class ThemeNotifier extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.dark;
 
   ThemeNotifier() {
     _loadTheme();

@@ -1,6 +1,8 @@
 import "package:flutter/material.dart";
+import "../utils/responsive.dart";
 import "../utils/preferences.dart";
 import "base_layout.dart";
+import "brand_mark.dart";
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -36,17 +38,38 @@ class SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return BaseLayout(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              "assets/icons/icon.png",
-              width: 150,
-              height: 150,
+      child: ColoredBox(
+        color: scheme.surface,
+        child: Center(
+          child: DecoratedBox(
+            decoration: ResponsiveMetrics.panelDecoration(context, radius: 14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 30),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const BrandMark(size: 96),
+                  const SizedBox(height: 18),
+                  Text("ZenStream", style: theme.textTheme.headlineMedium),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Preparing your library",
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 20),
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );

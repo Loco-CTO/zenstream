@@ -2,4 +2,5 @@
     "editor.indentSize": "tabSize",
     "editor.detectIndentation": true,
     "cmake.ignoreCMakeListsMissing": true,
+    "dart.flutterHotReloadOnSave": "allIfDirty",
 }

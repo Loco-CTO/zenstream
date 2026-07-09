@@ -219,7 +219,7 @@ export async function getNewlyAddedItems(session: AuthSession) {
 	);
 	return Promise.all(
 		libraries
-			.filter((library) => library.CollectionType !== "playlists")
+			.filter((library) => isSupportedLibraryType(library.CollectionType))
 			.map(async (library) => ({
 				libraryId: library.Id,
 				libraryName: library.Name,
@@ -228,8 +228,7 @@ export async function getNewlyAddedItems(session: AuthSession) {
 					parentId: library.Id,
 					recursive: true,
 					limit: 18,
-					includeItemTypes:
-						library.CollectionType === "tvshows" ? "Episode" : "Movie",
+					includeItemTypes: libraryItemTypes(library.CollectionType, true),
 					sortBy: "DateCreated",
 					sortOrder: "Descending",
 					fields: `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage`,
@@ -322,7 +321,7 @@ export async function getLibraryViews(
 		signal,
 	);
 	return libraries.filter(
-		(library) => library.CollectionType !== "playlists",
+		(library) => isSupportedLibraryType(library.CollectionType),
 	) as LibraryView[];
 }
 
@@ -338,12 +337,7 @@ export async function getLibraryItems(
 		signal?: AbortSignal;
 	},
 ): Promise<LibraryPage> {
-	const includeItemTypes =
-		options.collectionType === "tvshows"
-			? "Series"
-			: options.collectionType === "movies"
-				? "Movie"
-				: "Series,Movie";
+	const includeItemTypes = libraryItemTypes(options.collectionType);
 	const data = await jellyfinRequest(
 		session,
 		`/Items?${queryString({
@@ -374,6 +368,17 @@ export async function getLibraryItems(
 					? result.Items.length
 					: 0,
 	};
+}
+
+function isSupportedLibraryType(collectionType?: string) {
+	return collectionType === "tvshows" || collectionType === "movies" || collectionType === "boxsets";
+}
+
+function libraryItemTypes(collectionType?: string, newlyAdded = false) {
+	if (collectionType === "tvshows") return newlyAdded ? "Episode" : "Series";
+	if (collectionType === "movies") return "Movie";
+	if (collectionType === "boxsets") return "BoxSet";
+	return "Series,Movie";
 }
 
 export async function fetchDetailData(

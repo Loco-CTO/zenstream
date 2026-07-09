@@ -26,6 +26,7 @@ describe("LibraryPage", () => {
 		vi.spyOn(jellyfin, "getLibraryViews").mockResolvedValue([
 			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
 			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+			{ Id: "collections", Name: "Collections", CollectionType: "boxsets" },
 		]);
 	});
 
@@ -48,6 +49,7 @@ describe("LibraryPage", () => {
 		renderLibrary();
 
 		expect(await screen.findByRole("heading", { name: "Shows" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Collections" })).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
 		fireEvent.click(screen.getByRole("option", { name: "Date added" }));
 		fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));

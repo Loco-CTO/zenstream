@@ -120,7 +120,9 @@ describe("jellyfin api helpers", () => {
 			new Response(JSON.stringify({ Items: [
 				{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
 				{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+				{ Id: "collections", Name: "Collections", CollectionType: "boxsets" },
 				{ Id: "lists", Name: "Playlists", CollectionType: "playlists" },
+				{ Id: "music", Name: "Music", CollectionType: "music" },
 			] }), { status: 200 }),
 		);
 
@@ -128,7 +130,7 @@ describe("jellyfin api helpers", () => {
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
 
 		expect(url.pathname).toBe("/Users/user-1/Views");
-		expect(libraries.map((library) => library.Id)).toEqual(["shows", "movies"]);
+		expect(libraries.map((library) => library.Id)).toEqual(["shows", "movies", "collections"]);
 	});
 
 	it("builds paginated, server-sorted library queries and returns totals", async () => {
@@ -160,12 +162,31 @@ describe("jellyfin api helpers", () => {
 		expect(page.totalRecordCount).toBe(81);
 	});
 
-	it("loads newly added episodes from series libraries and movies from other libraries", async () => {
+	it("requests box sets for collection libraries", async () => {
+		vi.mocked(fetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ Items: [], TotalRecordCount: 0 }), { status: 200 }),
+		);
+
+		await getLibraryItems(session, {
+			parentId: "collections",
+			collectionType: "boxsets",
+			startIndex: 0,
+			sortBy: "SortName",
+			sortOrder: "Ascending",
+		});
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		expect(url.searchParams.get("includeItemTypes")).toBe("BoxSet");
+	});
+
+	it("loads newly added episodes, movies, and collections only", async () => {
 		vi.mocked(fetch)
 			.mockResolvedValueOnce(new Response(JSON.stringify({ Items: [
 				{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
 				{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+				{ Id: "collections", Name: "Collections", CollectionType: "boxsets" },
 				{ Id: "playlists", Name: "Playlists", CollectionType: "playlists" },
+				{ Id: "music", Name: "Music", CollectionType: "music" },
 			] }), { status: 200 }))
 			.mockImplementation(async () => new Response(JSON.stringify({ Items: [] }), { status: 200 }));
 
@@ -177,8 +198,10 @@ describe("jellyfin api helpers", () => {
 		expect(urls[1].searchParams.get("includeItemTypes")).toBe("Episode");
 		expect(urls[2].searchParams.get("parentId")).toBe("movies");
 		expect(urls[2].searchParams.get("includeItemTypes")).toBe("Movie");
-		expect(sections.map((section) => section.libraryName)).toEqual(["Shows", "Movies"]);
-		expect(urls).toHaveLength(3);
+		expect(urls[3].searchParams.get("parentId")).toBe("collections");
+		expect(urls[3].searchParams.get("includeItemTypes")).toBe("BoxSet");
+		expect(sections.map((section) => section.libraryName)).toEqual(["Shows", "Movies", "Collections"]);
+		expect(urls).toHaveLength(4);
 		expect(urls.some((url) => url.searchParams.get("parentId") === "playlists")).toBe(false);
 		expect(urls[1].searchParams.get("fields")).toContain("SeriesPrimaryImage");
 	});

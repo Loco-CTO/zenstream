@@ -83,7 +83,7 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 					</>}
 					<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 						{image && <BlurHashImage image={image} alt={stacked ? item.SeriesName ?? item.Name : item.Name} draggable={false} className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`} />}
-						{stacked && <span className="absolute right-2 top-2 rounded-sm bg-black/75 px-2 py-1 text-xs font-semibold text-white">{items.length} EP</span>}
+						{stacked && <span className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}>{items.length} EP</span>}
 						<MediaCardOverlay />
 					</div>
 				</div>
@@ -104,6 +104,9 @@ function detailHref(item: JellyfinItem) {
 
 export const MEDIA_CARD_IMAGE_CLASS =
 	"h-full w-full object-cover transition group-hover/card:brightness-50";
+
+export const MEDIA_CARD_TAG_CLASS =
+	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
 export function MediaCardOverlay() {
 	return (

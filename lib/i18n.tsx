@@ -54,6 +54,8 @@ export const TRANSLATION_KEYS = [
 	"myList",
 	"minutes",
 	"episodes",
+	"unwatchedEpisodes",
+	"allEpisodesWatched",
 	"items",
 	"scrollLeft",
 	"scrollRight",

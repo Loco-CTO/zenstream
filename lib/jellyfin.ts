@@ -34,6 +34,7 @@ export interface JellyfinItem {
 	LocalTrailerCount?: number;
 	UserData?: {
 		IsFavorite?: boolean;
+		UnplayedItemCount?: number;
 		PlayedPercentage?: number;
 		PlaybackPositionTicks?: number;
 		Played?: boolean;

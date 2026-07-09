@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
 	ArrowDown,
 	ArrowUp,
+	Check,
 	Star,
 } from "lucide-react";
 import {
@@ -13,7 +14,11 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { MediaCardOverlay, MEDIA_CARD_IMAGE_CLASS } from "@/components/home/media-card";
+import {
+	MediaCardOverlay,
+	MEDIA_CARD_IMAGE_CLASS,
+	MEDIA_CARD_TAG_CLASS,
+} from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
@@ -355,6 +360,7 @@ function VirtualMediaGrid({
 }
 
 function LibraryCard({ item }: { item: JellyfinItem }) {
+	const { t } = useI18n();
 	const image = posterImage(item);
 	const href = item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
@@ -377,6 +383,20 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 						<div className="absolute bottom-2 left-2 flex items-center gap-1">
 							<Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
 							<span className="text-[10px] font-semibold text-white/80">{item.CommunityRating.toFixed(1)}</span>
+						</div>
+					)}
+					{item.Type === "Series" && item.UserData?.UnplayedItemCount != null && (
+						<div
+							aria-label={item.UserData.UnplayedItemCount === 0
+								? t("allEpisodesWatched")
+								: `${item.UserData.UnplayedItemCount} ${t("unwatchedEpisodes")}`}
+							className={`absolute right-2 top-2 flex items-center gap-1 ${MEDIA_CARD_TAG_CLASS}`}
+						>
+							{item.UserData.UnplayedItemCount === 0 ? (
+								<Check aria-hidden="true" className="h-3 w-3 text-emerald-300/80" />
+							) : (
+								<>{item.UserData.UnplayedItemCount} {t("unwatchedEpisodes")}</>
+							)}
 						</div>
 					)}
 				</div>

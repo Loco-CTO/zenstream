@@ -1,0 +1,110 @@
+home: Home
+library: Library
+favorites: Favorites
+list: List
+search: Search
+notifications: Notifications
+profile: Profile
+settings: Settings
+language: Language
+english: English
+japanese: Japanese
+logout: Log out
+all: All
+play: Play
+info: Info
+save: Save
+saved: Saved
+welcome: Welcome back
+loginDescription: Sign in to your library.
+username: Username
+password: Password
+login: Login
+loginFailed: Login failed. Check your username and password.
+libraryLoadFailed: Could not load your library
+retry: Retry
+returnHome: Return home
+pageNotFoundTitle: Page not found
+pageNotFoundMessage: This screen is not available or may have moved.
+unexpectedErrorTitle: Something went wrong
+unexpectedErrorMessage: ZenStream could not load this screen.
+emptyLibrary: Your library is empty
+emptyLibraryHint: Add media and refresh this page.
+featuredTitle: Featured title
+previousSlide: Show previous featured slide
+nextSlide: Show next featured slide
+searchSoon: Search is coming soon
+localeSaveFailed: Could not save your language setting.
+continueWatching: Continue Watching
+newlyAddedOn: "Newly Added on {library}"
+nextUp: Next Up
+topRated: Top Rated Anime
+newReleases: New Releases
+movies: Movies
+myList: My List
+minutes: "{count} min"
+episodes: "{count} episodes"
+items: "{count} items"
+scrollLeft: "Scroll {title} left"
+scrollRight: "Scroll {title} right"
+showSlide: "Show slide {count}: {title}"
+account: Account
+edit: Edit
+changePassword: Change Password
+appearance: Appearance
+languageDescription: Choose the language used throughout ZenStream
+playback: Playback
+audioLanguage: Audio Language
+subtitleLanguage: Subtitle Language
+spanish: Spanish
+french: French
+off: "Off"
+autoplayNextEpisode: Autoplay Next Episode
+autoplayBrowse: Autoplay on Browse
+autoplayBrowseDescription: Play previews while browsing
+newEpisodes: New Episodes
+newEpisodesDescription: When a show you watch releases
+newSeasons: New Seasons
+watchReminders: Watch Reminders
+watchRemindersDescription: Nudges to continue watching
+appUpdates: App Updates & News
+privacyData: Privacy & Data
+watchHistory: Watch History
+watchHistoryDescription: Used to personalize recommendations
+dataSaver: Data Saver
+dataSaverDescription: Reduces streaming quality on mobile
+clearWatchHistory: Clear Watch History
+clear: Clear
+dangerZone: Danger Zone
+back: Back
+episodesLabel: Episodes
+season: Season
+castCrew: Cast & Crew
+moreLikeThis: More Like This
+markWatched: Mark as watched
+markUnwatched: Mark as unwatched
+addFavorite: Add to favorites
+removeFavorite: Remove from favorites
+playbackUnavailable: Playback is not available yet
+detailLoadFailed: Could not load this title
+itemNotFound: Title not found
+muteTrailer: Mute trailer
+unmuteTrailer: Unmute trailer
+sortBy: Sort by
+sortAscending: Sort ascending
+sortDescending: Sort descending
+sortRating: Rating
+sortTitle: Title
+sortDateAdded: Date added
+sortReleaseDate: Release date
+sortYear: Year
+sortCriticRating: Critic rating
+sortRuntime: Runtime
+sortLastPlayed: Last played
+sortPlayCount: Play count
+libraryItems: "{count} items"
+libraryLoadPageFailed: Could not load Library
+libraryLoadMoreFailed: Could not load more titles
+loadingMore: Loading more titles
+noLibraries: No libraries found
+noLibrariesHint: Add a media library and refresh this page.

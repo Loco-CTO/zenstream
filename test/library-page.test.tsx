@@ -1,0 +1,122 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LibraryPage } from "@/components/pages/library-page";
+import { ProgressProvider } from "@/components/status/progress-indicator";
+import { I18nProvider } from "@/lib/i18n";
+import * as jellyfin from "@/lib/jellyfin";
+
+const session = { token: "token", userId: "user", username: "Alex" };
+const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
+	HTMLElement.prototype,
+	"clientWidth",
+);
+
+describe("LibraryPage", () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+		Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+		Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+			configurable: true,
+			get: () => 800,
+		});
+		vi.stubGlobal("ResizeObserver", class {
+			observe() {}
+			disconnect() {}
+		});
+		vi.spyOn(jellyfin, "getLibraryViews").mockResolvedValue([
+			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+		]);
+	});
+
+	afterEach(() => {
+		cleanup();
+		if (clientWidthDescriptor) {
+			Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidthDescriptor);
+		} else {
+			delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+		}
+		Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+		vi.unstubAllGlobals();
+	});
+
+	it("loads libraries and sends sorting changes back to Jellyfin", async () => {
+		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: makeItems(4),
+			totalRecordCount: 4,
+		});
+		renderLibrary();
+
+		expect(await screen.findByRole("heading", { name: "Shows" })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
+		fireEvent.click(screen.getByRole("option", { name: "Date added" }));
+		fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));
+
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenLastCalledWith(
+				session,
+				expect.objectContaining({
+					parentId: "shows",
+					sortBy: "DateCreated",
+					sortOrder: "Ascending",
+				}),
+			),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenLastCalledWith(
+				session,
+				expect.objectContaining({ parentId: "movies", collectionType: "movies" }),
+			),
+		);
+	});
+
+	it("keeps rendered cards bounded and appends the next page near the end", async () => {
+		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({ items: makeItems(40, 40), totalRecordCount: 80 });
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		expect(screen.getAllByRole("article").length).toBeLessThan(40);
+
+		Object.defineProperty(window, "scrollY", { configurable: true, value: 13000 });
+		await act(async () => {
+			fireEvent.scroll(window);
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+		});
+
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ startIndex: 40 }),
+			),
+		);
+		expect(
+			getLibraryItems.mock.calls.filter(([, options]) => options.startIndex === 40),
+		).toHaveLength(1);
+		expect(await screen.findByText("Title 79")).toBeInTheDocument();
+		expect(screen.getAllByRole("article").length).toBeLessThan(40);
+		expect(screen.getByTestId("virtual-media-grid").style.height).not.toBe("");
+	});
+});
+
+function renderLibrary() {
+	return render(
+		<ProgressProvider>
+			<I18nProvider locale="en">
+				<LibraryPage session={session} />
+			</I18nProvider>
+		</ProgressProvider>,
+	);
+}
+
+function makeItems(count: number, offset = 0): jellyfin.JellyfinItem[] {
+	return Array.from({ length: count }, (_, index) => ({
+		Id: `item-${offset + index}`,
+		Name: `Title ${offset + index}`,
+		Type: "Series",
+		ProductionYear: 2024,
+		ImageTags: { Primary: "poster" },
+	}));
+}

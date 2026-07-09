@@ -49,6 +49,7 @@ describe("media card sizing", () => {
     ]} />);
 
     expect(screen.getByText("2 EP")).toBeInTheDocument();
+    expect(screen.getByText("2 EP")).toHaveClass("bg-black/40", "rounded-full");
     expect(screen.getByText("2026")).toBeInTheDocument();
     expect(screen.queryByText("S1:E2")).not.toBeInTheDocument();
   });

@@ -99,6 +99,22 @@ describe("LibraryPage", () => {
 		expect(screen.getAllByRole("article").length).toBeLessThan(40);
 		expect(screen.getByTestId("virtual-media-grid").style.height).not.toBe("");
 	});
+
+	it("shows the unwatched episode count or a checkmark on series cards", async () => {
+		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: [
+				{ ...makeItems(1)[0], UserData: { UnplayedItemCount: 3 } },
+				{ Id: "watched", Name: "Watched series", Type: "Series", UserData: { UnplayedItemCount: 0 } },
+				{ Id: "movie", Name: "Movie", Type: "Movie", UserData: { UnplayedItemCount: 3 } },
+			],
+			totalRecordCount: 3,
+		});
+		renderLibrary();
+
+		expect(await screen.findByLabelText("3 unwatched")).toBeInTheDocument();
+		expect(screen.getByLabelText("All episodes watched")).toBeInTheDocument();
+		expect(screen.queryByLabelText("Movie")).not.toBeInTheDocument();
+	});
 });
 
 function renderLibrary() {

@@ -89,6 +89,7 @@ export interface HomeData {
 export type LibrarySortBy =
 	| "SortName"
 	| "DateCreated"
+	| "DateLastContentAdded"
 	| "PremiereDate"
 	| "ProductionYear"
 	| "CommunityRating"

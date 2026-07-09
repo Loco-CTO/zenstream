@@ -44,6 +44,7 @@ const SORTS = [
 	{ value: "CommunityRating", labelKey: "sortRating" },
 	{ value: "SortName", labelKey: "sortTitle" },
 	{ value: "DateCreated", labelKey: "sortDateAdded" },
+	{ value: "DateLastContentAdded", labelKey: "sortLastAdded" },
 	{ value: "PremiereDate", labelKey: "sortReleaseDate" },
 	{ value: "ProductionYear", labelKey: "sortYear" },
 	{ value: "CriticRating", labelKey: "sortCriticRating" },

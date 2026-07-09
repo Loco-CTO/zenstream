@@ -108,6 +108,7 @@ export const TRANSLATION_KEYS = [
 	"sortRating",
 	"sortTitle",
 	"sortDateAdded",
+	"sortLastAdded",
 	"sortReleaseDate",
 	"sortYear",
 	"sortCriticRating",

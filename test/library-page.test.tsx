@@ -100,6 +100,25 @@ describe("LibraryPage", () => {
 		expect(screen.getByTestId("virtual-media-grid").style.height).not.toBe("");
 	});
 
+	it("supports sorting series by the date their latest episode was added", async () => {
+		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: makeItems(1),
+			totalRecordCount: 1,
+		});
+		renderLibrary();
+
+		expect(await screen.findByRole("heading", { name: "Shows" })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
+		fireEvent.click(screen.getByRole("option", { name: "Last added" }));
+
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenLastCalledWith(
+				session,
+				expect.objectContaining({ sortBy: "DateLastContentAdded" }),
+			),
+		);
+	});
+
 	it("shows the unwatched episode count or a checkmark on series cards", async () => {
 		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
 			items: [

@@ -44,6 +44,7 @@ movies: 映画
 myList: マイリスト
 minutes: "{count}分"
 episodes: "{count}エピソード"
+unwatchedEpisodes: 未視聴
 items: "{count}件"
 scrollLeft: "{title}を左にスクロール"
 scrollRight: "{title}を右にスクロール"

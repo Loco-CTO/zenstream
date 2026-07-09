@@ -45,6 +45,7 @@ myList: My List
 minutes: "{count} min"
 episodes: "{count} episodes"
 unwatchedEpisodes: unwatched
+allEpisodesWatched: All episodes watched
 items: "{count} items"
 scrollLeft: "Scroll {title} left"
 scrollRight: "Scroll {title} right"

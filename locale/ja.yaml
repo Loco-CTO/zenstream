@@ -45,6 +45,7 @@ myList: マイリスト
 minutes: "{count}分"
 episodes: "{count}エピソード"
 unwatchedEpisodes: 未視聴
+allEpisodesWatched: すべて視聴済み
 items: "{count}件"
 scrollLeft: "{title}を左にスクロール"
 scrollRight: "{title}を右にスクロール"

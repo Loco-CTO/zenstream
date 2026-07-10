@@ -21,6 +21,18 @@ describe("video player controls", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());
 
+	it("contains player overlays without creating a scrollbar", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem} session={{ token: "token", userId: "user", username: "Alex" }} onClose={vi.fn()} />
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		expect(container.firstElementChild).toHaveClass("overflow-hidden");
+	});
+
 	it("hides the player gradient when controls time out", () => {
 		const { container } = render(
 			<I18nProvider locale="en">

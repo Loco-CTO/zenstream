@@ -8,6 +8,7 @@ import { getSearchItems, type JellyfinItem } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import type { AuthSession } from "@/lib/session";
+import { useSortPreference } from "@/lib/sort-preferences";
 
 export function SearchPage({ session, query }: { session: AuthSession; query: string }) {
 	const { t } = useI18n();
@@ -15,8 +16,8 @@ export function SearchPage({ session, query }: { session: AuthSession; query: st
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(false);
 	const [retryKey, setRetryKey] = useState(0);
-	const [sortBy, setSortBy] = useState("SortName");
-	const [sortOrder, setSortOrder] = useState<"Ascending" | "Descending">("Ascending");
+	const [sort, setSort] = useSortPreference("zenstream:sort:search", { sortBy: "SortName", sortOrder: "Ascending" }, ["SortName", "CommunityRating", "DateCreated", "PremiereDate", "ProductionYear"] as const);
+	const { sortBy, sortOrder } = sort;
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -45,8 +46,8 @@ export function SearchPage({ session, query }: { session: AuthSession; query: st
 				</div>
 				<div className="flex shrink-0 items-center gap-2">
 					{!loading && !error && <p className="hidden pb-0.5 text-xs uppercase tracking-widest text-white/25 sm:block">{t("items", { count: items.length })}</p>}
-					<button type="button" aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")} onClick={() => setSortOrder((order) => order === "Ascending" ? "Descending" : "Ascending")} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition hover:border-white/20 hover:text-white">{sortOrder === "Ascending" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}</button>
-					<Dropdown aria-label={t("sortBy")} value={sortBy} options={sortOptions} onChange={setSortBy} className="min-w-32 rounded-full py-1.5 uppercase tracking-wider" />
+					<button type="button" aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")} onClick={() => setSort((value) => ({ ...value, sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending" }))} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition hover:border-white/20 hover:text-white">{sortOrder === "Ascending" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}</button>
+					<Dropdown aria-label={t("sortBy")} value={sortBy} options={sortOptions} onChange={(value) => setSort((current) => ({ ...current, sortBy: value as typeof current.sortBy }))} className="min-w-32 rounded-full py-1.5 uppercase tracking-wider" />
 				</div>
 			</header>
 			{error ? <ErrorPanel message={t("searchLoadFailed")} onRetry={() => setRetryKey((value) => value + 1)} /> : loading ? <SearchGridSkeleton /> : items.length === 0 ? <div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-20 text-center shadow-2xl shadow-black/20"><h2 className="text-lg font-semibold text-white/80">{t("noSearchResults")}</h2><p className="mt-2 text-sm text-white/30">{t("searchPlaceholder")}</p></div> : <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">{items.map((item) => <PosterCard key={item.Id} item={item} />)}</div>}

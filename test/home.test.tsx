@@ -88,6 +88,26 @@ describe("home screen", () => {
     await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
     expect(await screen.findAllByText("Recovered")).toHaveLength(2);
   });
+
+  it("does not show the empty-library state while home data is loading", async () => {
+    vi.spyOn(session, "getAuthSession").mockReturnValue({ token: "token", userId: "user", username: "Alex" });
+    let resolveHome!: (data: jellyfin.HomeData) => void;
+    vi.spyOn(jellyfin, "fetchHomeData").mockReturnValue(new Promise((resolve) => {
+      resolveHome = resolve;
+    }));
+
+    render(<ProgressProvider><Page /></ProgressProvider>);
+
+    await waitFor(() => expect(jellyfin.fetchHomeData).toHaveBeenCalled());
+    expect(screen.queryByText("Your library is empty")).not.toBeInTheDocument();
+
+    resolveHome({
+      latestItems: [], newlyAdded: [], continueWatching: [], nextUp: [],
+      topRated: [], newReleases: [], movies: [], myList: [],
+    });
+
+    expect(await screen.findByText("Your library is empty")).toBeInTheDocument();
+  });
 });
 
 function item(id: string, name: string): jellyfin.JellyfinItem {

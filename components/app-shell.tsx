@@ -65,13 +65,10 @@ export function AppShell() {
 		async (nextSession: AuthSession) => {
 			const finishProgress = start();
 			setStatus("loading");
-			setHomeData({} as HomeData);
+			setHomeData(null);
 			setError(null);
 			try {
-				const data = await fetchHomeData(nextSession, (section) => {
-					setHomeData((current) => ({ ...(current ?? {}), ...section }) as HomeData);
-					setStatus("ready");
-				});
+				const data = await fetchHomeData(nextSession);
 				setHomeData(data);
 				setStatus("ready");
 			} catch (err) {

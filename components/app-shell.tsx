@@ -68,7 +68,10 @@ export function AppShell() {
 			setHomeData(null);
 			setError(null);
 			try {
-				const data = await fetchHomeData(nextSession);
+				const data = await fetchHomeData(nextSession, (section) => {
+					setHomeData((current) => ({ ...(current ?? {}), ...section }) as HomeData);
+					if (sectionHasContent(section)) setStatus("ready");
+				});
 				setHomeData(data);
 				setStatus("ready");
 			} catch (err) {
@@ -220,6 +223,16 @@ export function AppShell() {
 			)}
 		</SubtitlePreferencesProvider>
 		</I18nProvider>
+	);
+}
+
+function sectionHasContent(section: Partial<HomeData>) {
+	return Object.values(section).some((value) =>
+		Array.isArray(value)
+			? value.some((item) =>
+					Array.isArray(item) ? item.length > 0 : Boolean(item),
+			  )
+			: Boolean(value),
 	);
 }
 

@@ -79,6 +79,8 @@ export const TRANSLATION_KEYS = [
 	"subtitleOffset",
 	"subtitleFont",
 	"subtitleBold",
+	"subtitlePreview",
+	"subtitlePreviewText",
 	"subtitleTextSize",
 	"subtitleFontColor",
 	"subtitleBorderSize",

@@ -69,6 +69,8 @@ speed: Playback speed
 subtitleOffset: Subtitle offset
 subtitleFont: Subtitle font
 subtitleBold: Bold subtitles
+subtitlePreview: Preview subtitles
+subtitlePreviewText: The quick brown fox jumps over the lazy dog.
 subtitleTextSize: Subtitle text size
 subtitleFontColor: Subtitle font color
 subtitleBorderSize: Subtitle border size

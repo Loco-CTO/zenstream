@@ -7,6 +7,7 @@ import { userImageUrl } from "@/lib/jellyfin";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
+import { SUBTITLE_FONT_STACKS, subtitleOuterShadow } from "@/lib/subtitle-preferences";
 
 type SettingsPageProps = {
   displayName: string;
@@ -31,6 +32,7 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
   const [updates, setUpdates] = useState(false);
   const [watchHistory, setWatchHistory] = useState(true);
   const [dataSaver, setDataSaver] = useState(false);
+  const [subtitlePreview, setSubtitlePreview] = useState(false);
 
   const changeLocale = async (nextLocale: Locale) => {
     setLocaleError(false);
@@ -85,6 +87,8 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
           <SettingsRow label={t("subtitleLanguage")} right={<SettingsSelect label={t("subtitleLanguage")} value={subtitleLanguage} options={[["en", t("english")], ["ja", t("japanese")], ["es", t("spanish")], ["fr", t("french")], ["off", t("off")]]} onChange={setSubtitleLanguage} />} />
           <SettingsRow label={t("subtitleFont")} right={<SettingsSelect label={t("subtitleFont")} value={style.fontFamily} options={[["sans", "Noto Sans"], ["serif", "Serif"], ["mono", "Monospace"]]} onChange={(value) => void updateSubtitleStyle({ fontFamily: value as typeof style.fontFamily })} />} />
           <SettingsRow label={t("subtitleBold")} right={<Toggle label={t("subtitleBold")} checked={style.bold} onChange={(value) => void updateSubtitleStyle({ bold: value })} />} />
+          <SettingsRow label={t("subtitlePreview")} border={false} right={<Toggle label={t("subtitlePreview")} checked={subtitlePreview} onChange={setSubtitlePreview} />} />
+          {subtitlePreview && <div className="border-t border-white/5 bg-black/30 px-4 py-8 text-center"><span className="inline-block max-w-full" style={{ color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily], fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, fontWeight: style.bold ? 700 : 400, lineHeight: 1.15, padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, textShadow: subtitleOuterShadow(style.borderSize, style.borderColor) }}>{t("subtitlePreviewText")}</span></div>}
           <SettingsRow label={t("subtitleTextSize")} right={<RangeControl label={t("subtitleTextSize")} min={50} max={200} value={style.textScale} suffix="%" onChange={(value) => void updateSubtitleStyle({ textScale: value })} />} />
           <SettingsRow label={t("subtitleFontColor")} right={<ColorControl label={t("subtitleFontColor")} value={style.fontColor} onChange={(value) => void updateSubtitleStyle({ fontColor: value })} />} />
           <SettingsRow label={t("subtitleBorderSize")} right={<RangeControl label={t("subtitleBorderSize")} min={0} max={8} step={1} value={style.borderSize} suffix="px" onChange={(value) => void updateSubtitleStyle({ borderSize: value })} />} />
@@ -153,6 +157,14 @@ function RangeControl({ label, min, max, step = 1, value, suffix, onChange }: { 
 
 function ColorControl({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return <input aria-label={label} type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent" />;
+}
+
+function hexToRgba(hex: string, opacity: number) {
+  const value = hex.slice(1);
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
 }
 
 function Avatar({ userId }: { userId: string }) {

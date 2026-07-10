@@ -69,6 +69,8 @@ speed: 再生速度
 subtitleOffset: 字幕のオフセット
 subtitleFont: 字幕フォント
 subtitleBold: 太字字幕
+subtitlePreview: 字幕をプレビュー
+subtitlePreviewText: これは字幕スタイルのプレビューです。
 subtitleTextSize: 字幕の文字サイズ
 subtitleFontColor: 字幕の文字色
 subtitleBorderSize: 字幕の縁取りサイズ

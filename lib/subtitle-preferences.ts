@@ -22,6 +22,19 @@ export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
   mono: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
 };
 
+export function subtitleOuterShadow(size: number, color: string) {
+  if (!size) return "none";
+  const radius = Math.max(0, Math.round(size));
+  const shadows: string[] = [];
+  for (let y = -radius; y <= radius; y += 1) {
+    for (let x = -radius; x <= radius; x += 1) {
+      if (x === 0 && y === 0) continue;
+      shadows.push(`${x}px ${y}px 0 ${color}`);
+    }
+  }
+  return shadows.join(", ");
+}
+
 export function parseWebVttCues(input: string): SubtitleCue[] {
   return input.split(/\r?\n\s*\r?\n/).flatMap((block) => {
     const lines = block.split(/\r?\n/);

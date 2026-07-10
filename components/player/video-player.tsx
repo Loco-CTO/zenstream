@@ -312,7 +312,7 @@ export function CustomSubtitleCue({ cues, time, style }: { cues: SubtitleCue[]; 
 	const activeCues = cues.filter((candidate) => time >= candidate.start && time < candidate.end);
 	if (!activeCues.length) return null;
 	const shadow = subtitleOuterShadow(style.borderSize, style.borderColor);
-	const cueStyle: React.CSSProperties = { color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily], fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, lineHeight: 1.15, whiteSpace: "pre-line", padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, textShadow: shadow };
+	const cueStyle: React.CSSProperties = { color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily], fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, fontWeight: style.bold ? 700 : 400, lineHeight: 1.15, whiteSpace: "pre-line", padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, textShadow: shadow };
 	return <div data-testid="subtitle-overlay" className="pointer-events-none absolute inset-x-4 bottom-[12%] z-10 flex flex-col items-center gap-1 text-center" aria-live="off">{activeCues.map((cue, index) => <span data-testid="subtitle-cue" key={`${cue.start}-${cue.end}-${index}`} style={cueStyle}>{cue.text}</span>)}</div>;
 }
 

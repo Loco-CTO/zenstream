@@ -52,7 +52,7 @@ describe("locale preferences", () => {
 });
 
 describe("subtitle preferences", () => {
-  const style = { fontFamily: "serif" as const, textScale: 125, fontColor: "#abcdef", borderSize: 2, borderColor: "#000000", backgroundColor: "#112233", backgroundOpacity: 40 };
+  const style = { fontFamily: "serif" as const, bold: true, textScale: 125, fontColor: "#abcdef", borderSize: 2, borderColor: "#000000", backgroundColor: "#112233", backgroundOpacity: 40 };
 
   it("loads and validates an account style", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(style)));
@@ -63,7 +63,7 @@ describe("subtitle preferences", () => {
   it("defaults a legacy response without a font family to sans", async () => {
     const legacyStyle = { textScale: style.textScale, fontColor: style.fontColor, borderSize: style.borderSize, borderColor: style.borderColor, backgroundColor: style.backgroundColor, backgroundOpacity: style.backgroundOpacity };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(legacyStyle)));
-    await expect(getSubtitlePreference()).resolves.toEqual({ ...legacyStyle, fontFamily: "sans" });
+    await expect(getSubtitlePreference()).resolves.toEqual({ ...legacyStyle, fontFamily: "sans", bold: false });
   });
 
   it("persists the complete style with PATCH", async () => {

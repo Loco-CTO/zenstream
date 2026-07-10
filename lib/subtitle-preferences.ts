@@ -3,6 +3,7 @@ export type SubtitleFontFamily = (typeof SUBTITLE_FONT_FAMILIES)[number];
 
 export type SubtitleStyle = {
   fontFamily: SubtitleFontFamily;
+  bold: boolean;
   textScale: number;
   fontColor: string;
   borderSize: number;
@@ -13,7 +14,7 @@ export type SubtitleStyle = {
 
 export type SubtitleCue = { start: number; end: number; text: string };
 
-export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { fontFamily: "sans", textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
+export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { fontFamily: "sans", bold: false, textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
 
 export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
   sans: "'Noto Sans', Arial, sans-serif",
@@ -70,10 +71,11 @@ function normalizeSubtitleStyle(value: unknown, allowLegacyFont = true): Subtitl
   if (typeof value !== "object" || value === null) return null;
   const style = value as Record<string, unknown>;
   const fontFamily = style.fontFamily ?? (allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.fontFamily : undefined);
+  const bold = style.bold ?? (allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.bold : undefined);
   if (typeof style.textScale !== "number" || style.textScale < 50 || style.textScale > 200 ||
     typeof style.borderSize !== "number" || style.borderSize < 0 || style.borderSize > 8 ||
     typeof style.backgroundOpacity !== "number" || style.backgroundOpacity < 0 || style.backgroundOpacity > 100 ||
     !["fontColor", "borderColor", "backgroundColor"].every((key) => typeof style[key] === "string" && /^#[0-9a-f]{6}$/i.test(style[key] as string)) ||
-    !SUBTITLE_FONT_FAMILIES.includes(fontFamily as SubtitleFontFamily)) return null;
-  return { ...style, fontFamily } as SubtitleStyle;
+    !SUBTITLE_FONT_FAMILIES.includes(fontFamily as SubtitleFontFamily) || typeof bold !== "boolean") return null;
+  return { ...style, fontFamily, bold } as SubtitleStyle;
 }

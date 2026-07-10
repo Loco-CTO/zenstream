@@ -47,7 +47,7 @@ describe("SettingsPage", () => {
   });
 
   it("persists the selected subtitle font family", async () => {
-    const style = { fontFamily: "serif", textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
+    const style = { fontFamily: "serif", bold: false, textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(style)));
     render(<SubtitlePreferencesProvider><SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} /></SubtitlePreferencesProvider>);
 
@@ -55,6 +55,8 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("option", { name: "Serif" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/preferences/subtitles", expect.objectContaining({ method: "PATCH", body: JSON.stringify(style) })));
+		fireEvent.click(screen.getByRole("switch", { name: "Bold subtitles" }));
+		await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/api/preferences/subtitles", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ ...style, bold: true }) })));
   });
 
   it("localizes every settings section and control", () => {

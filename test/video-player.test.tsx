@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { CustomSubtitleCue, disableNativeSubtitleTracks, HLS_TEXT_TRACK_CONFIG, VideoPlayer } from "@/components/player/video-player";
+import { CustomSubtitleCue, disableNativeSubtitleTracks, HLS_TEXT_TRACK_CONFIG, SkipMarkerActions, VideoPlayer } from "@/components/player/video-player";
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import type { JellyfinItem } from "@/lib/jellyfin";
@@ -67,6 +67,15 @@ describe("video player controls", () => {
 		fireEvent.pointerMove(container.firstElementChild!);
 		act(() => vi.advanceTimersByTime(2501));
 		expect(gradient).toHaveClass("opacity-0");
+	});
+
+	it("keeps the active skip intro action interactive independently of controls", () => {
+		const onSkip = vi.fn();
+		const { getByRole } = render(<SkipMarkerActions markers={{ intro: { start: 10, end: 20 } }} currentTime={12} labelIntro="Skip Intro" labelOutro="Skip Outro" onSkip={onSkip} />);
+		const skipButton = getByRole("button", { name: "Skip Intro" });
+		fireEvent.click(skipButton);
+		expect(onSkip).toHaveBeenCalledOnce();
+		expect(skipButton).toHaveClass("pointer-events-auto");
 	});
 
 	it("loads subtitle preferences when playback opens", async () => {

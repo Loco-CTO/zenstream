@@ -316,7 +316,6 @@ export function Hero({
 					<div className="flex items-center gap-3">
 						<PrimaryActionButton
 							disabled
-							title={t("playbackUnavailable")}
 						>
 							<Play className="h-4 w-4 fill-black text-black" />
 							{t("play")}

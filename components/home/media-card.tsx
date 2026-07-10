@@ -10,15 +10,19 @@ import {
 import { progressPercent, subtitle } from "@/lib/media";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
+import type { AuthSession } from "@/lib/session";
+import { HoverPreviewVideo, useHoverPreview } from "@/components/ui/hover-preview";
 
-export function WideCard({ item }: { item: JellyfinItem }) {
+export function WideCard({ item, session }: { item: JellyfinItem; session?: AuthSession }) {
 	const image = landscapeImage(item);
 	const progress = progressPercent(item);
+	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
-		<article className="group/card w-[320px] shrink-0 cursor-pointer select-none">
+		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[320px] shrink-0 cursor-pointer select-none">
 			<Link href={detailHref(item)} draggable={false} className="block">
-			<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+				<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+					{(item.Type === "Movie" || item.Type === "Episode") && <HoverPreviewVideo preview={preview} />}
 				{image && (
 					<BlurHashImage
 						image={image}
@@ -37,13 +41,15 @@ export function WideCard({ item }: { item: JellyfinItem }) {
 	);
 }
 
-export function PosterCard({ item }: { item: JellyfinItem }) {
+export function PosterCard({ item, session }: { item: JellyfinItem; session?: AuthSession }) {
 	const image = seriesPosterImage(item);
+	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
-		<article className="group/card w-[200px] shrink-0 cursor-pointer select-none">
+		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[200px] shrink-0 cursor-pointer select-none">
 			<Link href={detailHref(item)} draggable={false} className="block">
 			<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+				{item.Type === "Movie" && <HoverPreviewVideo preview={preview} />}
 				{image && (
 					<BlurHashImage
 						image={image}

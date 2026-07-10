@@ -33,6 +33,7 @@ import {
 import { Dropdown } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { VideoPlayer } from "@/components/player/video-player";
+import { HoverPreviewVideo, useHoverPreview } from "@/components/ui/hover-preview";
 
 export function DetailPage({
 	initialData,
@@ -223,6 +224,7 @@ export function DetailPage({
 				{(isSeries || isEpisode) && (
 					<EpisodeSection
 						item={item}
+						session={session}
 						seasons={initialData.seasons}
 						seasonId={seasonId}
 						episodes={episodes}
@@ -231,7 +233,7 @@ export function DetailPage({
 				)}
 				{people.length > 0 && <PeopleSection people={people} />}
 				{!isEpisode && initialData.similar.length > 0 && (
-					<SimilarSection items={initialData.similar} />
+				<SimilarSection items={initialData.similar} session={session} />
 				)}
 			</div>
 		</main>
@@ -315,12 +317,14 @@ function ActionButton({
 
 function EpisodeSection({
 	item,
+	session,
 	seasons,
 	seasonId,
 	episodes,
 	onSeasonChange,
 }: {
 	item: JellyfinItem;
+	session: AuthSession;
 	seasons: JellyfinItem[];
 	seasonId: string;
 	episodes: JellyfinItem[];
@@ -357,6 +361,7 @@ function EpisodeSection({
 							episode={episode}
 							horizontal
 							active={episode.Id === item.Id}
+							session={session}
 						/>
 					))}
 				</HorizontalScroller>
@@ -369,6 +374,7 @@ function EpisodeSection({
 							episode={episode}
 							horizontal={false}
 							active={false}
+							session={session}
 						/>
 					))}
 				</div>
@@ -389,16 +395,21 @@ export function EpisodeCard({
 	episode,
 	horizontal,
 	active,
+	session,
 }: {
 	seriesId: string;
 	episode: JellyfinItem;
 	horizontal: boolean;
 	active: boolean;
+	session?: AuthSession;
 }) {
 	const image = landscapeImage(episode);
 	const progress = progressPercent(episode);
+	const preview = useHoverPreview(episode.Id, episode.RunTimeTicks, session);
 	return (
 		<Link
+			onPointerEnter={horizontal ? preview.start : undefined}
+			onPointerLeave={horizontal ? preview.stop : undefined}
 			href={`/show/${seriesId}/episode/${episode.Id}`}
 			className={
 				horizontal
@@ -409,6 +420,7 @@ export function EpisodeCard({
 			<div
 				className={`relative shrink-0 overflow-hidden rounded bg-white/5 ${horizontal ? "aspect-video w-full" : "h-[120px] w-[213px]"}`}
 			>
+				{horizontal && <HoverPreviewVideo preview={preview} />}
 				{image && (
 					<BlurHashImage
 						image={image}
@@ -488,7 +500,7 @@ function PeopleSection({
 	);
 }
 
-function SimilarSection({ items }: { items: JellyfinItem[] }) {
+function SimilarSection({ items, session }: { items: JellyfinItem[]; session: AuthSession }) {
 	const { t } = useI18n();
 	const title = t("moreLikeThis");
 	return (
@@ -498,7 +510,7 @@ function SimilarSection({ items }: { items: JellyfinItem[] }) {
 			</h2>
 			<HorizontalScroller title={title} className="pb-2">
 				{items.map((similar) => (
-					<PosterCard key={similar.Id} item={similar} />
+					<PosterCard key={similar.Id} item={similar} session={session} />
 				))}
 			</HorizontalScroller>
 		</section>

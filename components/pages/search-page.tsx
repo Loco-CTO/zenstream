@@ -50,7 +50,7 @@ export function SearchPage({ session, query }: { session: AuthSession; query: st
 					<Dropdown aria-label={t("sortBy")} value={sortBy} options={sortOptions} onChange={(value) => setSort((current) => ({ ...current, sortBy: value as typeof current.sortBy }))} className="min-w-32 rounded-full py-1.5 uppercase tracking-wider" />
 				</div>
 			</header>
-			{error ? <ErrorPanel message={t("searchLoadFailed")} onRetry={() => setRetryKey((value) => value + 1)} /> : loading ? <SearchGridSkeleton /> : items.length === 0 ? <div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-20 text-center shadow-2xl shadow-black/20"><h2 className="text-lg font-semibold text-white/80">{t("noSearchResults")}</h2><p className="mt-2 text-sm text-white/30">{t("searchPlaceholder")}</p></div> : <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">{items.map((item) => <PosterCard key={item.Id} item={item} />)}</div>}
+			{error ? <ErrorPanel message={t("searchLoadFailed")} onRetry={() => setRetryKey((value) => value + 1)} /> : loading ? <SearchGridSkeleton /> : items.length === 0 ? <div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-20 text-center shadow-2xl shadow-black/20"><h2 className="text-lg font-semibold text-white/80">{t("noSearchResults")}</h2><p className="mt-2 text-sm text-white/30">{t("searchPlaceholder")}</p></div> : <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">{items.map((item) => <PosterCard key={item.Id} item={item} session={session} />)}</div>}
 		</div>
 	</main>;
 }

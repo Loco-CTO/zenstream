@@ -24,6 +24,7 @@ export function HomePage({ data, session }: { data: HomeData; session: AuthSessi
 						items={section.items}
 						variant="poster"
 						stackEpisodes
+						session={session}
 					/>
 				))}
 				{HOME_ROWS.map((row) => (
@@ -32,6 +33,7 @@ export function HomePage({ data, session }: { data: HomeData; session: AuthSessi
 						title={t(row.titleKey)}
 						items={data[row.key]}
 						variant={row.variant}
+						session={session}
 					/>
 				))}
 			</div>

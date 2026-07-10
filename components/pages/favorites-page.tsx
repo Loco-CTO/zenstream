@@ -54,8 +54,8 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 			</div>
 		</div>
 		{error ? <ErrorPanel message={t("favoritesLoadFailed")} onRetry={() => setRetryKey((value) => value + 1)} /> : loading ? null : items.length === 0 ? <div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center"><h2 className="text-lg font-semibold text-white/80">{t("noFavorites")}</h2></div> : <>
-			{episodes.length > 0 && <HorizontalScroller title={t("favoriteEpisodes")} className="mb-8"><div className="flex gap-4">{episodes.map((item) => <WideCard key={item.Id} item={item} />)}</div></HorizontalScroller>}
-			{movies.length > 0 && <HorizontalScroller title={t("favoriteMovies")} className="mb-8"><div className="flex gap-4">{movies.map((item) => <PosterCard key={item.Id} item={item} />)}</div></HorizontalScroller>}
+			{episodes.length > 0 && <HorizontalScroller title={t("favoriteEpisodes")} className="mb-8"><div className="flex gap-4">{episodes.map((item) => <WideCard key={item.Id} item={item} session={session} />)}</div></HorizontalScroller>}
+			{movies.length > 0 && <HorizontalScroller title={t("favoriteMovies")} className="mb-8"><div className="flex gap-4">{movies.map((item) => <PosterCard key={item.Id} item={item} session={session} />)}</div></HorizontalScroller>}
 			{series.length > 0 && <HorizontalScroller title={t("favoriteSeries")}><div className="flex gap-4">{series.map((item) => <PosterCard key={item.Id} item={item} />)}</div></HorizontalScroller>}
 		</>}
 	</main>;

@@ -6,8 +6,9 @@ import { PosterCard, StackedPosterCard, WideCard } from "@/components/home/media
 import { stackNewlyAdded } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
+import type { AuthSession } from "@/lib/session";
 
-export function MediaRow({ title, items, variant, stackEpisodes = false }: { title: string; items: JellyfinItem[]; variant: "wide" | "poster"; stackEpisodes?: boolean }) {
+export function MediaRow({ title, items, variant, stackEpisodes = false, session }: { title: string; items: JellyfinItem[]; variant: "wide" | "poster"; stackEpisodes?: boolean; session?: AuthSession }) {
   const { t } = useI18n();
 
   if (items.length === 0) {
@@ -26,7 +27,7 @@ export function MediaRow({ title, items, variant, stackEpisodes = false }: { tit
         {stackEpisodes
           ? stackNewlyAdded(items).map((stack) => <StackedPosterCard key={stack.key} items={stack.items} />)
           : items.map((item) =>
-              variant === "wide" ? <WideCard key={item.Id} item={item} /> : <PosterCard key={item.Id} item={item} />,
+              variant === "wide" ? <WideCard key={item.Id} item={item} session={session} /> : <PosterCard key={item.Id} item={item} session={session} />,
             )}
       </HorizontalScroller>
     </section>

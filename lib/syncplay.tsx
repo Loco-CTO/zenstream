@@ -8,7 +8,6 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
 
 export type SyncplayGroup = {
 	id: string;
@@ -89,19 +88,16 @@ export function SyncplayProvider({
 	userId: string;
 	children: ReactNode;
 }) {
-	const router = useRouter();
-	const pathname = usePathname();
 	const [groups, setGroups] = useState<SyncplayGroup[]>([]);
 	const [active, setActive] = useState<SyncplayGroup | null>(null);
 	const refresh = useCallback(async () => {
 		const d = await call("groups");
 		setGroups(d.groups);
-		setActive((current) =>
-			current
-				? (d.groups.find((x: SyncplayGroup) => x.id === current.id) ?? null)
-				: current,
-		);
-	}, []);
+		setActive((current) => {
+			if (current) return d.groups.find((x: SyncplayGroup) => x.id === current.id) ?? null;
+			return d.groups.find((x: SyncplayGroup) => x.members.some((member) => member.userId === userId)) ?? null;
+		});
+	}, [userId]);
 	useEffect(() => {
 		const initial = window.setTimeout(
 			() => void refresh().catch(() => undefined),
@@ -116,10 +112,6 @@ export function SyncplayProvider({
 			window.clearInterval(id);
 		};
 	}, [refresh]);
-	useEffect(() => {
-		if (active?.itemId && !pathname.includes(active.itemId))
-			router.push(`/show/${encodeURIComponent(active.itemId)}`);
-	}, [active?.itemId, pathname, router]);
 	const adopt = (group: SyncplayGroup) => {
 		setActive(group);
 		setGroups((old) => [group, ...old.filter((x) => x.id !== group.id)]);
@@ -129,7 +121,20 @@ export function SyncplayProvider({
 		adopt(await call(`groups/${id}/join`, "POST"));
 	const leave = async () => {
 		if (!active) return;
-		await call(`groups/${active.id}`, "DELETE");
+		try {
+			await call(`groups/${active.id}`, "DELETE");
+		} catch (error) {
+			// The group may have been ended or left from another client meanwhile.
+			if (
+				error instanceof SyncplayRequestError &&
+				(error.status === 403 || error.status === 404)
+			) {
+				setActive(null);
+				await refresh().catch(() => undefined);
+				return;
+			}
+			throw error;
+		}
 		setActive(null);
 		await refresh();
 	};

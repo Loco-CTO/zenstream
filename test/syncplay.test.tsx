@@ -26,7 +26,9 @@ function Controls() {
 	const syncplay = useSyncplay();
 	return <>
 		<button onClick={() => void syncplay.join("group")}>Join</button>
+		<button onClick={() => void syncplay.leave()}>Leave</button>
 		<button onClick={() => void syncplay.command({ action: "play", itemId: "movie", position: 0, playing: true })}>Play</button>
+		<span data-testid="active-group">{syncplay.active?.id ?? "none"}</span>
 	</>;
 }
 
@@ -58,5 +60,36 @@ describe("SyncplayProvider", () => {
 			expect(JSON.parse(String(commands[0][1]?.body)).revision).toBe(1);
 			expect(JSON.parse(String(commands[1][1]?.body)).revision).toBe(2);
 		});
+	});
+
+	it("restores a group the user already belongs to after the provider remounts", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
+		);
+		function ActiveGroup() {
+			const syncplay = useSyncplay();
+			return <span>{syncplay.active?.id ?? "none"}</span>;
+		}
+		render(<SyncplayProvider userId="user"><ActiveGroup /></SyncplayProvider>);
+		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
+		expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups", expect.any(Object));
+	});
+
+	it("clears a stale group when leaving it is rejected because membership changed", async () => {
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [] }));
+			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(group(1)));
+			if (url.endsWith("/groups/group") && init?.method === "DELETE")
+				return new Response(JSON.stringify({ message: "Join this group first." }), { status: 403 });
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		render(<SyncplayProvider userId="user"><Controls /></SyncplayProvider>);
+		fireEvent.click(screen.getByRole("button", { name: "Join" }));
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("none"));
 	});
 });

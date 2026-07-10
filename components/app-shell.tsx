@@ -41,6 +41,7 @@ import {
 } from "@/lib/subtitle-preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
+import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
 
 type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
 
@@ -216,17 +217,19 @@ export function AppShell() {
 					<div className="min-h-screen bg-background" />
 				) : status === "login" || !session ? (
 					<LoginPage onLogin={handleLogin} />
-				) : pathname === "/settings" ? (
-					<SettingsPage
-						displayName={session.username}
-						userId={session.userId}
-						locale={locale}
-						onLocaleChange={handleLocaleChange}
-						onLogout={handleLogout}
-					/>
 				) : (
 					<SyncplayProvider userId={session.userId}>
-						<div className="min-h-screen bg-background text-foreground">
+						<SyncplayPlaybackFollower session={session} />
+						{pathname === "/settings" ? (
+							<SettingsPage
+								displayName={session.username}
+								userId={session.userId}
+								locale={locale}
+								onLocaleChange={handleLocaleChange}
+								onLogout={handleLogout}
+							/>
+						) : (
+							<div className="min-h-screen bg-background text-foreground">
 							<Navbar
 								displayName={session.username}
 								userId={session.userId}
@@ -265,7 +268,8 @@ export function AppShell() {
 								pathname !== "/search" && (
 									<HomePage data={homeData} session={session} />
 								)}
-						</div>
+							</div>
+						)}
 					</SyncplayProvider>
 				)}
 			</SubtitlePreferencesProvider>

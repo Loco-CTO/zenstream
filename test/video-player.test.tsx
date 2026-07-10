@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { CustomSubtitleCue, disableNativeSubtitleTracks, exitFullscreenSafely, HLS_TEXT_TRACK_CONFIG, SkipMarkerActions, VideoPlayer } from "@/components/player/video-player";
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
+import { SyncplayProvider } from "@/lib/syncplay";
 import type { JellyfinItem } from "@/lib/jellyfin";
 
 vi.mock("@/lib/jellyfin", async () => {
@@ -31,6 +32,11 @@ describe("video player controls", () => {
 		);
 
 		expect(container.firstElementChild).toHaveClass("overflow-hidden");
+	});
+
+	it("shows the Syncplay groups control in the player header", () => {
+		const { getByRole } = render(<I18nProvider locale="en"><SyncplayProvider userId="user"><SubtitlePreferencesProvider><VideoPlayer item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem} session={{ token: "token", userId: "user", username: "Alex" }} onClose={vi.fn()} /></SubtitlePreferencesProvider></SyncplayProvider></I18nProvider>);
+		expect(getByRole("button", { name: "Groups" })).toBeInTheDocument();
 	});
 
 	it("locks document scrolling while the player is open and restores it on close", () => {

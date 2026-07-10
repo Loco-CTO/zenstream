@@ -23,6 +23,7 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
+import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import { parseWebVttCues, SUBTITLE_FONT_STACKS, subtitleOuterShadow, type SubtitleCue, type SubtitleStyle } from "@/lib/subtitle-preferences";
 import { useSyncplay } from "@/lib/syncplay";
 
@@ -379,6 +380,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />
 		<div className={`absolute left-5 top-5 flex items-start gap-3 transition-opacity duration-300 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}><button aria-label="Close player" className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white" onClick={onClose}><ArrowLeft /></button><div><p className="text-xs uppercase tracking-[.2em] text-white/55">{item.Type === "Episode" ? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}` : item.Name}</p>{item.Type === "Episode" && <h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>}</div></div>
+		<div className="absolute right-5 top-5 md:right-10 md:top-8"><SyncplayGroupMenu userId={session.userId} playerContext buttonClassName="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white/70 transition hover:bg-black/50 hover:text-white" /></div>
 		{qualityLoading && <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-5 py-3 text-sm text-white/90 shadow-xl backdrop-blur-md"><LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />{t("switchingQuality")}</div>}
 		{error && <p role="alert" className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-black/70 px-4 py-3 text-sm text-red-200">{error}</p>}
 		<SkipMarkerActions markers={markers} currentTime={currentTime} labelIntro={t("skipIntro")} labelOutro={t("skipOutro")} onSkip={skip} />

@@ -76,7 +76,7 @@ export function Navbar({
 										{t("syncplayGroups")}
 									</p>
 									<button
-										onClick={() => void create()}
+										onClick={() => void create().catch(() => undefined)}
 										className="rounded-lg bg-violet-400 px-3 py-1.5 text-xs font-semibold text-black"
 									>
 										{t("createGroup")}
@@ -105,9 +105,9 @@ export function Navbar({
 											</div>
 											<button
 												onClick={() =>
-													void (active?.id === group.id
-														? leave()
-														: join(group.id))
+											void (active?.id === group.id
+													? leave()
+													: join(group.id)).catch(() => undefined)
 												}
 												className="rounded-lg px-2 py-1.5 text-xs text-violet-200 hover:bg-white/10"
 											>
@@ -123,7 +123,7 @@ export function Navbar({
 										<input
 											type="checkbox"
 											checked={active.allowViewerControls}
-											onChange={(e) => void setControls(e.target.checked)}
+										onChange={(e) => void setControls(e.target.checked).catch(() => undefined)}
 										/>
 										{t("allowViewerControls")}
 									</label>

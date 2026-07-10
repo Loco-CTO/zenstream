@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
 	getEpisodes,
@@ -41,6 +42,7 @@ export function DetailPage({
 	session: AuthSession;
 }) {
 	const { t, locale } = useI18n();
+	const router = useRouter();
 	const { start } = useProgress();
 	const [item, setItem] = useState(initialData.item);
 	const [episodes, setEpisodes] = useState(initialData.episodes);
@@ -62,6 +64,14 @@ export function DetailPage({
 		item.People?.filter(
 			(person) => person.Type === "Actor" || person.Type === "Director",
 		) ?? [];
+
+	function goBack() {
+		if (window.history.length > 1) {
+			router.back();
+			return;
+		}
+		router.push("/");
+	}
 
 	async function selectSeason(nextSeasonId: string) {
 		if (!seriesId || nextSeasonId === seasonId) return;
@@ -122,13 +132,15 @@ export function DetailPage({
 				)}
 				<div className="absolute inset-0 bg-gradient-to-t from-[var(--c-hero-bottom)] via-[var(--c-hero-btm-mid)] to-transparent" />
 				<div className="absolute inset-0 bg-[linear-gradient(105deg,var(--c-hero-side)_0%,var(--c-hero-side-mid)_35%,transparent_68%)]" />
-				<Link
-					href={isEpisode && item.SeriesId ? `/show/${item.SeriesId}` : "/"}
+				<button
+					type="button"
+					onClick={goBack}
+					aria-label={t("back")}
 					className="absolute left-5 top-20 flex items-center gap-1 rounded-md px-3 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white md:left-8"
 				>
 					<ChevronLeft className="h-4 w-4" />
 					{isEpisode ? item.SeriesName : t("back")}
-				</Link>
+				</button>
 				<div className="absolute bottom-8 left-6 right-6 flex items-end gap-6 md:left-14 md:right-14">
 					<DetailArtwork item={item} episode={isEpisode} />
 					<div className="min-w-0 flex-1">

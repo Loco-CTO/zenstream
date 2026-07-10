@@ -41,10 +41,20 @@ export function Hero({
 	const [isDragging, setIsDragging] = useState(false);
 	const [trailer, setTrailer] = useState<HeroTrailer | null>(null);
 	const [isTrailerMuted, setIsTrailerMuted] = useState(true);
+	const [canPlayTrailers, setCanPlayTrailers] = useState(false);
 	const dragStartX = useRef<number | null>(null);
 	const dragHandled = useRef(false);
 	const fallbackTimer = useRef<number | null>(null);
 	const canNavigateSlides = slides.length > 1;
+
+	useEffect(() => {
+		const mediaQuery = window.matchMedia("(pointer: fine) and (hover: hover)");
+		const updateTrailerSupport = () => setCanPlayTrailers(mediaQuery.matches);
+
+		updateTrailerSupport();
+		mediaQuery.addEventListener("change", updateTrailerSupport);
+		return () => mediaQuery.removeEventListener("change", updateTrailerSupport);
+	}, []);
 
 	const showSlide = useCallback(
 		(index: number, direction: SlideDirection) => {
@@ -81,6 +91,16 @@ export function Hero({
 		};
 
 		scheduleFallback();
+		if (!canPlayTrailers) {
+			return () => {
+				cancelled = true;
+				if (fallbackTimer.current !== null) {
+					window.clearTimeout(fallbackTimer.current);
+					fallbackTimer.current = null;
+				}
+			};
+		}
+
 		const trailerDelay = window.setTimeout(() => {
 			void getHeroTrailer(session, item)
 				.then((nextTrailer: HeroTrailer | null) => {
@@ -102,7 +122,7 @@ export function Hero({
 				fallbackTimer.current = null;
 			}
 		};
-	}, [canNavigateSlides, goToNextSlide, item, session]);
+	}, [canNavigateSlides, canPlayTrailers, goToNextSlide, item, session]);
 
 	const handleTrailerFailure = useCallback(() => {
 		setTrailer(null);
@@ -213,7 +233,7 @@ export function Hero({
 					className="absolute inset-0 h-full w-full object-cover object-center brightness-[0.55]"
 				/>
 			) : null}
-			{trailer &&
+			{canPlayTrailers && trailer &&
 				(trailer.kind === "youtube" ? (
 					<YouTubeTrailer
 						key={`${item.Id}-youtube`}
@@ -242,7 +262,7 @@ export function Hero({
 				))}
 			<div className="absolute inset-0 bg-[linear-gradient(105deg,var(--c-hero-side)_0%,var(--c-hero-side-mid)_30%,rgba(0,0,0,0.02)_55%,transparent_100%)]" />
 			<div className="absolute inset-0 bg-[linear-gradient(to_top,var(--c-hero-bottom)_0%,var(--c-hero-btm-mid)_22%,transparent_50%)]" />
-			{trailer && (
+			{canPlayTrailers && trailer && (
 				<button
 					type="button"
 					aria-label={isTrailerMuted ? t("unmuteTrailer") : t("muteTrailer")}

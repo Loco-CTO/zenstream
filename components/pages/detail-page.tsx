@@ -35,7 +35,10 @@ import {
 import { Dropdown } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { VideoPlayer } from "@/components/player/video-player";
-import { HoverPreviewVideo, useHoverPreview } from "@/components/ui/hover-preview";
+import {
+	HoverPreviewVideo,
+	useHoverPreview,
+} from "@/components/ui/hover-preview";
 
 type TrackChoice = { audio?: number | string; subtitle?: number };
 
@@ -56,7 +59,8 @@ export function DetailPage({
 	);
 	const [mutationError, setMutationError] = useState("");
 	const [playerOpen, setPlayerOpen] = useState(false);
-	const [trackChoices, setTrackChoices] = useState<ReturnType<typeof playbackStreams>>();
+	const [trackChoices, setTrackChoices] =
+		useState<ReturnType<typeof playbackStreams>>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
 	const [trackLoading, setTrackLoading] = useState(false);
 	const isEpisode = item.Type === "Episode";
@@ -75,15 +79,22 @@ export function DetailPage({
 
 	useEffect(() => {
 		let active = true;
-		void getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }).then((playback) => {
-			if (!active) return;
-			const parsed = playbackStreams(playback);
-			setTrackChoices(parsed);
-			const audio = parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
-			const subtitle = parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
-			setSelectedTracks({ audio: audio?.Index, subtitle: subtitle?.Index });
-		}).catch(() => undefined);
-		return () => { active = false; };
+		void getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 })
+			.then((playback) => {
+				if (!active) return;
+				const parsed = playbackStreams(playback);
+				setTrackChoices(parsed);
+				const audio =
+					parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
+				const subtitle =
+					parsed.subtitles.find((track) => track.IsDefault) ??
+					parsed.subtitles[0];
+				setSelectedTracks({ audio: audio?.Index, subtitle: subtitle?.Index });
+			})
+			.catch(() => undefined);
+		return () => {
+			active = false;
+		};
 	}, [item.Id, session]);
 
 	function goBack() {
@@ -142,153 +153,327 @@ export function DetailPage({
 	async function startPlayback() {
 		setTrackLoading(true);
 		try {
-			const parsed = playbackStreams(await getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }));
+			const parsed = playbackStreams(
+				await getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }),
+			);
 			setTrackChoices(parsed);
-			const audio = parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
-			const subtitle = parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
+			const audio =
+				parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
+			const subtitle =
+				parsed.subtitles.find((track) => track.IsDefault) ??
+				parsed.subtitles[0];
 			const defaults = { audio: audio?.Index, subtitle: subtitle?.Index };
 			setSelectedTracks(defaults);
 			setPlayerOpen(true);
-		} catch { setMutationError("Playback could not be loaded."); }
-		finally { setTrackLoading(false); }
+		} catch {
+			setMutationError("Playback could not be loaded.");
+		} finally {
+			setTrackLoading(false);
+		}
 	}
 
 	return (
 		<>
-		{playerOpen && <VideoPlayer item={item} session={session} initialAudioStreamIndex={selectedTracks.audio == null ? undefined : Number(selectedTracks.audio)} initialSubtitleStreamIndex={selectedTracks.subtitle} onClose={() => setPlayerOpen(false)} onNext={(next) => setItem(next)} onPlayedChange={(played) => setItem((current) => updateUserData(current, { Played: played }))} />}
-		<main className="min-h-screen pb-24">
-			<section className="relative h-[min(70vh,560px)] overflow-hidden">
-				{background && (
-					<BlurHashImage
-						image={background}
-						alt=""
-						className="absolute inset-0 h-full w-full object-cover brightness-[.42]"
-					/>
-				)}
-				<div className="absolute inset-0 bg-gradient-to-t from-[var(--c-hero-bottom)] via-[var(--c-hero-btm-mid)] to-transparent" />
-				<div className="absolute inset-0 bg-[linear-gradient(105deg,var(--c-hero-side)_0%,var(--c-hero-side-mid)_35%,transparent_68%)]" />
-				<button
-					type="button"
-					onClick={goBack}
-					aria-label={t("back")}
-					className="absolute left-5 top-20 flex items-center gap-1 rounded-md px-3 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white md:left-8"
-				>
-					<ChevronLeft className="h-4 w-4" />
-					{isEpisode ? item.SeriesName : t("back")}
-				</button>
-				<div className="absolute bottom-8 left-6 right-6 flex items-end gap-6 md:left-14 md:right-14">
-					<DetailArtwork item={item} episode={isEpisode} />
-					<div className="min-w-0 flex-1">
-						{isEpisode && (
-							<p className="mb-2 text-xs uppercase tracking-[.18em] text-white/40">
-								{t("season")} {item.ParentIndexNumber ?? 0} ·{" "}
-								{t("episodesLabel")} {item.IndexNumber ?? 0}
-							</p>
-						)}
-						<h1 className="mb-3 text-[clamp(2rem,5vw,3.5rem)] font-black leading-none tracking-normal text-white">
-							{titleLogo ? (
-								<BlurHashImage
-									image={titleLogo}
-									alt={item.Name}
-									className="max-h-24 max-w-full object-contain object-left md:max-h-32"
-								/>
-							) : (
-								item.Name
+			{playerOpen && (
+				<VideoPlayer
+					item={item}
+					session={session}
+					initialAudioStreamIndex={
+						selectedTracks.audio == null
+							? undefined
+							: Number(selectedTracks.audio)
+					}
+					initialSubtitleStreamIndex={selectedTracks.subtitle}
+					onClose={() => setPlayerOpen(false)}
+					onNext={(next) => setItem(next)}
+					onPlayedChange={(played) =>
+						setItem((current) => updateUserData(current, { Played: played }))
+					}
+				/>
+			)}
+			<main className="min-h-screen pb-24">
+				<section className="relative h-[min(70vh,560px)] overflow-hidden">
+					{background && (
+						<BlurHashImage
+							image={background}
+							alt=""
+							className="absolute inset-0 h-full w-full object-cover brightness-[.42]"
+						/>
+					)}
+					<div className="absolute inset-0 bg-gradient-to-t from-[var(--c-hero-bottom)] via-[var(--c-hero-btm-mid)] to-transparent" />
+					<div className="absolute inset-0 bg-[linear-gradient(105deg,var(--c-hero-side)_0%,var(--c-hero-side-mid)_35%,transparent_68%)]" />
+					<button
+						type="button"
+						onClick={goBack}
+						aria-label={t("back")}
+						className="absolute left-5 top-20 flex items-center gap-1 rounded-md px-3 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white md:left-8"
+					>
+						<ChevronLeft className="h-4 w-4" />
+						{isEpisode ? item.SeriesName : t("back")}
+					</button>
+					<div className="absolute bottom-8 left-6 right-6 flex items-end gap-6 md:left-14 md:right-14">
+						<DetailArtwork item={item} episode={isEpisode} />
+						<div className="min-w-0 flex-1">
+							{isEpisode && (
+								<p className="mb-2 text-xs uppercase tracking-[.18em] text-white/40">
+									{t("season")} {item.ParentIndexNumber ?? 0} ·{" "}
+									{t("episodesLabel")} {item.IndexNumber ?? 0}
+								</p>
 							)}
-						</h1>
-						<Metadata item={item} locale={locale} />
-						{isEpisode && item.Overview && (
-							<p className="mt-4 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/45">
-								{item.Overview}
-							</p>
-						)}
+							<h1 className="mb-3 text-[clamp(2rem,5vw,3.5rem)] font-black leading-none tracking-normal text-white">
+								{titleLogo ? (
+									<BlurHashImage
+										image={titleLogo}
+										alt={item.Name}
+										className="max-h-24 max-w-full object-contain object-left md:max-h-32"
+									/>
+								) : (
+									item.Name
+								)}
+							</h1>
+							<Metadata item={item} locale={locale} />
+							{isEpisode && item.Overview && (
+								<p className="mt-4 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/45">
+									{item.Overview}
+								</p>
+							)}
+						</div>
 					</div>
-				</div>
-			</section>
+				</section>
 
-			<div className="space-y-9 px-6 pt-6 md:px-14">
-				<div className="flex flex-wrap items-center gap-3">
-					<PrimaryActionButton onClick={() => void startPlayback()} disabled={trackLoading}>
-						<Play className="h-4 w-4 fill-black text-black" />
-						{t("play")}
-					</PrimaryActionButton>
-					{trackChoices && (trackChoices.audio.length > 1 || trackChoices.subtitles.length > 1) && <InlineTrackChoices tracks={trackChoices} selected={selectedTracks} onChange={setSelectedTracks} />}
-					<ActionButton
-						active={Boolean(item.UserData?.Played)}
-						label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
-						onClick={togglePlayed}
-						icon={<Check className="h-4 w-4" />}
-					/>
-					<ActionButton
-						active={Boolean(item.UserData?.IsFavorite)}
-						label={t(
-							item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite",
-						)}
-						onClick={toggleFavorite}
-						icon={
-							<Heart
-								className={`h-4 w-4 ${item.UserData?.IsFavorite ? "fill-violet-300" : ""}`}
-							/>
-						}
-					/>
-				</div>
-				{mutationError && (
-					<p role="alert" className="text-xs text-red-300">
-						{mutationError}
-					</p>
-				)}
-
-				{item.Genres?.length ? (
-					<div className="flex flex-wrap gap-2">
-						{item.Genres.map((genre) => (
-							<span
-								key={genre}
-								className="rounded-full border border-white/10 bg-white/[.03] px-3 py-1.5 text-xs uppercase tracking-wider text-white/45"
+				<div className="space-y-9 px-6 pt-6 md:px-14">
+					<div className="space-y-3">
+						<div className="flex flex-wrap items-center gap-3 mb-8">
+							<PrimaryActionButton
+								onClick={() => void startPlayback()}
+								disabled={trackLoading}
 							>
-								{genre}
-							</span>
-						))}
+								<Play className="h-4 w-4 fill-black text-black" />
+								{t("play")}
+							</PrimaryActionButton>
+							<ActionButton
+								active={Boolean(item.UserData?.Played)}
+								label={t(
+									item.UserData?.Played ? "markUnwatched" : "markWatched",
+								)}
+								onClick={togglePlayed}
+								icon={<Check className="h-4 w-4" />}
+							/>
+							<ActionButton
+								active={Boolean(item.UserData?.IsFavorite)}
+								label={t(
+									item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite",
+								)}
+								onClick={toggleFavorite}
+								icon={
+									<Heart
+										className={`h-4 w-4 ${item.UserData?.IsFavorite ? "fill-violet-300" : ""}`}
+									/>
+								}
+							/>
+						</div>
+						{trackChoices &&
+							(trackChoices.audio.length > 1 ||
+								trackChoices.subtitles.length > 1) && (
+								<InlineTrackChoices
+									tracks={trackChoices}
+									selected={selectedTracks}
+									onChange={setSelectedTracks}
+								/>
+							)}
 					</div>
-				) : null}
-				{!isEpisode && item.Overview && (
-					<p className="max-w-3xl text-sm leading-relaxed text-white/50">
-						{item.Overview}
-					</p>
-				)}
+					{mutationError && (
+						<p role="alert" className="text-xs text-red-300">
+							{mutationError}
+						</p>
+					)}
 
-				{(isSeries || isEpisode) && (
-					<EpisodeSection
-						item={item}
-						session={session}
-						seasons={initialData.seasons}
-						seasonId={seasonId}
-						episodes={episodes}
-						onSeasonChange={selectSeason}
-					/>
-				)}
-				{people.length > 0 && <PeopleSection people={people} />}
-				{!isEpisode && initialData.similar.length > 0 && (
-				<SimilarSection items={initialData.similar} session={session} />
-				)}
-			</div>
-		</main>
+					{item.Genres?.length ? (
+						<div className="flex flex-wrap gap-2">
+							{item.Genres.map((genre) => (
+								<span
+									key={genre}
+									className="rounded-full border border-white/10 bg-white/[.03] px-3 py-1.5 text-xs uppercase tracking-wider text-white/45"
+								>
+									{genre}
+								</span>
+							))}
+						</div>
+					) : null}
+					{!isEpisode && item.Overview && (
+						<p className="max-w-3xl text-sm leading-relaxed text-white/50">
+							{item.Overview}
+						</p>
+					)}
+
+					{(isSeries || isEpisode) && (
+						<EpisodeSection
+							item={item}
+							session={session}
+							seasons={initialData.seasons}
+							seasonId={seasonId}
+							episodes={episodes}
+							onSeasonChange={selectSeason}
+						/>
+					)}
+					{people.length > 0 && <PeopleSection people={people} />}
+					{!isEpisode && initialData.similar.length > 0 && (
+						<SimilarSection items={initialData.similar} session={session} />
+					)}
+				</div>
+			</main>
 		</>
 	);
 }
 
-function InlineTrackChoices({ tracks, selected, onChange }: { tracks: ReturnType<typeof playbackStreams>; selected: TrackChoice; onChange: (value: TrackChoice) => void }) {
+function InlineTrackChoices({
+	tracks,
+	selected,
+	onChange,
+}: {
+	tracks: ReturnType<typeof playbackStreams>;
+	selected: TrackChoice;
+	onChange: (value: TrackChoice) => void;
+}) {
 	const { t } = useI18n();
-	const options = (kind: "audio" | "subtitle") => (kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t(kind === "audio" ? "audioTrack" : "subtitleTrack") }));
-	return <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 backdrop-blur-xl"><span className="text-xs uppercase tracking-wider text-white/40">{t("audioTrack")}</span>{tracks.audio.length > 1 && <TrackSelect label={t("audioTrack")} options={options("audio")} value={selected.audio} onChange={(audio) => onChange({ ...selected, audio: Number(audio) })} />}{tracks.subtitles.length > 1 && <TrackSelect label={t("subtitleTrack")} options={[{ value: "", label: t("subtitlesOff") }, ...options("subtitle")]} value={selected.subtitle} onChange={(subtitle) => onChange({ ...selected, subtitle: subtitle ? Number(subtitle) : undefined })} />}</div>;
+	const options = (kind: "audio" | "subtitle") =>
+		(kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({
+			value: String(track.Index),
+			label:
+				track.DisplayTitle ??
+				track.Language ??
+				t(kind === "audio" ? "audioTrack" : "subtitleTrack"),
+		}));
+	return (
+		<div className="w-fit min-w-[360px] max-w-full space-y-2">
+			{tracks.audio.length > 1 && (
+				<TrackSelect
+					label={t("audioTrack")}
+					options={options("audio")}
+					value={selected.audio}
+					onChange={(audio) => onChange({ ...selected, audio: Number(audio) })}
+				/>
+			)}
+			{tracks.subtitles.length > 1 && (
+				<TrackSelect
+					label={t("subtitleTrack")}
+					options={[
+						{ value: "", label: t("subtitlesOff") },
+						...options("subtitle"),
+					]}
+					value={selected.subtitle}
+					onChange={(subtitle) =>
+						onChange({
+							...selected,
+							subtitle: subtitle ? Number(subtitle) : undefined,
+						})
+					}
+				/>
+			)}
+		</div>
+	);
 }
 
-function TrackSelectionDialog({ tracks, selected, onChange, onCancel, onPlay }: { tracks: ReturnType<typeof playbackStreams>; selected: TrackChoice; onChange: (value: TrackChoice) => void; onCancel: () => void; onPlay: () => void }) {
+function TrackSelectionDialog({
+	tracks,
+	selected,
+	onChange,
+	onCancel,
+	onPlay,
+}: {
+	tracks: ReturnType<typeof playbackStreams>;
+	selected: TrackChoice;
+	onChange: (value: TrackChoice) => void;
+	onCancel: () => void;
+	onPlay: () => void;
+}) {
 	const { t } = useI18n();
-	const options = (kind: "audio" | "subtitle") => (kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t(kind === "audio" ? "audioTrack" : "subtitleTrack") }));
-	return <div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/25 p-5 shadow-2xl backdrop-blur-xl"><h2 className="text-lg font-semibold text-white">{t("selectTracks")}</h2><div className="mt-5 grid gap-4">{tracks.audio.length > 1 && <TrackSelect label={t("audioTrack")} options={options("audio")} value={selected.audio} onChange={(audio) => onChange({ ...selected, audio })} />}{tracks.subtitles.length > 1 && <TrackSelect label={t("subtitleTrack")} options={[{ value: "", label: t("subtitlesOff") }, ...options("subtitle")]} value={selected.subtitle} onChange={(subtitle) => onChange({ ...selected, subtitle: subtitle ? Number(subtitle) : undefined })} />}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10">{t("cancel")}</button><button type="button" onClick={onPlay} className="rounded-lg bg-violet-300 px-4 py-2 text-sm font-semibold text-black">{t("play")}</button></div></div></div>;
+	const options = (kind: "audio" | "subtitle") =>
+		(kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({
+			value: String(track.Index),
+			label:
+				track.DisplayTitle ??
+				track.Language ??
+				t(kind === "audio" ? "audioTrack" : "subtitleTrack"),
+		}));
+	return (
+		<div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
+			<div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/25 p-5 shadow-2xl backdrop-blur-xl">
+				<h2 className="text-lg font-semibold text-white">
+					{t("selectTracks")}
+				</h2>
+				<div className="mt-5 grid gap-4">
+					{tracks.audio.length > 1 && (
+						<TrackSelect
+							label={t("audioTrack")}
+							options={options("audio")}
+							value={selected.audio}
+							onChange={(audio) => onChange({ ...selected, audio })}
+						/>
+					)}
+					{tracks.subtitles.length > 1 && (
+						<TrackSelect
+							label={t("subtitleTrack")}
+							options={[
+								{ value: "", label: t("subtitlesOff") },
+								...options("subtitle"),
+							]}
+							value={selected.subtitle}
+							onChange={(subtitle) =>
+								onChange({
+									...selected,
+									subtitle: subtitle ? Number(subtitle) : undefined,
+								})
+							}
+						/>
+					)}
+				</div>
+				<div className="mt-6 flex justify-end gap-2">
+					<button
+						type="button"
+						onClick={onCancel}
+						className="rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10"
+					>
+						{t("cancel")}
+					</button>
+					<button
+						type="button"
+						onClick={onPlay}
+						className="rounded-lg bg-violet-300 px-4 py-2 text-sm font-semibold text-black"
+					>
+						{t("play")}
+					</button>
+				</div>
+			</div>
+		</div>
+	);
 }
 
-function TrackSelect({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value?: number | string; onChange: (value: string) => void }) { return <div className="flex items-center justify-between gap-4 text-sm text-white/70"><span>{label}</span><Dropdown aria-label={label} value={value == null ? "" : String(value)} options={options} onChange={onChange} /></div>; }
+function TrackSelect({
+	label,
+	options,
+	value,
+	onChange,
+}: {
+	label: string;
+	options: { value: string; label: string }[];
+	value?: number | string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<div className="flex min-h-10 items-center justify-between gap-4 px-3 py-1 text-sm text-white/70 backdrop-blur-xl">
+			<span className="shrink-0 text-xs font-medium uppercase tracking-wider text-white/45">
+				{label}
+			</span>
+			<Dropdown
+				aria-label={label}
+				value={value == null ? "" : String(value)}
+				options={options}
+				onChange={onChange}
+			/>
+		</div>
+	);
+}
 
 function DetailArtwork({
 	item,
@@ -549,7 +734,13 @@ function PeopleSection({
 	);
 }
 
-function SimilarSection({ items, session }: { items: JellyfinItem[]; session: AuthSession }) {
+function SimilarSection({
+	items,
+	session,
+}: {
+	items: JellyfinItem[];
+	session: AuthSession;
+}) {
 	const { t } = useI18n();
 	const title = t("moreLikeThis");
 	return (

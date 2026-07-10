@@ -73,6 +73,8 @@ subtitleLanguage: Subtitle Language
 audioTrack: Audio
 subtitleTrack: Subtitles
 subtitlesOff: Subtitles off
+selectTracks: Select tracks
+cancel: Cancel
 quality: Quality
 switchingQuality: Switching quality…
 speed: Playback speed

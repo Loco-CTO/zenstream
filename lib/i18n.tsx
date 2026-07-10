@@ -83,6 +83,8 @@ export const TRANSLATION_KEYS = [
 	"audioTrack",
 	"subtitleTrack",
 	"subtitlesOff",
+	"selectTracks",
+	"cancel",
 	"quality",
 	"switchingQuality",
 	"speed",

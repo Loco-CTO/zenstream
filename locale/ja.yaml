@@ -63,6 +63,8 @@ subtitleLanguage: 字幕言語
 audioTrack: 音声
 subtitleTrack: 字幕
 subtitlesOff: 字幕オフ
+selectTracks: トラックを選択
+cancel: キャンセル
 quality: 品質
 switchingQuality: 品質を切り替えています…
 speed: 再生速度

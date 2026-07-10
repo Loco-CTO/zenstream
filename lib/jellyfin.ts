@@ -42,7 +42,7 @@ export interface JellyfinItem {
 	DateCreated?: string;
 	CollectionType?: string;
 	SeriesPrimaryImageTag?: string;
-	Trickplay?: Record<string, JellyfinTrickplayInfo>;
+	Trickplay?: Record<string, Record<string, JellyfinTrickplayInfo>>;
 }
 
 export interface JellyfinMediaStream {
@@ -85,6 +85,7 @@ export interface JellyfinTrickplayInfo {
 
 export interface JellyfinPlaybackInfo {
 	MediaSources?: JellyfinMediaSource[];
+	PlaySessionId?: string;
 }
 
 export interface PlaybackMarker {
@@ -368,8 +369,8 @@ export async function getLibraryViews(
 		{ fields: "CollectionType" },
 		signal,
 	);
-	return libraries.filter(
-		(library) => isSupportedLibraryType(library.CollectionType),
+	return libraries.filter((library) =>
+		isSupportedLibraryType(library.CollectionType),
 	) as LibraryView[];
 }
 
@@ -419,7 +420,11 @@ export async function getLibraryItems(
 }
 
 function isSupportedLibraryType(collectionType?: string) {
-	return collectionType === "tvshows" || collectionType === "movies" || collectionType === "boxsets";
+	return (
+		collectionType === "tvshows" ||
+		collectionType === "movies" ||
+		collectionType === "boxsets"
+	);
 }
 
 function libraryItemTypes(collectionType?: string, newlyAdded = false) {
@@ -472,54 +477,136 @@ export async function getItem(session: AuthSession, itemId: string) {
 export async function getPlaybackInfo(
 	session: AuthSession,
 	itemId: string,
-	options: { maxStreamingBitrate?: number; audioStreamIndex?: number; subtitleStreamIndex?: number } = {},
+	options: {
+		maxStreamingBitrate?: number;
+		startTimeTicks?: number;
+		mediaSourceId?: string;
+		audioStreamIndex?: number;
+		subtitleStreamIndex?: number;
+	} = {},
 ) {
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({
 			userId: session.userId,
-			startTimeTicks: 0,
+			startTimeTicks: options.startTimeTicks ?? 0,
 			maxStreamingBitrate: options.maxStreamingBitrate,
 			audioStreamIndex: options.audioStreamIndex,
 			subtitleStreamIndex: options.subtitleStreamIndex,
-			mediaSourceId: itemId,
+			mediaSourceId: options.mediaSourceId,
+			enableDirectPlay: true,
+			enableDirectStream: true,
+			enableTranscoding: true,
 		})}`,
-		{ method: "POST", body: JSON.stringify({ UserId: session.userId, DeviceProfile: { Name: "ZenStream Web", MaxStreamingBitrate: options.maxStreamingBitrate } }) },
+		{
+			method: "POST",
+			body: JSON.stringify({
+				UserId: session.userId,
+				DeviceProfile: {
+					Name: "ZenStream Web",
+					MaxStreamingBitrate: options.maxStreamingBitrate,
+					DirectPlayProfiles: [{
+						Type: "Video",
+						Container: "mp4,m4v,webm",
+						VideoCodec: "h264,vp8,vp9,av1",
+						AudioCodec: "aac,mp3,opus,vorbis,flac",
+					}],
+					TranscodingProfiles: [{
+						Type: "Video",
+						Context: "Streaming",
+						Protocol: "hls",
+						Container: "ts",
+						VideoCodec: "h264",
+						AudioCodec: "aac",
+						MaxAudioChannels: "2",
+						MinSegments: 1,
+						BreakOnNonKeyFrames: true,
+					}],
+				},
+			}),
+		},
 	);
 	return response as JellyfinPlaybackInfo;
 }
 
 export async function getTrickplayInfo(session: AuthSession, itemId: string) {
-	const response = await jellyfinRequest(session, `/Items/${encodeURIComponent(itemId)}?${queryString({ fields: "Trickplay" })}`);
+	const response = await jellyfinRequest(
+		session,
+		`/Items/${encodeURIComponent(itemId)}?${queryString({ fields: "Trickplay" })}`,
+	);
 	return (response as Pick<JellyfinItem, "Trickplay">).Trickplay;
 }
 
-export function playbackStreams(info: JellyfinPlaybackInfo, trickplay?: Record<string, JellyfinTrickplayInfo>) {
+const playbackQualities = [0, 1, 2, 4, 8, 16, 32, 64].map(
+	(mbps) => mbps * 1_000_000,
+);
+
+export function playbackStreams(
+	info: JellyfinPlaybackInfo,
+	trickplay?: Record<string, Record<string, JellyfinTrickplayInfo>>,
+) {
 	const source = info.MediaSources?.[0];
 	return {
-		source: source && { ...source, Trickplay: source.Trickplay ?? trickplay },
-		audio: (source?.MediaStreams ?? []).filter((stream) => stream.Type === "Audio"),
-		subtitles: (source?.MediaStreams ?? []).filter((stream) => stream.Type === "Subtitle"),
-		qualities: [0, 1_000_000, 2_500_000, 5_000_000, 10_000_000].filter((bitrate) => !source?.Bitrate || bitrate === 0 || bitrate <= source.Bitrate),
+		source: source && {
+			...source,
+			Trickplay: source.Trickplay ?? trickplay?.[source.Id ?? ""],
+		},
+		audio: (source?.MediaStreams ?? []).filter(
+			(stream) => stream.Type === "Audio",
+		),
+		subtitles: (source?.MediaStreams ?? []).filter(
+			(stream) => stream.Type === "Subtitle",
+		),
+		qualities: playbackQualities,
 	};
 }
 
-export function playbackUrl(session: AuthSession, itemId: string, source?: JellyfinMediaSource, bitrate?: number) {
+export function playbackUrl(
+	session: AuthSession,
+	itemId: string,
+	source?: JellyfinMediaSource,
+	bitrate?: number,
+	startTimeTicks?: number,
+) {
+	if (bitrate && source?.TranscodingUrl) {
+		const remote = new URL(source.TranscodingUrl, jellyfinBaseUrl());
+		const hasApiKey = [...remote.searchParams.keys()].some((key) => key.toLowerCase() === "api_key" || key.toLowerCase() === "apikey");
+		if (!hasApiKey) remote.searchParams.set("api_key", session.token);
+		return remote.toString();
+	}
 	const params = new URLSearchParams({
 		api_key: session.token,
 		Static: bitrate ? "false" : "true",
 		MediaSourceId: source?.Id ?? itemId,
+		...(startTimeTicks
+			? { startTimeTicks: String(Math.max(0, Math.round(startTimeTicks))) }
+			: {}),
 		VideoCodec: "h264",
 		AudioCodec: "aac",
+		...(bitrate
+			? {
+					Container: "mp4",
+					TranscodingContainer: "mp4",
+					TranscodingProtocol: "http",
+				}
+			: {}),
 		TranscodingMaxAudioChannels: "2",
 		...(bitrate ? { TranscodingMaxBitrate: String(bitrate) } : {}),
 	});
-	return `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/stream?${params}`;
+	return `/api/jellyfin/video/${encodeURIComponent(itemId)}/${bitrate ? "stream.mp4" : "stream"}?${params}`;
 }
 
-export function subtitleUrl(session: AuthSession, itemId: string, source: JellyfinMediaSource | undefined, streamIndex: number) {
-	const params = new URLSearchParams({ api_key: session.token, MediaSourceId: source?.Id ?? itemId });
-	return `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/${encodeURIComponent(source?.Id ?? itemId)}/Subtitles/${streamIndex}/Stream.vtt?${params}`;
+export function subtitleUrl(
+	session: AuthSession,
+	itemId: string,
+	source: JellyfinMediaSource | undefined,
+	streamIndex: number,
+) {
+	const params = new URLSearchParams({
+		api_key: session.token,
+		MediaSourceId: source?.Id ?? itemId,
+	});
+	return `/api/jellyfin/video/${encodeURIComponent(itemId)}/${encodeURIComponent(source?.Id ?? itemId)}/Subtitles/${streamIndex}/Stream.vtt?${params}`;
 }
 
 export interface TrickplayPreview {
@@ -533,22 +620,49 @@ export interface TrickplayPreview {
 	rows: number;
 }
 
-export function trickplayPreview(session: AuthSession, itemId: string, source: JellyfinMediaSource | undefined, timeSeconds: number): TrickplayPreview | null {
-	const entries = Object.entries(source?.Trickplay ?? {}).sort(([a], [b]) => Number(b) - Number(a));
+export function trickplayPreview(
+	session: AuthSession,
+	itemId: string,
+	source: JellyfinMediaSource | undefined,
+	timeSeconds: number,
+): TrickplayPreview | null {
+	const entries = Object.entries(source?.Trickplay ?? {}).sort(
+		([a], [b]) => Number(b) - Number(a),
+	);
 	const [width, info] = entries[0] ?? [];
-	if (!width || !info) return null;
-	const intervalSeconds = Math.max(1, (info.Interval ?? 10_000) / 1_000);
+	if (!width || !info || !Number.isFinite(Number(width))) return null;
+	const details = info as JellyfinTrickplayInfo & {
+		width?: number;
+		height?: number;
+		tileWidth?: number;
+		tileHeight?: number;
+		interval?: number;
+	};
+	const thumbnailWidth = details.Width ?? details.width ?? Number(width);
+	const thumbnailHeight =
+		details.Height ?? details.height ?? Math.round((thumbnailWidth * 9) / 16);
+	const columns = details.TileWidth ?? details.tileWidth ?? 10;
+	const rows = details.TileHeight ?? details.tileHeight ?? 10;
+	const interval = details.Interval ?? details.interval ?? 10_000;
+	if (
+		![thumbnailWidth, thumbnailHeight, columns, rows, interval].every(
+			Number.isFinite,
+		)
+	)
+		return null;
+	const intervalSeconds = Math.max(1, interval / 1_000);
 	const thumbnail = Math.max(0, Math.floor(timeSeconds / intervalSeconds));
-	const columns = Math.max(1, info.TileWidth ?? 10);
-	const rows = Math.max(1, info.TileHeight ?? 10);
 	const tileSize = columns * rows;
 	const tileIndex = Math.floor(thumbnail / tileSize);
 	const tileOffset = thumbnail % tileSize;
-	const params = new URLSearchParams({ api_key: session.token, MediaSourceId: source?.Id ?? itemId });
+	const params = new URLSearchParams({
+		api_key: session.token,
+		MediaSourceId: source?.Id ?? itemId,
+	});
 	return {
 		url: `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/Trickplay/${width}/${tileIndex}.jpg?${params}`,
-		width: info.Width ?? Number(width),
-		height: info.Height ?? Math.round(Number(width) * 9 / 16),
+		width: thumbnailWidth,
+		height: thumbnailHeight,
 		tileIndex,
 		cellX: tileOffset % columns,
 		cellY: Math.floor(tileOffset / columns),
@@ -557,25 +671,47 @@ export function trickplayPreview(session: AuthSession, itemId: string, source: J
 	};
 }
 
-export async function reportPlayback(session: AuthSession, itemId: string, positionSeconds: number, isPaused: boolean) {
+export async function reportPlayback(
+	session: AuthSession,
+	itemId: string,
+	positionSeconds: number,
+	isPaused: boolean,
+) {
 	await jellyfinRequest(session, "/Sessions/Playing/Progress", {
 		method: "POST",
-		body: JSON.stringify({ ItemId: itemId, PositionTicks: Math.max(0, Math.round(positionSeconds * 10_000_000)), IsPaused: isPaused, PlayMethod: "DirectStream", PlaySessionId: "zenstream" }),
+		body: JSON.stringify({
+			ItemId: itemId,
+			PositionTicks: Math.max(0, Math.round(positionSeconds * 10_000_000)),
+			IsPaused: isPaused,
+			PlayMethod: "DirectStream",
+			PlaySessionId: "zenstream",
+		}),
 	});
 }
 
-export async function getPlaybackMarkers(session: AuthSession, itemId: string): Promise<{ intro?: PlaybackMarker; outro?: PlaybackMarker } | null> {
+export async function getPlaybackMarkers(
+	session: AuthSession,
+	itemId: string,
+): Promise<{ intro?: PlaybackMarker; outro?: PlaybackMarker } | null> {
 	const configuredEndpoint = process.env.NEXT_PUBLIC_INTRO_ENDPOINT;
 	const itemPath = encodeURIComponent(itemId);
 	const endpoints = [
-		...(configuredEndpoint
-			? [configuredEndpoint.includes("{itemId}") ? configuredEndpoint.replace("{itemId}", itemPath) : `${configuredEndpoint.replace(/\/$/, "")}/${itemPath}`]
-			: []),
+		`${jellyfinBaseUrl()}/Episode/${itemPath}/IntroSkipperSegments`,
+		`${jellyfinBaseUrl()}/Episode/${itemPath}/Timestamps`,
 		`${jellyfinBaseUrl()}/MediaSegments/${itemPath}`,
+		...(configuredEndpoint
+			? [
+					configuredEndpoint.includes("{itemId}")
+						? configuredEndpoint.replace("{itemId}", itemPath)
+						: `${configuredEndpoint.replace(/\/$/, "")}/${itemPath}`,
+				]
+			: []),
 	];
 	for (const endpoint of endpoints) {
 		try {
-			const response = await fetch(endpoint, { headers: { Authorization: authorizationHeader(session.token) } });
+			const response = await fetch(endpoint, {
+				headers: { Authorization: authorizationHeader(session.token) },
+			});
 			if (!response.ok) continue;
 			const markers = normalizePlaybackMarkers(await response.json());
 			if (markers) return markers;
@@ -586,17 +722,20 @@ export async function getPlaybackMarkers(session: AuthSession, itemId: string): 
 	return null;
 }
 
-function normalizePlaybackMarkers(value: unknown): { intro?: PlaybackMarker; outro?: PlaybackMarker } | null {
+function normalizePlaybackMarkers(
+	value: unknown,
+): { intro?: PlaybackMarker; outro?: PlaybackMarker } | null {
 	const segments = Array.isArray(value)
 		? value
 		: Array.isArray((value as { Items?: unknown[] })?.Items)
 			? (value as { Items: unknown[] }).Items
 			: null;
 	if (segments) {
-		const byType = (types: string[]) => segments.find((segment) => {
-			const type = (segment as { Type?: unknown }).Type;
-			return typeof type === "string" && types.includes(type.toLowerCase());
-		});
+		const byType = (types: string[]) =>
+			segments.find((segment) => {
+				const type = (segment as { Type?: unknown }).Type;
+				return typeof type === "string" && types.includes(type.toLowerCase());
+			});
 		const segmentMarker = (segment: unknown) => {
 			if (!segment || typeof segment !== "object") return undefined;
 			const data = segment as Record<string, unknown>;
@@ -610,20 +749,58 @@ function normalizePlaybackMarkers(value: unknown): { intro?: PlaybackMarker; out
 	}
 	if (!value || typeof value !== "object") return null;
 	const data = value as Record<string, unknown>;
-	const marker = (name: "intro" | "outro", startKeys: string[], endKeys: string[]) => {
+	const namedMarker = (names: string[]) => {
+		const entry = Object.entries(data).find(([key]) =>
+			names.includes(key.toLowerCase()),
+		)?.[1];
+		if (!entry || typeof entry !== "object") return undefined;
+		const segment = entry as Record<string, unknown>;
+		return toMarker(segment.Start ?? segment.start, segment.End ?? segment.end);
+	};
+	const marker = (
+		name: "intro" | "outro",
+		startKeys: string[],
+		endKeys: string[],
+	) => {
 		const nested = data[name] as Record<string, unknown> | undefined;
-		const start = nested?.start ?? nested?.Start ?? startKeys.map((key) => data[key]).find((entry) => typeof entry === "number");
-		const end = nested?.end ?? nested?.End ?? endKeys.map((key) => data[key]).find((entry) => typeof entry === "number");
+		const start =
+			nested?.start ??
+			nested?.Start ??
+			startKeys
+				.map((key) => data[key])
+				.find((entry) => typeof entry === "number");
+		const end =
+			nested?.end ??
+			nested?.End ??
+			endKeys
+				.map((key) => data[key])
+				.find((entry) => typeof entry === "number");
 		return toMarker(start, end);
 	};
-	const intro = marker("intro", ["IntroStart", "IntroStartTicks", "StartTicks"], ["IntroEnd", "IntroEndTicks", "EndTicks"]);
-	const outro = marker("outro", ["OutroStart", "CreditsStart", "CreditsStartTicks"], ["OutroEnd", "CreditsEnd", "CreditsEndTicks"]);
+	const intro =
+		namedMarker(["intro", "introduction", "opening"]) ??
+		marker(
+			"intro",
+			["IntroStart", "IntroStartTicks", "StartTicks"],
+			["IntroEnd", "IntroEndTicks", "EndTicks"],
+		);
+	const outro =
+		namedMarker(["outro", "credits", "closing"]) ??
+		marker(
+			"outro",
+			["OutroStart", "CreditsStart", "CreditsStartTicks"],
+			["OutroEnd", "CreditsEnd", "CreditsEndTicks"],
+		);
 	return intro || outro ? { intro, outro } : null;
 }
 
 function toMarker(start: unknown, end: unknown): PlaybackMarker | undefined {
-	if (typeof start !== "number" || typeof end !== "number" || end <= start) return undefined;
-	return { start: start > 1_000_000 ? start / 10_000_000 : start, end: end > 1_000_000 ? end / 10_000_000 : end };
+	if (typeof start !== "number" || typeof end !== "number" || end <= start)
+		return undefined;
+	return {
+		start: start > 1_000_000 ? start / 10_000_000 : start,
+		end: end > 1_000_000 ? end / 10_000_000 : end,
+	};
 }
 
 const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();

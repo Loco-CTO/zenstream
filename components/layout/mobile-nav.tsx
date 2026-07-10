@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Plus, Search } from "lucide-react";
+import { Heart, Home, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 
@@ -18,10 +18,10 @@ export function MobileNav() {
         <Search className="h-[22px] w-[22px]" />
         <span className="text-xs font-medium uppercase tracking-widest">{t("library")}</span>
       </Link>
-      <span className="flex flex-col items-center gap-1.5 px-5 py-2 text-white/30">
-        <Plus className="h-[22px] w-[22px]" />
-        <span className="text-xs font-medium uppercase tracking-widest">{t("list")}</span>
-      </span>
+      <Link href="/favorites" className={`flex flex-col items-center gap-1.5 px-5 py-2 ${pathname === "/favorites" ? "text-violet-400" : "text-white/30"}`}>
+        <Heart className="h-[22px] w-[22px]" />
+        <span className="text-xs font-medium uppercase tracking-widest">{t("favorites")}</span>
+      </Link>
     </nav>
   );
 }

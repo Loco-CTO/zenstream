@@ -130,3 +130,16 @@ libraryLoadMoreFailed: さらに作品を読み込めませんでした
 loadingMore: さらに作品を読み込んでいます
 noLibraries: ライブラリが見つかりません
 noLibrariesHint: Jellyfinにメディアライブラリを追加して、このページを更新してください。
+favoriteEpisodes: お気に入りのエピソード
+favoriteMovies: お気に入りの映画
+favoriteSeries: お気に入りのシリーズ
+noFavorites: お気に入りはまだありません。
+favoritesLoadFailed: お気に入りを読み込めませんでした
+searchPlaceholder: Search
+searchLoading: Searching...
+searchLoadFailed: Search failed
+noSearchResults: No matching titles found
+searchResults: Search results
+movie: Movie
+series: Series
+close: Close

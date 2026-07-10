@@ -84,4 +84,19 @@ describe("error pages", () => {
 		expect(screen.getByText("Nope")).toBeInTheDocument();
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});
+
+	it("uses a restrained responsive size for long error titles", () => {
+		render(
+			<I18nProvider locale="ja">
+				<ErrorPanel message="Failed to fetch" onRetry={vi.fn()} />
+			</I18nProvider>,
+		);
+
+		expect(screen.getByRole("heading")).toHaveClass(
+			"max-w-xl",
+			"text-3xl",
+			"sm:text-4xl",
+			"md:text-5xl",
+		);
+	});
 });

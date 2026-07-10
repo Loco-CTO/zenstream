@@ -23,6 +23,8 @@ import { LoginPage } from "@/components/pages/login-page";
 import { SettingsPage } from "@/components/pages/settings-page";
 import { DetailPage } from "@/components/pages/detail-page";
 import { LibraryPage } from "@/components/pages/library-page";
+import { FavoritesPage } from "@/components/pages/favorites-page";
+import { SearchPage } from "@/components/pages/search-page";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -42,6 +44,7 @@ export function AppShell() {
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
+	const [searchData, setSearchData] = useState<string | null>(null);
 
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
@@ -80,6 +83,7 @@ export function AppShell() {
 	);
 
 	const detailId = detailIdFromPath(pathname);
+	const searchQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") ?? "" : "";
 	const loadDetail = useCallback(
 		async (nextSession: AuthSession, itemId: string) => {
 			const finishProgress = start();
@@ -87,6 +91,7 @@ export function AppShell() {
 			setError(null);
 			setDetailData(null);
 			try {
+				if (pathname === "/search") { setSearchData(searchQuery); setStatus("ready"); return; }
 				setDetailData(await fetchDetailData(nextSession, itemId));
 				setStatus("ready");
 			} catch (err) {
@@ -98,7 +103,7 @@ export function AppShell() {
 				finishProgress();
 			}
 		},
-		[start],
+		[start, pathname, searchQuery],
 	);
 
 	useEffect(() => {
@@ -118,9 +123,9 @@ export function AppShell() {
 		loadPreferences();
 		finishProgress();
 		if (detailId) void loadDetail(stored, detailId);
-		else if (pathname === "/library") setStatus("ready");
+		else if (pathname === "/library" || pathname === "/favorites") setStatus("ready");
 		else void loadHome(stored);
-	}, [detailId, loadDetail, loadHome, loadPreferences, pathname, start]);
+	}, [detailId, loadDetail, loadHome, loadPreferences, pathname, searchQuery, start]);
 
 	const handleLogin = async (username: string, password: string) => {
 		const response = await authenticateByName(username, password);
@@ -129,7 +134,8 @@ export function AppShell() {
 		setSession(nextSession);
 		loadPreferences();
 		if (detailId) await loadDetail(nextSession, detailId);
-		else if (pathname === "/library") setStatus("ready");
+		else if (pathname === "/search") { setSearchData(searchQuery); setStatus("ready"); }
+		else if (pathname === "/library" || pathname === "/favorites") setStatus("ready");
 		else await loadHome(nextSession);
 	};
 
@@ -177,6 +183,7 @@ export function AppShell() {
 						displayName={session.username}
 						userId={session.userId}
 						onLogout={handleLogout}
+						session={session}
 					/>
 					<MobileNav />
 					{status === "error" && (
@@ -194,7 +201,9 @@ export function AppShell() {
 					{status === "ready" && pathname === "/library" && (
 						<LibraryPage session={session} />
 					)}
-					{status === "ready" && homeData && !detailId && pathname !== "/library" && (
+					{status === "ready" && pathname === "/favorites" && <FavoritesPage session={session} />}
+					{status === "ready" && pathname === "/search" && <SearchPage session={session} query={searchData ?? searchQuery} />}
+					{status === "ready" && homeData && !detailId && pathname !== "/library" && pathname !== "/favorites" && pathname !== "/search" && (
 						<HomePage data={homeData} session={session} />
 					)}
 				</div>

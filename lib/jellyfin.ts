@@ -156,6 +156,30 @@ export interface LibraryPage {
 	totalRecordCount: number;
 }
 
+export async function getSearchItems(
+	session: AuthSession,
+	query: string,
+	options: { limit?: number; sortBy?: string; sortOrder?: "Ascending" | "Descending"; signal?: AbortSignal } = {},
+): Promise<JellyfinItem[]> {
+	const term = query.trim();
+	if (!term) return [];
+	return getItemList(session, "/Items", {
+		userId: session.userId,
+		searchTerm: term,
+		startIndex: 0,
+		limit: options.limit ?? 40,
+		recursive: true,
+		includeItemTypes: "Series,Movie",
+		sortBy: options.sortBy ?? "SortName",
+		sortOrder: options.sortOrder ?? "Ascending",
+		fields: ITEM_FIELDS,
+		enableImages: true,
+		imageTypeLimit: 1,
+		enableImageTypes: ITEM_IMAGE_TYPES,
+		enableUserData: true,
+	}, options.signal);
+}
+
 export interface NewlyAddedSection {
 	libraryId: string;
 	libraryName: string;
@@ -357,6 +381,31 @@ export function getItems(
 		enableImageTypes: ITEM_IMAGE_TYPES,
 		enableUserData: true,
 	});
+}
+
+export function getFavoriteItems(
+	session: AuthSession,
+	options: {
+		sortBy?: string;
+		sortOrder?: "Ascending" | "Descending";
+		signal?: AbortSignal;
+	} = {},
+) {
+	return getItemList(session, "/Items", {
+		userId: session.userId,
+		startIndex: 0,
+		limit: 100,
+		recursive: true,
+		includeItemTypes: "Episode,Movie,Series",
+		isFavorite: true,
+		sortBy: options.sortBy ?? "SortName",
+		sortOrder: options.sortOrder ?? "Ascending",
+		fields: ITEM_FIELDS,
+		enableImages: true,
+		imageTypeLimit: 1,
+		enableImageTypes: ITEM_IMAGE_TYPES,
+		enableUserData: true,
+	}, options.signal);
 }
 
 export async function getLibraryViews(

@@ -143,7 +143,7 @@ export function ErrorContent({
 						{statusCode}
 					</p>
 				)}
-				<h1 className="mt-3 text-4xl font-black leading-tight tracking-normal text-white md:text-6xl">
+				<h1 className="mx-auto mt-3 max-w-xl text-3xl font-black leading-tight tracking-normal text-white sm:text-4xl md:text-5xl">
 					{title}
 				</h1>
 				{message && (

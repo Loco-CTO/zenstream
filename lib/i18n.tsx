@@ -46,6 +46,14 @@ export const TRANSLATION_KEYS = [
 	"previousSlide",
 	"nextSlide",
 	"searchSoon",
+	"searchPlaceholder",
+	"searchLoading",
+	"searchLoadFailed",
+	"noSearchResults",
+	"searchResults",
+	"movie",
+	"series",
+	"close",
 	"localeSaveFailed",
 	"continueWatching",
 	"newlyAddedOn",
@@ -140,6 +148,11 @@ export const TRANSLATION_KEYS = [
 	"loadingMore",
 	"noLibraries",
 	"noLibrariesHint",
+	"favoriteEpisodes",
+	"favoriteMovies",
+	"favoriteSeries",
+	"noFavorites",
+	"favoritesLoadFailed",
 ] as const;
 
 export type TranslationKey = (typeof TRANSLATION_KEYS)[number];

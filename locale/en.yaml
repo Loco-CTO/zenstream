@@ -36,6 +36,14 @@ featuredTitle: Featured title
 previousSlide: Show previous featured slide
 nextSlide: Show next featured slide
 searchSoon: Search is coming soon
+searchPlaceholder: Search movies and series
+searchLoading: Searching...
+searchLoadFailed: Could not search your library
+noSearchResults: No matching titles found
+searchResults: Search results
+movie: Movie
+series: Series
+close: Close
 localeSaveFailed: Could not save your language setting.
 continueWatching: Continue Watching
 newlyAddedOn: "Newly Added on {library}"
@@ -130,3 +138,8 @@ libraryLoadMoreFailed: Could not load more titles
 loadingMore: Loading more titles
 noLibraries: No libraries found
 noLibrariesHint: Add a media library and refresh this page.
+favoriteEpisodes: Favorite Episodes
+favoriteMovies: Favorite Movies
+favoriteSeries: Favorite Series
+noFavorites: You have no favorites yet.
+favoritesLoadFailed: Could not load your favorites

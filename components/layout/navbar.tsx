@@ -7,15 +7,18 @@ import { Bell, LogOut, Search, Settings, User } from "lucide-react";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { userImageUrl } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
+import type { AuthSession } from "@/lib/session";
 
 export function Navbar({
 	displayName,
 	userId,
 	onLogout,
+	session,
 }: {
 	displayName: string;
 	userId: string;
 	onLogout: () => void;
+	session?: AuthSession;
 }) {
 	const { t } = useI18n();
 	const pathname = usePathname();
@@ -46,9 +49,9 @@ export function Navbar({
 						>
 							{t("library")}
 						</Link>
-						<span className="rounded px-3 py-1.5 text-sm font-medium tracking-wide text-white/35">
+						<Link href="/favorites" className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/favorites" ? "text-white" : "text-white/35 hover:text-white/70"}`}>
 							{t("favorites")}
-						</span>
+						</Link>
 					</div>
 					<div className="flex-1" />
 					<button
@@ -103,7 +106,7 @@ export function Navbar({
 					</div>
 				</div>
 			</nav>
-			{searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
+			{searchOpen && session && <SearchOverlay session={session} onClose={() => setSearchOpen(false)} />}
 		</>
 	);
 }

@@ -130,11 +130,18 @@ export function SyncplayProvider({
 	const reconcile = useCallback(
 		(next: SyncplayGroup | null) => {
 			const previous = activeRef.current;
-			if (!hydratedRef.current) {
-				hydratedRef.current = true;
-				setCurrent(next);
-				return;
-			}
+		if (!hydratedRef.current) {
+			hydratedRef.current = true;
+			setCurrent(next);
+			return;
+		}
+		if (
+			previous &&
+			next &&
+			previous.id === next.id &&
+			next.revision < previous.revision
+		)
+			return;
 			if (previous && !next)
 				toast.success(t("syncplayGroupEnded", { group: previous.name }));
 			if (previous && next && previous.id === next.id) {

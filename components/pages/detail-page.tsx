@@ -121,7 +121,7 @@ export function DetailPage({
 
 	return (
 		<>
-		{playerOpen && <VideoPlayer item={item} session={session} onClose={() => setPlayerOpen(false)} onPlayedChange={(played) => setItem((current) => updateUserData(current, { Played: played }))} />}
+		{playerOpen && <VideoPlayer item={item} session={session} onClose={() => setPlayerOpen(false)} onNext={(next) => setItem(next)} onPlayedChange={(played) => setItem((current) => updateUserData(current, { Played: played }))} />}
 		<main className="min-h-screen pb-24">
 			<section className="relative h-[min(70vh,560px)] overflow-hidden">
 				{background && (

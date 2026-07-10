@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PosterCard, StackedPosterCard, WideCard } from "@/components/home/media-card";
+import { EpisodeCard } from "@/components/pages/detail-page";
 import type { JellyfinItem } from "@/lib/jellyfin";
 
 const item = {
@@ -65,6 +66,25 @@ describe("media card sizing", () => {
     );
 
     expect(container.querySelector('[style="width: 50%;"]')?.parentElement).toHaveClass("h-0.5");
+  });
+
+  it("shows watch progress on horizontal detail episode thumbnails", () => {
+    const { container } = render(
+      <EpisodeCard
+        seriesId="series-1"
+        episode={{
+          ...item,
+          Type: "Episode",
+          SeriesId: "series-1",
+          RunTimeTicks: 100,
+          UserData: { PlaybackPositionTicks: 25 },
+        }}
+        horizontal
+        active={false}
+      />,
+    );
+
+    expect(container.querySelector('[style="width: 25%;"]')?.parentElement).toHaveClass("h-0.5");
   });
 
   it.each([

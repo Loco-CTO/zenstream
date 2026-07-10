@@ -121,7 +121,11 @@ describe("detail views", () => {
 
     const scroller = screen.getByText("2. Episode 2").closest("a")?.parentElement;
     if (!scroller) throw new Error("Episode scroller was not rendered");
-    scroller.scrollBy = vi.fn();
+    const animationFrames: Array<FrameRequestCallback> = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
     Object.defineProperties(scroller, {
       clientWidth: { configurable: true, value: 320 },
       scrollWidth: { configurable: true, value: 640 },
@@ -129,7 +133,8 @@ describe("detail views", () => {
     fireEvent.scroll(scroller);
 
     fireEvent.click(screen.getByRole("button", { name: "Scroll Episodes right" }));
-    expect(scroller.scrollBy).toHaveBeenCalledWith({ left: 360, behavior: "smooth" });
+    animationFrames.shift()?.(0);
+    expect(scroller.scrollLeft).toBeCloseTo(51.2);
   });
 
   it("uses the home media-card hover treatment for horizontally scrolling episodes", () => {
@@ -165,8 +170,12 @@ describe("detail views", () => {
     const similarScroller = screen.getByText("Related Film").closest("article")?.parentElement;
     if (!castScroller || !similarScroller) throw new Error("Detail scrollers were not rendered");
 
+    const animationFrames: Array<FrameRequestCallback> = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    });
     for (const scroller of [castScroller, similarScroller]) {
-      scroller.scrollBy = vi.fn();
       Object.defineProperties(scroller, {
         clientWidth: { configurable: true, value: 320 },
         scrollWidth: { configurable: true, value: 640 },
@@ -176,8 +185,10 @@ describe("detail views", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Scroll Cast & Crew right" }));
     fireEvent.click(screen.getByRole("button", { name: "Scroll More Like This right" }));
-    expect(castScroller.scrollBy).toHaveBeenCalledWith({ left: 360, behavior: "smooth" });
-    expect(similarScroller.scrollBy).toHaveBeenCalledWith({ left: 360, behavior: "smooth" });
+    animationFrames.shift()?.(0);
+    animationFrames.shift()?.(0);
+    expect(castScroller.scrollLeft).toBeCloseTo(51.2);
+    expect(similarScroller.scrollLeft).toBeCloseTo(51.2);
   });
 
   it("rolls back an optimistic favorite mutation after failure", async () => {

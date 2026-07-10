@@ -12,10 +12,7 @@ import { BlurHashImage } from "@/components/ui/blurhash-image";
 
 export function WideCard({ item }: { item: JellyfinItem }) {
 	const image = landscapeImage(item);
-	const progress =
-		(item.UserData?.PlayedPercentage ?? item.UserData?.PlaybackPositionTicks)
-			? progressPercent(item)
-			: undefined;
+	const progress = progressPercent(item);
 
 	return (
 		<article className="group/card w-[320px] shrink-0 cursor-pointer select-none">
@@ -29,14 +26,7 @@ export function WideCard({ item }: { item: JellyfinItem }) {
 						className={`brightness-[0.82] ${MEDIA_CARD_IMAGE_CLASS}`}
 					/>
 				)}
-				{progress != null && (
-					<div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
-						<div
-							className="h-full bg-gradient-to-r from-violet-700 to-violet-300"
-							style={{ width: `${progress}%` }}
-						/>
-					</div>
-				)}
+				<WatchProgress progress={progress} />
 				<MediaCardOverlay />
 			</div>
 			<CardText item={item} />
@@ -106,7 +96,7 @@ export const MEDIA_CARD_IMAGE_CLASS =
 	"h-full w-full object-cover transition group-hover/card:brightness-50";
 
 export const MEDIA_CARD_TAG_CLASS =
-	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white/75 backdrop-blur-sm";
+	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-xs font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
 export function MediaCardOverlay() {
 	return (
@@ -114,6 +104,21 @@ export function MediaCardOverlay() {
 			<span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur">
 				<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
 			</span>
+		</div>
+	);
+}
+
+export function WatchProgress({ progress }: { progress: number | undefined }) {
+	if (progress == null) {
+		return null;
+	}
+
+	return (
+		<div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
+			<div
+				className="h-full bg-gradient-to-r from-violet-700 to-violet-300"
+				style={{ width: `${progress}%` }}
+			/>
 		</div>
 	);
 }

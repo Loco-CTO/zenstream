@@ -202,7 +202,7 @@ describe("Hero", () => {
 		const iframe = screen.getByTitle("Trailer First trailer") as HTMLIFrameElement;
 		expect(iframe).toHaveAttribute("src", expect.stringContaining("mute=1"));
 		expect(iframe).toHaveAttribute("src", expect.stringContaining("cc_load_policy=0"));
-		expect(iframe).toHaveClass("scale-[1.12]");
+  expect(iframe).toHaveClass("scale-[1.45]");
 		const audioButton = screen.getByRole("button", { name: /unmute trailer/i });
 		fireEvent.click(audioButton);
 		expect(screen.getByRole("button", { name: /mute trailer/i })).toBeInTheDocument();

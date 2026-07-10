@@ -26,6 +26,7 @@ import {
   MEDIA_CARD_IMAGE_CLASS,
   MediaCardOverlay,
   PosterCard,
+  WatchProgress,
 } from "@/components/home/media-card";
 import { Dropdown } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
@@ -227,7 +228,7 @@ function seasonLabel(season: JellyfinItem) {
   return name ? `S${number}: ${name}` : `S${number}`;
 }
 
-function EpisodeCard({ seriesId, episode, horizontal, active }: { seriesId: string; episode: JellyfinItem; horizontal: boolean; active: boolean }) {
+export function EpisodeCard({ seriesId, episode, horizontal, active }: { seriesId: string; episode: JellyfinItem; horizontal: boolean; active: boolean }) {
   const image = landscapeImage(episode);
   const progress = progressPercent(episode);
   return <Link href={`/show/${seriesId}/episode/${episode.Id}`} className={horizontal ? "group/card w-[320px] shrink-0" : "group flex items-start gap-4 rounded-lg p-2 hover:bg-white/[.04]"}>
@@ -235,7 +236,7 @@ function EpisodeCard({ seriesId, episode, horizontal, active }: { seriesId: stri
       {image && <BlurHashImage image={image} alt={episode.Name} className={horizontal ? `brightness-75 ${MEDIA_CARD_IMAGE_CLASS}` : "h-full w-full object-cover brightness-75"} />}
       {horizontal && !active && <MediaCardOverlay />}
       {active && <div className="absolute inset-0 flex items-center justify-center"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/80"><Play className="h-4 w-4 fill-white" /></span></div>}
-      {progress != null && <span className="absolute bottom-0 left-0 h-0.5 bg-violet-500" style={{ width: `${progress}%` }} />}
+      {horizontal && <WatchProgress progress={progress} />}
     </div>
     <div className={horizontal ? "mt-2" : "min-w-0 flex-1 pt-0.5"}>
       <p className="truncate text-sm font-medium text-white/80">{episode.IndexNumber}. {episode.Name}</p>

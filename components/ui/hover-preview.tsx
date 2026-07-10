@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getPlaybackInfo, playbackUrl } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
 
-const HOVER_DELAY = 25;
+const HOVER_DELAY = 100;
 const PREVIEW_START_MIN = 0.4;
 const PREVIEW_START_MAX = 0.6;
 const TRANSCODE_WIDTH = 320;

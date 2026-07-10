@@ -155,3 +155,18 @@ syncplayNoMedia: メディアが選択されていません
 joinView: 参加
 leaveGroup: グループを退出
 allowViewerControls: 視聴者の操作を許可
+toastDismiss: 通知を閉じる
+syncplayGroupCreated: Syncplay グループを作成しました。
+syncplayJoinedGroup: "{group} に参加しました。"
+syncplayLeftGroup: "{group} から退出しました。"
+syncplayMemberJoined: "{member} がグループに参加しました。"
+syncplayMemberLeft: "{member} がグループから退出しました。"
+syncplayGroupEnded: "{group} は終了しました。"
+syncplayNowPlaying: "再生中: {title}。"
+syncplayNowPlayingFallback: Syncplay が再生を開始しました。
+syncplayCreateFailed: Syncplay グループを作成できませんでした。
+syncplayJoinFailed: Syncplay グループに参加できませんでした。
+syncplayLeaveFailed: Syncplay グループから退出できませんでした。
+syncplaySettingsFailed: Syncplay の設定を更新できませんでした。
+syncplayPlaybackFailed: Syncplay の再生状態を更新できませんでした。
+syncplayPresenceFailed: Syncplay の準備状態を更新できませんでした。

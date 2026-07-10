@@ -155,3 +155,18 @@ syncplayNoMedia: No media selected
 joinView: Join view
 leaveGroup: Leave group
 allowViewerControls: Allow viewer controls
+toastDismiss: Dismiss notification
+syncplayGroupCreated: Syncplay group created.
+syncplayJoinedGroup: You successfully joined {group}.
+syncplayLeftGroup: You left {group}.
+syncplayMemberJoined: "{member} joined the group."
+syncplayMemberLeft: "{member} left the group."
+syncplayGroupEnded: "{group} has ended."
+syncplayNowPlaying: "Now playing {title}."
+syncplayNowPlayingFallback: Syncplay started playback.
+syncplayCreateFailed: Could not create the Syncplay group.
+syncplayJoinFailed: Could not join the Syncplay group.
+syncplayLeaveFailed: Could not leave the Syncplay group.
+syncplaySettingsFailed: Could not update Syncplay settings.
+syncplayPlaybackFailed: Could not update Syncplay playback.
+syncplayPresenceFailed: Could not update Syncplay readiness.

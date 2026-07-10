@@ -29,9 +29,14 @@ describe("Navbar", () => {
 			"h-11",
 			"w-11",
 		);
-		expect(screen.getByRole("button", { name: "Profile" })).toHaveClass(
+		 expect(screen.getByRole("button", { name: "Profile" })).toHaveClass(
 			"h-10",
 			"w-10",
+		);
+		expect(screen.getByTestId("header-actions")).toHaveClass(
+			"items-center",
+			"gap-2",
+			"sm:gap-3",
 		);
 	});
 

@@ -60,15 +60,16 @@ export function Navbar({
 						</Link>
 					</div>
 					<div className="flex-1" />
-					<button
-						aria-label={t("syncplayGroups")}
-						onClick={() => setGroupsOpen((open) => !open)}
-						className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
-					>
-						<Users className="h-[22px] w-[22px]" />
-					</button>
-					<div className="relative">
-						{groupsOpen && (
+					<div data-testid="header-actions" className="flex items-center gap-2 sm:gap-3">
+						<div className="relative">
+							<button
+								aria-label={t("syncplayGroups")}
+								onClick={() => setGroupsOpen((open) => !open)}
+								className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
+							>
+								<Users className="h-[22px] w-[22px]" />
+							</button>
+							{groupsOpen && (
 							<div className="absolute right-0 top-full z-[90] mt-2 w-80 rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
 								<div className="mb-2 flex items-center justify-between">
 									<p className="text-xs font-semibold text-white">
@@ -130,21 +131,21 @@ export function Navbar({
 							</div>
 						)}
 					</div>
-					<button
+						<button
 						aria-label={t("search")}
 						onClick={() => setSearchOpen(true)}
 						className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
 					>
 						<Search className="h-[22px] w-[22px]" />
 					</button>
-					<button
+						<button
 						aria-label={t("notifications")}
 						className="relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
 					>
 						<Bell className="h-[22px] w-[22px]" />
 						<span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-violet-400" />
 					</button>
-					<div className="relative">
+						<div className="relative">
 						<button
 							aria-label={t("profile")}
 							onClick={() => setProfileOpen((open) => !open)}
@@ -178,7 +179,8 @@ export function Navbar({
 									{t("logout")}
 								</button>
 							</div>
-						)}
+							)}
+						</div>
 					</div>
 				</div>
 			</nav>

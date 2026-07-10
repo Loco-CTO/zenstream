@@ -4,9 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${ZENSTREAM_PORT:-3000}:3000"
+      - "${ZENSTREAM_PORT:-9086}:9086"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_JELLYFIN_URL: ${NEXT_PUBLIC_JELLYFIN_URL:?Set NEXT_PUBLIC_JELLYFIN_URL}
-      ZSO_URL: ${ZSO_URL:-http://host.docker.internal:9090}
+      ZSO_URL: ${ZSO_URL:-http://host.docker.internal:9088}
     restart: unless-stopped

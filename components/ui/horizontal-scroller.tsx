@@ -69,9 +69,12 @@ export function HorizontalScroller({
         return;
       }
 
+      updateScrollBoundaries();
+
       const remaining = dragTargetRef.current - scroller.scrollLeft;
       if (Math.abs(remaining) < 0.5) {
         scroller.scrollLeft = dragTargetRef.current;
+        updateScrollBoundaries();
         animationFrameRef.current = null;
         return;
       }
@@ -81,7 +84,7 @@ export function HorizontalScroller({
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [updateScrollBoundaries]);
 
   const scroll = (direction: "left" | "right") => {
     const scroller = scrollRef.current;

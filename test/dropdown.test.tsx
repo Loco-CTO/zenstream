@@ -16,10 +16,7 @@ describe("Dropdown", () => {
 
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("listbox", { name: "Example" })).toHaveClass(
-      "bg-[var(--c-glass-deep)]",
-      "backdrop-blur-xl",
-    );
+    expect(screen.getByRole("listbox", { name: "Example" })).toHaveClass("bg-black/25", "backdrop-blur-xl");
 
     fireEvent.click(screen.getByRole("option", { name: "Second option" }));
 

@@ -17,6 +17,15 @@ export function HomePage({ data, session }: { data: HomeData; session: AuthSessi
 		<main className="pb-24 md:pb-0">
 			<Hero items={heroItems} session={session} />
 			<div className="relative z-10 mt-[-1.5rem] space-y-1">
+				{HOME_ROWS.slice(0, 2).map((row) => (
+					<MediaRow
+						key={row.key}
+						title={t(row.titleKey)}
+						items={data[row.key]}
+						variant={row.variant}
+						session={session}
+					/>
+				))}
 				{data.newlyAdded.map((section) => (
 					<MediaRow
 						key={section.libraryId}
@@ -27,7 +36,7 @@ export function HomePage({ data, session }: { data: HomeData; session: AuthSessi
 						session={session}
 					/>
 				))}
-				{HOME_ROWS.map((row) => (
+				{HOME_ROWS.slice(2).map((row) => (
 					<MediaRow
 						key={row.key}
 						title={t(row.titleKey)}

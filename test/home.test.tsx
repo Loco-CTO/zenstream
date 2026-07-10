@@ -53,6 +53,10 @@ describe("home screen", () => {
     expect(screen.getByText("Next Up")).toBeInTheDocument();
     expect(screen.getByText("Top Rated Anime")).toBeInTheDocument();
 
+    const sectionHeadings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    expect(sectionHeadings.indexOf("Continue Watching")).toBeLessThan(sectionHeadings.indexOf("Newly Added on Anime"));
+    expect(sectionHeadings.indexOf("Next Up")).toBeLessThan(sectionHeadings.indexOf("Newly Added on Anime"));
+
     const resumeCard = screen.getByText("Resume Show").closest("article");
     expect(screen.getByText("Continue Watching").closest("section")).toHaveClass("select-none");
     expect(resumeCard).toHaveClass("select-none");

@@ -32,6 +32,7 @@ import {
 } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
+import { useSortPreference } from "@/lib/sort-preferences";
 
 const PAGE_SIZE = 40;
 const CARD_MIN_WIDTH = 200;
@@ -60,8 +61,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [items, setItems] = useState<JellyfinItem[]>([]);
 	const [loadedCount, setLoadedCount] = useState(0);
 	const [total, setTotal] = useState(0);
-	const [sortBy, setSortBy] = useState<LibrarySortBy>("CommunityRating");
-	const [sortOrder, setSortOrder] = useState<"Ascending" | "Descending">("Descending");
+	const [sort, setSort] = useSortPreference(`zenstream:sort:library:${libraryId}`, { sortBy: "CommunityRating" as LibrarySortBy, sortOrder: "Descending" }, SORTS.map((item) => item.value));
+	const { sortBy, sortOrder } = sort;
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -231,7 +232,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					<button
 						type="button"
 						aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")}
-						onClick={() => setSortOrder((order) => order === "Ascending" ? "Descending" : "Ascending")}
+						onClick={() => setSort((value) => ({ ...value, sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending" }))}
 						className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition hover:border-white/20 hover:text-white"
 					>
 						{sortOrder === "Ascending" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
@@ -240,7 +241,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 						aria-label={t("sortBy")}
 						value={sortBy}
 						options={sortOptions}
-						onChange={(value) => setSortBy(value as LibrarySortBy)}
+						onChange={(value) => setSort((current) => ({ ...current, sortBy: value as LibrarySortBy }))}
 						className="min-w-36 rounded-full py-1.5 uppercase tracking-wider"
 					/>
 				</div>

@@ -13,11 +13,11 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 	const requestedItemRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (!active?.playing) requestedItemRef.current = null;
-	}, [active?.playing]);
+		if (!active?.playing && !active?.resumeWhenReady) requestedItemRef.current = null;
+	}, [active?.playing, active?.resumeWhenReady]);
 
 	useEffect(() => {
-		const itemId = active?.playing ? active.itemId : null;
+		const itemId = active?.playing || active?.resumeWhenReady ? active.itemId : null;
 		if (!itemId || isViewingItem(pathname, itemId) || requestedItemRef.current === itemId)
 			return;
 		const targetItemId = itemId;
@@ -35,7 +35,7 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 		return () => {
 			cancelled = true;
 		};
-	}, [active?.itemId, active?.playing, pathname, router, session]);
+	}, [active?.itemId, active?.playing, active?.resumeWhenReady, pathname, router, session]);
 
 	return null;
 }

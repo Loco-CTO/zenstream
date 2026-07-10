@@ -51,6 +51,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const syncplayStateRef = useRef(syncplay.active);
+	const syncplayApiRef = useRef({ canControl: syncplay.canControl, command: syncplay.command, presence: syncplay.presence });
 	const qualityRequestRef = useRef(0);
 	const directPlayFallbackRef = useRef(false);
 	const resumeTimeRef = useRef(0);
@@ -88,6 +89,9 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	useEffect(() => {
 		syncplayStateRef.current = syncplay.active;
 	}, [syncplay.active]);
+	useEffect(() => {
+		syncplayApiRef.current = { canControl: syncplay.canControl, command: syncplay.command, presence: syncplay.presence };
+	}, [syncplay.canControl, syncplay.command, syncplay.presence]);
 
 	useEffect(() => {
 		let active = true;
@@ -169,6 +173,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		const onMetadata = () => {
 			disableNativeSubtitleTracks(video);
 			const groupState = syncplayStateRef.current;
+			const syncplayApi = syncplayApiRef.current;
 			if (groupState?.itemId === item.Id) {
 				const target = groupState.position + (groupState.playing ? Math.max(0, Date.now() / 1000 - groupState.updatedAt) : 0);
 				applyingSyncRef.current = true;
@@ -176,6 +181,13 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 				if (groupState.playing) void video.play().catch(() => undefined);
 				else video.pause();
 				window.setTimeout(() => { applyingSyncRef.current = false; }, 0);
+				return;
+			}
+			if (groupState) {
+				if (syncplayApi.canControl)
+					void syncplayApi.command({ action: "media", itemId: item.Id, position: 0, playing: true })
+						.then(() => syncplayApi.presence(true, false))
+						.catch(() => undefined);
 				return;
 			}
 			const resumeTime = resumeTimeRef.current || position;
@@ -375,7 +387,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	}
 
 	return <div ref={playerRef} className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); if (syncplay.active) { void syncplay.presence(true, false); if (!syncplay.active.itemId && syncplay.canControl) void syncplay.command({ action: "media", itemId: item.Id, position: 0, playing: true }); } }} onWaiting={() => { if (syncplay.active) void syncplay.presence(true, true); }} onCanPlay={() => { if (syncplay.active) void syncplay.presence(true, false); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={(e) => { handlePlay(); if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"play", itemId:item.Id, position:e.currentTarget.currentTime, playing:true }); }} onPause={(e) => { setPlaying(false); if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"pause", itemId:item.Id, position:e.currentTarget.currentTime, playing:false }); }} onError={handleVideoError}>
+		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onWaiting={() => { if (syncplay.active) void syncplay.presence(true, true).catch(() => undefined); }} onCanPlay={() => { if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={(e) => { handlePlay(); if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"play", itemId:item.Id, position:e.currentTarget.currentTime, playing:true }).catch(() => undefined); }} onPause={(e) => { setPlaying(false); if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"pause", itemId:item.Id, position:e.currentTarget.currentTime, playing:false }).catch(() => undefined); }} onError={handleVideoError}>
 		</video>
 		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />

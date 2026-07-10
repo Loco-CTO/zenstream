@@ -49,6 +49,15 @@ describe("SyncplayPlaybackFollower", () => {
 		await waitFor(() => expect(router.push).toHaveBeenCalledWith("/show/series-1/episode/episode-2"));
 	});
 
+	it("opens the host's episode while the group waits for every member to load", async () => {
+		state.active = group({ playing: false, resumeWhenReady: true });
+		fetchDetailData.mockResolvedValue({ item: { Id: "episode-2", Type: "Episode", SeriesId: "series-1" } });
+
+		render(<SyncplayPlaybackFollower session={{ token: "token", userId: "viewer", username: "Sam" }} />);
+
+		await waitFor(() => expect(router.push).toHaveBeenCalledWith("/show/series-1/episode/episode-2"));
+	});
+
 	it("does not pull members into media that is only paused", () => {
 		state.active = group({ playing: false });
 		render(<SyncplayPlaybackFollower session={{ token: "token", userId: "viewer", username: "Sam" }} />);

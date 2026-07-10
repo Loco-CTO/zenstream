@@ -92,4 +92,25 @@ describe("SyncplayProvider", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Leave" }));
 		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("none"));
 	});
+
+	it("keeps the latest state when readiness changes make the retry stale too", async () => {
+		const latest = { ...group(3), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" as const }] };
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [latest] }));
+			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(latest));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(JSON.stringify({ message: "Playback state is out of date." }), { status: 409 });
+			if (url.endsWith("/groups/group")) return new Response(JSON.stringify(latest));
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		render(<SyncplayProvider userId="user"><Controls /></SyncplayProvider>);
+		fireEvent.click(screen.getByRole("button", { name: "Join" }));
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+		await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"))).toHaveLength(2));
+	});
 });

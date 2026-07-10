@@ -165,7 +165,13 @@ export function SyncplayProvider({
 				throw error;
 			const latest = await call(`groups/${active.id}`);
 			adopt(latest);
-			adopt(await send(latest.revision));
+			try {
+				adopt(await send(latest.revision));
+			} catch (retryError) {
+				if (!(retryError instanceof SyncplayRequestError) || retryError.status !== 409)
+					throw retryError;
+				adopt(await call(`groups/${active.id}`));
+			}
 		}
 	};
 	const presence = async (viewing: boolean, loading: boolean) => {

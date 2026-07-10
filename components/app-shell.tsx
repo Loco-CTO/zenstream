@@ -42,6 +42,7 @@ import {
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
+import { ToastProvider } from "@/components/ui/toast";
 
 type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
 
@@ -209,7 +210,7 @@ export function AppShell() {
 
 	return (
 		<I18nProvider locale={locale}>
-			<SubtitlePreferencesProvider
+			<ToastProvider><SubtitlePreferencesProvider
 				key={JSON.stringify(subtitleStyle)}
 				initialStyle={subtitleStyle}
 			>
@@ -218,7 +219,7 @@ export function AppShell() {
 				) : status === "login" || !session ? (
 					<LoginPage onLogin={handleLogin} />
 				) : (
-					<SyncplayProvider userId={session.userId}>
+					<SyncplayProvider session={session}>
 						<SyncplayPlaybackFollower session={session} />
 						{pathname === "/settings" ? (
 							<SettingsPage
@@ -272,7 +273,7 @@ export function AppShell() {
 						)}
 					</SyncplayProvider>
 				)}
-			</SubtitlePreferencesProvider>
+			</SubtitlePreferencesProvider></ToastProvider>
 		</I18nProvider>
 	);
 }

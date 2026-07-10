@@ -10,6 +10,7 @@ import {
 	getNextUpItems,
 	getResumeItems,
 	getItem,
+	getPlaybackInfo,
 	getSeasons,
 	getEpisodes,
 	getSimilarItems,
@@ -26,6 +27,8 @@ import {
 	titleLogoImage,
 	titleLogoImageUrl,
 	getHeroTrailer,
+	playbackStreams,
+	playbackUrl,
 	youtubeVideoId,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
@@ -66,6 +69,37 @@ describe("jellyfin api helpers", () => {
 				body: JSON.stringify({ Username: "alex", Pw: "secret" }),
 			}),
 		);
+	});
+
+	it("uses the fixed playback quality ladder regardless of source bitrate", () => {
+		const { qualities } = playbackStreams({
+			MediaSources: [{ Bitrate: 1_000_000 }],
+		});
+
+		expect(qualities).toEqual(
+			[0, 1, 2, 4, 8, 16, 32, 64].map((mbps) => mbps * 1_000_000),
+		);
+	});
+
+	it("uses Jellyfin's negotiated HLS transcode URL for selected quality", () => {
+		const url = playbackUrl(session, "episode-1", {
+			Id: "source-1",
+			TranscodingUrl: "/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
+		}, 4_000_000);
+
+		expect(url).toBe(
+			"https://miru.amai.space/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
+		);
+	});
+
+	it("disables server-selected subtitles for playback", async () => {
+		await getPlaybackInfo(session, "episode-1", { subtitleStreamIndex: -1 });
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		expect(url.searchParams.get("subtitleStreamIndex")).toBe("-1");
+		expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({
+			UserId: "user-1",
+		});
 	});
 
 	it("builds resume row query parameters", async () => {
@@ -117,28 +151,44 @@ describe("jellyfin api helpers", () => {
 
 	it("loads user-visible library views and excludes playlists", async () => {
 		vi.mocked(fetch).mockResolvedValueOnce(
-			new Response(JSON.stringify({ Items: [
-				{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
-				{ Id: "movies", Name: "Movies", CollectionType: "movies" },
-				{ Id: "collections", Name: "Collections", CollectionType: "boxsets" },
-				{ Id: "lists", Name: "Playlists", CollectionType: "playlists" },
-				{ Id: "music", Name: "Music", CollectionType: "music" },
-			] }), { status: 200 }),
+			new Response(
+				JSON.stringify({
+					Items: [
+						{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+						{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+						{
+							Id: "collections",
+							Name: "Collections",
+							CollectionType: "boxsets",
+						},
+						{ Id: "lists", Name: "Playlists", CollectionType: "playlists" },
+						{ Id: "music", Name: "Music", CollectionType: "music" },
+					],
+				}),
+				{ status: 200 },
+			),
 		);
 
 		const libraries = await getLibraryViews(session);
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
 
 		expect(url.pathname).toBe("/Users/user-1/Views");
-		expect(libraries.map((library) => library.Id)).toEqual(["shows", "movies", "collections"]);
+		expect(libraries.map((library) => library.Id)).toEqual([
+			"shows",
+			"movies",
+			"collections",
+		]);
 	});
 
 	it("builds paginated, server-sorted library queries and returns totals", async () => {
 		vi.mocked(fetch).mockResolvedValueOnce(
-			new Response(JSON.stringify({
-				Items: [{ Id: "series-41", Name: "Series" }],
-				TotalRecordCount: 81,
-			}), { status: 200 }),
+			new Response(
+				JSON.stringify({
+					Items: [{ Id: "series-41", Name: "Series" }],
+					TotalRecordCount: 81,
+				}),
+				{ status: 200 },
+			),
 		);
 
 		const page = await getLibraryItems(session, {
@@ -164,7 +214,9 @@ describe("jellyfin api helpers", () => {
 
 	it("requests box sets for collection libraries", async () => {
 		vi.mocked(fetch).mockResolvedValueOnce(
-			new Response(JSON.stringify({ Items: [], TotalRecordCount: 0 }), { status: 200 }),
+			new Response(JSON.stringify({ Items: [], TotalRecordCount: 0 }), {
+				status: 200,
+			}),
 		);
 
 		await getLibraryItems(session, {
@@ -181,18 +233,38 @@ describe("jellyfin api helpers", () => {
 
 	it("loads newly added episodes, movies, and collections only", async () => {
 		vi.mocked(fetch)
-			.mockResolvedValueOnce(new Response(JSON.stringify({ Items: [
-				{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
-				{ Id: "movies", Name: "Movies", CollectionType: "movies" },
-				{ Id: "collections", Name: "Collections", CollectionType: "boxsets" },
-				{ Id: "playlists", Name: "Playlists", CollectionType: "playlists" },
-				{ Id: "music", Name: "Music", CollectionType: "music" },
-			] }), { status: 200 }))
-			.mockImplementation(async () => new Response(JSON.stringify({ Items: [] }), { status: 200 }));
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						Items: [
+							{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+							{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+							{
+								Id: "collections",
+								Name: "Collections",
+								CollectionType: "boxsets",
+							},
+							{
+								Id: "playlists",
+								Name: "Playlists",
+								CollectionType: "playlists",
+							},
+							{ Id: "music", Name: "Music", CollectionType: "music" },
+						],
+					}),
+					{ status: 200 },
+				),
+			)
+			.mockImplementation(
+				async () =>
+					new Response(JSON.stringify({ Items: [] }), { status: 200 }),
+			);
 
 		const sections = await getNewlyAddedItems(session);
 
-		const urls = vi.mocked(fetch).mock.calls.map(([input]) => new URL(input as string));
+		const urls = vi
+			.mocked(fetch)
+			.mock.calls.map(([input]) => new URL(input as string));
 		expect(urls[0].pathname).toBe("/Users/user-1/Views");
 		expect(urls[1].searchParams.get("parentId")).toBe("shows");
 		expect(urls[1].searchParams.get("includeItemTypes")).toBe("Episode");
@@ -200,9 +272,15 @@ describe("jellyfin api helpers", () => {
 		expect(urls[2].searchParams.get("includeItemTypes")).toBe("Movie");
 		expect(urls[3].searchParams.get("parentId")).toBe("collections");
 		expect(urls[3].searchParams.get("includeItemTypes")).toBe("BoxSet");
-		expect(sections.map((section) => section.libraryName)).toEqual(["Shows", "Movies", "Collections"]);
+		expect(sections.map((section) => section.libraryName)).toEqual([
+			"Shows",
+			"Movies",
+			"Collections",
+		]);
 		expect(urls).toHaveLength(4);
-		expect(urls.some((url) => url.searchParams.get("parentId") === "playlists")).toBe(false);
+		expect(
+			urls.some((url) => url.searchParams.get("parentId") === "playlists"),
+		).toBe(false);
 		expect(urls[1].searchParams.get("fields")).toContain("SeriesPrimaryImage");
 	});
 
@@ -259,11 +337,12 @@ describe("jellyfin api helpers", () => {
 			src: expect.stringContaining("/Images/Primary?"),
 			blurHash: "primary-hash",
 		});
-		expect(titleLogoImage({ ...item, ImageTags: { Logo: "logo-tag" } }))
-			.toEqual({
-				src: expect.stringContaining("/Images/Logo?"),
-				blurHash: undefined,
-			});
+		expect(
+			titleLogoImage({ ...item, ImageTags: { Logo: "logo-tag" } }),
+		).toEqual({
+			src: expect.stringContaining("/Images/Logo?"),
+			blurHash: undefined,
+		});
 	});
 
 	it("returns the blurhash for parent series and person images when provided", () => {

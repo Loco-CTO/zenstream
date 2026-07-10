@@ -34,6 +34,25 @@ describe("detail views", () => {
     expect(playButton).not.toHaveClass("uppercase", "bg-gradient-to-br");
   });
 
+  it("marks a watched item unwatched when playback starts", async () => {
+    renderDetail({
+      item: { ...movie(), UserData: { IsFavorite: false, Played: true } },
+      seasons: [],
+      episodes: [],
+      similar: [],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    const video = document.querySelector("video");
+    expect(video).toBeInTheDocument();
+    fireEvent.play(video!);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/UserPlayedItems/movie"),
+      expect.objectContaining({ method: "DELETE" }),
+    ));
+  });
+
   it("uses a Jellyfin logo in place of the detail title when available", () => {
     renderDetail({
       item: {

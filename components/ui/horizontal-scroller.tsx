@@ -7,7 +7,6 @@ import { useI18n } from "@/lib/i18n";
 const SCROLL_STEP = 360;
 const EDGE_TOLERANCE = 4;
 const DRAG_EASING = 0.28;
-const NAVIGATION_EASING = 0.16;
 
 export function HorizontalScroller({
   title,
@@ -104,14 +103,11 @@ export function HorizontalScroller({
     if (!scroller) return;
 
     const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
-    const currentTarget =
-      animationFrameRef.current === null ? scroller.scrollLeft : dragTargetRef.current;
-    dragTargetRef.current = Math.max(
+    const target = Math.max(
       0,
-      Math.min(maxScrollLeft, currentTarget + (direction === "right" ? SCROLL_STEP : -SCROLL_STEP)),
+      Math.min(maxScrollLeft, scroller.scrollLeft + (direction === "right" ? SCROLL_STEP : -SCROLL_STEP)),
     );
-    easingRef.current = NAVIGATION_EASING;
-    animateTowardTarget();
+    scroller.scrollTo({ left: target, behavior: "smooth" });
   };
 
   return (

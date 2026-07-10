@@ -143,3 +143,5 @@ searchResults: 検索結果
 movie: 映画
 series: シリーズ
 close: 閉じる
+playNext: 次のエピソードを再生
+stopPlaying: 再生を停止

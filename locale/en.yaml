@@ -48,6 +48,8 @@ localeSaveFailed: Could not save your language setting.
 continueWatching: Continue Watching
 newlyAddedOn: "Newly Added on {library}"
 nextUp: Next Up
+playNext: Play next
+stopPlaying: Stop playing
 topRated: Top Rated Anime
 newReleases: New Releases
 movies: Movies

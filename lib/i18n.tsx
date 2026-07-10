@@ -58,6 +58,8 @@ export const TRANSLATION_KEYS = [
 	"continueWatching",
 	"newlyAddedOn",
 	"nextUp",
+	"playNext",
+	"stopPlaying",
 	"topRated",
 	"newReleases",
 	"movies",

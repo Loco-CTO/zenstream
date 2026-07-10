@@ -165,6 +165,21 @@ export const TRANSLATION_KEYS = [
 	"joinView",
 	"leaveGroup",
 	"allowViewerControls",
+	"toastDismiss",
+	"syncplayGroupCreated",
+	"syncplayJoinedGroup",
+	"syncplayLeftGroup",
+	"syncplayMemberJoined",
+	"syncplayMemberLeft",
+	"syncplayGroupEnded",
+	"syncplayNowPlaying",
+	"syncplayNowPlayingFallback",
+	"syncplayCreateFailed",
+	"syncplayJoinFailed",
+	"syncplayLeaveFailed",
+	"syncplaySettingsFailed",
+	"syncplayPlaybackFailed",
+	"syncplayPresenceFailed",
 ] as const;
 
 export type TranslationKey = (typeof TRANSLATION_KEYS)[number];

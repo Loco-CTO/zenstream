@@ -69,12 +69,9 @@ export function HorizontalScroller({
         return;
       }
 
-      updateScrollBoundaries();
-
       const remaining = dragTargetRef.current - scroller.scrollLeft;
       if (Math.abs(remaining) < 0.5) {
         scroller.scrollLeft = dragTargetRef.current;
-        updateScrollBoundaries();
         animationFrameRef.current = null;
         return;
       }
@@ -170,7 +167,7 @@ export function HorizontalScroller({
           event.stopPropagation();
           dragRef.current.dragged = false;
         }}
-        className={`flex cursor-grab touch-pan-x gap-3 overflow-x-auto scroll-smooth pb-1 active:cursor-grabbing [scrollbar-width:none] ${className}`}
+        className={`flex cursor-grab touch-pan-x gap-3 overflow-x-auto pb-1 active:cursor-grabbing [scrollbar-width:none] ${className}`}
       >
         {children}
       </div>

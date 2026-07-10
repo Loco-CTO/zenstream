@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, Search, Settings, User } from "lucide-react";
+import { Bell, LogOut, Search, Settings, User, Users } from "lucide-react";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { userImageUrl } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
+import { useSyncplay } from "@/lib/syncplay";
 
 export function Navbar({
 	displayName,
@@ -24,6 +25,8 @@ export function Navbar({
 	const pathname = usePathname();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
+	const [groupsOpen, setGroupsOpen] = useState(false);
+	const { groups, active, create, join, leave, setControls } = useSyncplay();
 
 	return (
 		<>
@@ -49,11 +52,84 @@ export function Navbar({
 						>
 							{t("library")}
 						</Link>
-						<Link href="/favorites" className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/favorites" ? "text-white" : "text-white/35 hover:text-white/70"}`}>
+						<Link
+							href="/favorites"
+							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/favorites" ? "text-white" : "text-white/35 hover:text-white/70"}`}
+						>
 							{t("favorites")}
 						</Link>
 					</div>
 					<div className="flex-1" />
+					<button
+						aria-label={t("syncplayGroups")}
+						onClick={() => setGroupsOpen((open) => !open)}
+						className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
+					>
+						<Users className="h-[22px] w-[22px]" />
+					</button>
+					<div className="relative">
+						{groupsOpen && (
+							<div className="absolute right-0 top-full z-[90] mt-2 w-80 rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">
+								<div className="mb-2 flex items-center justify-between">
+									<p className="text-xs font-semibold text-white">
+										{t("syncplayGroups")}
+									</p>
+									<button
+										onClick={() => void create()}
+										className="rounded-lg bg-violet-400 px-3 py-1.5 text-xs font-semibold text-black"
+									>
+										{t("createGroup")}
+									</button>
+								</div>
+								{groups.length === 0 ? (
+									<p className="px-2 py-4 text-xs text-white/45">
+										{t("noSyncplayGroups")}
+									</p>
+								) : (
+									groups.map((group) => (
+										<div
+											key={group.id}
+											className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-white/5"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-xs text-white/85">
+													{group.name}
+												</p>
+												<p className="truncate text-xs text-white/45">
+													{group.itemId
+														? t("syncplayWatching")
+														: t("syncplayNoMedia")}{" "}
+													· {group.members.length}
+												</p>
+											</div>
+											<button
+												onClick={() =>
+													void (active?.id === group.id
+														? leave()
+														: join(group.id))
+												}
+												className="rounded-lg px-2 py-1.5 text-xs text-violet-200 hover:bg-white/10"
+											>
+												{active?.id === group.id
+													? t("leaveGroup")
+													: t("joinView")}
+											</button>
+										</div>
+									))
+								)}
+								{active?.hostUserId === userId && (
+									<label className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/60">
+										<input
+											type="checkbox"
+											checked={active.allowViewerControls}
+											onChange={(e) => void setControls(e.target.checked)}
+										/>
+										{t("allowViewerControls")}
+									</label>
+								)}
+							</div>
+						)}
+					</div>
 					<button
 						aria-label={t("search")}
 						onClick={() => setSearchOpen(true)}
@@ -106,7 +182,9 @@ export function Navbar({
 					</div>
 				</div>
 			</nav>
-			{searchOpen && session && <SearchOverlay session={session} onClose={() => setSearchOpen(false)} />}
+			{searchOpen && session && (
+				<SearchOverlay session={session} onClose={() => setSearchOpen(false)} />
+			)}
 		</>
 	);
 }

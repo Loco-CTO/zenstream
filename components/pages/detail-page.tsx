@@ -39,6 +39,7 @@ import {
 	HoverPreviewVideo,
 	useHoverPreview,
 } from "@/components/ui/hover-preview";
+import { useSyncplay } from "@/lib/syncplay";
 
 type TrackChoice = { audio?: number | string; subtitle?: number };
 
@@ -63,6 +64,7 @@ export function DetailPage({
 		useState<ReturnType<typeof playbackStreams>>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
 	const [trackLoading, setTrackLoading] = useState(false);
+	const { active } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
 	const seriesId = isEpisode ? item.SeriesId : item.Id;
@@ -96,6 +98,11 @@ export function DetailPage({
 			active = false;
 		};
 	}, [item.Id, session]);
+	useEffect(() => {
+		if (active?.itemId !== item.Id) return;
+		const timer = window.setTimeout(() => setPlayerOpen(true), 0);
+		return () => window.clearTimeout(timer);
+	}, [active?.itemId, item.Id]);
 
 	function goBack() {
 		if (window.history.length > 1) {

@@ -34,8 +34,13 @@ import {
 	setLocalePreference,
 	storeLocale,
 } from "@/lib/preferences";
-import { DEFAULT_SUBTITLE_STYLE, getSubtitlePreference, type SubtitleStyle } from "@/lib/subtitle-preferences";
+import {
+	DEFAULT_SUBTITLE_STYLE,
+	getSubtitlePreference,
+	type SubtitleStyle,
+} from "@/lib/subtitle-preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
+import { SyncplayProvider } from "@/lib/syncplay";
 
 type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
 
@@ -50,7 +55,9 @@ export function AppShell() {
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
-	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
+	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
+		DEFAULT_SUBTITLE_STYLE,
+	);
 	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
@@ -58,7 +65,9 @@ export function AppShell() {
 				setLocale(remoteLocale);
 			})
 			.catch(() => undefined);
-		void getSubtitlePreference().then(setSubtitleStyle).catch(() => undefined);
+		void getSubtitlePreference()
+			.then(setSubtitleStyle)
+			.catch(() => undefined);
 	}, []);
 
 	const loadHome = useCallback(
@@ -69,7 +78,9 @@ export function AppShell() {
 			setError(null);
 			try {
 				const data = await fetchHomeData(nextSession, (section) => {
-					setHomeData((current) => ({ ...(current ?? {}), ...section }) as HomeData);
+					setHomeData(
+						(current) => ({ ...(current ?? {}), ...section }) as HomeData,
+					);
 					if (sectionHasContent(section)) setStatus("ready");
 				});
 				setHomeData(data);
@@ -87,7 +98,10 @@ export function AppShell() {
 	);
 
 	const detailId = detailIdFromPath(pathname);
-	const searchQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") ?? "" : "";
+	const searchQuery =
+		typeof window !== "undefined"
+			? (new URLSearchParams(window.location.search).get("q") ?? "")
+			: "";
 	const loadDetail = useCallback(
 		async (nextSession: AuthSession, itemId: string) => {
 			const finishProgress = start();
@@ -95,7 +109,11 @@ export function AppShell() {
 			setError(null);
 			setDetailData(null);
 			try {
-				if (pathname === "/search") { setSearchData(searchQuery); setStatus("ready"); return; }
+				if (pathname === "/search") {
+					setSearchData(searchQuery);
+					setStatus("ready");
+					return;
+				}
 				setDetailData(await fetchDetailData(nextSession, itemId));
 				setStatus("ready");
 			} catch (err) {
@@ -127,9 +145,18 @@ export function AppShell() {
 		loadPreferences();
 		finishProgress();
 		if (detailId) void loadDetail(stored, detailId);
-		else if (pathname === "/library" || pathname === "/favorites") setStatus("ready");
+		else if (pathname === "/library" || pathname === "/favorites")
+			setStatus("ready");
 		else void loadHome(stored);
-	}, [detailId, loadDetail, loadHome, loadPreferences, pathname, searchQuery, start]);
+	}, [
+		detailId,
+		loadDetail,
+		loadHome,
+		loadPreferences,
+		pathname,
+		searchQuery,
+		start,
+	]);
 
 	const handleLogin = async (username: string, password: string) => {
 		const response = await authenticateByName(username, password);
@@ -138,8 +165,11 @@ export function AppShell() {
 		setSession(nextSession);
 		loadPreferences();
 		if (detailId) await loadDetail(nextSession, detailId);
-		else if (pathname === "/search") { setSearchData(searchQuery); setStatus("ready"); }
-		else if (pathname === "/library" || pathname === "/favorites") setStatus("ready");
+		else if (pathname === "/search") {
+			setSearchData(searchQuery);
+			setStatus("ready");
+		} else if (pathname === "/library" || pathname === "/favorites")
+			setStatus("ready");
 		else await loadHome(nextSession);
 	};
 
@@ -156,7 +186,8 @@ export function AppShell() {
 	useEffect(() => {
 		const handleAuthExpired = () => handleLogout();
 		window.addEventListener("zenstream:auth-expired", handleAuthExpired);
-		return () => window.removeEventListener("zenstream:auth-expired", handleAuthExpired);
+		return () =>
+			window.removeEventListener("zenstream:auth-expired", handleAuthExpired);
 	}, [handleLogout]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
@@ -177,51 +208,67 @@ export function AppShell() {
 
 	return (
 		<I18nProvider locale={locale}>
-		<SubtitlePreferencesProvider key={JSON.stringify(subtitleStyle)} initialStyle={subtitleStyle}>
-			{status === "checking" ? (
-				<div className="min-h-screen bg-background" />
-			) : status === "login" || !session ? (
-				<LoginPage onLogin={handleLogin} />
-			) : pathname === "/settings" ? (
-				<SettingsPage
-					displayName={session.username}
-					userId={session.userId}
-					locale={locale}
-					onLocaleChange={handleLocaleChange}
-					onLogout={handleLogout}
-				/>
-			) : (
-				<div className="min-h-screen bg-background text-foreground">
-					<Navbar
+			<SubtitlePreferencesProvider
+				key={JSON.stringify(subtitleStyle)}
+				initialStyle={subtitleStyle}
+			>
+				{status === "checking" ? (
+					<div className="min-h-screen bg-background" />
+				) : status === "login" || !session ? (
+					<LoginPage onLogin={handleLogin} />
+				) : pathname === "/settings" ? (
+					<SettingsPage
 						displayName={session.username}
 						userId={session.userId}
+						locale={locale}
+						onLocaleChange={handleLocaleChange}
 						onLogout={handleLogout}
-						session={session}
 					/>
-					<MobileNav />
-					{status === "error" && (
-						<ErrorPanel
-							titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
-							message={error}
-							onRetry={() =>
-								detailId ? loadDetail(session, detailId) : loadHome(session)
-							}
-						/>
-					)}
-					{status === "ready" && detailData && detailId && (
-						<DetailPage initialData={detailData} session={session} />
-					)}
-					{status === "ready" && pathname === "/library" && (
-						<LibraryPage session={session} />
-					)}
-					{status === "ready" && pathname === "/favorites" && <FavoritesPage session={session} />}
-					{status === "ready" && pathname === "/search" && <SearchPage session={session} query={searchData ?? searchQuery} />}
-			{homeData && !detailId && pathname !== "/library" && pathname !== "/favorites" && pathname !== "/search" && (
-						<HomePage data={homeData} session={session} />
-					)}
-				</div>
-			)}
-		</SubtitlePreferencesProvider>
+				) : (
+					<SyncplayProvider userId={session.userId}>
+						<div className="min-h-screen bg-background text-foreground">
+							<Navbar
+								displayName={session.username}
+								userId={session.userId}
+								onLogout={handleLogout}
+								session={session}
+							/>
+							<MobileNav />
+							{status === "error" && (
+								<ErrorPanel
+									titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
+									message={error}
+									onRetry={() =>
+										detailId ? loadDetail(session, detailId) : loadHome(session)
+									}
+								/>
+							)}
+							{status === "ready" && detailData && detailId && (
+								<DetailPage initialData={detailData} session={session} />
+							)}
+							{status === "ready" && pathname === "/library" && (
+								<LibraryPage session={session} />
+							)}
+							{status === "ready" && pathname === "/favorites" && (
+								<FavoritesPage session={session} />
+							)}
+							{status === "ready" && pathname === "/search" && (
+								<SearchPage
+									session={session}
+									query={searchData ?? searchQuery}
+								/>
+							)}
+							{homeData &&
+								!detailId &&
+								pathname !== "/library" &&
+								pathname !== "/favorites" &&
+								pathname !== "/search" && (
+									<HomePage data={homeData} session={session} />
+								)}
+						</div>
+					</SyncplayProvider>
+				)}
+			</SubtitlePreferencesProvider>
 		</I18nProvider>
 	);
 }
@@ -235,7 +282,7 @@ function sectionHasContent(section: Partial<HomeData>) {
 						: typeof item === "object" && item !== null && "items" in item
 							? Array.isArray(item.items) && item.items.length > 0
 							: Boolean(item),
-			  )
+				)
 			: Boolean(value),
 	);
 }

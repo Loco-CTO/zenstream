@@ -50,6 +50,16 @@ describe("jellyfin api helpers", () => {
 		expect(url.searchParams.has("sortBy")).toBe(false);
 		expect(url.searchParams.has("sortOrder")).toBe(false);
 	});
+
+	it("notifies the app when an authenticated request is unauthorized", async () => {
+		const onExpired = vi.fn();
+		window.addEventListener("zenstream:auth-expired", onExpired);
+		vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 401 }));
+
+		await expect(getItems(session, { limit: 1 })).rejects.toThrow("Request failed with 401.");
+		expect(onExpired).toHaveBeenCalledOnce();
+		window.removeEventListener("zenstream:auth-expired", onExpired);
+	});
 	beforeEach(() => {
 		vi.stubGlobal(
 			"fetch",
@@ -78,11 +88,28 @@ describe("jellyfin api helpers", () => {
 			expect.objectContaining({
 				method: "POST",
 				headers: expect.objectContaining({
-					Authorization: expect.stringContaining('MediaBrowser Client="Web"'),
+					Authorization: expect.stringMatching(/MediaBrowser Client="Web".*DeviceId="[^"]+"/),
 				}),
 				body: JSON.stringify({ Username: "alex", Pw: "secret" }),
 			}),
 		);
+	});
+
+	it("keeps a unique device identity across authenticated requests", async () => {
+		vi.mocked(fetch)
+			.mockResolvedValueOnce(new Response(JSON.stringify({ AccessToken: "token" }), { status: 200 }))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ Items: [] }), { status: 200 }));
+
+		await authenticateByName("alex", "secret");
+		await getItems(session, { limit: 1 });
+
+		const loginAuthorization = String(vi.mocked(fetch).mock.calls[0][1]?.headers && (vi.mocked(fetch).mock.calls[0][1]?.headers as Record<string, string>).Authorization);
+		const requestAuthorization = String(vi.mocked(fetch).mock.calls[1][1]?.headers && (vi.mocked(fetch).mock.calls[1][1]?.headers as Record<string, string>).Authorization);
+		const loginDevice = loginAuthorization.match(/DeviceId="([^"]+)"/)?.[1];
+		const requestDevice = requestAuthorization.match(/DeviceId="([^"]+)"/)?.[1];
+		expect(loginDevice).toBeTruthy();
+		expect(requestDevice).toBe(loginDevice);
+		expect(loginDevice).not.toBe("Web");
 	});
 
 	it("uses the fixed playback quality ladder regardless of source bitrate", () => {

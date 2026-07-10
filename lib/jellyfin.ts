@@ -199,11 +199,37 @@ export function authorizationHeader(token?: string) {
 		token ? `Token="${token}"` : null,
 		'Client="Web"',
 		'Device="ZenStream"',
-		'DeviceId="Web"',
+		`DeviceId="${deviceId()}"`,
 		'Version="0.0.1b"',
 	].filter(Boolean);
 
 	return `MediaBrowser ${parts.join(", ")}`;
+}
+
+const DEVICE_ID_STORAGE_KEY = "zenstream-device-id";
+let memoryDeviceId: string | null = null;
+
+function deviceId() {
+	if (typeof window === "undefined") return "Web";
+
+	try {
+		const stored = window.localStorage?.getItem?.(DEVICE_ID_STORAGE_KEY);
+		if (stored) return stored;
+	} catch {
+		// Storage may be unavailable in privacy-restricted browsers.
+	}
+	if (memoryDeviceId) return memoryDeviceId;
+
+	const generated = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+		? crypto.randomUUID()
+		: `web-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+	memoryDeviceId = generated;
+	try {
+		window.localStorage?.setItem?.(DEVICE_ID_STORAGE_KEY, generated);
+	} catch {
+		// Continue with the in-memory identity for this page session.
+	}
+	return generated;
 }
 
 export async function authenticateByName(
@@ -1197,6 +1223,10 @@ async function jellyfinRequest(
 			...init.headers,
 		},
 	});
+
+	if (response.status === 401 && typeof window !== "undefined") {
+		window.dispatchEvent(new Event("zenstream:auth-expired"));
+	}
 
 	if (!response.ok) {
 		throw new Error(`Request failed with ${response.status}.`);

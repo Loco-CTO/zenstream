@@ -143,12 +143,21 @@ export function AppShell() {
 		else await loadHome(nextSession);
 	};
 
-	const handleLogout = () => {
+	const handleLogout = useCallback(() => {
 		clearAuthCookies();
 		setSession(null);
 		setHomeData(null);
+		setDetailData(null);
+		setSearchData(null);
+		setError(null);
 		setStatus("login");
-	};
+	}, []);
+
+	useEffect(() => {
+		const handleAuthExpired = () => handleLogout();
+		window.addEventListener("zenstream:auth-expired", handleAuthExpired);
+		return () => window.removeEventListener("zenstream:auth-expired", handleAuthExpired);
+	}, [handleLogout]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
 		const previousLocale = locale;

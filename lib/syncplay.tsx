@@ -100,6 +100,7 @@ export function SyncplayProvider({
 	const [groups, setGroups] = useState<SyncplayGroup[]>([]);
 	const [active, setActive] = useState<SyncplayGroup | null>(null);
 	const activeRef = useRef<SyncplayGroup | null>(null);
+	const socketRef = useRef<WebSocket | null>(null);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
 
@@ -178,22 +179,10 @@ export function SyncplayProvider({
 					) ?? null),
 		);
 	}, [reconcile, session.userId]);
-	useEffect(() => {
-		const initial = window.setTimeout(
-			() => void refresh().catch(() => undefined),
-			0,
-		);
-		const interval = window.setInterval(
-			() => void refresh().catch(() => undefined),
-			1500,
-		);
-		return () => {
-			window.clearTimeout(initial);
-			window.clearInterval(interval);
-		};
-	}, [refresh]);
 	const adopt = useCallback(
 		(group: SyncplayGroup, announceNewMedia = false) => {
+			if (activeRef.current?.id === group.id && group.revision < activeRef.current.revision)
+				return;
 			hydratedRef.current = true;
 			if (
 				announceNewMedia &&
@@ -201,14 +190,54 @@ export function SyncplayProvider({
 				group.itemId !== activeRef.current?.itemId
 			)
 				announcePlayback(group.itemId);
-			setCurrent(group);
-			setGroups((old) => [
-				group,
-				...old.filter((entry) => entry.id !== group.id),
-			]);
+			if (activeRef.current?.id === group.id)
+				reconcile(group.members.some((member) => member.userId === session.userId) ? group : null);
+			else setCurrent(group);
+			setGroups((old) => {
+				const previous = old.find((entry) => entry.id === group.id);
+				if (previous && previous.revision > group.revision) return old;
+				return [group, ...old.filter((entry) => entry.id !== group.id)];
+			});
 		},
-		[announcePlayback, setCurrent],
+		[announcePlayback, reconcile, setCurrent],
 	);
+	useEffect(() => {
+		const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+		const socket = new WebSocket(`${scheme}://${window.location.host}/api/syncplay/ws/syncplay?token=${encodeURIComponent(session.token)}`);
+		socketRef.current = socket;
+		socket.onmessage = ({ data }) => {
+			const message = JSON.parse(String(data)) as { type: string; groups?: SyncplayGroup[]; group?: SyncplayGroup; id?: string };
+			if (message.type === "syncplay:groups") {
+			const next = message.groups ?? [];
+			setGroups(next);
+			const current = activeRef.current;
+			reconcile(current
+				? (next.find((group) => group.id === current.id && group.members.some((member) => member.userId === session.userId)) ?? null)
+				: (next.find((group) => group.members.some((member) => member.userId === session.userId)) ?? null));
+			return;
+			}
+			if (message.type === "syncplay:group" && message.group) {
+			const group = message.group;
+			setGroups((old) => {
+				const previous = old.find((entry) => entry.id === group.id);
+				if (previous && previous.revision > group.revision) return old;
+				return [group, ...old.filter((entry) => entry.id !== group.id)];
+			});
+			if (activeRef.current?.id === group.id)
+				reconcile(group.members.some((member) => member.userId === session.userId) ? group : null);
+			else if (!activeRef.current && group.members.some((member) => member.userId === session.userId)) reconcile(group);
+			return;
+			}
+			if (message.type !== "syncplay:group-ended" || !message.id) return;
+			const id = message.id;
+			setGroups((old) => old.filter((group) => group.id !== id));
+			if (activeRef.current?.id === id) reconcile(null);
+		};
+		return () => {
+			socket.close();
+			if (socketRef.current === socket) socketRef.current = null;
+		};
+	}, [reconcile, session.token, session.userId]);
 	const create = async () => {
 		try {
 			const group = (await call("groups", "POST")) as SyncplayGroup;

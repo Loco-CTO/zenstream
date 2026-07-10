@@ -5,6 +5,13 @@ import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncpla
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
 
+class TestWebSocket {
+	onmessage: ((event: MessageEvent) => void) | null = null;
+	close() {}
+}
+vi.stubGlobal("WebSocket", TestWebSocket);
+
+
 vi.mock("next/navigation", () => ({
 	usePathname: () => "/show/movie",
 	useRouter: () => ({ push: vi.fn() }),

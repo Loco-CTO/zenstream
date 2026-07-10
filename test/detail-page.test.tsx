@@ -5,11 +5,29 @@ import { ProgressProvider } from "@/components/status/progress-indicator";
 import type { DetailData, JellyfinItem } from "@/lib/jellyfin";
 
 const session = { token: "token", userId: "user", username: "Alex" };
+const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+	useRouter: () => router,
+}));
 
 describe("detail views", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
-  });
+	beforeEach(() => {
+		router.back.mockClear();
+		router.push.mockClear();
+		vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+	});
+
+	it("uses browser history for the detail back button", () => {
+		window.history.pushState({}, "", "/library");
+		window.history.pushState({}, "", "/show/movie");
+		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+		fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+		expect(router.back).toHaveBeenCalledOnce();
+		expect(router.push).not.toHaveBeenCalled();
+	});
 
   it("renders a movie with live metadata and recommendations", () => {
     renderDetail({

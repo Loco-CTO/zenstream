@@ -230,7 +230,11 @@ function sectionHasContent(section: Partial<HomeData>) {
 	return Object.values(section).some((value) =>
 		Array.isArray(value)
 			? value.some((item) =>
-					Array.isArray(item) ? item.length > 0 : Boolean(item),
+					Array.isArray(item)
+						? item.length > 0
+						: typeof item === "object" && item !== null && "items" in item
+							? Array.isArray(item.items) && item.items.length > 0
+							: Boolean(item),
 			  )
 			: Boolean(value),
 	);

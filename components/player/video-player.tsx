@@ -5,6 +5,7 @@ import { ArrowLeft, Maximize, Pause, Play, Settings, Volume2, VolumeX } from "lu
 import {
 	getPlaybackInfo,
 	getPlaybackMarkers,
+	getTrickplayInfo,
 	playbackStreams,
 	playbackUrl,
 	reportPlayback,
@@ -40,10 +41,10 @@ export function VideoPlayer({ item, session, onClose }: Props) {
 
 	useEffect(() => {
 		let active = true;
-		Promise.all([getPlaybackInfo(session, item.Id), getPlaybackMarkers(session, item.Id)])
-			.then(([playback, markerData]) => {
+		Promise.all([getPlaybackInfo(session, item.Id), getPlaybackMarkers(session, item.Id), getTrickplayInfo(session, item.Id).catch(() => undefined)])
+			.then(([playback, markerData, trickplay]) => {
 				if (!active) return;
-				const parsed = playbackStreams(playback);
+				const parsed = playbackStreams(playback, trickplay);
 				setInfo(parsed);
 				setUrl(playbackUrl(session, item.Id, parsed.source, 0));
 				setMarkers(markerData);
@@ -99,7 +100,7 @@ export function VideoPlayer({ item, session, onClose }: Props) {
 		<div className="absolute left-5 top-5 flex items-start gap-3 md:left-10 md:top-8"><button aria-label="Close player" className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white" onClick={onClose}><ArrowLeft /></button><div><p className="text-xs uppercase tracking-[.2em] text-white/55">{item.Type === "Episode" ? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}` : item.Name}</p>{item.Type === "Episode" && <h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>}</div></div>
 		{error && <p role="alert" className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-black/70 px-4 py-3 text-sm text-red-200">{error}</p>}
 		<div className="absolute bottom-5 left-5 right-5 md:bottom-8 md:left-10 md:right-10">
-			<div className="mb-3 flex gap-2">{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur hover:bg-white/25" onClick={() => skip(markers.intro)}>Skip intro</button>}{markers?.outro && currentTime >= markers.outro.start && currentTime >= markers.outro.start && currentTime < markers.outro.end && <button className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur hover:bg-white/25" onClick={() => skip(markers.outro)}>Skip outro</button>}</div>
+			<div className="mb-3 flex gap-2">{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur hover:bg-white/25" onClick={() => skip(markers.intro)}>Skip intro</button>}{markers?.outro && currentTime >= markers.outro.start && currentTime < markers.outro.end && <button className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur hover:bg-white/25" onClick={() => skip(markers.outro)}>Skip outro</button>}</div>
 			<div className="relative">
 				<div className="pointer-events-none absolute inset-x-0 top-1 h-1 overflow-hidden rounded bg-white/15">{markers?.intro && duration > 0 && <span className="absolute h-full bg-violet-400/80" style={{ left: `${markers.intro.start / duration * 100}%`, width: `${(markers.intro.end - markers.intro.start) / duration * 100}%` }} />}{markers?.outro && duration > 0 && <span className="absolute h-full bg-violet-400/80" style={{ left: `${markers.outro.start / duration * 100}%`, width: `${(markers.outro.end - markers.outro.start) / duration * 100}%` }} />}</div>
 				<input aria-label="Seek" type="range" min="0" max={duration} step="0.1" value={currentTime} className="relative mb-3 h-1 w-full accent-violet-400" onPointerMove={previewTimeline} onPointerLeave={() => { setTimelinePreview(undefined); setPreviewUnavailable(false); }} onPointerDown={previewTimeline} onChange={(event) => { if (videoRef.current) videoRef.current.currentTime = Number(event.target.value); }} />

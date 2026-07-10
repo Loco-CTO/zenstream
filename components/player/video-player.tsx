@@ -47,6 +47,8 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const syncplay = useSyncplay();
 	const applyingSyncRef = useRef(false);
+	const suppressSyncPlayRef = useRef(false);
+	const suppressSyncPauseRef = useRef(false);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
@@ -150,8 +152,14 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		const target = state.position + elapsed;
 		applyingSyncRef.current = true;
 		if (Math.abs(video.currentTime - target) > 1) video.currentTime = target;
-		if (state.playing && video.paused) void video.play().catch(() => undefined);
-		if (!state.playing && !video.paused) video.pause();
+		if (state.playing && video.paused) {
+			suppressSyncPlayRef.current = true;
+			void video.play().catch(() => { suppressSyncPlayRef.current = false; });
+		}
+		if (!state.playing && !video.paused) {
+			suppressSyncPauseRef.current = true;
+			video.pause();
+		}
 		window.setTimeout(() => { applyingSyncRef.current = false; }, 0);
 	}, [syncplay.active?.revision, syncplay.active?.itemId, item.Id]);
 
@@ -178,8 +186,13 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 				const target = groupState.position + (groupState.playing ? Math.max(0, Date.now() / 1000 - groupState.updatedAt) : 0);
 				applyingSyncRef.current = true;
 				if (Number.isFinite(target) && target < video.duration) video.currentTime = target;
-				if (groupState.playing) void video.play().catch(() => undefined);
-				else video.pause();
+				if (groupState.playing) {
+					suppressSyncPlayRef.current = true;
+					void video.play().catch(() => { suppressSyncPlayRef.current = false; });
+				} else if (!video.paused) {
+					suppressSyncPauseRef.current = true;
+					video.pause();
+				}
 				window.setTimeout(() => { applyingSyncRef.current = false; }, 0);
 				return;
 			}
@@ -387,7 +400,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	}
 
 	return <div ref={playerRef} className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onWaiting={() => { if (syncplay.active) void syncplay.presence(true, true).catch(() => undefined); }} onCanPlay={() => { if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={(e) => { handlePlay(); if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"play", itemId:item.Id, position:e.currentTarget.currentTime, playing:true }).catch(() => undefined); }} onPause={(e) => { setPlaying(false); if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"pause", itemId:item.Id, position:e.currentTarget.currentTime, playing:false }).catch(() => undefined); }} onError={handleVideoError}>
+		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onWaiting={() => { if (syncplay.active) void syncplay.presence(true, true).catch(() => undefined); }} onCanPlay={() => { if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={(e) => { handlePlay(); if (suppressSyncPlayRef.current) { suppressSyncPlayRef.current = false; return; } if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"play", itemId:item.Id, position:e.currentTarget.currentTime, playing:true }).catch(() => undefined); }} onPause={(e) => { setPlaying(false); if (suppressSyncPauseRef.current) { suppressSyncPauseRef.current = false; return; } if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"pause", itemId:item.Id, position:e.currentTarget.currentTime, playing:false }).catch(() => undefined); }} onError={handleVideoError}>
 		</video>
 		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />

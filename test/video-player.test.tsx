@@ -4,6 +4,7 @@ import { CustomSubtitleCue, disableNativeSubtitleTracks, exitFullscreenSafely, H
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
+import { ToastProvider } from "@/components/ui/toast";
 import type { JellyfinItem } from "@/lib/jellyfin";
 
 vi.mock("@/lib/jellyfin", async () => {
@@ -35,7 +36,7 @@ describe("video player controls", () => {
 	});
 
 	it("shows the Syncplay groups control in the player header", () => {
-		const { getByRole } = render(<I18nProvider locale="en"><SyncplayProvider userId="user"><SubtitlePreferencesProvider><VideoPlayer item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem} session={{ token: "token", userId: "user", username: "Alex" }} onClose={vi.fn()} /></SubtitlePreferencesProvider></SyncplayProvider></I18nProvider>);
+		const { getByRole } = render(<I18nProvider locale="en"><ToastProvider><SyncplayProvider session={{ token: "token", userId: "user", username: "Alex" }}><SubtitlePreferencesProvider><VideoPlayer item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem} session={{ token: "token", userId: "user", username: "Alex" }} onClose={vi.fn()} /></SubtitlePreferencesProvider></SyncplayProvider></ToastProvider></I18nProvider>);
 		expect(getByRole("button", { name: "Groups" })).toBeInTheDocument();
 	});
 

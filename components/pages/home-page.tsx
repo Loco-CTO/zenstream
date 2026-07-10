@@ -7,11 +7,11 @@ import { MediaRow } from "@/components/home/media-row";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
-export function HomePage({ data, session }: { data: HomeData; session: AuthSession }) {
+export function HomePage({ data, session }: { data: Partial<HomeData>; session: AuthSession }) {
 	const { t } = useI18n();
 	const hero = pickHeroItem(data);
 	const heroItems =
-		data.latestItems.length > 0 ? data.latestItems : hero ? [hero] : [];
+		(data.latestItems?.length ?? 0) > 0 ? data.latestItems ?? [] : hero ? [hero] : [];
 
 	return (
 		<main className="pb-24 md:pb-0">
@@ -21,12 +21,12 @@ export function HomePage({ data, session }: { data: HomeData; session: AuthSessi
 					<MediaRow
 						key={row.key}
 						title={t(row.titleKey)}
-						items={data[row.key]}
+						items={data[row.key] ?? []}
 						variant={row.variant}
 						session={session}
 					/>
 				))}
-				{data.newlyAdded.map((section) => (
+				{(data.newlyAdded ?? []).map((section) => (
 					<MediaRow
 						key={section.libraryId}
 						title={t("newlyAddedOn", { library: section.libraryName })}
@@ -40,7 +40,7 @@ export function HomePage({ data, session }: { data: HomeData; session: AuthSessi
 					<MediaRow
 						key={row.key}
 						title={t(row.titleKey)}
-						items={data[row.key]}
+						items={data[row.key] ?? []}
 						variant={row.variant}
 						session={session}
 					/>

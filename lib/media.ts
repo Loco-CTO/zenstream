@@ -33,12 +33,12 @@ export function stackNewlyAdded(items: JellyfinItem[]): MediaStack[] {
 	return stacks;
 }
 
-export function pickHeroItem(data: HomeData) {
+export function pickHeroItem(data: Partial<HomeData>) {
 	return (
-		data.newReleases.find(hasVisualImage) ??
-		data.topRated.find(hasVisualImage) ??
-		data.newReleases[0] ??
-		data.topRated[0] ??
+		data.newReleases?.find(hasVisualImage) ??
+		data.topRated?.find(hasVisualImage) ??
+		data.newReleases?.[0] ??
+		data.topRated?.[0] ??
 		null
 	);
 }

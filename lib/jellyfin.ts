@@ -233,7 +233,15 @@ export async function authenticateByName(
 	return response.json() as Promise<AuthResponse>;
 }
 
-export async function fetchHomeData(session: AuthSession): Promise<HomeData> {
+export async function fetchHomeData(
+	session: AuthSession,
+	onSection?: (section: Partial<HomeData>) => void,
+): Promise<HomeData> {
+	const publish = <K extends keyof HomeData>(key: K, promise: Promise<HomeData[K]>) =>
+		promise.then((value) => {
+			onSection?.({ [key]: value } as Pick<HomeData, K>);
+			return value;
+		});
 	const [
 		latestItems,
 		newlyAdded,
@@ -244,28 +252,28 @@ export async function fetchHomeData(session: AuthSession): Promise<HomeData> {
 		movies,
 		myList,
 	] = await Promise.all([
-		getLatestItems(session),
-		getNewlyAddedItems(session),
-		getResumeItems(session),
-		getNextUpItems(session),
-		getItems(session, {
+		publish("latestItems", getLatestItems(session)),
+		publish("newlyAdded", getNewlyAddedItems(session)),
+		publish("continueWatching", getResumeItems(session)),
+		publish("nextUp", getNextUpItems(session)),
+		publish("topRated", getItems(session, {
 			sortBy: "CommunityRating",
 			sortOrder: "Descending",
-		}),
-		getItems(session, {
+		})),
+		publish("newReleases", getItems(session, {
 			sortBy: "PremiereDate",
 			sortOrder: "Descending",
-		}),
-		getItems(session, {
+		})),
+		publish("movies", getItems(session, {
 			includeItemTypes: "Movie",
 			sortBy: "DateCreated",
 			sortOrder: "Descending",
-		}),
-		getItems(session, {
+		})),
+		publish("myList", getItems(session, {
 			isFavorite: true,
 			sortBy: "SortName",
 			sortOrder: "Ascending",
-		}),
+		})),
 	]);
 
 	return {

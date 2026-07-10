@@ -65,9 +65,13 @@ export function AppShell() {
 		async (nextSession: AuthSession) => {
 			const finishProgress = start();
 			setStatus("loading");
+			setHomeData({} as HomeData);
 			setError(null);
 			try {
-				const data = await fetchHomeData(nextSession);
+				const data = await fetchHomeData(nextSession, (section) => {
+					setHomeData((current) => ({ ...(current ?? {}), ...section }) as HomeData);
+					setStatus("ready");
+				});
 				setHomeData(data);
 				setStatus("ready");
 			} catch (err) {
@@ -203,7 +207,7 @@ export function AppShell() {
 					)}
 					{status === "ready" && pathname === "/favorites" && <FavoritesPage session={session} />}
 					{status === "ready" && pathname === "/search" && <SearchPage session={session} query={searchData ?? searchQuery} />}
-					{status === "ready" && homeData && !detailId && pathname !== "/library" && pathname !== "/favorites" && pathname !== "/search" && (
+			{homeData && !detailId && pathname !== "/library" && pathname !== "/favorites" && pathname !== "/search" && (
 						<HomePage data={homeData} session={session} />
 					)}
 				</div>

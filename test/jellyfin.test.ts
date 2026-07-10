@@ -29,6 +29,8 @@ import {
 	getHeroTrailer,
 	playbackStreams,
 	playbackUrl,
+	preserveTrickplay,
+	trickplayPreview,
 	youtubeVideoId,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
@@ -100,6 +102,53 @@ describe("jellyfin api helpers", () => {
 		expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({
 			UserId: "user-1",
 		});
+	});
+
+	it("sends playback limits and stream selections in the PlaybackInfo body", async () => {
+		await getPlaybackInfo(session, "episode-1", {
+			maxStreamingBitrate: 4_000_000,
+			startTimeTicks: 123,
+			mediaSourceId: "source-1",
+			audioStreamIndex: 2,
+			subtitleStreamIndex: -1,
+		});
+
+		expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({
+			UserId: "user-1",
+			MaxStreamingBitrate: 4_000_000,
+			StartTimeTicks: 123,
+			MediaSourceId: "source-1",
+			AudioStreamIndex: 2,
+			SubtitleStreamIndex: -1,
+			EnableDirectPlay: true,
+			EnableDirectStream: true,
+			EnableTranscoding: true,
+			DeviceProfile: { MaxStreamingBitrate: 4_000_000 },
+		});
+	});
+
+	it("preserves trickplay metadata when a negotiated source omits it", () => {
+		const trickplay = { "320": { Width: 320, Height: 180, Interval: 10_000 } };
+		const source = preserveTrickplay(
+			{ Id: "source-1", TranscodingUrl: "/master.m3u8" },
+			{ Id: "source-1", Trickplay: trickplay },
+		);
+
+		expect(source?.Trickplay).toEqual(trickplay);
+	});
+
+	it("keeps the media source id on trickplay preview URLs", () => {
+		const preview = trickplayPreview(
+			session,
+			"episode-1",
+			{
+				Id: "source-1",
+				Trickplay: { "320": { Width: 320, Height: 180, Interval: 10_000 } },
+			},
+			15,
+		);
+
+		expect(preview?.url).toContain("MediaSourceId=source-1");
 	});
 
 	it("builds resume row query parameters", async () => {

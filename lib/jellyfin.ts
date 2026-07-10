@@ -502,6 +502,14 @@ export async function getPlaybackInfo(
 			method: "POST",
 			body: JSON.stringify({
 				UserId: session.userId,
+				MaxStreamingBitrate: options.maxStreamingBitrate,
+				StartTimeTicks: options.startTimeTicks ?? 0,
+				MediaSourceId: options.mediaSourceId,
+				AudioStreamIndex: options.audioStreamIndex,
+				SubtitleStreamIndex: options.subtitleStreamIndex,
+				EnableDirectPlay: true,
+				EnableDirectStream: true,
+				EnableTranscoding: true,
 				DeviceProfile: {
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
@@ -546,11 +554,14 @@ export function playbackStreams(
 	trickplay?: Record<string, Record<string, JellyfinTrickplayInfo>>,
 ) {
 	const source = info.MediaSources?.[0];
+	const sourceWithTrickplay: JellyfinMediaSource | undefined = source
+		? {
+				...source,
+				Trickplay: source.Trickplay ?? trickplay?.[source.Id ?? ""],
+			}
+		: undefined;
 	return {
-		source: source && {
-			...source,
-			Trickplay: source.Trickplay ?? trickplay?.[source.Id ?? ""],
-		},
+		source: sourceWithTrickplay,
 		audio: (source?.MediaStreams ?? []).filter(
 			(stream) => stream.Type === "Audio",
 		),
@@ -559,6 +570,14 @@ export function playbackStreams(
 		),
 		qualities: playbackQualities,
 	};
+}
+
+export function preserveTrickplay(
+	source: JellyfinMediaSource | undefined,
+	previousSource: JellyfinMediaSource | undefined,
+) {
+	if (!source || source.Trickplay || !previousSource?.Trickplay) return source;
+	return { ...source, Trickplay: previousSource.Trickplay };
 }
 
 export function playbackUrl(

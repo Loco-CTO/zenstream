@@ -32,6 +32,8 @@ import {
 	setLocalePreference,
 	storeLocale,
 } from "@/lib/preferences";
+import { DEFAULT_SUBTITLE_STYLE, getSubtitlePreference, type SubtitleStyle } from "@/lib/subtitle-preferences";
+import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 
 type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
 
@@ -45,6 +47,7 @@ export function AppShell() {
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
+	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
 
 	const loadHome = useCallback(
 		async (nextSession: AuthSession) => {
@@ -57,6 +60,7 @@ export function AppShell() {
 					setLocale(remoteLocale);
 				})
 				.catch(() => undefined);
+			void getSubtitlePreference().then(setSubtitleStyle).catch(() => undefined);
 			try {
 				const data = await fetchHomeData(nextSession);
 				setHomeData(data);
@@ -150,6 +154,7 @@ export function AppShell() {
 
 	return (
 		<I18nProvider locale={locale}>
+		<SubtitlePreferencesProvider key={JSON.stringify(subtitleStyle)} initialStyle={subtitleStyle}>
 			{status === "checking" ? (
 				<div className="min-h-screen bg-background" />
 			) : status === "login" || !session ? (
@@ -190,6 +195,7 @@ export function AppShell() {
 					)}
 				</div>
 			)}
+		</SubtitlePreferencesProvider>
 		</I18nProvider>
 	);
 }

@@ -67,6 +67,13 @@ quality: 品質
 switchingQuality: 品質を切り替えています…
 speed: 再生速度
 subtitleOffset: 字幕のオフセット
+subtitleTextSize: 字幕の文字サイズ
+subtitleFontColor: 字幕の文字色
+subtitleBorderSize: 字幕の縁取りサイズ
+subtitleBorderColor: 字幕の縁取り色
+subtitleBackgroundColor: 字幕の背景色
+subtitleBackgroundOpacity: 字幕の背景の透明度
+subtitleSaveFailed: 字幕の表示設定を保存できませんでした。
 spanish: スペイン語
 french: フランス語
 off: オフ

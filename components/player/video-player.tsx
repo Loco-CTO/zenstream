@@ -9,6 +9,7 @@ import {
 	getTrickplayInfo,
 	playbackStreams,
 	playbackUrl,
+	preserveTrickplay,
 	reportPlayback,
 	setPlayed,
 	subtitleUrl,
@@ -18,12 +19,15 @@ import {
 } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
+import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
+import { subtitleHasEmbeddedStyle } from "@/lib/subtitle-preferences";
 
 type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void; onPlayedChange?: (played: boolean) => void };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const { t } = useI18n();
+	const { style } = useSubtitlePreferences();
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const qualityRequestRef = useRef(0);
@@ -44,6 +48,9 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const [quality, setQuality] = useState("0");
 	const [audio, setAudio] = useState("");
 	const [subtitle, setSubtitle] = useState("");
+	const [subtitleSource, setSubtitleSource] = useState<string>();
+	const [subtitleSourceTrack, setSubtitleSourceTrack] = useState("");
+	const [subtitleUsesEmbeddedStyle, setSubtitleUsesEmbeddedStyle] = useState(false);
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
@@ -101,6 +108,40 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 			hlsRef.current = null;
 		};
 	}, [url, item.UserData?.PlaybackPositionTicks, knownDuration]);
+
+	useEffect(() => {
+		if (videoRef.current) videoRef.current.volume = volume;
+	}, [volume]);
+
+	useEffect(() => {
+		if (!subtitle || !info?.source) {
+			return;
+		}
+		let active = true;
+		let objectUrl: string | undefined;
+		const url = subtitleUrl(session, item.Id, info.source, Number(subtitle));
+		void fetch(url, { cache: "no-store" })
+			.then(async (response) => {
+				if (!response.ok) throw new Error("Subtitle request failed.");
+				const text = await response.text();
+				if (!active) return;
+				const embeddedStyle = subtitleHasEmbeddedStyle(text);
+				setSubtitleUsesEmbeddedStyle(embeddedStyle);
+				objectUrl = URL.createObjectURL(new Blob([text], { type: "text/vtt" }));
+				setSubtitleSource(objectUrl);
+				setSubtitleSourceTrack(subtitle);
+			})
+			.catch(() => {
+				if (!active) return;
+				setSubtitleUsesEmbeddedStyle(false);
+				setSubtitleSource(url);
+				setSubtitleSourceTrack(subtitle);
+			});
+		return () => {
+			active = false;
+			if (objectUrl) URL.revokeObjectURL(objectUrl);
+		};
+	}, [info?.source, item.Id, session, subtitle]);
 
 	useEffect(() => {
 		const timer = window.setInterval(() => {
@@ -179,8 +220,9 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 			if (request !== qualityRequestRef.current) return;
 			const parsed = playbackStreams(playback);
 			if (!parsed.source?.TranscodingUrl) throw new Error("Jellyfin did not return a transcoding URL.");
-			setInfo((previous) => ({ ...parsed, qualities: previous?.qualities ?? parsed.qualities }));
-			setUrl(playbackUrl(session, item.Id, parsed.source, bitrate));
+			const source = preserveTrickplay(parsed.source, info?.source);
+			setInfo((previous) => ({ ...parsed, source, qualities: previous?.qualities ?? parsed.qualities }));
+			setUrl(playbackUrl(session, item.Id, source, bitrate));
 		}).catch(() => {
 			if (request === qualityRequestRef.current) {
 				setQualityLoading(false);
@@ -205,10 +247,11 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	}
 
 	return <div className={`fixed inset-0 z-[200] bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} className="h-full w-full object-contain" onClick={togglePlay} muted={muted} volume={volume} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
-			{subtitle && info?.source && <track kind="subtitles" src={subtitleUrl(session, item.Id, info.source, Number(subtitle))} default />}
+		{!(subtitleSourceTrack === subtitle && subtitleUsesEmbeddedStyle) && <style>{nativeSubtitleStyles(style.textScale, style.fontColor, style.borderSize, style.borderColor, style.backgroundColor, style.backgroundOpacity)}</style>}
+		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
+			{subtitle && info?.source && subtitleSourceTrack === subtitle && subtitleSource && <track key={subtitleSource} kind="subtitles" src={subtitleSource} default />}
 		</video>
-		<div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85" />
+		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />
 		<div className={`absolute left-5 top-5 flex items-start gap-3 transition-opacity duration-300 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}><button aria-label="Close player" className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white" onClick={onClose}><ArrowLeft /></button><div><p className="text-xs uppercase tracking-[.2em] text-white/55">{item.Type === "Episode" ? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}` : item.Name}</p>{item.Type === "Episode" && <h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>}</div></div>
 		{qualityLoading && <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-5 py-3 text-sm text-white/90 shadow-xl backdrop-blur-md"><LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />{t("switchingQuality")}</div>}
 		{error && <p role="alert" className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-black/70 px-4 py-3 text-sm text-red-200">{error}</p>}
@@ -251,6 +294,19 @@ function formatPlayerTime(seconds: number) {
 	const rounded = Math.max(0, Math.round(seconds));
 	const minutes = Math.floor(rounded / 60);
 	return `${minutes}:${String(rounded % 60).padStart(2, "0")}`;
+}
+
+function hexToRgba(hex: string, opacity: number) {
+	const value = hex.slice(1);
+	const red = Number.parseInt(value.slice(0, 2), 16);
+	const green = Number.parseInt(value.slice(2, 4), 16);
+	const blue = Number.parseInt(value.slice(4, 6), 16);
+	return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
+}
+
+export function nativeSubtitleStyles(scale: number, fontColor: string, borderSize: number, borderColor: string, backgroundColor: string, backgroundOpacity: number) {
+	const shadow = borderSize ? [[borderSize, 0], [-borderSize, 0], [0, borderSize], [0, -borderSize], [borderSize, borderSize], [-borderSize, -borderSize], [borderSize, -borderSize], [-borderSize, borderSize]].map(([x, y]) => `${x}px ${y}px 0 ${borderColor}`).join(", ") : "none";
+	return `.zenstream-video::cue { color: ${fontColor} !important; background: ${hexToRgba(backgroundColor, backgroundOpacity)} !important; font-size: ${Math.max(50, Math.min(200, scale))}% !important; -webkit-text-stroke: ${borderSize}px ${borderColor} !important; text-shadow: ${shadow} !important; }`;
 }
 
 function TrickplayBubble({ preview, onError }: { preview: NonNullable<ReturnType<typeof trickplayPreview>> & { time: number; left: number }; onError: () => void }) {

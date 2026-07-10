@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, LogOut, User } from "lucide-react";
 import { userImageUrl } from "@/lib/jellyfin";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
+import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 
 type SettingsPageProps = {
   displayName: string;
@@ -18,6 +19,7 @@ type SettingsPageProps = {
 export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLogout }: SettingsPageProps) {
   const router = useRouter();
   const { t } = useI18n();
+  const { style, update: updateSubtitleStyle, error: subtitleError } = useSubtitlePreferences();
   const [localeError, setLocaleError] = useState(false);
   const [audioLanguage, setAudioLanguage] = useState("ja");
   const [subtitleLanguage, setSubtitleLanguage] = useState("en");
@@ -81,6 +83,13 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
         <SettingsSection title={t("playback")}>
           <SettingsRow label={t("audioLanguage")} right={<SettingsSelect label={t("audioLanguage")} value={audioLanguage} options={[["ja", t("japanese")], ["en", t("english")], ["es", t("spanish")], ["fr", t("french")]]} onChange={setAudioLanguage} />} />
           <SettingsRow label={t("subtitleLanguage")} right={<SettingsSelect label={t("subtitleLanguage")} value={subtitleLanguage} options={[["en", t("english")], ["ja", t("japanese")], ["es", t("spanish")], ["fr", t("french")], ["off", t("off")]]} onChange={setSubtitleLanguage} />} />
+          <SettingsRow label={t("subtitleTextSize")} right={<RangeControl label={t("subtitleTextSize")} min={50} max={200} value={style.textScale} suffix="%" onChange={(value) => void updateSubtitleStyle({ textScale: value })} />} />
+          <SettingsRow label={t("subtitleFontColor")} right={<ColorControl label={t("subtitleFontColor")} value={style.fontColor} onChange={(value) => void updateSubtitleStyle({ fontColor: value })} />} />
+          <SettingsRow label={t("subtitleBorderSize")} right={<RangeControl label={t("subtitleBorderSize")} min={0} max={8} step={1} value={style.borderSize} suffix="px" onChange={(value) => void updateSubtitleStyle({ borderSize: value })} />} />
+          <SettingsRow label={t("subtitleBorderColor")} right={<ColorControl label={t("subtitleBorderColor")} value={style.borderColor} onChange={(value) => void updateSubtitleStyle({ borderColor: value })} />} />
+          <SettingsRow label={t("subtitleBackgroundColor")} right={<ColorControl label={t("subtitleBackgroundColor")} value={style.backgroundColor} onChange={(value) => void updateSubtitleStyle({ backgroundColor: value })} />} />
+          <SettingsRow label={t("subtitleBackgroundOpacity")} border={false} right={<RangeControl label={t("subtitleBackgroundOpacity")} min={0} max={100} value={style.backgroundOpacity} suffix="%" onChange={(value) => void updateSubtitleStyle({ backgroundOpacity: value })} />} />
+          {subtitleError && <p role="alert" className="border-t border-white/5 px-4 py-3 text-xs text-red-300">{t("subtitleSaveFailed")}</p>}
           <SettingsRow label={t("autoplayNextEpisode")} right={<Toggle label={t("autoplayNextEpisode")} checked={autoplayNext} onChange={setAutoplayNext} />} />
           <SettingsRow label={t("autoplayBrowse")} sub={t("autoplayBrowseDescription")} border={false} right={<Toggle label={t("autoplayBrowse")} checked={autoplayBrowse} onChange={setAutoplayBrowse} />} />
         </SettingsSection>
@@ -124,6 +133,24 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 
 function SettingsSelect({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
   return <Dropdown aria-label={label} value={value} onChange={onChange} options={options.map(([optionValue, optionLabel]) => ({ value: optionValue, label: optionLabel }))} />;
+}
+
+function RangeControl({ label, min, max, step = 1, value, suffix, onChange }: { label: string; min: number; max: number; step?: number; value: number; suffix: string; onChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(value);
+  // The remote value can change after an optimistic save or rollback.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setDraft(value); }, [value]);
+  const clamp = (next: number) => Math.min(max, Math.max(min, Number.isFinite(next) ? next : min));
+  const commit = () => {
+    const next = clamp(draft);
+    setDraft(next);
+    if (next !== value) onChange(next);
+  };
+  return <div className="flex items-center gap-2"><input aria-label={label} type="number" min={min} max={max} step={step} value={draft} onChange={(event) => setDraft(Number(event.target.value))} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } }} className="w-14 rounded border border-white/10 bg-white/5 px-1.5 py-1 text-right text-xs text-white/70 outline-none focus:border-violet-400" /><span className="w-5 text-xs text-white/40">{suffix}</span><input aria-label={`${label} slider`} type="range" min={min} max={max} step={step} value={draft} onChange={(event) => setDraft(Number(event.target.value))} onPointerUp={commit} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commit(); }} className="w-28 accent-violet-400" /></div>;
+}
+
+function ColorControl({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <input aria-label={label} type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent" />;
 }
 
 function Avatar({ userId }: { userId: string }) {

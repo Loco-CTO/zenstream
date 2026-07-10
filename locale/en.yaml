@@ -67,6 +67,13 @@ quality: Quality
 switchingQuality: Switching quality…
 speed: Playback speed
 subtitleOffset: Subtitle offset
+subtitleTextSize: Subtitle text size
+subtitleFontColor: Subtitle font color
+subtitleBorderSize: Subtitle border size
+subtitleBorderColor: Subtitle border color
+subtitleBackgroundColor: Subtitle background color
+subtitleBackgroundOpacity: Subtitle background opacity
+subtitleSaveFailed: Could not save subtitle appearance settings.
 spanish: Spanish
 french: French
 off: "Off"

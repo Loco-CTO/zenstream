@@ -37,6 +37,14 @@ describe("video player controls", () => {
 		expect(gradient).toHaveClass("opacity-0");
 	});
 
+	it("loads subtitle preferences when playback opens", async () => {
+		const style = { fontFamily: "sans", textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(style)));
+		render(<I18nProvider locale="en"><SubtitlePreferencesProvider><VideoPlayer item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem} session={{ token: "token", userId: "user", username: "Alex" }} onClose={vi.fn()} /></SubtitlePreferencesProvider></I18nProvider>);
+
+		expect(fetchMock).toHaveBeenCalledWith("/api/preferences/subtitles", { cache: "no-store" });
+	});
+
 
 	it("stacks active cues and applies the saved custom appearance", () => {
 		const { getAllByTestId } = render(<CustomSubtitleCue cues={[
@@ -52,8 +60,9 @@ describe("video player controls", () => {
 		expect(cues[0].getAttribute("style")).toContain("background-color: rgba(68, 85, 102, 0.4)");
 		expect(cues[0].getAttribute("style")).toContain('font-family: Georgia, "Times New Roman", serif');
 		expect(cues[0].getAttribute("style")).toContain("font-size: clamp(16px, 8vh, 72px)");
-		expect(cues[0].getAttribute("style")).toContain("-webkit-text-stroke: 2px #112233");
-		expect(cues[0].getAttribute("style")).toContain("text-shadow: 2px 0px 0 #112233");
+		expect(cues[0].getAttribute("style")).not.toContain("-webkit-text-stroke");
+		expect(cues[0].getAttribute("style")).toContain("text-shadow: -2px -2px 0 #112233");
+		expect(cues[0].getAttribute("style")).toContain("2px 2px 0 #112233");
 	});
 
 	it("does not show an ending cue at the next cue boundary", () => {

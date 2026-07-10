@@ -32,7 +32,7 @@ export const HLS_TEXT_TRACK_CONFIG = {
 
 export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const { t } = useI18n();
-	const { style } = useSubtitlePreferences();
+	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const qualityRequestRef = useRef(0);
@@ -63,6 +63,10 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const [timelinePreview, setTimelinePreview] = useState<ReturnType<typeof trickplayPreview> & { time: number; left: number }>();
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
+
+	useEffect(() => {
+		void refreshSubtitleStyle();
+	}, [refreshSubtitleStyle]);
 
 	useEffect(() => {
 		let active = true;
@@ -307,9 +311,22 @@ export function disableNativeSubtitleTracks(video: HTMLVideoElement) {
 export function CustomSubtitleCue({ cues, time, style }: { cues: SubtitleCue[]; time: number; style: SubtitleStyle }) {
 	const activeCues = cues.filter((candidate) => time >= candidate.start && time < candidate.end);
 	if (!activeCues.length) return null;
-	const shadow = style.borderSize ? [[style.borderSize, 0], [-style.borderSize, 0], [0, style.borderSize], [0, -style.borderSize], [style.borderSize, style.borderSize], [-style.borderSize, -style.borderSize], [style.borderSize, -style.borderSize], [-style.borderSize, style.borderSize]].map(([x, y]) => `${x}px ${y}px 0 ${style.borderColor}`).join(", ") : "none";
-	const cueStyle: React.CSSProperties = { color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily], fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, lineHeight: 1.15, whiteSpace: "pre-line", padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, WebkitTextStroke: style.borderSize ? `${style.borderSize}px ${style.borderColor}` : undefined, textShadow: shadow };
+	const shadow = subtitleOuterShadow(style.borderSize, style.borderColor);
+	const cueStyle: React.CSSProperties = { color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily], fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, lineHeight: 1.15, whiteSpace: "pre-line", padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, textShadow: shadow };
 	return <div data-testid="subtitle-overlay" className="pointer-events-none absolute inset-x-4 bottom-[12%] z-10 flex flex-col items-center gap-1 text-center" aria-live="off">{activeCues.map((cue, index) => <span data-testid="subtitle-cue" key={`${cue.start}-${cue.end}-${index}`} style={cueStyle}>{cue.text}</span>)}</div>;
+}
+
+function subtitleOuterShadow(size: number, color: string) {
+	if (!size) return "none";
+	const radius = Math.max(0, Math.round(size));
+	const shadows: string[] = [];
+	for (let y = -radius; y <= radius; y += 1) {
+		for (let x = -radius; x <= radius; x += 1) {
+			if (x === 0 && y === 0) continue;
+			shadows.push(`${x}px ${y}px 0 ${color}`);
+		}
+	}
+	return shadows.join(", ");
 }
 
 function TrickplayBubble({ preview, onError }: { preview: NonNullable<ReturnType<typeof trickplayPreview>> & { time: number; left: number }; onError: () => void }) {

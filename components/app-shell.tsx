@@ -48,19 +48,21 @@ export function AppShell() {
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
+	const loadPreferences = useCallback(() => {
+		void getLocalePreference()
+			.then((remoteLocale) => {
+				storeLocale(remoteLocale);
+				setLocale(remoteLocale);
+			})
+			.catch(() => undefined);
+		void getSubtitlePreference().then(setSubtitleStyle).catch(() => undefined);
+	}, []);
 
 	const loadHome = useCallback(
 		async (nextSession: AuthSession) => {
 			const finishProgress = start();
 			setStatus("loading");
 			setError(null);
-			void getLocalePreference()
-				.then((remoteLocale) => {
-					storeLocale(remoteLocale);
-					setLocale(remoteLocale);
-				})
-				.catch(() => undefined);
-			void getSubtitlePreference().then(setSubtitleStyle).catch(() => undefined);
 			try {
 				const data = await fetchHomeData(nextSession);
 				setHomeData(data);
@@ -113,17 +115,19 @@ export function AppShell() {
 			return;
 		}
 		setSession(stored);
+		loadPreferences();
 		finishProgress();
 		if (detailId) void loadDetail(stored, detailId);
 		else if (pathname === "/library") setStatus("ready");
 		else void loadHome(stored);
-	}, [detailId, loadDetail, loadHome, pathname, start]);
+	}, [detailId, loadDetail, loadHome, loadPreferences, pathname, start]);
 
 	const handleLogin = async (username: string, password: string) => {
 		const response = await authenticateByName(username, password);
 		const nextSession = sessionFromAuth(response);
 		setAuthCookies(nextSession);
 		setSession(nextSession);
+		loadPreferences();
 		if (detailId) await loadDetail(nextSession, detailId);
 		else if (pathname === "/library") setStatus("ready");
 		else await loadHome(nextSession);

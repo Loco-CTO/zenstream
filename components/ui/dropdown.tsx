@@ -11,7 +11,7 @@ export type DropdownOption = {
 };
 
 const triggerClassName = "flex min-w-32 items-center justify-between gap-3 rounded-lg border border-[var(--c-glass-border)] bg-[var(--c-glass)] px-3 py-2 text-left text-xs text-white/75 shadow-lg shadow-black/20 outline-none backdrop-blur-xl transition hover:border-white/20 hover:bg-white/[.08] focus-visible:border-white/35 focus-visible:ring-2 focus-visible:ring-white/10";
-const panelClassName = "fixed z-[300] max-h-64 overflow-y-auto rounded-lg border border-[var(--c-glass-border)] bg-[var(--c-glass-deep)] p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl";
+const panelClassName = "fixed z-[300] max-h-64 overflow-y-auto rounded-lg border border-[var(--c-glass-border)] bg-black/25 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl";
 
 type DropdownProps = {
   "aria-label": string;

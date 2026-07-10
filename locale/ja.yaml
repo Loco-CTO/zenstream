@@ -12,6 +12,8 @@ japanese: 日本語
 logout: ログアウト
 all: すべて
 play: 再生
+skipIntro: イントロをスキップ
+skipOutro: アウトロをスキップ
 info: 詳細
 save: 保存
 saved: 保存済み
@@ -58,6 +60,13 @@ languageDescription: ZenStream全体で使用する言語を選択します
 playback: 再生
 audioLanguage: 音声言語
 subtitleLanguage: 字幕言語
+audioTrack: 音声
+subtitleTrack: 字幕
+subtitlesOff: 字幕オフ
+quality: 品質
+switchingQuality: 品質を切り替えています…
+speed: 再生速度
+subtitleOffset: 字幕のオフセット
 spanish: スペイン語
 french: フランス語
 off: オフ
@@ -87,7 +96,6 @@ markWatched: 視聴済みにする
 markUnwatched: 未視聴にする
 addFavorite: お気に入りに追加
 removeFavorite: お気に入りから削除
-playbackUnavailable: 再生機能はまだ利用できません
 detailLoadFailed: このタイトルを読み込めませんでした
 itemNotFound: タイトルが見つかりません
 muteTrailer: 予告編をミュート

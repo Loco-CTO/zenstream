@@ -12,6 +12,8 @@ japanese: Japanese
 logout: Log out
 all: All
 play: Play
+skipIntro: Skip intro
+skipOutro: Skip outro
 info: Info
 save: Save
 saved: Saved
@@ -58,6 +60,13 @@ languageDescription: Choose the language used throughout ZenStream
 playback: Playback
 audioLanguage: Audio Language
 subtitleLanguage: Subtitle Language
+audioTrack: Audio
+subtitleTrack: Subtitles
+subtitlesOff: Subtitles off
+quality: Quality
+switchingQuality: Switching quality…
+speed: Playback speed
+subtitleOffset: Subtitle offset
 spanish: Spanish
 french: French
 off: "Off"
@@ -87,7 +96,6 @@ markWatched: Mark as watched
 markUnwatched: Mark as unwatched
 addFavorite: Add to favorites
 removeFavorite: Remove from favorites
-playbackUnavailable: Playback is not available yet
 detailLoadFailed: Could not load this title
 itemNotFound: Title not found
 muteTrailer: Mute trailer

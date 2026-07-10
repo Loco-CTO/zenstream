@@ -147,3 +147,11 @@ favoriteMovies: Favorite Movies
 favoriteSeries: Favorite Series
 noFavorites: You have no favorites yet.
 favoritesLoadFailed: Could not load your favorites
+syncplayGroups: Groups
+createGroup: Create group
+noSyncplayGroups: No active groups yet.
+syncplayWatching: Watching together
+syncplayNoMedia: No media selected
+joinView: Join view
+leaveGroup: Leave group
+allowViewerControls: Allow viewer controls

@@ -157,6 +157,14 @@ export const TRANSLATION_KEYS = [
 	"favoriteSeries",
 	"noFavorites",
 	"favoritesLoadFailed",
+	"syncplayGroups",
+	"createGroup",
+	"noSyncplayGroups",
+	"syncplayWatching",
+	"syncplayNoMedia",
+	"joinView",
+	"leaveGroup",
+	"allowViewerControls",
 ] as const;
 
 export type TranslationKey = (typeof TRANSLATION_KEYS)[number];

@@ -194,6 +194,7 @@ export function SyncplayProvider({
 	}, [refresh]);
 	const adopt = useCallback(
 		(group: SyncplayGroup, announceNewMedia = false) => {
+			hydratedRef.current = true;
 			if (
 				announceNewMedia &&
 				group.itemId &&

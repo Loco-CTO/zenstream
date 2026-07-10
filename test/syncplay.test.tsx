@@ -33,6 +33,7 @@ function Controls() {
 		<button onClick={() => void syncplay.refresh()}>Refresh</button>
 		<button onClick={() => void syncplay.command({ action: "play", itemId: "movie", position: 0, playing: true })}>Play</button>
 		<span data-testid="active-group">{syncplay.active?.id ?? "none"}</span>
+		<span data-testid="active-revision">{syncplay.active?.revision ?? "none"}</span>
 	</>;
 }
 
@@ -153,5 +154,21 @@ describe("SyncplayProvider", () => {
 		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
 		await waitFor(() => expect(screen.getByText("Now playing Movie Name.")).toBeInTheDocument());
+	});
+
+	it("does not let a stale poll overwrite newer playback state", async () => {
+		const newer = { ...group(3), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" as const }] };
+		const stale = { ...newer, revision: 1, playing: false, resumeWhenReady: true };
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) return new Response(JSON.stringify({ groups: [stale] }));
+			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(newer));
+			throw new Error(`Unexpected request: ${url}`);
+		});
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		fireEvent.click(screen.getByRole("button", { name: "Join" }));
+		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("3"));
+		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("3"));
 	});
 });

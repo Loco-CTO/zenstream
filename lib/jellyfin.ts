@@ -652,8 +652,7 @@ export function playbackUrl(
 		...(startTimeTicks
 			? { startTimeTicks: String(Math.max(0, Math.round(startTimeTicks))) }
 			: {}),
-			VideoCodec: "h264",
-			AudioCodec: "aac",
+		...(bitrate ? { VideoCodec: "h264", AudioCodec: "aac" } : {}),
 			...(bitrate && transcodeWidth
 				? {
 						Width: String(transcodeWidth),

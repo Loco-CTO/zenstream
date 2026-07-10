@@ -47,6 +47,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const qualityRequestRef = useRef(0);
+	const directPlayFallbackRef = useRef(false);
 	const resumeTimeRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
@@ -303,6 +304,25 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		});
 	}
 	function skip(marker?: PlaybackMarker) { if (marker) seekTo(marker.end); }
+	function handleVideoError() {
+		const video = videoRef.current;
+		if (!video || directPlayFallbackRef.current || !info?.source) { setError("This media could not be played."); return; }
+		const errorCode = video.error?.code;
+		if (errorCode !== MediaError.MEDIA_ERR_DECODE && errorCode !== MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) { setError("This media could not be played."); return; }
+		directPlayFallbackRef.current = true;
+		setError("");
+		setQualityLoading(true);
+		void getPlaybackInfo(session, item.Id, { mediaSourceId: info.source.Id, audioStreamIndex: audio ? Number(audio) : undefined, subtitleStreamIndex: subtitle ? Number(subtitle) : -1 })
+			.then((playback) => {
+				const parsed = playbackStreams(playback);
+				if (!parsed.source?.TranscodingUrl) throw new Error("Jellyfin did not return a transcoding URL.");
+				const source = preserveTrickplay(parsed.source, info.source);
+				setInfo((previous) => ({ ...parsed, source, qualities: previous?.qualities ?? parsed.qualities }));
+				setQuality("1");
+				setUrl(playbackUrl(session, item.Id, source, 1_000_000));
+			})
+			.catch(() => { setQualityLoading(false); setError("This media could not be played."); });
+	}
 	function previewTimeline(event: React.PointerEvent<HTMLInputElement>) {
 		if (!duration) return;
 		const rect = event.currentTarget.getBoundingClientRect();
@@ -319,7 +339,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	}
 
 	return <div ref={playerRef} className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
+		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={handleVideoError}>
 		</video>
 		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />

@@ -106,6 +106,15 @@ describe("jellyfin api helpers", () => {
 		);
 	});
 
+	it("does not add transcoding codec constraints to direct-play URLs", () => {
+		const url = playbackUrl(session, "movie-1", { Id: "source-1" });
+		const parsed = new URL(url, "https://miru.amai.space");
+
+		expect(parsed.searchParams.get("Static")).toBe("true");
+		expect(parsed.searchParams.has("VideoCodec")).toBe(false);
+		expect(parsed.searchParams.has("AudioCodec")).toBe(false);
+	});
+
 	it("disables server-selected subtitles for playback", async () => {
 		await getPlaybackInfo(session, "episode-1", { subtitleStreamIndex: -1 });
 

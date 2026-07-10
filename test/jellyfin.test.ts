@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	authenticateByName,
 	getItems,
+	getSearchItems,
 	getLibraryItems,
 	getLibraryViews,
 	ITEM_IMAGE_TYPES,
@@ -38,6 +39,17 @@ import {
 const session = { token: "abc", userId: "user-1", username: "Alex" };
 
 describe("jellyfin api helpers", () => {
+	it("builds relevance-ranked search queries", async () => {
+		vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ Items: [] }), { status: 200 }));
+
+		await getSearchItems(session, "  dune  ");
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		expect(url.pathname).toBe("/Items");
+		expect(url.searchParams.get("searchTerm")).toBe("dune");
+		expect(url.searchParams.has("sortBy")).toBe(false);
+		expect(url.searchParams.has("sortOrder")).toBe(false);
+	});
 	beforeEach(() => {
 		vi.stubGlobal(
 			"fetch",

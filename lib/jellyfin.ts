@@ -159,7 +159,7 @@ export interface LibraryPage {
 export async function getSearchItems(
 	session: AuthSession,
 	query: string,
-	options: { limit?: number; sortBy?: string; sortOrder?: "Ascending" | "Descending"; signal?: AbortSignal } = {},
+	options: { limit?: number; signal?: AbortSignal } = {},
 ): Promise<JellyfinItem[]> {
 	const term = query.trim();
 	if (!term) return [];
@@ -170,8 +170,6 @@ export async function getSearchItems(
 		limit: options.limit ?? 40,
 		recursive: true,
 		includeItemTypes: "Series,Movie",
-		sortBy: options.sortBy ?? "SortName",
-		sortOrder: options.sortOrder ?? "Ascending",
 		fields: ITEM_FIELDS,
 		enableImages: true,
 		imageTypeLimit: 1,

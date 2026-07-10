@@ -635,11 +635,16 @@ export function playbackUrl(
 	source?: JellyfinMediaSource,
 	bitrate?: number,
 	startTimeTicks?: number,
+	transcodeWidth?: number,
 ) {
 	if (bitrate && source?.TranscodingUrl) {
 		const remote = new URL(source.TranscodingUrl, jellyfinBaseUrl());
 		const hasApiKey = [...remote.searchParams.keys()].some((key) => key.toLowerCase() === "api_key" || key.toLowerCase() === "apikey");
 		if (!hasApiKey) remote.searchParams.set("api_key", session.token);
+		if (transcodeWidth) {
+			remote.searchParams.set("Width", String(transcodeWidth));
+			remote.searchParams.set("Height", String(Math.round((transcodeWidth * 9) / 16)));
+		}
 		return remote.toString();
 	}
 	const params = new URLSearchParams({
@@ -649,8 +654,14 @@ export function playbackUrl(
 		...(startTimeTicks
 			? { startTimeTicks: String(Math.max(0, Math.round(startTimeTicks))) }
 			: {}),
-		VideoCodec: "h264",
-		AudioCodec: "aac",
+			VideoCodec: "h264",
+			AudioCodec: "aac",
+			...(bitrate && transcodeWidth
+				? {
+						Width: String(transcodeWidth),
+						Height: String(Math.round((transcodeWidth * 9) / 16)),
+				  }
+				: {}),
 		...(bitrate
 			? {
 					Container: "mp4",

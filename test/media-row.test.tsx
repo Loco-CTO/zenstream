@@ -46,6 +46,14 @@ describe("MediaRow scrolling", () => {
     fireEvent.scroll(scroller);
     expect(screen.getByRole("button", { name: "Scroll Popular left" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Scroll Popular right" })).not.toBeInTheDocument();
+
+    scroller.scrollLeft = 3;
+    fireEvent.scroll(scroller);
+    expect(screen.queryByRole("button", { name: "Scroll Popular left" })).not.toBeInTheDocument();
+
+    scroller.scrollLeft = 497;
+    fireEvent.scroll(scroller);
+    expect(screen.queryByRole("button", { name: "Scroll Popular right" })).not.toBeInTheDocument();
   });
 
   it("smoothly scrolls from the navigation buttons without intercepting wheel input", () => {

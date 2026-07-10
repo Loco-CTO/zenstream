@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 const SCROLL_STEP = 360;
+const EDGE_TOLERANCE = 4;
 const DRAG_EASING = 0.28;
 const NAVIGATION_EASING = 0.16;
 
@@ -37,8 +38,8 @@ export function HorizontalScroller({
 
     const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
     setCanScroll({
-      left: scroller.scrollLeft > 1,
-      right: maxScrollLeft - scroller.scrollLeft > 1,
+      left: scroller.scrollLeft > EDGE_TOLERANCE,
+      right: maxScrollLeft - scroller.scrollLeft > EDGE_TOLERANCE,
     });
   }, []);
 
@@ -81,7 +82,7 @@ export function HorizontalScroller({
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-  }, [updateScrollBoundaries]);
+  }, []);
 
   const scroll = (direction: "left" | "right") => {
     const scroller = scrollRef.current;

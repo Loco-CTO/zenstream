@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
+	getPlaybackInfo,
 	getEpisodes,
 	getInitialSeason,
 	heroImage,
@@ -14,6 +15,7 @@ import {
 	setFavorite,
 	setPlayed,
 	titleLogoImage,
+	playbackStreams,
 	type DetailData,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
@@ -35,6 +37,8 @@ import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { VideoPlayer } from "@/components/player/video-player";
 import { HoverPreviewVideo, useHoverPreview } from "@/components/ui/hover-preview";
 
+type TrackChoice = { audio?: number | string; subtitle?: number };
+
 export function DetailPage({
 	initialData,
 	session,
@@ -52,6 +56,9 @@ export function DetailPage({
 	);
 	const [mutationError, setMutationError] = useState("");
 	const [playerOpen, setPlayerOpen] = useState(false);
+	const [trackChoices, setTrackChoices] = useState<ReturnType<typeof playbackStreams>>();
+	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
+	const [trackLoading, setTrackLoading] = useState(false);
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
 	const seriesId = isEpisode ? item.SeriesId : item.Id;
@@ -65,6 +72,19 @@ export function DetailPage({
 		item.People?.filter(
 			(person) => person.Type === "Actor" || person.Type === "Director",
 		) ?? [];
+
+	useEffect(() => {
+		let active = true;
+		void getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }).then((playback) => {
+			if (!active) return;
+			const parsed = playbackStreams(playback);
+			setTrackChoices(parsed);
+			const audio = parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
+			const subtitle = parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
+			setSelectedTracks({ audio: audio?.Index, subtitle: subtitle?.Index });
+		}).catch(() => undefined);
+		return () => { active = false; };
+	}, [item.Id, session]);
 
 	function goBack() {
 		if (window.history.length > 1) {
@@ -119,9 +139,23 @@ export function DetailPage({
 		}
 	}
 
+	async function startPlayback() {
+		setTrackLoading(true);
+		try {
+			const parsed = playbackStreams(await getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }));
+			setTrackChoices(parsed);
+			const audio = parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
+			const subtitle = parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
+			const defaults = { audio: audio?.Index, subtitle: subtitle?.Index };
+			setSelectedTracks(defaults);
+			setPlayerOpen(true);
+		} catch { setMutationError("Playback could not be loaded."); }
+		finally { setTrackLoading(false); }
+	}
+
 	return (
 		<>
-		{playerOpen && <VideoPlayer item={item} session={session} onClose={() => setPlayerOpen(false)} onNext={(next) => setItem(next)} onPlayedChange={(played) => setItem((current) => updateUserData(current, { Played: played }))} />}
+		{playerOpen && <VideoPlayer item={item} session={session} initialAudioStreamIndex={selectedTracks.audio == null ? undefined : Number(selectedTracks.audio)} initialSubtitleStreamIndex={selectedTracks.subtitle} onClose={() => setPlayerOpen(false)} onNext={(next) => setItem(next)} onPlayedChange={(played) => setItem((current) => updateUserData(current, { Played: played }))} />}
 		<main className="min-h-screen pb-24">
 			<section className="relative h-[min(70vh,560px)] overflow-hidden">
 				{background && (
@@ -174,10 +208,11 @@ export function DetailPage({
 
 			<div className="space-y-9 px-6 pt-6 md:px-14">
 				<div className="flex flex-wrap items-center gap-3">
-					<PrimaryActionButton onClick={() => setPlayerOpen(true)}>
+					<PrimaryActionButton onClick={() => void startPlayback()} disabled={trackLoading}>
 						<Play className="h-4 w-4 fill-black text-black" />
 						{t("play")}
 					</PrimaryActionButton>
+					{trackChoices && (trackChoices.audio.length > 1 || trackChoices.subtitles.length > 1) && <InlineTrackChoices tracks={trackChoices} selected={selectedTracks} onChange={setSelectedTracks} />}
 					<ActionButton
 						active={Boolean(item.UserData?.Played)}
 						label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
@@ -240,6 +275,20 @@ export function DetailPage({
 		</>
 	);
 }
+
+function InlineTrackChoices({ tracks, selected, onChange }: { tracks: ReturnType<typeof playbackStreams>; selected: TrackChoice; onChange: (value: TrackChoice) => void }) {
+	const { t } = useI18n();
+	const options = (kind: "audio" | "subtitle") => (kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t(kind === "audio" ? "audioTrack" : "subtitleTrack") }));
+	return <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 backdrop-blur-xl"><span className="text-xs uppercase tracking-wider text-white/40">{t("audioTrack")}</span>{tracks.audio.length > 1 && <TrackSelect label={t("audioTrack")} options={options("audio")} value={selected.audio} onChange={(audio) => onChange({ ...selected, audio: Number(audio) })} />}{tracks.subtitles.length > 1 && <TrackSelect label={t("subtitleTrack")} options={[{ value: "", label: t("subtitlesOff") }, ...options("subtitle")]} value={selected.subtitle} onChange={(subtitle) => onChange({ ...selected, subtitle: subtitle ? Number(subtitle) : undefined })} />}</div>;
+}
+
+function TrackSelectionDialog({ tracks, selected, onChange, onCancel, onPlay }: { tracks: ReturnType<typeof playbackStreams>; selected: TrackChoice; onChange: (value: TrackChoice) => void; onCancel: () => void; onPlay: () => void }) {
+	const { t } = useI18n();
+	const options = (kind: "audio" | "subtitle") => (kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t(kind === "audio" ? "audioTrack" : "subtitleTrack") }));
+	return <div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/25 p-5 shadow-2xl backdrop-blur-xl"><h2 className="text-lg font-semibold text-white">{t("selectTracks")}</h2><div className="mt-5 grid gap-4">{tracks.audio.length > 1 && <TrackSelect label={t("audioTrack")} options={options("audio")} value={selected.audio} onChange={(audio) => onChange({ ...selected, audio })} />}{tracks.subtitles.length > 1 && <TrackSelect label={t("subtitleTrack")} options={[{ value: "", label: t("subtitlesOff") }, ...options("subtitle")]} value={selected.subtitle} onChange={(subtitle) => onChange({ ...selected, subtitle: subtitle ? Number(subtitle) : undefined })} />}</div><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10">{t("cancel")}</button><button type="button" onClick={onPlay} className="rounded-lg bg-violet-300 px-4 py-2 text-sm font-semibold text-black">{t("play")}</button></div></div></div>;
+}
+
+function TrackSelect({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value?: number | string; onChange: (value: string) => void }) { return <div className="flex items-center justify-between gap-4 text-sm text-white/70"><span>{label}</span><Dropdown aria-label={label} value={value == null ? "" : String(value)} options={options} onChange={onChange} /></div>; }
 
 function DetailArtwork({
 	item,

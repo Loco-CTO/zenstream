@@ -25,7 +25,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import { parseWebVttCues, SUBTITLE_FONT_STACKS, subtitleOuterShadow, type SubtitleCue, type SubtitleStyle } from "@/lib/subtitle-preferences";
 
-type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void; onNext?: (item: JellyfinItem) => void; onPlayedChange?: (played: boolean) => void };
+type Props = { item: JellyfinItem; session: AuthSession; initialAudioStreamIndex?: number; initialSubtitleStreamIndex?: number; onClose: () => void; onNext?: (item: JellyfinItem) => void; onPlayedChange?: (played: boolean) => void };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export const HLS_TEXT_TRACK_CONFIG = {
 	enableWebVTT: false,
@@ -40,7 +40,7 @@ export function SkipMarkerActions({ markers, currentTime, labelIntro, labelOutro
 	</div>;
 }
 
-export function VideoPlayer({ item, session, onClose, onNext, onPlayedChange }: Props) {
+export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSubtitleStreamIndex, onClose, onNext, onPlayedChange }: Props) {
 	const { t } = useI18n();
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -62,8 +62,8 @@ export function VideoPlayer({ item, session, onClose, onNext, onPlayedChange }: 
 	const [volume, setVolume] = useState(1);
 	const [speed, setSpeed] = useState("1");
 	const [quality, setQuality] = useState("0");
-	const [audio, setAudio] = useState("");
-	const [subtitle, setSubtitle] = useState("");
+	const [audio, setAudio] = useState(initialAudioStreamIndex == null ? "" : String(initialAudioStreamIndex));
+	const [subtitle, setSubtitle] = useState(initialSubtitleStreamIndex == null ? "" : String(initialSubtitleStreamIndex));
 	const [subtitleCueData, setSubtitleCueData] = useState<{ track: string; cues: SubtitleCue[] }>();
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
@@ -111,19 +111,19 @@ export function VideoPlayer({ item, session, onClose, onNext, onPlayedChange }: 
 
 	useEffect(() => {
 		let active = true;
-		Promise.all([getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }), getPlaybackMarkers(session, item.Id), getTrickplayInfo(session, item.Id).catch(() => undefined)])
+		Promise.all([getPlaybackInfo(session, item.Id, { audioStreamIndex: initialAudioStreamIndex, subtitleStreamIndex: initialSubtitleStreamIndex ?? -1 }), getPlaybackMarkers(session, item.Id), getTrickplayInfo(session, item.Id).catch(() => undefined)])
 			.then(([playback, markerData, trickplay]) => {
 				if (!active) return;
 				const parsed = playbackStreams(playback, trickplay);
 				setInfo(parsed);
 				setUrl(playbackUrl(session, item.Id, parsed.source, 0));
 				setMarkers(markerData);
-				const initialAudio = parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
+				const initialAudio = initialAudioStreamIndex == null ? (parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0]) : parsed.audio.find((track) => track.Index === initialAudioStreamIndex);
 				if (initialAudio?.Index != null) setAudio(String(initialAudio.Index));
 			})
 			.catch(() => active && setError("Playback could not be loaded."));
 		return () => { active = false; };
-	}, [item.Id, session]);
+	}, [item.Id, session, initialAudioStreamIndex, initialSubtitleStreamIndex]);
 
 	useEffect(() => {
 		const video = videoRef.current;

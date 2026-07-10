@@ -6,7 +6,7 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center bg-black/80 px-4 pt-24 backdrop-blur-xl" onClick={onClose}>
       <div className="w-full max-w-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-5 py-3.5 backdrop-blur-xl">
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-5 py-3.5 backdrop-blur-xl">
           <Search className="h-[18px] w-[18px] shrink-0 text-white/40" />
           <input
             placeholder={t("searchSoon")}

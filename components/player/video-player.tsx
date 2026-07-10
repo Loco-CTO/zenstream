@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import { ArrowLeft, AudioLines, Captions, Check, ChevronLeft, FastForward, LoaderCircle, Maximize, Pause, Play, Settings, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, AudioLines, Captions, Check, ChevronLeft, FastForward, LoaderCircle, Maximize, Minimize, Pause, Play, Settings, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import {
 	getPlaybackInfo,
 	getPlaybackMarkers,
@@ -34,6 +34,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const { t } = useI18n();
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const qualityRequestRef = useRef(0);
 	const resumeTimeRef = useRef(0);
@@ -60,6 +61,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const [error, setError] = useState("");
 	const [qualityLoading, setQualityLoading] = useState(false);
 	const [controlsVisible, setControlsVisible] = useState(true);
+	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [timelinePreview, setTimelinePreview] = useState<ReturnType<typeof trickplayPreview> & { time: number; left: number }>();
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
@@ -182,6 +184,16 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		};
 	}, []);
 
+	useEffect(() => {
+		const syncFullscreenState = () => setIsFullscreen(document.fullscreenElement === playerRef.current);
+		document.addEventListener("fullscreenchange", syncFullscreenState);
+		syncFullscreenState();
+		return () => {
+			document.removeEventListener("fullscreenchange", syncFullscreenState);
+			if (document.fullscreenElement === playerRef.current) void document.exitFullscreen?.();
+		};
+	}, []);
+
 	function showControls() {
 		setControlsVisible(true);
 		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
@@ -191,6 +203,13 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	}
 
 	function togglePlay() { const video = videoRef.current; if (!video) return; if (video.paused) void video.play().catch(() => undefined); else video.pause(); }
+	function toggleFullscreen() {
+		if (document.fullscreenElement) {
+			void document.exitFullscreen?.();
+		} else {
+			void playerRef.current?.requestFullscreen?.();
+		}
+	}
 	function handlePlay() {
 		setPlaying(true);
 		if (!item.UserData?.Played || clearedPlayedRef.current) return;
@@ -260,8 +279,8 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		}
 	}
 
-	return <div className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
+	return <div ref={playerRef} className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
+		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
 		</video>
 		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />
@@ -276,7 +295,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 				{timelinePreview && <TrickplayBubble preview={timelinePreview} onError={() => { setTimelinePreview(undefined); setPreviewUnavailable(true); }} />}
 				{previewUnavailable && <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 rounded bg-black/90 px-3 py-2 text-xs text-white/65">Preview unavailable</div>}
 			</div>
-			<div className="relative flex items-center gap-3"><button aria-label="Skip back 10 seconds" onClick={() => seek(-10)}><SkipBack /></button><button aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>{playing ? <Pause /> : <Play />}</button><button aria-label="Skip forward 10 seconds" onClick={() => seek(10)}><SkipForward /></button><span className="text-sm tabular-nums text-white/80">-{formatPlayerTime(Math.max(0, duration - currentTime))}</span><span className="flex-1" />{(info?.audio.length ?? 0) > 1 && <button data-player-context-trigger aria-label={t("audioTrack")} onClick={() => { setTrackMenu(trackMenu === "audio" ? null : "audio"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><AudioLines /></button>}{(info?.subtitles.length ?? 0) > 0 && <button data-player-context-trigger aria-label={t("subtitleTrack")} onClick={() => { setTrackMenu(trackMenu === "subtitle" ? null : "subtitle"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><Captions /></button>}<div className="group relative flex items-center"><div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} className="h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300" /></div><button aria-label={muted ? "Unmute" : "Mute"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX /> : <Volume2 />}</button></div><button data-player-context-trigger aria-label={t("settings")} onClick={() => { setSettingsOpen(!settingsOpen); setSettingsSection("root"); setTrackMenu(null); }}><Settings /></button><button aria-label="Fullscreen" onClick={() => void document.documentElement.requestFullscreen?.()}><Maximize /></button>
+			<div className="relative flex items-center gap-3"><button aria-label="Skip back 10 seconds" onClick={() => seek(-10)}><SkipBack /></button><button aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>{playing ? <Pause /> : <Play />}</button><button aria-label="Skip forward 10 seconds" onClick={() => seek(10)}><SkipForward /></button><span className="text-sm tabular-nums text-white/80">-{formatPlayerTime(Math.max(0, duration - currentTime))}</span><span className="flex-1" />{(info?.audio.length ?? 0) > 1 && <button data-player-context-trigger aria-label={t("audioTrack")} onClick={() => { setTrackMenu(trackMenu === "audio" ? null : "audio"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><AudioLines /></button>}{(info?.subtitles.length ?? 0) > 0 && <button data-player-context-trigger aria-label={t("subtitleTrack")} onClick={() => { setTrackMenu(trackMenu === "subtitle" ? null : "subtitle"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><Captions /></button>}<div className="group relative flex items-center"><div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} className="h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300" /></div><button aria-label={muted ? "Unmute" : "Mute"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX /> : <Volume2 />}</button></div><button data-player-context-trigger aria-label={t("settings")} onClick={() => { setSettingsOpen(!settingsOpen); setSettingsSection("root"); setTrackMenu(null); }}><Settings /></button><button aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"} onClick={toggleFullscreen}>{isFullscreen ? <Minimize /> : <Maximize />}</button>
 				{trackMenu === "audio" && <ChoicePanel options={info!.audio.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("audioTrack") }))} value={audio} onChange={setAudio} />}
 				{trackMenu === "subtitle" && <ChoicePanel options={[{ value: "", label: t("subtitlesOff") }, ...info!.subtitles.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack") }))]} value={subtitle} onChange={setSubtitle} />}
 				{settingsOpen && <div data-player-context onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute bottom-full right-0 z-30 mb-2 min-w-64 rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl">

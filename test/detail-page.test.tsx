@@ -28,7 +28,7 @@ describe("detail views", () => {
     expect(screen.getByText("Related Film")).toHaveClass("text-xs");
     expect(screen.getByText("Related Film").closest("a")).toHaveAttribute("href", "/show/similar");
     const playButton = screen.getByRole("button", { name: "Play" });
-    expect(playButton).toBeDisabled();
+    expect(playButton).not.toBeDisabled();
     expect(playButton).toHaveClass("h-11", "min-w-28", "bg-white", "px-5");
     expect(playButton).toHaveClass("text-sm", "font-semibold", "tracking-normal", "text-black");
     expect(playButton).not.toHaveClass("uppercase", "bg-gradient-to-br");
@@ -69,6 +69,7 @@ describe("detail views", () => {
     });
 
     expect(screen.getByText("1. Episode 1").closest("a")).toHaveAttribute("href", "/show/series/episode/ep-1");
+    expect(screen.getByText("1. Episode 1").closest("a")?.querySelector("div")).toHaveClass("h-[120px]", "w-[213px]");
     expect(screen.getByText("1. Episode 1")).toHaveClass("text-sm");
     expect(screen.getByText("Episode overview")).toHaveClass("text-xs");
     expect(screen.getByRole("combobox", { name: "Season" })).toHaveTextContent("S1: The Beginning");

@@ -68,6 +68,14 @@ describe("media card sizing", () => {
     expect(container.querySelector('[style="width: 50%;"]')?.parentElement).toHaveClass("h-0.5");
   });
 
+  it("shows watched badges for movies, episodes, and series", () => {
+    const { rerender } = render(<PosterCard item={{ ...item, UserData: { Played: true } }} />);
+    expect(screen.getByLabelText("All episodes watched")).toHaveClass("text-[10px]");
+
+    rerender(<PosterCard item={{ ...item, Type: "Series", UserData: { UnplayedItemCount: 4 } }} />);
+    expect(screen.getByLabelText("4 unwatched")).toBeInTheDocument();
+  });
+
   it("shows watch progress on horizontal detail episode thumbnails", () => {
     const { container } = render(
       <EpisodeCard

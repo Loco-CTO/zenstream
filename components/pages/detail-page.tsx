@@ -110,7 +110,7 @@ export function DetailPage({
 
 	return (
 		<>
-		{playerOpen && <VideoPlayer item={item} session={session} onClose={() => setPlayerOpen(false)} />}
+		{playerOpen && <VideoPlayer item={item} session={session} onClose={() => setPlayerOpen(false)} onPlayedChange={(played) => setItem((current) => updateUserData(current, { Played: played }))} />}
 		<main className="min-h-screen pb-24">
 			<section className="relative h-[min(70vh,560px)] overflow-hidden">
 				{background && (
@@ -183,9 +183,6 @@ export function DetailPage({
 							/>
 						}
 					/>
-					<span className="text-xs text-white/30">
-						{t("playbackUnavailable")}
-					</span>
 				</div>
 				{mutationError && (
 					<p role="alert" className="text-xs text-red-300">

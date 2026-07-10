@@ -6,6 +6,9 @@ import { ArrowLeft, AudioLines, Captions, Check, ChevronLeft, FastForward, Loade
 import {
 	getPlaybackInfo,
 	getPlaybackMarkers,
+	getEpisodes,
+	getSeasons,
+	landscapeImageUrl,
 	getTrickplayInfo,
 	playbackStreams,
 	playbackUrl,
@@ -22,7 +25,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import { parseWebVttCues, SUBTITLE_FONT_STACKS, subtitleOuterShadow, type SubtitleCue, type SubtitleStyle } from "@/lib/subtitle-preferences";
 
-type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void; onPlayedChange?: (played: boolean) => void };
+type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void; onNext?: (item: JellyfinItem) => void; onPlayedChange?: (played: boolean) => void };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export const HLS_TEXT_TRACK_CONFIG = {
 	enableWebVTT: false,
@@ -32,12 +35,12 @@ export const HLS_TEXT_TRACK_CONFIG = {
 
 export function SkipMarkerActions({ markers, currentTime, labelIntro, labelOutro, onSkip }: { markers: { intro?: PlaybackMarker; outro?: PlaybackMarker } | null; currentTime: number; labelIntro: string; labelOutro: string; onSkip: (marker: PlaybackMarker) => void }) {
 	return <div className="pointer-events-none absolute bottom-24 left-5 right-5 z-20 flex justify-end gap-3 md:bottom-28 md:left-10 md:right-10">
-		{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button aria-label={labelIntro} className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => onSkip(markers.intro)}><FastForward className="h-5 w-5" />{labelIntro}</button>}
-		{markers?.outro && currentTime >= markers.outro.start && currentTime < markers.outro.end && <button aria-label={labelOutro} className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => onSkip(markers.outro)}><FastForward className="h-5 w-5" />{labelOutro}</button>}
+		{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button aria-label={labelIntro} className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => { if (markers.intro) onSkip(markers.intro); }}><FastForward className="h-5 w-5" />{labelIntro}</button>}
+		{markers?.outro && currentTime >= markers.outro.start && currentTime < markers.outro.end && <button aria-label={labelOutro} className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => { if (markers.outro) onSkip(markers.outro); }}><FastForward className="h-5 w-5" />{labelOutro}</button>}
 	</div>;
 }
 
-export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
+export function VideoPlayer({ item, session, onClose, onNext, onPlayedChange }: Props) {
 	const { t } = useI18n();
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -71,7 +74,36 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [timelinePreview, setTimelinePreview] = useState<ReturnType<typeof trickplayPreview> & { time: number; left: number }>();
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
+	const [nextItem, setNextItem] = useState<JellyfinItem | null>(null);
+	const [nextChecked, setNextChecked] = useState(false);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
+	const nextUpVisible = item.Type === "Episode" && nextChecked && duration > 0 && duration - currentTime <= 10 && Boolean(nextItem);
+
+	useEffect(() => {
+		let active = true;
+		Promise.resolve().then(() => { if (active) { setNextItem(null); setNextChecked(false); } });
+		if (item.Type !== "Episode" || !item.SeriesId || item.IndexNumber == null || item.ParentIndexNumber == null) { Promise.resolve().then(() => active && setNextChecked(true)); return; }
+		const seriesId = item.SeriesId;
+		void (async () => {
+			try {
+				const seasons = await getSeasons(session, seriesId);
+				const current = seasons.find((season) => season.IndexNumber === item.ParentIndexNumber);
+				let episodes = current?.Id ? await getEpisodes(session, seriesId, current.Id) : [];
+				let next = episodes.filter((episode) => (episode.IndexNumber ?? 0) > item.IndexNumber!).sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0))[0];
+				if (!next) {
+					const season = seasons.filter((entry) => (entry.IndexNumber ?? 0) > item.ParentIndexNumber!).sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0))[0];
+					if (season?.Id) { episodes = await getEpisodes(session, seriesId, season.Id); next = episodes.sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0))[0]; }
+				}
+				if (active) setNextItem(next ?? null);
+			} catch { /* optional */ }
+			if (active) setNextChecked(true);
+		})();
+		return () => { active = false; };
+	}, [item.Id, item.Type, item.SeriesId, item.IndexNumber, item.ParentIndexNumber, session]);
+
+	useEffect(() => {
+		if (nextChecked && duration > 0 && duration - currentTime <= 0.25 && !nextItem) onClose();
+	}, [currentTime, duration, nextChecked, nextItem, onClose]);
 
 	useEffect(() => {
 		void refreshSubtitleStyle();
@@ -197,7 +229,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		syncFullscreenState();
 		return () => {
 			document.removeEventListener("fullscreenchange", syncFullscreenState);
-			if (document.fullscreenElement === playerRef.current) void document.exitFullscreen?.();
+			if (document.fullscreenElement === playerRef.current) exitFullscreenSafely();
 		};
 	}, []);
 
@@ -212,7 +244,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	function togglePlay() { const video = videoRef.current; if (!video) return; if (video.paused) void video.play().catch(() => undefined); else video.pause(); }
 	function toggleFullscreen() {
 		if (document.fullscreenElement) {
-			void document.exitFullscreen?.();
+			exitFullscreenSafely();
 		} else {
 			void playerRef.current?.requestFullscreen?.();
 		}
@@ -295,6 +327,14 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		{qualityLoading && <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-5 py-3 text-sm text-white/90 shadow-xl backdrop-blur-md"><LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />{t("switchingQuality")}</div>}
 		{error && <p role="alert" className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-black/70 px-4 py-3 text-sm text-red-200">{error}</p>}
 		<SkipMarkerActions markers={markers} currentTime={currentTime} labelIntro={t("skipIntro")} labelOutro={t("skipOutro")} onSkip={skip} />
+		{nextUpVisible && nextItem && <div data-testid="next-up" className="absolute bottom-24 right-4 z-30 w-[min(calc(100vw-2rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl md:bottom-28 md:right-10">
+			<div className="h-1 bg-gradient-to-r from-violet-400 via-fuchsia-300 to-violet-400" />
+			<div className="p-4">
+				<div className="flex items-center justify-between gap-3"><p className="text-[11px] font-semibold uppercase tracking-[.22em] text-violet-200">{t("nextUp")}</p><span className="text-[11px] text-white/45">{nextItem.RunTimeTicks ? formatPlayerTime(nextItem.RunTimeTicks / 10_000_000) : ""}</span></div>
+				<div className="mt-3 flex gap-3.5"><img src={landscapeImageUrl(nextItem) ?? undefined} alt="" className="h-[4.5rem] w-36 shrink-0 rounded-xl object-cover shadow-lg shadow-black/30" /><div className="min-w-0 self-center"><p className="text-[11px] font-medium uppercase tracking-wider text-white/50">S{nextItem.ParentIndexNumber ?? 0}:E{nextItem.IndexNumber ?? 0}</p><p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white">{nextItem.Name}</p></div></div>
+				<div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white">{t("stopPlaying")}</button><button type="button" onClick={() => onNext?.(nextItem) ?? onClose()} className="rounded-lg bg-violet-400 px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-violet-950/30 transition hover:bg-violet-300">{t("playNext")}</button></div>
+			</div>
+		</div>}
 		<div className={`absolute bottom-5 left-5 right-5 transition-opacity duration-300 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}>
 			<div className="relative mb-3 flex h-5 items-center">
 				<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20"><span className="absolute inset-y-0 left-0 bg-violet-400" style={{ width: `${duration > 0 ? currentTime / duration * 100 : 0}%` }} />{markers?.intro && duration > 0 && <span className="absolute inset-y-0 bg-violet-300/90" style={{ left: `${markers.intro.start / duration * 100}%`, width: `${(markers.intro.end - markers.intro.start) / duration * 100}%` }} />}{markers?.outro && duration > 0 && <span className="absolute inset-y-0 bg-violet-300/90" style={{ left: `${markers.outro.start / duration * 100}%`, width: `${(markers.outro.end - markers.outro.start) / duration * 100}%` }} />}</div>
@@ -345,6 +385,11 @@ function hexToRgba(hex: string, opacity: number) {
 
 export function disableNativeSubtitleTracks(video: HTMLVideoElement) {
 	for (const track of Array.from(video.textTracks)) track.mode = "disabled";
+}
+
+export function exitFullscreenSafely() {
+		const exitFullscreen = document.exitFullscreen?.();
+		if (exitFullscreen) void exitFullscreen.catch(() => undefined);
 }
 
 export function CustomSubtitleCue({ cues, time, style }: { cues: SubtitleCue[]; time: number; style: SubtitleStyle }) {

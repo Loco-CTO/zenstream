@@ -82,10 +82,11 @@ export function SyncplayProvider({ session, children }: { session: AuthSession; 
 		const interval = window.setInterval(() => void refresh().catch(() => undefined), 1500);
 		return () => { window.clearTimeout(initial); window.clearInterval(interval); };
 	}, [refresh]);
-	const adopt = useCallback((group: SyncplayGroup) => {
+	const adopt = useCallback((group: SyncplayGroup, announceNewMedia = false) => {
+		if (announceNewMedia && group.itemId && group.itemId !== activeRef.current?.itemId) announcePlayback(group.itemId);
 		setCurrent(group);
 		setGroups((old) => [group, ...old.filter((entry) => entry.id !== group.id)]);
-	}, [setCurrent]);
+	}, [announcePlayback, setCurrent]);
 	const create = async () => {
 		try { const group = await call("groups", "POST") as SyncplayGroup; adopt(group); toast.success(t("syncplayGroupCreated")); }
 		catch (error) { toast.error(t("syncplayCreateFailed")); throw error; }
@@ -112,11 +113,11 @@ export function SyncplayProvider({ session, children }: { session: AuthSession; 
 		const group = activeRef.current; if (!group) return;
 		const send = (revision: number) => call(`groups/${group.id}/command`, "POST", { ...value, revision }) as Promise<SyncplayGroup>;
 		try {
-			try { adopt(await send(group.revision)); }
+			try { adopt(await send(group.revision), true); }
 			catch (error) {
 				if (!(error instanceof SyncplayRequestError) || error.status !== 409) throw error;
 				const latest = await call(`groups/${group.id}`) as SyncplayGroup; adopt(latest);
-				try { adopt(await send(latest.revision)); }
+				try { adopt(await send(latest.revision), true); }
 				catch (retryError) { if (!(retryError instanceof SyncplayRequestError) || retryError.status !== 409) throw retryError; adopt(await call(`groups/${group.id}`) as SyncplayGroup); }
 			}
 		} catch (error) { toast.error(t("syncplayPlaybackFailed")); throw error; }

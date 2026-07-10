@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { CustomSubtitleCue, disableNativeSubtitleTracks, HLS_TEXT_TRACK_CONFIG, SkipMarkerActions, VideoPlayer } from "@/components/player/video-player";
+import { CustomSubtitleCue, disableNativeSubtitleTracks, exitFullscreenSafely, HLS_TEXT_TRACK_CONFIG, SkipMarkerActions, VideoPlayer } from "@/components/player/video-player";
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import type { JellyfinItem } from "@/lib/jellyfin";
@@ -117,5 +117,14 @@ describe("video player controls", () => {
 		const tracks = [{ mode: "showing" }, { mode: "hidden" }];
 		disableNativeSubtitleTracks({ textTracks: tracks } as unknown as HTMLVideoElement);
 		expect(tracks).toEqual([{ mode: "disabled" }, { mode: "disabled" }]);
+	});
+
+	it("ignores fullscreen exit failures when the document is no longer active", async () => {
+		const exitFullscreen = vi.fn().mockRejectedValue(new DOMException("Document not active"));
+		Object.defineProperty(document, "exitFullscreen", { configurable: true, value: exitFullscreen });
+
+		exitFullscreenSafely();
+		await expect(Promise.resolve()).resolves.toBeUndefined();
+		delete (document as Document & { exitFullscreen?: () => Promise<void> }).exitFullscreen;
 	});
 });

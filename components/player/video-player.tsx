@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Maximize, Pause, Play, Settings, Volume2, VolumeX } from "lucide-react";
+import Hls from "hls.js";
+import { ArrowLeft, AudioLines, Captions, Check, ChevronLeft, FastForward, LoaderCircle, Maximize, Pause, Play, Settings, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import {
 	getPlaybackInfo,
 	getPlaybackMarkers,
@@ -9,25 +10,36 @@ import {
 	playbackStreams,
 	playbackUrl,
 	reportPlayback,
+	setPlayed,
 	subtitleUrl,
 	trickplayPreview,
 	type JellyfinItem,
 	type PlaybackMarker,
 } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
-import { Dropdown } from "@/components/ui/dropdown";
+import { useI18n } from "@/lib/i18n";
 
-type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void };
+type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void; onPlayedChange?: (played: boolean) => void };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-export function VideoPlayer({ item, session, onClose }: Props) {
+export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
+	const { t } = useI18n();
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const hlsRef = useRef<Hls | null>(null);
+	const qualityRequestRef = useRef(0);
+	const resumeTimeRef = useRef(0);
+	const clearedPlayedRef = useRef(false);
+	const suppressNextClickRef = useRef(false);
+	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
 	const [info, setInfo] = useState<ReturnType<typeof playbackStreams>>();
 	const [markers, setMarkers] = useState<{ intro?: PlaybackMarker; outro?: PlaybackMarker } | null>(null);
-	const [settings, setSettings] = useState(false);
+	const [settingsSection, setSettingsSection] = useState<"root" | "quality" | "speed" | "offset">("root");
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [trackMenu, setTrackMenu] = useState<"audio" | "subtitle" | null>(null);
 	const [playing, setPlaying] = useState(false);
 	const [muted, setMuted] = useState(false);
+	const [volume, setVolume] = useState(1);
 	const [speed, setSpeed] = useState("1");
 	const [quality, setQuality] = useState("0");
 	const [audio, setAudio] = useState("");
@@ -36,12 +48,15 @@ export function VideoPlayer({ item, session, onClose }: Props) {
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const [error, setError] = useState("");
+	const [qualityLoading, setQualityLoading] = useState(false);
+	const [controlsVisible, setControlsVisible] = useState(true);
 	const [timelinePreview, setTimelinePreview] = useState<ReturnType<typeof trickplayPreview> & { time: number; left: number }>();
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
+	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 
 	useEffect(() => {
 		let active = true;
-		Promise.all([getPlaybackInfo(session, item.Id), getPlaybackMarkers(session, item.Id), getTrickplayInfo(session, item.Id).catch(() => undefined)])
+		Promise.all([getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }), getPlaybackMarkers(session, item.Id), getTrickplayInfo(session, item.Id).catch(() => undefined)])
 			.then(([playback, markerData, trickplay]) => {
 				if (!active) return;
 				const parsed = playbackStreams(playback, trickplay);
@@ -58,12 +73,34 @@ export function VideoPlayer({ item, session, onClose }: Props) {
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !url) return;
-		video.load();
+		hlsRef.current?.destroy();
+		hlsRef.current = null;
+		if (/\.m3u8(?:\?|$)/i.test(url) && Hls.isSupported()) {
+			const hls = new Hls();
+			hlsRef.current = hls;
+			hls.loadSource(url);
+			hls.attachMedia(video);
+		} else {
+			video.src = url;
+			video.load();
+		}
 		const position = item.UserData?.PlaybackPositionTicks ? item.UserData.PlaybackPositionTicks / 10_000_000 : 0;
-		const onMetadata = () => { if (position > 0 && position < video.duration - 5) video.currentTime = position; void video.play().catch(() => undefined); };
+		const onMetadata = () => {
+			const resumeTime = resumeTimeRef.current || position;
+			if (resumeTime > 0 && resumeTime < video.duration - 5) video.currentTime = resumeTime;
+			resumeTimeRef.current = 0;
+			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
+			setDuration(Math.max(knownDuration, mediaDuration));
+			setQualityLoading(false);
+			void video.play().catch(() => undefined);
+		};
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
-		return () => video.removeEventListener("loadedmetadata", onMetadata);
-	}, [url, item.UserData?.PlaybackPositionTicks]);
+		return () => {
+			video.removeEventListener("loadedmetadata", onMetadata);
+			hlsRef.current?.destroy();
+			hlsRef.current = null;
+		};
+	}, [url, item.UserData?.PlaybackPositionTicks, knownDuration]);
 
 	useEffect(() => {
 		const timer = window.setInterval(() => {
@@ -73,10 +110,85 @@ export function VideoPlayer({ item, session, onClose }: Props) {
 		return () => window.clearInterval(timer);
 	}, [item.Id, session]);
 
-	function togglePlay() { const video = videoRef.current; if (!video) return; if (video.paused) void video.play(); else video.pause(); }
-	function seek(delta: number) { const video = videoRef.current; if (video) video.currentTime = Math.max(0, Math.min(video.duration || Infinity, video.currentTime + delta)); }
-	function chooseQuality(value: string) { setQuality(value); setUrl(playbackUrl(session, item.Id, info?.source, Number(value))); }
-	function skip(marker?: PlaybackMarker) { if (marker && videoRef.current) videoRef.current.currentTime = marker.end; }
+	useEffect(() => {
+		if (!settingsOpen && !trackMenu) return;
+		const closeMenus = (event: PointerEvent) => {
+			const target = event.target as Element | null;
+			if (target?.closest("[data-player-context], [data-player-context-trigger]")) return;
+			suppressNextClickRef.current = true;
+			setSettingsOpen(false);
+			setTrackMenu(null);
+		};
+		document.addEventListener("pointerdown", closeMenus);
+		return () => document.removeEventListener("pointerdown", closeMenus);
+	}, [settingsOpen, trackMenu]);
+
+	useEffect(() => () => {
+		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
+	}, []);
+
+	function showControls() {
+		setControlsVisible(true);
+		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
+		controlsTimerRef.current = window.setTimeout(() => {
+			if (!settingsOpen && !trackMenu) setControlsVisible(false);
+		}, 2500);
+	}
+
+	function togglePlay() { const video = videoRef.current; if (!video) return; if (video.paused) void video.play().catch(() => undefined); else video.pause(); }
+	function handlePlay() {
+		setPlaying(true);
+		if (!item.UserData?.Played || clearedPlayedRef.current) return;
+		clearedPlayedRef.current = true;
+		void setPlayed(session, item.Id, false)
+			.then(() => onPlayedChange?.(false))
+			.catch(() => { clearedPlayedRef.current = false; });
+	}
+	function seek(delta: number) {
+		const video = videoRef.current;
+		if (!video) return;
+		const target = Math.max(0, Math.min(duration || Infinity, currentTime + delta));
+		seekTo(target);
+	}
+	function seekTo(target: number) {
+		const video = videoRef.current;
+		if (!video) return;
+		video.currentTime = target;
+		setCurrentTime(target);
+	}
+	function chooseQuality(value: string) {
+		const video = videoRef.current;
+		resumeTimeRef.current = video && Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
+		setError("");
+		setQualityLoading(true);
+		setDuration(knownDuration);
+		setQuality(value);
+		const bitrate = Number(value);
+		if (!bitrate) {
+			qualityRequestRef.current += 1;
+			setUrl(playbackUrl(session, item.Id, info?.source, 0));
+			return;
+		}
+		const request = ++qualityRequestRef.current;
+		void getPlaybackInfo(session, item.Id, {
+			maxStreamingBitrate: bitrate,
+			mediaSourceId: info?.source?.Id,
+			audioStreamIndex: audio ? Number(audio) : undefined,
+			subtitleStreamIndex: subtitle ? Number(subtitle) : -1,
+		}).then((playback) => {
+			if (request !== qualityRequestRef.current) return;
+			const parsed = playbackStreams(playback);
+			if (!parsed.source?.TranscodingUrl) throw new Error("Jellyfin did not return a transcoding URL.");
+			setInfo((previous) => ({ ...parsed, qualities: previous?.qualities ?? parsed.qualities }));
+			setUrl(playbackUrl(session, item.Id, parsed.source, bitrate));
+		}).catch(() => {
+			if (request === qualityRequestRef.current) {
+				setQualityLoading(false);
+				setError("This quality could not be loaded.");
+			}
+		});
+	}
+	function skip(marker?: PlaybackMarker) { if (marker) seekTo(marker.end); }
 	function previewTimeline(event: React.PointerEvent<HTMLInputElement>) {
 		if (!duration) return;
 		const rect = event.currentTarget.getBoundingClientRect();
@@ -92,42 +204,57 @@ export function VideoPlayer({ item, session, onClose }: Props) {
 		}
 	}
 
-	return <div className="fixed inset-0 z-[200] bg-black text-white" onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} src={url} className="h-full w-full object-contain" onClick={togglePlay} muted={muted} onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)} onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
+	return <div className={`fixed inset-0 z-[200] bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
+		<video ref={videoRef} className="h-full w-full object-contain" onClick={togglePlay} muted={muted} volume={volume} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
 			{subtitle && info?.source && <track kind="subtitles" src={subtitleUrl(session, item.Id, info.source, Number(subtitle))} default />}
 		</video>
 		<div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85" />
-		<div className="absolute left-5 top-5 flex items-start gap-3 md:left-10 md:top-8"><button aria-label="Close player" className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white" onClick={onClose}><ArrowLeft /></button><div><p className="text-xs uppercase tracking-[.2em] text-white/55">{item.Type === "Episode" ? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}` : item.Name}</p>{item.Type === "Episode" && <h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>}</div></div>
+		<div className={`absolute left-5 top-5 flex items-start gap-3 transition-opacity duration-300 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}><button aria-label="Close player" className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white" onClick={onClose}><ArrowLeft /></button><div><p className="text-xs uppercase tracking-[.2em] text-white/55">{item.Type === "Episode" ? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}` : item.Name}</p>{item.Type === "Episode" && <h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>}</div></div>
+		{qualityLoading && <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-5 py-3 text-sm text-white/90 shadow-xl backdrop-blur-md"><LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />{t("switchingQuality")}</div>}
 		{error && <p role="alert" className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-black/70 px-4 py-3 text-sm text-red-200">{error}</p>}
-		<div className="absolute bottom-5 left-5 right-5 md:bottom-8 md:left-10 md:right-10">
-			<div className="mb-3 flex gap-2">{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur hover:bg-white/25" onClick={() => skip(markers.intro)}>Skip intro</button>}{markers?.outro && currentTime >= markers.outro.start && currentTime < markers.outro.end && <button className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur hover:bg-white/25" onClick={() => skip(markers.outro)}>Skip outro</button>}</div>
-			<div className="relative">
-				<div className="pointer-events-none absolute inset-x-0 top-1 h-1 overflow-hidden rounded bg-white/15">{markers?.intro && duration > 0 && <span className="absolute h-full bg-violet-400/80" style={{ left: `${markers.intro.start / duration * 100}%`, width: `${(markers.intro.end - markers.intro.start) / duration * 100}%` }} />}{markers?.outro && duration > 0 && <span className="absolute h-full bg-violet-400/80" style={{ left: `${markers.outro.start / duration * 100}%`, width: `${(markers.outro.end - markers.outro.start) / duration * 100}%` }} />}</div>
-				<input aria-label="Seek" type="range" min="0" max={duration} step="0.1" value={currentTime} className="relative mb-3 h-1 w-full accent-violet-400" onPointerMove={previewTimeline} onPointerLeave={() => { setTimelinePreview(undefined); setPreviewUnavailable(false); }} onPointerDown={previewTimeline} onChange={(event) => { if (videoRef.current) videoRef.current.currentTime = Number(event.target.value); }} />
+		<div className={`absolute bottom-5 left-5 right-5 transition-opacity duration-300 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+			<div className="mb-3 flex justify-end gap-3">{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button aria-label={t("skipIntro")} className="flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => skip(markers.intro)}><FastForward className="h-5 w-5" />{t("skipIntro")}</button>}{markers?.outro && currentTime >= markers.outro.start && currentTime < markers.outro.end && <button aria-label={t("skipOutro")} className="flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => skip(markers.outro)}><FastForward className="h-5 w-5" />{t("skipOutro")}</button>}</div>
+			<div className="relative mb-3 flex h-5 items-center">
+				<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20"><span className="absolute inset-y-0 left-0 bg-violet-400" style={{ width: `${duration > 0 ? currentTime / duration * 100 : 0}%` }} />{markers?.intro && duration > 0 && <span className="absolute inset-y-0 bg-violet-300/90" style={{ left: `${markers.intro.start / duration * 100}%`, width: `${(markers.intro.end - markers.intro.start) / duration * 100}%` }} />}{markers?.outro && duration > 0 && <span className="absolute inset-y-0 bg-violet-300/90" style={{ left: `${markers.outro.start / duration * 100}%`, width: `${(markers.outro.end - markers.outro.start) / duration * 100}%` }} />}</div>
+				<input aria-label="Seek" type="range" min="0" max={duration} step="0.1" value={Math.min(currentTime, duration || currentTime)} className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent" onPointerMove={previewTimeline} onPointerLeave={() => { setTimelinePreview(undefined); setPreviewUnavailable(false); }} onPointerDown={previewTimeline} onChange={(event) => seekTo(Number(event.target.value))} />
 				{timelinePreview && <TrickplayBubble preview={timelinePreview} onError={() => { setTimelinePreview(undefined); setPreviewUnavailable(true); }} />}
 				{previewUnavailable && <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 rounded bg-black/90 px-3 py-2 text-xs text-white/65">Preview unavailable</div>}
 			</div>
-			<div className="flex items-center gap-3"><button aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>{playing ? <Pause /> : <Play />}</button><button aria-label={muted ? "Unmute" : "Mute"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX /> : <Volume2 />}</button><span className="flex-1" /><button aria-label="Settings" onClick={() => setSettings(!settings)}><Settings /></button><button aria-label="Fullscreen" onClick={() => void document.documentElement.requestFullscreen?.()}><Maximize /></button></div>
-			{settings && <div className="absolute bottom-12 right-0 grid min-w-64 gap-3 rounded-xl border border-white/10 bg-black/90 p-4 text-xs shadow-2xl">
-				<Setting label="Quality"><Dropdown aria-label="Quality" value={quality} options={(info?.qualities ?? [0]).map((value) => ({ value: String(value), label: value ? `${Math.round(value / 1_000_000)} Mbps` : "Auto" }))} onChange={chooseQuality} /></Setting>
-				<Setting label="Speed"><Dropdown aria-label="Speed" value={speed} options={speeds.map((value) => ({ value: String(value), label: `${value}x` }))} onChange={(value) => { setSpeed(value); if (videoRef.current) videoRef.current.playbackRate = Number(value); }} /></Setting>
-				{(info?.audio.length ?? 0) > 1 && <Setting label="Audio"><Dropdown aria-label="Audio" value={audio} options={info!.audio.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? "Audio" }))} onChange={setAudio} /></Setting>}
-				{(info?.subtitles.length ?? 0) > 0 && <Setting label="Subtitles"><Dropdown aria-label="Subtitles" value={subtitle} options={[{ value: "", label: "Off" }, ...info!.subtitles.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? "Subtitle" }))]} onChange={setSubtitle} /></Setting>}
-				<Setting label={`Subtitle offset ${offset > 0 ? "+" : ""}${offset.toFixed(1)}s`}><input aria-label="Subtitle offset" type="range" min="-5" max="5" step="0.1" value={offset} onChange={(event) => setOffset(Number(event.target.value))} className="accent-violet-400" /></Setting>
+			<div className="relative flex items-center gap-3"><button aria-label="Skip back 10 seconds" onClick={() => seek(-10)}><SkipBack /></button><button aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>{playing ? <Pause /> : <Play />}</button><button aria-label="Skip forward 10 seconds" onClick={() => seek(10)}><SkipForward /></button><span className="text-sm tabular-nums text-white/80">-{formatPlayerTime(Math.max(0, duration - currentTime))}</span><span className="flex-1" />{(info?.audio.length ?? 0) > 1 && <button data-player-context-trigger aria-label={t("audioTrack")} onClick={() => { setTrackMenu(trackMenu === "audio" ? null : "audio"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><AudioLines /></button>}{(info?.subtitles.length ?? 0) > 0 && <button data-player-context-trigger aria-label={t("subtitleTrack")} onClick={() => { setTrackMenu(trackMenu === "subtitle" ? null : "subtitle"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><Captions /></button>}<div className="group relative flex items-center"><div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} className="h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300" /></div><button aria-label={muted ? "Unmute" : "Mute"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX /> : <Volume2 />}</button></div><button data-player-context-trigger aria-label={t("settings")} onClick={() => { setSettingsOpen(!settingsOpen); setSettingsSection("root"); setTrackMenu(null); }}><Settings /></button><button aria-label="Fullscreen" onClick={() => void document.documentElement.requestFullscreen?.()}><Maximize /></button>
+				{trackMenu === "audio" && <ChoicePanel options={info!.audio.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("audioTrack") }))} value={audio} onChange={setAudio} />}
+				{trackMenu === "subtitle" && <ChoicePanel options={[{ value: "", label: t("subtitlesOff") }, ...info!.subtitles.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack") }))]} value={subtitle} onChange={setSubtitle} />}
+				{settingsOpen && <div data-player-context onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute bottom-full right-0 z-30 mb-2 min-w-64 rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl">
+				{settingsSection === "root" && <div className="grid gap-1"><MenuRow label={t("quality")} onClick={() => setSettingsSection("quality")} /><MenuRow label={t("speed")} onClick={() => setSettingsSection("speed")} /><MenuRow label={t("subtitleOffset")} onClick={() => setSettingsSection("offset")} /></div>}
+				{settingsSection === "quality" && <SettingsSubmenu title={t("quality")} onBack={() => setSettingsSection("root")}><ChoicePanel floating={false} options={(info?.qualities ?? [0]).map((value) => ({ value: String(value), label: value ? `${Math.round(value / 1_000_000)} Mbps` : "Auto" }))} value={quality} onChange={chooseQuality} /></SettingsSubmenu>}
+				{settingsSection === "speed" && <SettingsSubmenu title={t("speed")} onBack={() => setSettingsSection("root")}><ChoicePanel floating={false} options={speeds.map((value) => ({ value: String(value), label: `${value}x` }))} value={speed} onChange={(value) => { setSpeed(value); if (videoRef.current) videoRef.current.playbackRate = Number(value); }} /></SettingsSubmenu>}
+				{settingsSection === "offset" && <SettingsSubmenu title={t("subtitleOffset")} onBack={() => setSettingsSection("root")}><div className="grid gap-2"><span className="text-white/60">{offset > 0 ? "+" : ""}{offset.toFixed(1)}s</span><input aria-label={t("subtitleOffset")} type="range" min="-5" max="5" step="0.1" value={offset} onChange={(event) => setOffset(Number(event.target.value))} className="accent-violet-400" /></div></SettingsSubmenu>}
 			</div>}
+			</div>
 		</div>
 	</div>;
 }
 
-function Setting({ label, children }: { label: string; children: React.ReactNode }) { return <label className="flex items-center justify-between gap-4 text-white/60"><span>{label}</span>{children}</label>; }
+function MenuRow({ label, onClick }: { label: string; onClick: () => void }) { return <button type="button" onClick={onClick} className="rounded-md px-3 py-2 text-left text-xs font-normal leading-5 text-white/75 transition hover:bg-white/10 hover:text-white">{label}</button>; }
+
+function SettingsSubmenu({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) { return <div className="grid gap-1"><button type="button" onClick={onBack} className="mb-1 flex items-center gap-1 rounded-lg px-2 py-2 text-left text-xs font-medium leading-5 text-white/85 transition hover:bg-white/10 hover:text-white"><ChevronLeft className="h-4 w-4" />{title}</button>{children}</div>; }
+
+function ChoicePanel({ options, value, onChange, floating = true }: { options: Array<{ value: string; label: string }>; value: string; onChange: (value: string) => void; floating?: boolean }) {
+	return <div data-player-context={floating ? true : undefined} className={floating ? "absolute bottom-full right-0 z-20 mb-2 min-w-56 rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl" : "text-xs"}>{options.map((option) => <button key={option.value} type="button" onClick={() => onChange(option.value)} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-normal leading-5 text-white/75 transition hover:bg-white/10 hover:text-white">{option.value === value ? <Check className="h-4 w-4 shrink-0" /> : <span className="h-4 w-4 shrink-0" />}{option.label}</button>)}</div>;
+}
 
 function formatTime(seconds: number) {
 	const minutes = Math.floor(seconds / 60);
 	return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
+function formatPlayerTime(seconds: number) {
+	const rounded = Math.max(0, Math.round(seconds));
+	const minutes = Math.floor(rounded / 60);
+	return `${minutes}:${String(rounded % 60).padStart(2, "0")}`;
+}
+
 function TrickplayBubble({ preview, onError }: { preview: NonNullable<ReturnType<typeof trickplayPreview>> & { time: number; left: number }; onError: () => void }) {
-	const scale = Math.min(1, 180 / preview.width, 110 / preview.height);
+	const scale = Math.min(1, 240 / preview.width, 150 / preview.height);
 	return <div className="pointer-events-none absolute bottom-8 -translate-x-1/2 overflow-hidden rounded-md border border-white/20 bg-black shadow-2xl" style={{ left: `${preview.left * 100}%`, width: preview.width * scale }}>
 		<div className="relative overflow-hidden" style={{ height: preview.height * scale }}><img src={preview.url} alt="Timeline preview" onError={onError} className="absolute left-0 top-0 max-w-none" style={{ width: preview.width * preview.columns * scale, height: preview.height * preview.rows * scale, transform: `translate(${-preview.cellX * preview.width * scale}px, ${-preview.cellY * preview.height * scale}px)` }} /></div>
 		<span className="block px-2 py-1 text-center text-xs text-white/80">{formatTime(preview.time)}</span>

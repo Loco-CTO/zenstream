@@ -24,6 +24,8 @@ export function HorizontalScroller({
   const dragTargetRef = useRef(0);
   const easingRef = useRef(DRAG_EASING);
   const animationFrameRef = useRef<number | null>(null);
+  const boundaryFrameRef = useRef<number | null>(null);
+  const canScrollRef = useRef({ left: false, right: false });
   const [canScroll, setCanScroll] = useState({ left: false, right: false });
 
   const stopDragAnimation = useCallback(() => {
@@ -33,13 +35,22 @@ export function HorizontalScroller({
   }, []);
 
   const updateScrollBoundaries = useCallback(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
+    if (boundaryFrameRef.current !== null) return;
+    boundaryFrameRef.current = requestAnimationFrame(() => {
+      boundaryFrameRef.current = null;
+      const scroller = scrollRef.current;
+      if (!scroller) return;
 
-    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
-    setCanScroll({
-      left: scroller.scrollLeft > EDGE_TOLERANCE,
-      right: maxScrollLeft - scroller.scrollLeft > EDGE_TOLERANCE,
+      const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
+      const next = {
+        left: scroller.scrollLeft > EDGE_TOLERANCE,
+        right: maxScrollLeft - scroller.scrollLeft > EDGE_TOLERANCE,
+      };
+      if (next.left === canScrollRef.current.left && next.right === canScrollRef.current.right) {
+        return;
+      }
+      canScrollRef.current = next;
+      setCanScroll(next);
     });
   }, []);
 
@@ -56,6 +67,10 @@ export function HorizontalScroller({
     return () => {
       resizeObserver?.disconnect();
       window.removeEventListener("resize", updateScrollBoundaries);
+      if (boundaryFrameRef.current !== null) {
+        cancelAnimationFrame(boundaryFrameRef.current);
+        boundaryFrameRef.current = null;
+      }
       stopDragAnimation();
     };
   }, [children, stopDragAnimation, updateScrollBoundaries]);

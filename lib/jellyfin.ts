@@ -42,6 +42,7 @@ export interface JellyfinItem {
 	DateCreated?: string;
 	CollectionType?: string;
 	SeriesPrimaryImageTag?: string;
+	Trickplay?: Record<string, JellyfinTrickplayInfo>;
 }
 
 export interface JellyfinMediaStream {
@@ -482,17 +483,21 @@ export async function getPlaybackInfo(
 			audioStreamIndex: options.audioStreamIndex,
 			subtitleStreamIndex: options.subtitleStreamIndex,
 			mediaSourceId: itemId,
-			enableTrickplay: true,
 		})}`,
-		{ method: "POST", body: JSON.stringify({ UserId: session.userId, EnableTrickplay: true, DeviceProfile: { Name: "ZenStream Web", MaxStreamingBitrate: options.maxStreamingBitrate } }) },
+		{ method: "POST", body: JSON.stringify({ UserId: session.userId, DeviceProfile: { Name: "ZenStream Web", MaxStreamingBitrate: options.maxStreamingBitrate } }) },
 	);
 	return response as JellyfinPlaybackInfo;
 }
 
-export function playbackStreams(info: JellyfinPlaybackInfo) {
+export async function getTrickplayInfo(session: AuthSession, itemId: string) {
+	const response = await jellyfinRequest(session, `/Items/${encodeURIComponent(itemId)}?${queryString({ fields: "Trickplay" })}`);
+	return (response as Pick<JellyfinItem, "Trickplay">).Trickplay;
+}
+
+export function playbackStreams(info: JellyfinPlaybackInfo, trickplay?: Record<string, JellyfinTrickplayInfo>) {
 	const source = info.MediaSources?.[0];
 	return {
-		source,
+		source: source && { ...source, Trickplay: source.Trickplay ?? trickplay },
 		audio: (source?.MediaStreams ?? []).filter((stream) => stream.Type === "Audio"),
 		subtitles: (source?.MediaStreams ?? []).filter((stream) => stream.Type === "Subtitle"),
 		qualities: [0, 1_000_000, 2_500_000, 5_000_000, 10_000_000].filter((bitrate) => !source?.Bitrate || bitrate === 0 || bitrate <= source.Bitrate),
@@ -566,7 +571,6 @@ export async function getPlaybackMarkers(session: AuthSession, itemId: string): 
 		...(configuredEndpoint
 			? [configuredEndpoint.includes("{itemId}") ? configuredEndpoint.replace("{itemId}", itemPath) : `${configuredEndpoint.replace(/\/$/, "")}/${itemPath}`]
 			: []),
-		`${jellyfinBaseUrl()}/Episode/${itemPath}/IntroTimestamps`,
 		`${jellyfinBaseUrl()}/MediaSegments/${itemPath}`,
 	];
 	for (const endpoint of endpoints) {

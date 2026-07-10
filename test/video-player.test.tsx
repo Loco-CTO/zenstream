@@ -33,6 +33,26 @@ describe("video player controls", () => {
 		expect(container.firstElementChild).toHaveClass("overflow-hidden");
 	});
 
+	it("locks document scrolling while the player is open and restores it on close", () => {
+		document.documentElement.style.overflow = "auto";
+		document.body.style.overflow = "scroll";
+		const { unmount } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem} session={{ token: "token", userId: "user", username: "Alex" }} onClose={vi.fn()} />
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		expect(document.documentElement).toHaveStyle({ overflow: "hidden" });
+		expect(document.body).toHaveStyle({ overflow: "hidden" });
+		unmount();
+		expect(document.documentElement).toHaveStyle({ overflow: "auto" });
+		expect(document.body).toHaveStyle({ overflow: "scroll" });
+		document.documentElement.style.overflow = "";
+		document.body.style.overflow = "";
+	});
+
 	it("hides the player gradient when controls time out", () => {
 		const { container } = render(
 			<I18nProvider locale="en">

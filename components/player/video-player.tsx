@@ -169,6 +169,19 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
 	}, []);
 
+	useEffect(() => {
+		const { documentElement, body } = document;
+		const previousDocumentOverflow = documentElement.style.overflow;
+		const previousBodyOverflow = body.style.overflow;
+		documentElement.style.overflow = "hidden";
+		body.style.overflow = "hidden";
+
+		return () => {
+			documentElement.style.overflow = previousDocumentOverflow;
+			body.style.overflow = previousBodyOverflow;
+		};
+	}, []);
+
 	function showControls() {
 		setControlsVisible(true);
 		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);

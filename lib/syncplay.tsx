@@ -60,6 +60,14 @@ const emptyContext: Context = {
 	canControl: false,
 };
 const SyncplayContext = createContext<Context>(emptyContext);
+class SyncplayRequestError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+	) {
+		super(message);
+	}
+}
 async function call(path: string, method = "GET", body?: unknown) {
 	const r = await fetch(`/api/syncplay/${path}`, {
 		method,
@@ -68,8 +76,9 @@ async function call(path: string, method = "GET", body?: unknown) {
 		cache: "no-store",
 	});
 	if (!r.ok)
-		throw new Error(
+		throw new SyncplayRequestError(
 			(await r.json().catch(() => ({}))).message ?? "Syncplay request failed.",
+			r.status,
 		);
 	return r.status === 204 ? null : r.json();
 }
@@ -138,13 +147,21 @@ export function SyncplayProvider({
 		position: number;
 		playing: boolean;
 	}) => {
-		if (active)
-			adopt(
-				await call(`groups/${active.id}/command`, "POST", {
-					...value,
-					revision: active.revision,
-				}),
-			);
+		if (!active) return;
+		const send = (revision: number) =>
+			call(`groups/${active.id}/command`, "POST", {
+				...value,
+				revision,
+			});
+		try {
+			adopt(await send(active.revision));
+		} catch (error) {
+			if (!(error instanceof SyncplayRequestError) || error.status !== 409)
+				throw error;
+			const latest = await call(`groups/${active.id}`);
+			adopt(latest);
+			adopt(await send(latest.revision));
+		}
 	};
 	const presence = async (viewing: boolean, loading: boolean) => {
 		if (active)

@@ -59,6 +59,27 @@ describe("SettingsPage", () => {
 		await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/api/preferences/subtitles", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ ...style, bold: true }) })));
   });
 
+  it("uses an in-app subtitle color popover instead of a native color input", async () => {
+    const style = { fontFamily: "sans", bold: false, textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ...style, fontColor: "#818cf8" })));
+    render(<SubtitlePreferencesProvider><SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} /></SubtitlePreferencesProvider>);
+
+    const fontColorControl = screen.getByRole("button", { name: "Subtitle font color" });
+    expect(fontColorControl).toHaveAttribute("aria-haspopup", "dialog");
+    fireEvent.click(fontColorControl);
+    expect(screen.getByRole("dialog", { name: "Subtitle font color" })).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("#FFFFFF")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "#818cf8" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/preferences/subtitles", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ ...style, fontColor: "#818cf8" }) })));
+  });
+
+  it("separates subtitle background opacity from the following playback setting", () => {
+    render(<SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} />);
+
+    expect(screen.getByLabelText("Subtitle background opacity").parentElement?.parentElement).toHaveClass("border-b");
+  });
+
   it("localizes every settings section and control", () => {
     render(
       <I18nProvider locale="ja">

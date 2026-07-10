@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, LogOut, User } from "lucide-react";
 import { userImageUrl } from "@/lib/jellyfin";
@@ -94,7 +94,7 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
           <SettingsRow label={t("subtitleBorderSize")} right={<RangeControl label={t("subtitleBorderSize")} min={0} max={8} step={1} value={style.borderSize} suffix="px" onChange={(value) => void updateSubtitleStyle({ borderSize: value })} />} />
           <SettingsRow label={t("subtitleBorderColor")} right={<ColorControl label={t("subtitleBorderColor")} value={style.borderColor} onChange={(value) => void updateSubtitleStyle({ borderColor: value })} />} />
           <SettingsRow label={t("subtitleBackgroundColor")} right={<ColorControl label={t("subtitleBackgroundColor")} value={style.backgroundColor} onChange={(value) => void updateSubtitleStyle({ backgroundColor: value })} />} />
-          <SettingsRow label={t("subtitleBackgroundOpacity")} border={false} right={<RangeControl label={t("subtitleBackgroundOpacity")} min={0} max={100} value={style.backgroundOpacity} suffix="%" onChange={(value) => void updateSubtitleStyle({ backgroundOpacity: value })} />} />
+          <SettingsRow label={t("subtitleBackgroundOpacity")} right={<RangeControl label={t("subtitleBackgroundOpacity")} min={0} max={100} value={style.backgroundOpacity} suffix="%" onChange={(value) => void updateSubtitleStyle({ backgroundOpacity: value })} />} />
           {subtitleError && <p role="alert" className="border-t border-white/5 px-4 py-3 text-xs text-red-300">{t("subtitleSaveFailed")}</p>}
           <SettingsRow label={t("autoplayNextEpisode")} right={<Toggle label={t("autoplayNextEpisode")} checked={autoplayNext} onChange={setAutoplayNext} />} />
           <SettingsRow label={t("autoplayBrowse")} sub={t("autoplayBrowseDescription")} border={false} right={<Toggle label={t("autoplayBrowse")} checked={autoplayBrowse} onChange={setAutoplayBrowse} />} />
@@ -156,7 +156,32 @@ function RangeControl({ label, min, max, step = 1, value, suffix, onChange }: { 
 }
 
 function ColorControl({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return <input aria-label={label} type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent" />;
+  const [open, setOpen] = useState(false);
+  const controlRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
+  const palette = ["#ffffff", "#d7dbe8", "#9ca3af", "#000000", "#ef4444", "#f59e0b", "#eab308", "#22c55e", "#14b8a6", "#38bdf8", "#818cf8", "#c084fc"];
+
+  useEffect(() => {
+    if (!open) return;
+    const closeWhenOutside = (event: MouseEvent) => {
+      if (!controlRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", closeWhenOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeWhenOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  const setColor = (next: string) => {
+    if (/^#[0-9a-f]{6}$/i.test(next)) onChange(next.toLowerCase());
+  };
+
+  return <div ref={controlRef} className="relative shrink-0"><span id={labelId} className="sr-only">{label}</span><button type="button" aria-labelledby={labelId} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-8 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 shadow-sm transition hover:border-violet-300/60 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-400/70"><span aria-hidden="true" className="h-full w-full rounded-[4px] ring-1 ring-inset ring-black/25" style={{ backgroundColor: value }} /></button>{open && <div role="dialog" aria-labelledby={labelId} className="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-white/10 bg-[#15131c]/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"><div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-black/20 p-2"><span aria-hidden="true" className="h-7 w-7 shrink-0 rounded-md ring-1 ring-inset ring-white/10" style={{ backgroundColor: value }} /><input aria-labelledby={labelId} value={value.toUpperCase()} onChange={(event) => setColor(event.target.value)} spellCheck={false} maxLength={7} className="min-w-0 flex-1 bg-transparent font-mono text-xs uppercase tracking-wide text-white/80 outline-none placeholder:text-white/25" /></div><div className="grid grid-cols-6 gap-2">{palette.map((color) => <button key={color} type="button" aria-label={color} aria-pressed={value.toLowerCase() === color} onClick={() => setColor(color)} className={`h-5 rounded-md ring-1 ring-inset transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-400 ${value.toLowerCase() === color ? "ring-white ring-offset-2 ring-offset-[#15131c]" : "ring-white/15"}`} style={{ backgroundColor: color }} />)}</div></div>}</div>;
 }
 
 function hexToRgba(hex: string, opacity: number) {

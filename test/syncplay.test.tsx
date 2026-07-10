@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
+import { ToastProvider } from "@/components/ui/toast";
+import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("next/navigation", () => ({
 	usePathname: () => "/show/movie",
@@ -32,6 +35,11 @@ function Controls() {
 	</>;
 }
 
+const session = { token: "token", userId: "user", username: "Alex" };
+function SyncplayTestProvider({ children }: { children: ReactNode }) {
+	return <I18nProvider locale="en"><ToastProvider><SyncplayProvider session={session}>{children}</SyncplayProvider></ToastProvider></I18nProvider>;
+}
+
 describe("SyncplayProvider", () => {
 	it("refreshes the revision and retries a stale playback command once", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -49,7 +57,7 @@ describe("SyncplayProvider", () => {
 			throw new Error(`Unexpected request: ${url}`);
 		});
 
-		render(<SyncplayProvider userId="user"><Controls /></SyncplayProvider>);
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups/group/join", expect.any(Object)));
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
@@ -70,7 +78,7 @@ describe("SyncplayProvider", () => {
 			const syncplay = useSyncplay();
 			return <span>{syncplay.active?.id ?? "none"}</span>;
 		}
-		render(<SyncplayProvider userId="user"><ActiveGroup /></SyncplayProvider>);
+		render(<SyncplayTestProvider><ActiveGroup /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
 		expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups", expect.any(Object));
 	});
@@ -86,7 +94,7 @@ describe("SyncplayProvider", () => {
 			throw new Error(`Unexpected request: ${url}`);
 		});
 
-		render(<SyncplayProvider userId="user"><Controls /></SyncplayProvider>);
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
 		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
 		fireEvent.click(screen.getByRole("button", { name: "Leave" }));
@@ -106,7 +114,7 @@ describe("SyncplayProvider", () => {
 			throw new Error(`Unexpected request: ${url}`);
 		});
 
-		render(<SyncplayProvider userId="user"><Controls /></SyncplayProvider>);
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
 		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));

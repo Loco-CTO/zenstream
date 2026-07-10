@@ -9,12 +9,13 @@ import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { getFavoriteItems, type JellyfinItem } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
+import { useSortPreference } from "@/lib/sort-preferences";
 
 export function FavoritesPage({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
 	const [items, setItems] = useState<JellyfinItem[]>([]);
-	const [sortBy, setSortBy] = useState("SortName");
-	const [sortOrder, setSortOrder] = useState<"Ascending" | "Descending">("Ascending");
+	const [sort, setSort] = useSortPreference("zenstream:sort:favorites", { sortBy: "SortName", sortOrder: "Ascending" }, ["SortName", "DateCreated", "PremiereDate", "CommunityRating"] as const);
+	const { sortBy, sortOrder } = sort;
 	const [error, setError] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [retryKey, setRetryKey] = useState(0);
@@ -46,10 +47,10 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		<div className="mb-10 flex items-end justify-between gap-4">
 			<h1 className="text-3xl font-black tracking-tight text-white">{t("favorites")}</h1>
 			<div className="flex shrink-0 items-center gap-2">
-				<button type="button" aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")} onClick={() => setSortOrder((value) => value === "Ascending" ? "Descending" : "Ascending")} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white">
+				<button type="button" aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")} onClick={() => setSort((value) => ({ ...value, sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending" }))} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white">
 					{sortOrder === "Ascending" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
 				</button>
-				<Dropdown aria-label={t("sortBy")} value={sortBy} options={options} onChange={setSortBy} className="min-w-32 rounded-full py-1.5 uppercase tracking-wider" />
+				<Dropdown aria-label={t("sortBy")} value={sortBy} options={options} onChange={(value) => setSort((current) => ({ ...current, sortBy: value as typeof current.sortBy }))} className="min-w-32 rounded-full py-1.5 uppercase tracking-wider" />
 			</div>
 		</div>
 		{error ? <ErrorPanel message={t("favoritesLoadFailed")} onRetry={() => setRetryKey((value) => value + 1)} /> : loading ? null : items.length === 0 ? <div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center"><h2 className="text-lg font-semibold text-white/80">{t("noFavorites")}</h2></div> : <>

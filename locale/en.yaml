@@ -67,6 +67,7 @@ quality: Quality
 switchingQuality: Switching quality…
 speed: Playback speed
 subtitleOffset: Subtitle offset
+subtitleFont: Subtitle font
 subtitleTextSize: Subtitle text size
 subtitleFontColor: Subtitle font color
 subtitleBorderSize: Subtitle border size

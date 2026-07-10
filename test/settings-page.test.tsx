@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "@/components/pages/settings-page";
+import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { I18nProvider } from "@/lib/i18n";
 
 const router = vi.hoisted(() => ({
@@ -43,6 +44,17 @@ describe("SettingsPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not save");
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
     expect(onLogout).toHaveBeenCalledOnce();
+  });
+
+  it("persists the selected subtitle font family", async () => {
+    const style = { fontFamily: "serif", textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(style)));
+    render(<SubtitlePreferencesProvider><SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} /></SubtitlePreferencesProvider>);
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Subtitle font" }));
+    fireEvent.click(screen.getByRole("option", { name: "Serif" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/preferences/subtitles", expect.objectContaining({ method: "PATCH", body: JSON.stringify(style) })));
   });
 
   it("localizes every settings section and control", () => {

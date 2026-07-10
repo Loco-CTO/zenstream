@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { nativeSubtitleStyles, VideoPlayer } from "@/components/player/video-player";
+import { CustomSubtitleCue, disableNativeSubtitleTracks, HLS_TEXT_TRACK_CONFIG, VideoPlayer } from "@/components/player/video-player";
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import type { JellyfinItem } from "@/lib/jellyfin";
@@ -37,9 +37,34 @@ describe("video player controls", () => {
 		expect(gradient).toHaveClass("opacity-0");
 	});
 
-	it("scales native captions as a percentage and applies a real stroke", () => {
-		const css = nativeSubtitleStyles(200, "#ffffff", 4, "#000000", "#000000", 0);
-		expect(css).toContain("font-size: 200% !important");
-		expect(css).toContain("-webkit-text-stroke: 4px #000000 !important");
+
+	it("stacks active cues and applies the saved custom appearance", () => {
+		const { getAllByTestId } = render(<CustomSubtitleCue cues={[
+			{ start: 1, end: 3, text: "First line" },
+			{ start: 1, end: 3, text: "Second line" },
+			{ start: 3, end: 4, text: "Next line" },
+		]} time={2} style={{ fontFamily: "serif", textScale: 160, fontColor: "#aabbcc", borderSize: 2, borderColor: "#112233", backgroundColor: "#445566", backgroundOpacity: 40 }} />);
+
+		const cues = getAllByTestId("subtitle-cue");
+		expect(cues).toHaveLength(2);
+		expect(cues.map((cue) => cue.textContent)).toEqual(["First line", "Second line"]);
+		expect(cues[0]).toHaveStyle({ color: "rgb(170, 187, 204)" });
+		expect(cues[0].getAttribute("style")).toContain("background-color: rgba(68, 85, 102, 0.4)");
+		expect(cues[0].getAttribute("style")).toContain('font-family: Georgia, "Times New Roman", serif');
+		expect(cues[0].getAttribute("style")).toContain("font-size: clamp(16px, 8vh, 72px)");
+		expect(cues[0].getAttribute("style")).toContain("-webkit-text-stroke: 2px #112233");
+		expect(cues[0].getAttribute("style")).toContain("text-shadow: 2px 0px 0 #112233");
+	});
+
+	it("does not show an ending cue at the next cue boundary", () => {
+		const { queryByTestId } = render(<CustomSubtitleCue cues={[{ start: 1, end: 2, text: "Finished" }]} time={2} style={{ fontFamily: "sans", textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 }} />);
+		expect(queryByTestId("subtitle-overlay")).not.toBeInTheDocument();
+	});
+
+	it("disables HLS and browser-native subtitle tracks", () => {
+		expect(HLS_TEXT_TRACK_CONFIG).toMatchObject({ enableWebVTT: false, enableCEA708Captions: false, renderTextTracksNatively: false });
+		const tracks = [{ mode: "showing" }, { mode: "hidden" }];
+		disableNativeSubtitleTracks({ textTracks: tracks } as unknown as HTMLVideoElement);
+		expect(tracks).toEqual([{ mode: "disabled" }, { mode: "disabled" }]);
 	});
 });

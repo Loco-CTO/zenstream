@@ -20,10 +20,15 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
-import { parseWebVttCues, subtitleHasEmbeddedStyle, type SubtitleCue } from "@/lib/subtitle-preferences";
+import { parseWebVttCues, SUBTITLE_FONT_STACKS, type SubtitleCue, type SubtitleStyle } from "@/lib/subtitle-preferences";
 
 type Props = { item: JellyfinItem; session: AuthSession; onClose: () => void; onPlayedChange?: (played: boolean) => void };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+export const HLS_TEXT_TRACK_CONFIG = {
+	enableWebVTT: false,
+	enableCEA708Captions: false,
+	renderTextTracksNatively: false,
+};
 
 export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const { t } = useI18n();
@@ -48,10 +53,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	const [quality, setQuality] = useState("0");
 	const [audio, setAudio] = useState("");
 	const [subtitle, setSubtitle] = useState("");
-	const [subtitleSource, setSubtitleSource] = useState<string>();
-	const [subtitleSourceTrack, setSubtitleSourceTrack] = useState("");
-	const [subtitleUsesEmbeddedStyle, setSubtitleUsesEmbeddedStyle] = useState(false);
-	const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>();
+	const [subtitleCueData, setSubtitleCueData] = useState<{ track: string; cues: SubtitleCue[] }>();
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
@@ -84,7 +86,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		hlsRef.current?.destroy();
 		hlsRef.current = null;
 		if (/\.m3u8(?:\?|$)/i.test(url) && Hls.isSupported()) {
-			const hls = new Hls();
+			const hls = new Hls(HLS_TEXT_TRACK_CONFIG);
 			hlsRef.current = hls;
 			hls.loadSource(url);
 			hls.attachMedia(video);
@@ -94,6 +96,7 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		}
 		const position = item.UserData?.PlaybackPositionTicks ? item.UserData.PlaybackPositionTicks / 10_000_000 : 0;
 		const onMetadata = () => {
+			disableNativeSubtitleTracks(video);
 			const resumeTime = resumeTimeRef.current || position;
 			if (resumeTime > 0 && resumeTime < video.duration - 5) video.currentTime = resumeTime;
 			resumeTimeRef.current = 0;
@@ -102,9 +105,12 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 			setQualityLoading(false);
 			void video.play().catch(() => undefined);
 		};
+		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
+		video.textTracks.addEventListener("addtrack", onTextTrackAdded);
 		return () => {
 			video.removeEventListener("loadedmetadata", onMetadata);
+			video.textTracks.removeEventListener("addtrack", onTextTrackAdded);
 			hlsRef.current?.destroy();
 			hlsRef.current = null;
 		};
@@ -118,32 +124,20 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 		if (!subtitle || !info?.source) {
 			return;
 		}
-		let active = true;
-		let objectUrl: string | undefined;
+		const controller = new AbortController();
 		const url = subtitleUrl(session, item.Id, info.source, Number(subtitle));
-		void fetch(url, { cache: "no-store" })
+		void fetch(url, { cache: "no-store", signal: controller.signal })
 			.then(async (response) => {
 				if (!response.ok) throw new Error("Subtitle request failed.");
 				const text = await response.text();
-				if (!active) return;
-				const embeddedStyle = subtitleHasEmbeddedStyle(text);
-				setSubtitleUsesEmbeddedStyle(embeddedStyle);
-				setSubtitleCues(embeddedStyle ? undefined : parseWebVttCues(text));
-				objectUrl = URL.createObjectURL(new Blob([text], { type: "text/vtt" }));
-				setSubtitleSource(objectUrl);
-				setSubtitleSourceTrack(subtitle);
+				if (!controller.signal.aborted) setSubtitleCueData({ track: subtitle, cues: parseWebVttCues(text) });
 			})
 			.catch(() => {
-				if (!active) return;
-				setSubtitleUsesEmbeddedStyle(false);
-				setSubtitleCues(undefined);
-				setSubtitleSource(url);
-				setSubtitleSourceTrack(subtitle);
+				if (!controller.signal.aborted) {
+					setSubtitleCueData({ track: subtitle, cues: [] });
+				}
 			});
-		return () => {
-			active = false;
-			if (objectUrl) URL.revokeObjectURL(objectUrl);
-		};
+		return () => controller.abort();
 	}, [info?.source, item.Id, session, subtitle]);
 
 	useEffect(() => {
@@ -250,11 +244,9 @@ export function VideoPlayer({ item, session, onClose, onPlayedChange }: Props) {
 	}
 
 	return <div className={`fixed inset-0 z-[200] bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		{!(subtitleSourceTrack === subtitle && subtitleUsesEmbeddedStyle) && <style>{nativeSubtitleStyles(style.textScale, style.fontColor, style.borderSize, style.borderColor, style.backgroundColor, style.backgroundOpacity)}</style>}
 		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={handlePlay} onPause={() => setPlaying(false)} onError={() => setError("This media could not be played.")}>
-			{subtitle && info?.source && subtitleSourceTrack === subtitle && subtitleSource && subtitleUsesEmbeddedStyle && <track key={subtitleSource} kind="subtitles" src={subtitleSource} default />}
 		</video>
-		{subtitle && subtitleSourceTrack === subtitle && !subtitleUsesEmbeddedStyle && subtitleCues && <CustomSubtitleCue cues={subtitleCues} time={currentTime} style={style} />}
+		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />
 		<div className={`absolute left-5 top-5 flex items-start gap-3 transition-opacity duration-300 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}><button aria-label="Close player" className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white" onClick={onClose}><ArrowLeft /></button><div><p className="text-xs uppercase tracking-[.2em] text-white/55">{item.Type === "Episode" ? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}` : item.Name}</p>{item.Type === "Episode" && <h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>}</div></div>
 		{qualityLoading && <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-5 py-3 text-sm text-white/90 shadow-xl backdrop-blur-md"><LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />{t("switchingQuality")}</div>}
@@ -308,16 +300,16 @@ function hexToRgba(hex: string, opacity: number) {
 	return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
 }
 
-export function nativeSubtitleStyles(scale: number, fontColor: string, borderSize: number, borderColor: string, backgroundColor: string, backgroundOpacity: number) {
-	const shadow = borderSize ? [[borderSize, 0], [-borderSize, 0], [0, borderSize], [0, -borderSize], [borderSize, borderSize], [-borderSize, -borderSize], [borderSize, -borderSize], [-borderSize, borderSize]].map(([x, y]) => `${x}px ${y}px 0 ${borderColor}`).join(", ") : "none";
-	return `.zenstream-video::cue { color: ${fontColor} !important; background: ${hexToRgba(backgroundColor, backgroundOpacity)} !important; font-size: ${Math.max(50, Math.min(200, scale))}% !important; -webkit-text-stroke: ${borderSize}px ${borderColor} !important; text-shadow: ${shadow} !important; }`;
+export function disableNativeSubtitleTracks(video: HTMLVideoElement) {
+	for (const track of Array.from(video.textTracks)) track.mode = "disabled";
 }
 
-function CustomSubtitleCue({ cues, time, style }: { cues: SubtitleCue[]; time: number; style: { textScale: number; fontColor: string; borderSize: number; borderColor: string; backgroundColor: string; backgroundOpacity: number } }) {
-	const cue = cues.find((candidate) => time >= candidate.start && time <= candidate.end);
-	if (!cue) return null;
+export function CustomSubtitleCue({ cues, time, style }: { cues: SubtitleCue[]; time: number; style: SubtitleStyle }) {
+	const activeCues = cues.filter((candidate) => time >= candidate.start && time < candidate.end);
+	if (!activeCues.length) return null;
 	const shadow = style.borderSize ? [[style.borderSize, 0], [-style.borderSize, 0], [0, style.borderSize], [0, -style.borderSize], [style.borderSize, style.borderSize], [-style.borderSize, -style.borderSize], [style.borderSize, -style.borderSize], [-style.borderSize, style.borderSize]].map(([x, y]) => `${x}px ${y}px 0 ${style.borderColor}`).join(", ") : "none";
-	return <div className="pointer-events-none absolute inset-x-4 bottom-[12%] z-10 flex justify-center text-center" aria-live="off"><span style={{ color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, lineHeight: 1.15, whiteSpace: "pre-line", padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, textShadow: shadow }}>{cue.text}</span></div>;
+	const cueStyle: React.CSSProperties = { color: style.fontColor, backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity), fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily], fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`, lineHeight: 1.15, whiteSpace: "pre-line", padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined, WebkitTextStroke: style.borderSize ? `${style.borderSize}px ${style.borderColor}` : undefined, textShadow: shadow };
+	return <div data-testid="subtitle-overlay" className="pointer-events-none absolute inset-x-4 bottom-[12%] z-10 flex flex-col items-center gap-1 text-center" aria-live="off">{activeCues.map((cue, index) => <span data-testid="subtitle-cue" key={`${cue.start}-${cue.end}-${index}`} style={cueStyle}>{cue.text}</span>)}</div>;
 }
 
 function TrickplayBubble({ preview, onError }: { preview: NonNullable<ReturnType<typeof trickplayPreview>> & { time: number; left: number }; onError: () => void }) {

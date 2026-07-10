@@ -1,4 +1,8 @@
+export const SUBTITLE_FONT_FAMILIES = ["sans", "serif", "mono"] as const;
+export type SubtitleFontFamily = (typeof SUBTITLE_FONT_FAMILIES)[number];
+
 export type SubtitleStyle = {
+  fontFamily: SubtitleFontFamily;
   textScale: number;
   fontColor: string;
   borderSize: number;
@@ -9,15 +13,13 @@ export type SubtitleStyle = {
 
 export type SubtitleCue = { start: number; end: number; text: string };
 
-export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
+export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { fontFamily: "sans", textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
 
-/** WebVTT produced from ASS can retain inline tags or a STYLE block. */
-export function subtitleHasEmbeddedStyle(input: string): boolean {
-  return /(^|\n)STYLE(?:\s|$)/im.test(input) ||
-    /::cue(?:\s*\{|\s*\()/i.test(input) ||
-    /<(?:c(?:\.[^>\s]+)*|b|i|u|ruby|rt)(?:\s|>)/i.test(input) ||
-    /\{\\(?:[ibu]|fn|fs|c|1c|3c|4c|bord|outline|shad|alpha|a\d)/i.test(input);
-}
+export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
+  sans: "'Noto Sans', Arial, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
+};
 
 export function parseWebVttCues(input: string): SubtitleCue[] {
   return input.split(/\r?\n\s*\r?\n/).flatMap((block) => {
@@ -28,7 +30,11 @@ export function parseWebVttCues(input: string): SubtitleCue[] {
     const start = parseSubtitleTimestamp(timing[0]);
     const end = parseSubtitleTimestamp(timing[1]?.split(/\s+/)[0] ?? "");
     if (start == null || end == null) return [];
-    const text = lines.slice(timingIndex + 1).join("\n").replace(/<br\s*\/?>(?=\S)/gi, "\n").replace(/<[^>]+>/g, "").trim();
+    const text = lines.slice(timingIndex + 1).join("\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\{\\[^}]*\}/g, "")
+      .trim();
     return text ? [{ start, end, text }] : [];
   });
 }
@@ -43,8 +49,9 @@ export async function getSubtitlePreference(): Promise<SubtitleStyle> {
   const response = await fetch("/api/preferences/subtitles", { cache: "no-store" });
   if (!response.ok) throw new Error("Could not load subtitle preferences.");
   const data: unknown = await response.json();
-  if (!isSubtitleStyle(data)) throw new Error("Invalid subtitle preference response.");
-  return data;
+  const style = normalizeSubtitleStyle(data);
+  if (!style) throw new Error("Invalid subtitle preference response.");
+  return style;
 }
 
 export async function setSubtitlePreference(style: SubtitleStyle): Promise<SubtitleStyle> {
@@ -56,10 +63,17 @@ export async function setSubtitlePreference(style: SubtitleStyle): Promise<Subti
 }
 
 export function isSubtitleStyle(value: unknown): value is SubtitleStyle {
-  if (typeof value !== "object" || value === null) return false;
+  return normalizeSubtitleStyle(value, false) !== null;
+}
+
+function normalizeSubtitleStyle(value: unknown, allowLegacyFont = true): SubtitleStyle | null {
+  if (typeof value !== "object" || value === null) return null;
   const style = value as Record<string, unknown>;
-  return typeof style.textScale === "number" && style.textScale >= 50 && style.textScale <= 200 &&
-    typeof style.borderSize === "number" && style.borderSize >= 0 && style.borderSize <= 8 &&
-    typeof style.backgroundOpacity === "number" && style.backgroundOpacity >= 0 && style.backgroundOpacity <= 100 &&
-    ["fontColor", "borderColor", "backgroundColor"].every((key) => typeof style[key] === "string" && /^#[0-9a-f]{6}$/i.test(style[key] as string));
+  const fontFamily = style.fontFamily ?? (allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.fontFamily : undefined);
+  if (typeof style.textScale !== "number" || style.textScale < 50 || style.textScale > 200 ||
+    typeof style.borderSize !== "number" || style.borderSize < 0 || style.borderSize > 8 ||
+    typeof style.backgroundOpacity !== "number" || style.backgroundOpacity < 0 || style.backgroundOpacity > 100 ||
+    !["fontColor", "borderColor", "backgroundColor"].every((key) => typeof style[key] === "string" && /^#[0-9a-f]{6}$/i.test(style[key] as string)) ||
+    !SUBTITLE_FONT_FAMILIES.includes(fontFamily as SubtitleFontFamily)) return null;
+  return { ...style, fontFamily } as SubtitleStyle;
 }

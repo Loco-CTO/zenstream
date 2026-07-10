@@ -77,6 +77,7 @@ export const TRANSLATION_KEYS = [
 	"switchingQuality",
 	"speed",
 	"subtitleOffset",
+	"subtitleFont",
 	"subtitleTextSize",
 	"subtitleFontColor",
 	"subtitleBorderSize",

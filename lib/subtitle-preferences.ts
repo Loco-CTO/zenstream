@@ -7,6 +7,8 @@ export type SubtitleStyle = {
   backgroundOpacity: number;
 };
 
+export type SubtitleCue = { start: number; end: number; text: string };
+
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
 
 /** WebVTT produced from ASS can retain inline tags or a STYLE block. */
@@ -15,6 +17,26 @@ export function subtitleHasEmbeddedStyle(input: string): boolean {
     /::cue(?:\s*\{|\s*\()/i.test(input) ||
     /<(?:c(?:\.[^>\s]+)*|b|i|u|ruby|rt)(?:\s|>)/i.test(input) ||
     /\{\\(?:[ibu]|fn|fs|c|1c|3c|4c|bord|outline|shad|alpha|a\d)/i.test(input);
+}
+
+export function parseWebVttCues(input: string): SubtitleCue[] {
+  return input.split(/\r?\n\s*\r?\n/).flatMap((block) => {
+    const lines = block.split(/\r?\n/);
+    const timingIndex = lines.findIndex((line) => line.includes(" --> "));
+    if (timingIndex < 0) return [];
+    const timing = lines[timingIndex].split(" --> ");
+    const start = parseSubtitleTimestamp(timing[0]);
+    const end = parseSubtitleTimestamp(timing[1]?.split(/\s+/)[0] ?? "");
+    if (start == null || end == null) return [];
+    const text = lines.slice(timingIndex + 1).join("\n").replace(/<br\s*\/?>(?=\S)/gi, "\n").replace(/<[^>]+>/g, "").trim();
+    return text ? [{ start, end, text }] : [];
+  });
+}
+
+function parseSubtitleTimestamp(value: string): number | null {
+  const match = value.trim().match(/^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/);
+  if (!match) return null;
+  return Number(match[1] ?? 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) + Number(match[4]) / 1000;
 }
 
 export async function getSubtitlePreference(): Promise<SubtitleStyle> {

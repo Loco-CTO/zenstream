@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getLocalePreference, getStoredLocale, LOCALE_STORAGE_KEY, setLocalePreference, storeLocale } from "@/lib/preferences";
-import { getSubtitlePreference, isSubtitleStyle, setSubtitlePreference, subtitleHasEmbeddedStyle } from "@/lib/subtitle-preferences";
+import { getSubtitlePreference, isSubtitleStyle, parseWebVttCues, setSubtitlePreference, subtitleHasEmbeddedStyle } from "@/lib/subtitle-preferences";
 
 const storage = new Map<string, string>();
 
@@ -70,5 +70,9 @@ describe("subtitle preferences", () => {
     expect(subtitleHasEmbeddedStyle("WEBVTT\n\nSTYLE\n::cue { color: red; }" )).toBe(true);
     expect(subtitleHasEmbeddedStyle("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nPlain text")).toBe(false);
     expect(subtitleHasEmbeddedStyle("Dialogue: {\\bord4}Styled text")).toBe(true);
+  });
+
+  it("parses unstyled WebVTT cues for the custom renderer", () => {
+    expect(parseWebVttCues("WEBVTT\n\n00:00:01.000 --> 00:00:03.500\nHello<br>world")).toEqual([{ start: 1, end: 3.5, text: "Hello\nworld" }]);
   });
 });

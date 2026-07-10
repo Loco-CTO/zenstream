@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
 	ArrowDown,
 	ArrowUp,
-	Check,
 	Star,
 } from "lucide-react";
 import {
@@ -17,7 +16,7 @@ import {
 import {
 	MediaCardOverlay,
 	MEDIA_CARD_IMAGE_CLASS,
-	MEDIA_CARD_TAG_CLASS,
+	WatchedIndicator,
 } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
@@ -361,7 +360,6 @@ function VirtualMediaGrid({
 }
 
 function LibraryCard({ item }: { item: JellyfinItem }) {
-	const { t } = useI18n();
 	const image = posterImage(item);
 	const href = item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
@@ -386,20 +384,7 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 							<span className="text-xs font-semibold text-white/80">{item.CommunityRating.toFixed(1)}</span>
 						</div>
 					)}
-					{item.Type === "Series" && item.UserData?.UnplayedItemCount != null && (
-						<div
-							aria-label={item.UserData.UnplayedItemCount === 0
-								? t("allEpisodesWatched")
-								: `${item.UserData.UnplayedItemCount} ${t("unwatchedEpisodes")}`}
-							className={`absolute right-2 top-2 flex items-center gap-1 ${MEDIA_CARD_TAG_CLASS}`}
-						>
-							{item.UserData.UnplayedItemCount === 0 ? (
-								<Check aria-hidden="true" className="h-3 w-3 text-emerald-300/80" />
-							) : (
-								<>{item.UserData.UnplayedItemCount} {t("unwatchedEpisodes")}</>
-							)}
-						</div>
-					)}
+					<WatchedIndicator item={item} />
 				</div>
 				<p className="mt-2 truncate text-xs font-medium text-white/80">{item.Name}</p>
 				<p className="mt-0.5 truncate text-xs text-white/30">{item.ProductionYear ?? item.Type}</p>

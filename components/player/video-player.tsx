@@ -48,7 +48,7 @@ import {
 	type SubtitleCue,
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
-import { useSyncplay } from "@/lib/syncplay";
+import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 
 type Props = {
 	item: JellyfinItem;
@@ -80,6 +80,20 @@ export function advanceToNextEpisode(
 
 export function nextEpisodeSyncplayCommand(item: JellyfinItem) {
 	return { action: "media", itemId: item.Id, position: 0, playing: true };
+}
+
+export function syncplayTimelineTarget(state: SyncplayGroup, now: number) {
+	const playbackState = state.playbackState ?? (state.playing ? "playing" : "paused");
+	const startsAt = state.effectiveAt ?? state.updatedAt;
+	const anchorAt = state.anchorServerTime ?? state.updatedAt;
+	const shouldPlay = playbackState === "playing" && now >= startsAt;
+	return {
+		position:
+			(state.anchorPosition ?? state.position) +
+			(shouldPlay ? Math.max(0, now - anchorAt) : 0),
+		shouldPlay,
+		startsAt,
+	};
 }
 
 export function SkipMarkerActions({
@@ -149,9 +163,8 @@ export function VideoPlayer({
 	const hlsRef = useRef<Hls | null>(null);
 	const syncplayStateRef = useRef(syncplay.active);
 	const syncplayApiRef = useRef({
-		canControl: syncplay.canControl,
-		command: syncplay.command,
 		presence: syncplay.presence,
+		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
 	const directPlayFallbackRef = useRef(false);
@@ -162,6 +175,8 @@ export function VideoPlayer({
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const bufferedRef = useRef(false);
+	const appliedTimelineRef = useRef<string | null>(null);
+	const seekPreviewRef = useRef<number | null>(null);
 	const [url, setUrl] = useState<string>();
 	const [info, setInfo] = useState<ReturnType<typeof playbackStreams>>();
 	const [markers, setMarkers] = useState<{
@@ -200,6 +215,7 @@ export function VideoPlayer({
 	const [timelinePreview, setTimelinePreview] = useState<
 		ReturnType<typeof trickplayPreview> & { time: number; left: number }
 	>();
+	const [seekPreview, setSeekPreview] = useState<number | null>(null);
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<JellyfinItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
@@ -216,13 +232,14 @@ export function VideoPlayer({
 	}, [syncplay.active]);
 	useEffect(() => {
 		syncplayApiRef.current = {
-			canControl: syncplay.canControl,
-			command: syncplay.command,
 			presence: syncplay.presence,
+			serverNow: syncplay.serverNow,
 		};
-	}, [syncplay.canControl, syncplay.command, syncplay.presence]);
+	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
 		advancingToNextRef.current = false;
+		seekPreviewRef.current = null;
+		setSeekPreview(null);
 	}, [item.Id]);
 
 	useEffect(() => {
@@ -351,39 +368,68 @@ export function VideoPlayer({
 		};
 	}, [item.Id, session, initialAudioStreamIndex, initialSubtitleStreamIndex]);
 	useEffect(() => {
-		if (!syncplay.active) return;
-		void syncplay.presence(true, true).catch(() => undefined);
+		const state = syncplay.active;
+		if (!state || state.itemId !== item.Id) return;
+		const generation = state.mediaGeneration ?? 0;
+		// Metadata is not sufficient to release a group: the browser must first
+		// have enough media buffered to accept play().
+		bufferedRef.current = true;
+		void syncplayApiRef.current
+			.presence(true, true, generation)
+			.catch(() => undefined);
 		return () => {
-			void syncplay.presence(false, false).catch(() => undefined);
+			void syncplayApiRef.current
+				.presence(false, false, generation)
+				.catch(() => undefined);
 		};
-	}, [syncplay.active?.id, item.Id]);
+	}, [
+		syncplay.active?.id,
+		syncplay.active?.itemId,
+		syncplay.active?.mediaGeneration,
+		item.Id,
+	]);
 	useEffect(() => {
 		const state = syncplay.active;
 		const video = videoRef.current;
 		if (!state || !video || state.itemId !== item.Id) return;
+		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
+		let forceSeek = appliedTimelineRef.current !== timelineKey;
+		appliedTimelineRef.current = timelineKey;
 		const apply = () => {
 			const now = syncplay.serverNow();
-			const startsAt = state.effectiveAt ?? state.updatedAt;
-			const anchorAt = state.anchorServerTime ?? state.updatedAt;
-			const target = (state.anchorPosition ?? state.position) + (state.playbackState === "playing" && now >= startsAt ? Math.max(0, now - anchorAt) : 0);
-			const error = video.currentTime - target;
+			const timeline = syncplayTimelineTarget(state, now);
+			const error = video.currentTime - timeline.position;
 			applyingSyncRef.current = true;
-			if (Math.abs(error) > 2) video.currentTime = target;
+			if (forceSeek || Math.abs(error) > 2) video.currentTime = timeline.position;
 			else if (Math.abs(error) <= .25) video.playbackRate = 1;
 			else video.playbackRate = Math.max(.95, Math.min(1.05, 1 - error / 12));
-			if (state.playbackState === "playing" && now >= startsAt && video.paused) {
+			if (timeline.shouldPlay && video.paused) {
 				suppressSyncPlayRef.current = true;
 				void video.play().catch(() => { suppressSyncPlayRef.current = false; });
 			}
-			if (state.playbackState !== "playing" && !video.paused) {
+			if (!timeline.shouldPlay && !video.paused) {
 				suppressSyncPauseRef.current = true; video.pause(); video.playbackRate = 1;
 			}
 			window.setTimeout(() => { applyingSyncRef.current = false; }, 0);
+			forceSeek = false;
 		};
 		apply();
 		const interval = window.setInterval(apply, 1000);
-		return () => { window.clearInterval(interval); video.playbackRate = 1; };
-	}, [syncplay.active?.timelineRevision, syncplay.active?.itemId, item.Id, syncplay.serverNow]);
+		const startsAt = state.effectiveAt ?? state.updatedAt;
+		const startDelay = Math.max(0, (startsAt - syncplay.serverNow()) * 1000);
+		const startTimer = window.setTimeout(apply, startDelay + 20);
+		return () => {
+			window.clearInterval(interval);
+			window.clearTimeout(startTimer);
+			video.playbackRate = 1;
+		};
+	}, [
+		syncplay.active?.timelineRevision,
+		syncplay.active?.mediaGeneration,
+		syncplay.active?.itemId,
+		item.Id,
+		syncplay.serverNow,
+	]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -410,15 +456,14 @@ export function VideoPlayer({
 			const groupState = syncplayStateRef.current;
 			const syncplayApi = syncplayApiRef.current;
 			if (groupState?.itemId === item.Id) {
-				const target =
-					groupState.position +
-					(groupState.playing
-						? Math.max(0, Date.now() / 1000 - groupState.updatedAt)
-						: 0);
+				const timeline = syncplayTimelineTarget(
+					groupState,
+					syncplayApi.serverNow(),
+				);
 				applyingSyncRef.current = true;
-				if (Number.isFinite(target) && target < video.duration)
-					video.currentTime = target;
-				if (groupState.playing) {
+				if (Number.isFinite(timeline.position) && timeline.position < video.duration)
+					video.currentTime = timeline.position;
+				if (timeline.shouldPlay) {
 					suppressSyncPlayRef.current = true;
 					void video.play().catch(() => {
 						suppressSyncPlayRef.current = false;
@@ -432,19 +477,7 @@ export function VideoPlayer({
 				}, 0);
 				return;
 			}
-			if (groupState) {
-				if (syncplayApi.canControl)
-					void syncplayApi
-						.command({
-							action: "media",
-							itemId: item.Id,
-							position: 0,
-							playing: true,
-						})
-						.then(() => syncplayApi.presence(true, false))
-						.catch(() => undefined);
-				return;
-			}
+			if (groupState) return;
 			const resumeTime = resumeTimeRef.current || position;
 			if (resumeTime > 0 && resumeTime < video.duration - 5)
 				video.currentTime = resumeTime;
@@ -525,6 +558,8 @@ export function VideoPlayer({
 		() => () => {
 			if (controlsTimerRef.current)
 				window.clearTimeout(controlsTimerRef.current);
+			if (bufferingTimerRef.current)
+				window.clearTimeout(bufferingTimerRef.current);
 		},
 		[],
 	);
@@ -562,11 +597,17 @@ export function VideoPlayer({
 		}, 2500);
 	}
 	function reportBuffering(loading: boolean) {
-		if (!syncplay.active || bufferedRef.current === loading) return;
+		const state = syncplayStateRef.current;
+		if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
+			return;
 		if (bufferingTimerRef.current) window.clearTimeout(bufferingTimerRef.current);
 		bufferingTimerRef.current = window.setTimeout(() => {
+			const current = syncplayStateRef.current;
+			if (!current || current.itemId !== item.Id) return;
 			bufferedRef.current = loading;
-			void syncplay.presence(true, loading).catch(() => undefined);
+			void syncplayApiRef.current
+				.presence(true, loading, current.mediaGeneration ?? 0)
+				.catch(() => undefined);
 		}, loading ? 750 : 300);
 	}
 
@@ -611,23 +652,37 @@ export function VideoPlayer({
 			0,
 			Math.min(duration || Infinity, currentTime + delta),
 		);
-		seekTo(target);
+		stageSeek(target);
+		commitPendingSeek();
 	}
-	function seekTo(target: number) {
+	function stageSeek(target: number) {
 		const video = videoRef.current;
 		if (!video) return;
 		if (syncplay.active) {
-			if (syncplay.canControl)
-				void syncplay.command({
-					action: "seek",
-					itemId: item.Id,
-					position: target,
-					playing: !video.paused,
-				});
+			if (syncplay.canControl) {
+				seekPreviewRef.current = target;
+				setSeekPreview(target);
+			}
 			return;
 		}
 		video.currentTime = target;
 		setCurrentTime(target);
+	}
+	function commitPendingSeek() {
+		const target = seekPreviewRef.current;
+		const video = videoRef.current;
+		if (target == null || !video || !syncplay.active || !syncplay.canControl)
+			return;
+		seekPreviewRef.current = null;
+		setSeekPreview(null);
+		void syncplay
+			.command({
+				action: "seek",
+				itemId: item.Id,
+				position: target,
+				playing: !video.paused,
+			})
+			.catch(() => undefined);
 	}
 	function chooseQuality(value: string) {
 		const video = videoRef.current;
@@ -726,7 +781,9 @@ export function VideoPlayer({
 			});
 	}
 	function skip(marker?: PlaybackMarker) {
-		if (marker) seekTo(marker.end);
+		if (!marker) return;
+		stageSeek(marker.end);
+		commitPendingSeek();
 	}
 	function handleVideoError() {
 		const video = videoRef.current;
@@ -821,8 +878,6 @@ export function VideoPlayer({
 					setDuration(
 						Math.max(knownDuration, Number.isFinite(value) ? value : 0),
 					);
-					if (syncplay.active)
-						void syncplay.presence(true, false).catch(() => undefined);
 				}}
 				onWaiting={() => {
 					reportBuffering(true);
@@ -1040,7 +1095,10 @@ export function VideoPlayer({
 						min="0"
 						max={duration}
 						step="0.1"
-						value={Math.min(currentTime, duration || currentTime)}
+						value={Math.min(
+							seekPreview ?? currentTime,
+							duration || seekPreview || currentTime,
+						)}
 						className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 						onPointerMove={previewTimeline}
 						onPointerLeave={() => {
@@ -1048,7 +1106,17 @@ export function VideoPlayer({
 							setPreviewUnavailable(false);
 						}}
 						onPointerDown={previewTimeline}
-						onChange={(event) => seekTo(Number(event.target.value))}
+						onPointerUp={() => commitPendingSeek()}
+						onBlur={() => commitPendingSeek()}
+						onKeyUp={(event) => {
+							if (
+								["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(
+									event.key,
+								)
+							)
+								commitPendingSeek();
+						}}
+						onChange={(event) => stageSeek(Number(event.target.value))}
 					/>
 					{timelinePreview && (
 						<TrickplayBubble

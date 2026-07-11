@@ -39,9 +39,18 @@ import {
 	HoverPreviewVideo,
 	useHoverPreview,
 } from "@/components/ui/hover-preview";
-import { useSyncplay } from "@/lib/syncplay";
+import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 
 type TrackChoice = { audio?: number | string; subtitle?: number };
+
+export function syncplayMediaStartCommand(
+	active: SyncplayGroup | null,
+	canControl: boolean,
+	itemId: string,
+) {
+	if (!active || !canControl || active.itemId === itemId) return null;
+	return { action: "media", itemId, position: 0, playing: true };
+}
 
 export function DetailPage({
 	initialData,
@@ -64,7 +73,7 @@ export function DetailPage({
 		useState<ReturnType<typeof playbackStreams>>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
 	const [trackLoading, setTrackLoading] = useState(false);
-	const { active } = useSyncplay();
+	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
 	const seriesId = isEpisode ? item.SeriesId : item.Id;
@@ -160,9 +169,22 @@ export function DetailPage({
 	async function startPlayback() {
 		setTrackLoading(true);
 		try {
-			const parsed = playbackStreams(
-				await getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }),
+			// Announce the title as soon as the host presses Play. Waiting for the
+			// host's media element to load leaves every other member with nothing to
+			// navigate to and makes their readiness dependent on the host connection.
+			const mediaCommand = syncplayMediaStartCommand(
+				active,
+				canControl,
+				item.Id,
 			);
+			const mediaTransition = mediaCommand
+				? command(mediaCommand)
+				: Promise.resolve();
+			const [playback] = await Promise.all([
+				getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }),
+				mediaTransition,
+			]);
+			const parsed = playbackStreams(playback);
 			setTrackChoices(parsed);
 			const audio =
 				parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];

@@ -59,7 +59,11 @@ type Context = {
 	setControls: (value: boolean) => Promise<void>;
 	removeMember: (userId: string) => Promise<void>;
 	command: (value: Command) => Promise<void>;
-	presence: (viewing: boolean, loading: boolean) => Promise<void>;
+	presence: (
+		viewing: boolean,
+		loading: boolean,
+		mediaGeneration?: number,
+	) => Promise<void>;
 	canControl: boolean;
 	serverNow: () => number;
 };
@@ -123,7 +127,7 @@ export function SyncplayProvider({
 	const [active, setActive] = useState<SyncplayGroup | null>(null);
 	const activeRef = useRef<SyncplayGroup | null>(null);
 	const socketRef = useRef<Socket | null>(null);
-	const commandInFlightRef = useRef(false);
+	const commandChainRef = useRef(Promise.resolve());
 	const presenceChainRef = useRef(Promise.resolve());
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
@@ -132,6 +136,10 @@ export function SyncplayProvider({
 	const bestRttRef = useRef(Infinity);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
+	const serverNow = useCallback(
+		() => Date.now() / 1000 + clockOffsetRef.current,
+		[],
+	);
 
 	const setCurrent = useCallback((group: SyncplayGroup | null) => {
 		if (group) revisionRef.current.set(group.id, group.revision);
@@ -257,7 +265,6 @@ export function SyncplayProvider({
 			.replace(/\/+$/, "");
 		const socket = io(`${socketOrigin}/syncplay`, {
 			path: "/api/socket.io",
-			transports: ["websocket"],
 			auth: { token: session.token },
 			autoConnect: false,
 		});
@@ -385,51 +392,63 @@ export function SyncplayProvider({
 			throw error;
 		}
 	};
-	const command = async (value: Command) => {
+	const command = (value: Command) => {
 		const group = activeRef.current;
-		if (!group || commandInFlightRef.current) return;
-		commandInFlightRef.current = true;
-		const id = operationId();
-		const send = (revision: number) =>
-			call(`groups/${group.id}/command`, "POST", {
-				...value,
-				expectedRevision: revision,
-				operationId: id,
-			}) as Promise<SyncplayGroup>;
-		try {
+		if (!group) return Promise.resolve();
+		const groupId = group.id;
+		const run = async () => {
+			const current = activeRef.current;
+			if (!current || current.id !== groupId) return;
+			const id = operationId();
+			const send = (revision: number) =>
+				call(`groups/${groupId}/command`, "POST", {
+					...value,
+					expectedRevision: revision,
+					operationId: id,
+				}) as Promise<SyncplayGroup>;
 			try {
-				adopt(await send(group.revision), true);
-			} catch (error) {
-				if (!(error instanceof SyncplayRequestError) || error.status !== 409)
-					throw error;
-				const latest = (error.group ?? await call(`groups/${group.id}`)) as SyncplayGroup;
-				adopt(latest);
 				try {
-					adopt(await send(latest.revision), true);
-				} catch (retryError) {
-					if (
-						!(retryError instanceof SyncplayRequestError) ||
-						retryError.status !== 409
-					)
-						throw retryError;
-					adopt((await call(`groups/${group.id}`)) as SyncplayGroup);
+					adopt(await send(current.revision), true);
+				} catch (error) {
+					if (!(error instanceof SyncplayRequestError) || error.status !== 409)
+						throw error;
+					const latest = (error.group ?? await call(`groups/${groupId}`)) as SyncplayGroup;
+					adopt(latest);
+					try {
+						adopt(await send(latest.revision), true);
+					} catch (retryError) {
+						if (
+							!(retryError instanceof SyncplayRequestError) ||
+							retryError.status !== 409
+						)
+							throw retryError;
+						adopt((await call(`groups/${groupId}`)) as SyncplayGroup);
+					}
 				}
+			} catch (error) {
+				toast.error(t("syncplayPlaybackFailed"));
+				throw error;
 			}
-		} catch (error) {
-			toast.error(t("syncplayPlaybackFailed"));
-			throw error;
-		} finally {
-			commandInFlightRef.current = false;
-		}
+		};
+		const next = commandChainRef.current.catch(() => undefined).then(run);
+		commandChainRef.current = next;
+		return next;
 	};
-	const presence = async (viewing: boolean, loading: boolean) => {
+	const presence = async (
+		viewing: boolean,
+		loading: boolean,
+		mediaGeneration?: number,
+	) => {
 		const group = activeRef.current;
 		if (!group) return;
+		const groupId = group.id;
+		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
 		const sequence = ++presenceSequenceRef.current;
 		const send = async () => {
+			if (activeRef.current?.id !== groupId) return;
 			try {
-				adopt((await call(`groups/${group.id}/presence`, "POST", {
-					viewing, loading, mediaGeneration: group.mediaGeneration ?? 0,
+				adopt((await call(`groups/${groupId}/presence`, "POST", {
+					viewing, loading, mediaGeneration: generation,
 					presenceSequence: sequence, operationId: operationId(),
 				})) as SyncplayGroup);
 			} catch (error) {
@@ -456,7 +475,7 @@ export function SyncplayProvider({
 			active &&
 			(active.hostUserId === session.userId || active.allowViewerControls),
 		),
-		serverNow: () => Date.now() / 1000 + clockOffsetRef.current,
+		serverNow,
 	};
 	return (
 		<SyncplayContext.Provider value={value}>

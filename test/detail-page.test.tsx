@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DetailPage } from "@/components/pages/detail-page";
+import {
+  DetailPage,
+  syncplayMediaStartCommand,
+} from "@/components/pages/detail-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import type { DetailData, JellyfinItem } from "@/lib/jellyfin";
 
@@ -69,6 +72,20 @@ describe("detail views", () => {
       expect.stringContaining("/UserPlayedItems/movie"),
       expect.objectContaining({ method: "DELETE" }),
     ));
+  });
+
+  it("announces new host media before the player is mounted", () => {
+    expect(syncplayMediaStartCommand({
+      id: "group",
+      itemId: null,
+    } as never, true, "movie")).toEqual({
+      action: "media",
+      itemId: "movie",
+      position: 0,
+      playing: true,
+    });
+    expect(syncplayMediaStartCommand({ id: "group", itemId: "movie" } as never, true, "movie")).toBeNull();
+    expect(syncplayMediaStartCommand({ id: "group", itemId: null } as never, false, "movie")).toBeNull();
   });
 
   it("uses a Jellyfin logo in place of the detail title when available", () => {

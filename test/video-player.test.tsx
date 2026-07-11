@@ -8,6 +8,7 @@ import {
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
 	SkipMarkerActions,
+	syncplayTimelineTarget,
 	VideoPlayer,
 } from "@/components/player/video-player";
 import { I18nProvider } from "@/lib/i18n";
@@ -172,6 +173,39 @@ describe("video player controls", () => {
 			itemId: "episode-2",
 			position: 0,
 			playing: true,
+		});
+	});
+
+	it("holds a scheduled Syncplay start until its server timestamp", () => {
+		const state = {
+			id: "group",
+			name: "Alex's group",
+			hostUserId: "user",
+			hostName: "Alex",
+			allowViewerControls: false,
+			itemId: "movie",
+			position: 30,
+			playing: true,
+			resumeWhenReady: false,
+			revision: 2,
+			timelineRevision: 2,
+			anchorPosition: 30,
+			anchorServerTime: 110,
+			effectiveAt: 110,
+			playbackState: "playing" as const,
+			updatedAt: 100,
+			members: [],
+		};
+
+		expect(syncplayTimelineTarget(state, 109)).toEqual({
+			position: 30,
+			shouldPlay: false,
+			startsAt: 110,
+		});
+		expect(syncplayTimelineTarget(state, 112)).toEqual({
+			position: 32,
+			shouldPlay: true,
+			startsAt: 110,
 		});
 	});
 

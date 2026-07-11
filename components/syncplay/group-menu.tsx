@@ -8,7 +8,7 @@ import { useSyncplay } from "@/lib/syncplay";
 export function SyncplayGroupMenu({ userId, buttonClassName, playerContext = false }: { userId: string; buttonClassName?: string; playerContext?: boolean }) {
 	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
-	const { groups, active, create, join, leave, removeMember } = useSyncplay();
+	const { groups, active, create, join, leave, setControls, removeMember } = useSyncplay();
 	return <div className="relative" data-player-context={playerContext || undefined}>
 		<button aria-label={t("syncplayGroups")} onClick={() => setOpen((value) => !value)} className={buttonClassName ?? "flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"}><Users className="h-[22px] w-[22px]" /></button>
 		{open && <div data-player-context={playerContext || undefined} className="absolute right-0 top-full z-[90] mt-2 w-80 rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl">

@@ -25,14 +25,14 @@ export type SyncplayGroup = {
 	playing: boolean;
 	resumeWhenReady: boolean;
 	revision: number;
-	mediaGeneration: number;
+	mediaGeneration?: number;
 	updatedAt: number;
 	members: {
 		userId: string;
 		username: string;
 		viewing: boolean;
 		loading: boolean;
-		readyGeneration: number;
+		readyGeneration?: number;
 		role: "host" | "viewer";
 	}[];
 };
@@ -399,7 +399,7 @@ export function SyncplayProvider({
 				(await call(`groups/${group.id}/presence`, "POST", {
 					viewing,
 					loading,
-					mediaGeneration: group.mediaGeneration,
+					mediaGeneration: group.mediaGeneration ?? 0,
 					presenceSequence: ++presenceSequenceRef.current,
 					operationId: operationId(),
 				})) as SyncplayGroup,

@@ -662,17 +662,19 @@ export function VideoPlayer({
 			});
 	}
 	function chooseTrack(kind: "audio" | "subtitle", value: string) {
+		if (kind === "subtitle") {
+			setSubtitle(value);
+			setSubtitleCueData(undefined);
+			setTrackMenu(null);
+			return;
+		}
 		const video = videoRef.current;
 		const position =
 			video && Number.isFinite(video.currentTime)
 				? video.currentTime
 				: currentTime;
-		const nextAudio = kind === "audio" ? value : audio;
-		if (kind === "audio") setAudio(value);
-		else {
-			setSubtitle(value);
-			setSubtitleCueData(undefined);
-		}
+		const nextAudio = value;
+		setAudio(value);
 		if (!info?.source) return;
 		const request = ++qualityRequestRef.current;
 		resumeTimeRef.current = position;
@@ -701,6 +703,7 @@ export function VideoPlayer({
 						source.TranscodingUrl ? 1_000_000 : 0,
 					),
 				);
+				setTrackMenu(null);
 			})
 			.catch(() => {
 				if (request === qualityRequestRef.current) {

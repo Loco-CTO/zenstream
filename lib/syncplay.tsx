@@ -8,6 +8,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
+import { io, type Socket } from "socket.io-client";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { getItem } from "@/lib/jellyfin";
@@ -100,7 +101,7 @@ export function SyncplayProvider({
 	const [groups, setGroups] = useState<SyncplayGroup[]>([]);
 	const [active, setActive] = useState<SyncplayGroup | null>(null);
 	const activeRef = useRef<SyncplayGroup | null>(null);
-	const socketRef = useRef<WebSocket | null>(null);
+	const socketRef = useRef<Socket | null>(null);
 	const commandInFlightRef = useRef(false);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
@@ -212,35 +213,28 @@ export function SyncplayProvider({
 		[announcePlayback, reconcile, session.userId, setCurrent],
 	);
 	useEffect(() => {
-		let disposed = false;
 		// The HTTP snapshot is the source of truth when the WebSocket upgrade is
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
 		void refreshRef.current().catch(() => undefined);
-		const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-		const socket = new WebSocket(`${scheme}://${window.location.host}/api/syncplay/ws/syncplay?token=${encodeURIComponent(session.token)}`);
+		const socket = io("/syncplay", {
+			path: "/api/socket.io",
+			transports: ["websocket"],
+			auth: { token: session.token },
+		});
 		socketRef.current = socket;
 		// A single recovery read covers an upgrade that loses its first frame.
-		socket.onopen = () => {
-			if (disposed) {
-				socket.close();
-				return;
-			}
-			void refreshRef.current().catch(() => undefined);
-		};
-		socket.onmessage = ({ data }) => {
-			if (disposed) return;
-			const message = JSON.parse(String(data)) as { type: string; groups?: SyncplayGroup[]; group?: SyncplayGroup; id?: string };
-			if (message.type === "syncplay:groups") {
+		socket.on("connect", () => void refreshRef.current().catch(() => undefined));
+		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
 			const next = message.groups ?? [];
 			setGroups(next);
 			const current = activeRef.current;
 			reconcileRef.current(current
 				? (next.find((group) => group.id === current.id && group.members.some((member) => member.userId === session.userId)) ?? null)
 				: (next.find((group) => group.members.some((member) => member.userId === session.userId)) ?? null));
-			return;
-			}
-			if (message.type === "syncplay:group" && message.group) {
+		});
+		socket.on("syncplay:group", (message: { group?: SyncplayGroup }) => {
+			if (!message.group) return;
 			const group = message.group;
 			setGroups((old) => {
 				const previous = old.find((entry) => entry.id === group.id);
@@ -250,18 +244,15 @@ export function SyncplayProvider({
 			if (activeRef.current?.id === group.id)
 				reconcileRef.current(group.members.some((member) => member.userId === session.userId) ? group : null);
 			else if (!activeRef.current && group.members.some((member) => member.userId === session.userId)) reconcileRef.current(group);
-			return;
-			}
-			if (message.type !== "syncplay:group-ended" || !message.id) return;
+		});
+		socket.on("syncplay:group-ended", (message: { id?: string }) => {
+			if (!message.id) return;
 			const id = message.id;
 			setGroups((old) => old.filter((group) => group.id !== id));
 			if (activeRef.current?.id === id) reconcileRef.current(null);
-		};
+		});
 		return () => {
-			disposed = true;
-			// Closing a CONNECTING socket produces a browser-level error even
-			// when the server accepted the upgrade. Let it open, then close it.
-			if (socket.readyState === WebSocket.OPEN) socket.close();
+			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
 		};
 	}, [session.token, session.userId]);

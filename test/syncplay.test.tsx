@@ -5,23 +5,22 @@ import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncpla
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
 
-class TestWebSocket {
-	static latest: TestWebSocket | null = null;
+class TestSocket {
+	static latest: TestSocket | null = null;
 	static openAutomatically = true;
-	readyState = 0;
-	onopen: (() => void) | null = null;
-	onmessage: ((event: MessageEvent) => void) | null = null;
-	close = vi.fn(() => { this.readyState = 3; });
+	private handlers = new Map<string, (message?: unknown) => void>();
+	disconnect = vi.fn();
 	constructor() {
-		TestWebSocket.latest = this;
-		if (TestWebSocket.openAutomatically) queueMicrotask(() => {
-			if (this.readyState !== 0) return;
-			this.readyState = 1;
-			this.onopen?.();
-		});
+		TestSocket.latest = this;
 	}
+	on(event: string, handler: (message?: unknown) => void) {
+		this.handlers.set(event, handler);
+		if (event === "connect" && TestSocket.openAutomatically) queueMicrotask(() => handler());
+		return this;
+	}
+	receive(event: string, message?: unknown) { this.handlers.get(event)?.(message); }
 }
-vi.stubGlobal("WebSocket", TestWebSocket);
+vi.mock("socket.io-client", () => ({ io: vi.fn(() => new TestSocket()) }));
 
 
 vi.mock("next/navigation", () => ({
@@ -66,13 +65,13 @@ function SyncplayTestProvider({ children }: { children: ReactNode }) {
 }
 
 describe("SyncplayProvider", () => {
-	it("does not close a socket while its connection is still pending", () => {
-		TestWebSocket.openAutomatically = false;
+	it("disconnects the Socket.IO client when the provider unmounts", () => {
+		TestSocket.openAutomatically = false;
 		const view = render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
-		const socket = TestWebSocket.latest;
+		const socket = TestSocket.latest;
 		view.unmount();
-		expect(socket?.close).not.toHaveBeenCalled();
-		TestWebSocket.openAutomatically = true;
+		expect(socket?.disconnect).toHaveBeenCalled();
+		TestSocket.openAutomatically = true;
 	});
 
 	it("loads visible groups even when the WebSocket never opens", async () => {
@@ -133,7 +132,7 @@ describe("SyncplayProvider", () => {
 		);
 		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("1"));
-		act(() => TestWebSocket.latest?.onmessage?.({ data: JSON.stringify({ type: "syncplay:group", group: { ...group(2), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" }] } }) } as MessageEvent));
+		act(() => TestSocket.latest?.receive("syncplay:group", { group: { ...group(2), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" }] }));
 		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("2"));
 	});
 

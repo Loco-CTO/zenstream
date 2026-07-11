@@ -75,13 +75,13 @@ describe("SyncplayProvider", () => {
 	});
 
 	it("loads visible groups even when the WebSocket never opens", async () => {
-		TestWebSocket.openAutomatically = false;
+		TestSocket.openAutomatically = false;
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(JSON.stringify({ groups: [{ ...group(1), hostUserId: "alex", members: [{ userId: "alex", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
 		);
 		render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByTestId("group-count")).toHaveTextContent("1"));
-		TestWebSocket.openAutomatically = true;
+		TestSocket.openAutomatically = true;
 	});
 
 	it("refreshes the revision and retries a stale playback command once", async () => {
@@ -132,7 +132,7 @@ describe("SyncplayProvider", () => {
 		);
 		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("1"));
-		act(() => TestSocket.latest?.receive("syncplay:group", { group: { ...group(2), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" }] }));
+		act(() => TestSocket.latest?.receive("syncplay:group", { group: { ...group(2), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" }] } }));
 		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("2"));
 	});
 

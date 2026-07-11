@@ -16,15 +16,6 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  async rewrites() {
-    const orchestrator = process.env.ZSO_URL?.replace(/\/+$/, "");
-    const websocket = (process.env.ZSO_WEBSOCKET_URL?.replace(/\/+$/, "") ?? orchestrator?.replace(/:\d+$/, ":9091"))?.replace(/^ws(s?):/, "http$1:");
-    return {
-      beforeFiles: orchestrator
-        ? [{ source: "/api/syncplay/ws/:path*", destination: `${websocket}/:path*` }]
-        : [],
-    };
-  },
 };
 
 export default nextConfig;

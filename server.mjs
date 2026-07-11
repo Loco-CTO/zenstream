@@ -46,9 +46,10 @@ server.on("upgrade", (request, socket, head) => {
 		return;
 	}
 	const transport = target.protocol === "wss:" || target.protocol === "https:" ? https : http;
+	console.info("Proxying Syncplay WebSocket upgrade", { target: target.origin });
 	const upstream = transport.request({
 		protocol: target.protocol === "wss:" ? "https:" : target.protocol === "ws:" ? "http:" : target.protocol,
-		host: target.hostname,
+		hostname: target.hostname,
 		port: target.port || undefined,
 		path: `${target.pathname}${target.search}`,
 		headers: {
@@ -59,12 +60,14 @@ server.on("upgrade", (request, socket, head) => {
 		},
 	});
 	upstream.on("upgrade", (response, upstreamSocket, upstreamHead) => {
+		console.info("Syncplay WebSocket upstream upgraded", { status: response.statusCode });
 		sendUpgradeResponse(socket, response);
 		if (upstreamHead.length) socket.write(upstreamHead);
 		if (head.length) upstreamSocket.write(head);
 		socket.pipe(upstreamSocket).pipe(socket);
 	});
 	upstream.on("response", (response) => {
+		console.error("Syncplay WebSocket upstream rejected upgrade", { status: response.statusCode });
 		sendUpgradeResponse(socket, response);
 		socket.end();
 	});

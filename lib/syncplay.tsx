@@ -212,6 +212,10 @@ export function SyncplayProvider({
 		[announcePlayback, reconcile, session.userId, setCurrent],
 	);
 	useEffect(() => {
+		// The HTTP snapshot is the source of truth when the WebSocket upgrade is
+		// unavailable (or its first server message is lost). It also lets a user
+		// discover groups created by other people before the socket reconnects.
+		void refreshRef.current().catch(() => undefined);
 		const scheme = window.location.protocol === "https:" ? "wss" : "ws";
 		const socket = new WebSocket(`${scheme}://${window.location.host}/api/syncplay/ws/syncplay?token=${encodeURIComponent(session.token)}`);
 		socketRef.current = socket;

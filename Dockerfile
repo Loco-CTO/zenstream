@@ -7,6 +7,8 @@ RUN pnpm install --frozen-lockfile
 FROM node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable
+ARG ZSO_WEBSOCKET_URL
+ENV ZSO_WEBSOCKET_URL=$ZSO_WEBSOCKET_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build

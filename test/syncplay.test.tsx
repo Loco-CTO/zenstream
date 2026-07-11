@@ -7,11 +7,12 @@ import { I18nProvider } from "@/lib/i18n";
 
 class TestWebSocket {
 	static latest: TestWebSocket | null = null;
+	static openAutomatically = true;
 	onopen: (() => void) | null = null;
 	onmessage: ((event: MessageEvent) => void) | null = null;
 	constructor() {
 		TestWebSocket.latest = this;
-		queueMicrotask(() => this.onopen?.());
+		if (TestWebSocket.openAutomatically) queueMicrotask(() => this.onopen?.());
 	}
 	close() {}
 }
@@ -50,12 +51,26 @@ function Controls() {
 	</>;
 }
 
+function GroupCount() {
+	return <span data-testid="group-count">{useSyncplay().groups.length}</span>;
+}
+
 const session = { token: "token", userId: "user", username: "Alex" };
 function SyncplayTestProvider({ children }: { children: ReactNode }) {
 	return <I18nProvider locale="en"><ToastProvider><SyncplayProvider session={session}>{children}</SyncplayProvider></ToastProvider></I18nProvider>;
 }
 
 describe("SyncplayProvider", () => {
+	it("loads visible groups even when the WebSocket never opens", async () => {
+		TestWebSocket.openAutomatically = false;
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(JSON.stringify({ groups: [{ ...group(1), hostUserId: "alex", members: [{ userId: "alex", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
+		);
+		render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByTestId("group-count")).toHaveTextContent("1"));
+		TestWebSocket.openAutomatically = true;
+	});
+
 	it("refreshes the revision and retries a stale playback command once", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
 			const url = String(input);

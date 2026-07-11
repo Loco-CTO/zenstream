@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { ArrowLeft, AudioLines, Captions, Check, ChevronLeft, FastForward, LoaderCircle, Maximize, Minimize, Pause, Play, Settings, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import {
@@ -35,6 +35,18 @@ export const HLS_TEXT_TRACK_CONFIG = {
 	renderTextTracksNatively: false,
 };
 
+export function advanceToNextEpisode(nextItem: JellyfinItem | null, onNext: Props["onNext"], onClose: Props["onClose"]) {
+	if (nextItem && onNext) {
+		onNext(nextItem);
+		return;
+	}
+	onClose();
+}
+
+export function nextEpisodeSyncplayCommand(item: JellyfinItem) {
+	return { action: "media", itemId: item.Id, position: 0, playing: true };
+}
+
 export function SkipMarkerActions({ markers, currentTime, labelIntro, labelOutro, onSkip }: { markers: { intro?: PlaybackMarker; outro?: PlaybackMarker } | null; currentTime: number; labelIntro: string; labelOutro: string; onSkip: (marker: PlaybackMarker) => void }) {
 	return <div className="pointer-events-none absolute bottom-24 left-5 right-5 z-20 flex justify-end gap-3 md:bottom-28 md:left-10 md:right-10">
 		{markers?.intro && currentTime >= markers.intro.start && currentTime < markers.intro.end && <button aria-label={labelIntro} className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40" onClick={() => { if (markers.intro) onSkip(markers.intro); }}><FastForward className="h-5 w-5" />{labelIntro}</button>}
@@ -58,6 +70,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	const directPlayFallbackRef = useRef(false);
 	const resumeTimeRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
+	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const [url, setUrl] = useState<string>();
@@ -94,6 +107,9 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	useEffect(() => {
 		syncplayApiRef.current = { canControl: syncplay.canControl, command: syncplay.command, presence: syncplay.presence };
 	}, [syncplay.canControl, syncplay.command, syncplay.presence]);
+	useEffect(() => {
+		advancingToNextRef.current = false;
+	}, [item.Id]);
 
 	useEffect(() => {
 		let active = true;
@@ -117,9 +133,27 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		return () => { active = false; };
 	}, [item.Id, item.Type, item.SeriesId, item.IndexNumber, item.ParentIndexNumber, session]);
 
-	useEffect(() => {
-		if (nextChecked && duration > 0 && duration - currentTime <= 0.25 && !nextItem) onClose();
-	}, [currentTime, duration, nextChecked, nextItem, onClose]);
+	const playNext = useCallback(async () => {
+		const target = nextItem;
+		if (advancingToNextRef.current) return;
+		if (target && syncplay.active) {
+			if (!syncplay.canControl) return;
+			advancingToNextRef.current = true;
+			try {
+				await syncplay.command(nextEpisodeSyncplayCommand(target));
+			} catch {
+				advancingToNextRef.current = false;
+				return;
+			}
+		}
+		advancingToNextRef.current = true;
+		setNextItem(null);
+		setNextChecked(false);
+		setCurrentTime(0);
+		setDuration(0);
+		setUrl(undefined);
+		advanceToNextEpisode(target, onNext, onClose);
+	}, [nextItem, onClose, onNext, syncplay.active, syncplay.canControl, syncplay.command]);
 
 	useEffect(() => {
 		void refreshSubtitleStyle();
@@ -400,7 +434,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 	}
 
 	return <div ref={playerRef} className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`} onPointerMove={showControls} onPointerDown={showControls} onClickCapture={(event) => { if (!suppressNextClickRef.current) return; suppressNextClickRef.current = false; event.preventDefault(); event.stopPropagation(); }} onKeyDown={(event) => { showControls(); if (event.target !== event.currentTarget) return; if (event.key === " ") { event.preventDefault(); togglePlay(); } if (event.key === "ArrowLeft") seek(-10); if (event.key === "ArrowRight") seek(10); }} tabIndex={0}>
-		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onWaiting={() => { if (syncplay.active) void syncplay.presence(true, true).catch(() => undefined); }} onCanPlay={() => { if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onPlay={(e) => { handlePlay(); if (suppressSyncPlayRef.current) { suppressSyncPlayRef.current = false; return; } if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"play", itemId:item.Id, position:e.currentTarget.currentTime, playing:true }).catch(() => undefined); }} onPause={(e) => { setPlaying(false); if (suppressSyncPauseRef.current) { suppressSyncPauseRef.current = false; return; } if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"pause", itemId:item.Id, position:e.currentTarget.currentTime, playing:false }).catch(() => undefined); }} onError={handleVideoError}>
+		<video ref={videoRef} className="zenstream-video h-full w-full object-contain" onClick={togglePlay} onDoubleClick={toggleFullscreen} muted={muted} onLoadedMetadata={() => { const value = videoRef.current?.duration ?? 0; setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0)); if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onWaiting={() => { if (syncplay.active) void syncplay.presence(true, true).catch(() => undefined); }} onCanPlay={() => { if (syncplay.active) void syncplay.presence(true, false).catch(() => undefined); }} onDurationChange={() => { const value = videoRef.current?.duration ?? 0; if (Number.isFinite(value) && value > 0) setDuration(Math.max(knownDuration, value)); }} onTimeUpdate={() => { const value = videoRef.current?.currentTime ?? 0; setCurrentTime(Number.isFinite(value) ? Math.min(value, duration || value) : 0); }} onEnded={() => { if (nextChecked && nextItem) void playNext(); else onClose(); }} onPlay={(e) => { handlePlay(); if (suppressSyncPlayRef.current) { suppressSyncPlayRef.current = false; return; } if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"play", itemId:item.Id, position:e.currentTarget.currentTime, playing:true }).catch(() => undefined); }} onPause={(e) => { setPlaying(false); if (suppressSyncPauseRef.current) { suppressSyncPauseRef.current = false; return; } if (syncplay.active && !applyingSyncRef.current && syncplay.canControl) void syncplay.command({ action:"pause", itemId:item.Id, position:e.currentTarget.currentTime, playing:false }).catch(() => undefined); }} onError={handleVideoError}>
 		</video>
 		{subtitle && subtitleCueData?.track === subtitle && <CustomSubtitleCue cues={subtitleCueData.cues} time={currentTime + offset} style={style} />}
 		<div className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`} />
@@ -414,7 +448,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 			<div className="p-4">
 				<div className="flex items-center justify-between gap-3"><p className="text-[11px] font-semibold uppercase tracking-[.22em] text-violet-200">{t("nextUp")}</p><span className="text-[11px] text-white/45">{nextItem.RunTimeTicks ? formatPlayerTime(nextItem.RunTimeTicks / 10_000_000) : ""}</span></div>
 				<div className="mt-3 flex gap-3.5"><img src={landscapeImageUrl(nextItem) ?? undefined} alt="" className="h-[4.5rem] w-36 shrink-0 rounded-xl object-cover shadow-lg shadow-black/30" /><div className="min-w-0 self-center"><p className="text-[11px] font-medium uppercase tracking-wider text-white/50">S{nextItem.ParentIndexNumber ?? 0}:E{nextItem.IndexNumber ?? 0}</p><p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white">{nextItem.Name}</p></div></div>
-				<div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white">{t("stopPlaying")}</button><button type="button" onClick={() => onNext?.(nextItem) ?? onClose()} className="rounded-lg bg-violet-400 px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-violet-950/30 transition hover:bg-violet-300">{t("playNext")}</button></div>
+				<div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white">{t("stopPlaying")}</button><button type="button" onClick={() => { void playNext(); }} className="rounded-lg bg-violet-400 px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-violet-950/30 transition hover:bg-violet-300">{t("playNext")}</button></div>
 			</div>
 		</div>}
 		<div className={`absolute bottom-5 left-5 right-5 transition-opacity duration-300 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}>

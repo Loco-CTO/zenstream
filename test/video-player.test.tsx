@@ -2,6 +2,8 @@ import { act, fireEvent, render } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
 	CustomSubtitleCue,
+	advanceToNextEpisode,
+	nextEpisodeSyncplayCommand,
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
@@ -22,14 +24,12 @@ vi.mock("@/lib/jellyfin", async () => {
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getTrickplayInfo: vi.fn().mockResolvedValue(undefined),
-		playbackStreams: vi
-			.fn()
-			.mockReturnValue({
-				source: { TranscodingUrl: "/video.m3u8" },
-				audio: [],
-				subtitles: [],
-				qualities: [],
-			}),
+		playbackStreams: vi.fn().mockReturnValue({
+			source: { TranscodingUrl: "/video.m3u8" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		}),
 		playbackUrl: vi.fn().mockReturnValue("/video.m3u8"),
 	};
 });
@@ -136,6 +136,43 @@ describe("video player controls", () => {
 		fireEvent.click(skipButton);
 		expect(onSkip).toHaveBeenCalledOnce();
 		expect(skipButton).toHaveClass("pointer-events-auto");
+	});
+
+	it("uses the next episode action without closing the player when Next Up is available", () => {
+		const onNext = vi.fn();
+		const onClose = vi.fn();
+
+		advanceToNextEpisode(
+			{ Id: "episode-2", Name: "Episode 2", Type: "Episode" } as JellyfinItem,
+			onNext,
+			onClose,
+		);
+
+		expect(onNext).toHaveBeenCalledWith(
+			expect.objectContaining({ Id: "episode-2" }),
+		);
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it("closes the player when no next episode is available", () => {
+		const onNext = vi.fn();
+		const onClose = vi.fn();
+
+		advanceToNextEpisode(null, onNext, onClose);
+
+		expect(onNext).not.toHaveBeenCalled();
+		expect(onClose).toHaveBeenCalledOnce();
+	});
+
+	it("starts the next episode at the beginning for Syncplay", () => {
+		expect(
+			nextEpisodeSyncplayCommand({ Id: "episode-2" } as JellyfinItem),
+		).toEqual({
+			action: "media",
+			itemId: "episode-2",
+			position: 0,
+			playing: true,
+		});
 	});
 
 	it("loads subtitle preferences when playback opens", async () => {

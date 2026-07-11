@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const token = (await cookies()).get("token")?.value;
   const username = (await cookies()).get("username")?.value;
-  const base = process.env.ZSO_URL?.replace(/\/+$/, "");
+  const base = process.env.NEXT_PUBLIC_ZSO_URL?.replace(/\/+$/, "");
   if (!token || !base) return NextResponse.json({ error: "Syncplay is unavailable." }, { status: token ? 503 : 401 });
   const path = (await context.params).path.join("/");
   const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.text();

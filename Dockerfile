@@ -7,6 +7,8 @@ RUN pnpm install --frozen-lockfile
 FROM node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable
+ARG NEXT_PUBLIC_ZSO_URL
+ENV NEXT_PUBLIC_ZSO_URL=$NEXT_PUBLIC_ZSO_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build

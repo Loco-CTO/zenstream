@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
 
 async function proxyLocale(method: "GET" | "PATCH", body?: string) {
 	const token = (await cookies()).get("token")?.value;
-	const baseUrl = process.env.ZSO_URL?.replace(/\/+$/, "");
+	const baseUrl = process.env.NEXT_PUBLIC_ZSO_URL?.replace(/\/+$/, "");
 	if (!token)
 		return NextResponse.json(
 			{ error: "Authentication required." },
@@ -19,7 +19,7 @@ async function proxyLocale(method: "GET" | "PATCH", body?: string) {
 		);
 	if (!baseUrl)
 		return NextResponse.json(
-			{ error: "ZSO_URL is not configured." },
+			{ error: "NEXT_PUBLIC_ZSO_URL is not configured." },
 			{ status: 503 },
 		);
 

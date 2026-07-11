@@ -385,7 +385,9 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 			maxStreamingBitrate: bitrate,
 			mediaSourceId: info?.source?.Id,
 			audioStreamIndex: audio ? Number(audio) : undefined,
-			subtitleStreamIndex: subtitle ? Number(subtitle) : -1,
+			// Subtitles are rendered by the custom VTT overlay; never ask Jellyfin
+			// to encode them into the video stream.
+			subtitleStreamIndex: -1,
 		}).then((playback) => {
 			if (request !== qualityRequestRef.current) return;
 			const parsed = playbackStreams(playback);
@@ -404,7 +406,6 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		const video = videoRef.current;
 		const position = video && Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
 		const nextAudio = kind === "audio" ? value : audio;
-		const nextSubtitle = kind === "subtitle" ? value : subtitle;
 		if (kind === "audio") setAudio(value);
 		else {
 			setSubtitle(value);
@@ -418,7 +419,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		void getPlaybackInfo(session, item.Id, {
 			mediaSourceId: info.source.Id,
 			audioStreamIndex: nextAudio ? Number(nextAudio) : undefined,
-			subtitleStreamIndex: nextSubtitle ? Number(nextSubtitle) : -1,
+			subtitleStreamIndex: -1,
 		}).then((playback) => {
 			if (request !== qualityRequestRef.current) return;
 			const parsed = playbackStreams(playback);
@@ -442,7 +443,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		directPlayFallbackRef.current = true;
 		setError("");
 		setQualityLoading(true);
-		void getPlaybackInfo(session, item.Id, { mediaSourceId: info.source.Id, audioStreamIndex: audio ? Number(audio) : undefined, subtitleStreamIndex: subtitle ? Number(subtitle) : -1 })
+		void getPlaybackInfo(session, item.Id, { mediaSourceId: info.source.Id, audioStreamIndex: audio ? Number(audio) : undefined, subtitleStreamIndex: -1 })
 			.then((playback) => {
 				const parsed = playbackStreams(playback);
 				if (!parsed.source?.TranscodingUrl) throw new Error("Jellyfin did not return a transcoding URL.");

@@ -96,6 +96,30 @@ export function syncplayTimelineTarget(state: SyncplayGroup, now: number) {
 	};
 }
 
+export async function startSyncedMedia(
+	video: Pick<HTMLMediaElement, "muted" | "play">,
+	onMutedFallback: () => void,
+	onBlocked: () => void,
+) {
+	try {
+		await video.play();
+		return true;
+	} catch {
+		if (!video.muted) {
+			video.muted = true;
+			onMutedFallback();
+			try {
+				await video.play();
+				return true;
+			} catch {
+				// The stream is still not playable; use the readiness barrier below.
+			}
+		}
+		onBlocked();
+		return false;
+	}
+}
+
 export function SkipMarkerActions({
 	markers,
 	currentTime,
@@ -176,7 +200,7 @@ export function VideoPlayer({
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const bufferedRef = useRef(false);
 	const appliedTimelineRef = useRef<string | null>(null);
-	const seekPreviewRef = useRef<number | null>(null);
+	const seekPreviewRef = useRef<{ itemId: string; value: number } | null>(null);
 	const [url, setUrl] = useState<string>();
 	const [info, setInfo] = useState<ReturnType<typeof playbackStreams>>();
 	const [markers, setMarkers] = useState<{
@@ -215,7 +239,10 @@ export function VideoPlayer({
 	const [timelinePreview, setTimelinePreview] = useState<
 		ReturnType<typeof trickplayPreview> & { time: number; left: number }
 	>();
-	const [seekPreview, setSeekPreview] = useState<number | null>(null);
+	const [seekPreview, setSeekPreview] = useState<{
+		itemId: string;
+		value: number;
+	} | null>(null);
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<JellyfinItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
@@ -238,8 +265,6 @@ export function VideoPlayer({
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
 		advancingToNextRef.current = false;
-		seekPreviewRef.current = null;
-		setSeekPreview(null);
 	}, [item.Id]);
 
 	useEffect(() => {
@@ -403,10 +428,7 @@ export function VideoPlayer({
 			if (forceSeek || Math.abs(error) > 2) video.currentTime = timeline.position;
 			else if (Math.abs(error) <= .25) video.playbackRate = 1;
 			else video.playbackRate = Math.max(.95, Math.min(1.05, 1 - error / 12));
-			if (timeline.shouldPlay && video.paused) {
-				suppressSyncPlayRef.current = true;
-				void video.play().catch(() => { suppressSyncPlayRef.current = false; });
-			}
+			if (timeline.shouldPlay && video.paused) startSyncedPlayback(video);
 			if (!timeline.shouldPlay && !video.paused) {
 				suppressSyncPauseRef.current = true; video.pause(); video.playbackRate = 1;
 			}
@@ -463,12 +485,8 @@ export function VideoPlayer({
 				applyingSyncRef.current = true;
 				if (Number.isFinite(timeline.position) && timeline.position < video.duration)
 					video.currentTime = timeline.position;
-				if (timeline.shouldPlay) {
-					suppressSyncPlayRef.current = true;
-					void video.play().catch(() => {
-						suppressSyncPlayRef.current = false;
-					});
-				} else if (!video.paused) {
+				if (timeline.shouldPlay) startSyncedPlayback(video);
+				else if (!video.paused) {
 					suppressSyncPauseRef.current = true;
 					video.pause();
 				}
@@ -610,6 +628,16 @@ export function VideoPlayer({
 				.catch(() => undefined);
 		}, loading ? 750 : 300);
 	}
+	function startSyncedPlayback(video: HTMLVideoElement) {
+		suppressSyncPlayRef.current = true;
+		void startSyncedMedia(
+			video,
+			() => setMuted(true),
+			() => reportBuffering(true),
+		).then((started) => {
+			if (!started) suppressSyncPlayRef.current = false;
+		});
+	}
 
 	function togglePlay() {
 		const video = videoRef.current;
@@ -660,8 +688,9 @@ export function VideoPlayer({
 		if (!video) return;
 		if (syncplay.active) {
 			if (syncplay.canControl) {
-				seekPreviewRef.current = target;
-				setSeekPreview(target);
+				const preview = { itemId: item.Id, value: target };
+				seekPreviewRef.current = preview;
+				setSeekPreview(preview);
 			}
 			return;
 		}
@@ -669,10 +698,17 @@ export function VideoPlayer({
 		setCurrentTime(target);
 	}
 	function commitPendingSeek() {
-		const target = seekPreviewRef.current;
+		const pending = seekPreviewRef.current;
 		const video = videoRef.current;
-		if (target == null || !video || !syncplay.active || !syncplay.canControl)
+		if (
+			!pending ||
+			pending.itemId !== item.Id ||
+			!video ||
+			!syncplay.active ||
+			!syncplay.canControl
+		)
 			return;
+		const target = pending.value;
 		seekPreviewRef.current = null;
 		setSeekPreview(null);
 		void syncplay
@@ -1096,8 +1132,10 @@ export function VideoPlayer({
 						max={duration}
 						step="0.1"
 						value={Math.min(
-							seekPreview ?? currentTime,
-							duration || seekPreview || currentTime,
+							seekPreview?.itemId === item.Id
+								? seekPreview.value
+								: currentTime,
+							duration || currentTime,
 						)}
 						className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 						onPointerMove={previewTimeline}

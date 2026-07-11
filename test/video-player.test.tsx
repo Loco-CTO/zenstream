@@ -8,6 +8,7 @@ import {
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
 	SkipMarkerActions,
+	startSyncedMedia,
 	syncplayTimelineTarget,
 	VideoPlayer,
 } from "@/components/player/video-player";
@@ -207,6 +208,34 @@ describe("video player controls", () => {
 			shouldPlay: true,
 			startsAt: 110,
 		});
+	});
+
+	it("retries a rejected Syncplay start muted before blocking the group", async () => {
+		const video = {
+			muted: false,
+			play: vi.fn()
+				.mockRejectedValueOnce(new Error("Autoplay blocked"))
+				.mockResolvedValueOnce(undefined),
+		};
+		const muted = vi.fn();
+		const blocked = vi.fn();
+
+		await expect(startSyncedMedia(video, muted, blocked)).resolves.toBe(true);
+		expect(video.muted).toBe(true);
+		expect(video.play).toHaveBeenCalledTimes(2);
+		expect(muted).toHaveBeenCalledOnce();
+		expect(blocked).not.toHaveBeenCalled();
+	});
+
+	it("blocks Syncplay readiness when playback still cannot start", async () => {
+		const video = { muted: false, play: vi.fn().mockRejectedValue(new Error("No buffer")) };
+		const muted = vi.fn();
+		const blocked = vi.fn();
+
+		await expect(startSyncedMedia(video, muted, blocked)).resolves.toBe(false);
+		expect(video.play).toHaveBeenCalledTimes(2);
+		expect(muted).toHaveBeenCalledOnce();
+		expect(blocked).toHaveBeenCalledOnce();
 	});
 
 	it("loads subtitle preferences when playback opens", async () => {

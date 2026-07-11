@@ -214,6 +214,9 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		const position = item.UserData?.PlaybackPositionTicks ? item.UserData.PlaybackPositionTicks / 10_000_000 : 0;
 		const onMetadata = () => {
 			disableNativeSubtitleTracks(video);
+			// A quality/track switch can resolve through the Syncplay path too;
+			// clear the transient overlay before any early return below.
+			setQualityLoading(false);
 			const groupState = syncplayStateRef.current;
 			const syncplayApi = syncplayApiRef.current;
 			if (groupState?.itemId === item.Id) {
@@ -242,7 +245,6 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 			resumeTimeRef.current = 0;
 			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
 			setDuration(Math.max(knownDuration, mediaDuration));
-			setQualityLoading(false);
 			void video.play().catch(() => undefined);
 		};
 		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
@@ -398,6 +400,39 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 			}
 		});
 	}
+	function chooseTrack(kind: "audio" | "subtitle", value: string) {
+		const video = videoRef.current;
+		const position = video && Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
+		const nextAudio = kind === "audio" ? value : audio;
+		const nextSubtitle = kind === "subtitle" ? value : subtitle;
+		if (kind === "audio") setAudio(value);
+		else {
+			setSubtitle(value);
+			setSubtitleCueData(undefined);
+		}
+		if (!info?.source) return;
+		const request = ++qualityRequestRef.current;
+		resumeTimeRef.current = position;
+		setQualityLoading(true);
+		setError("");
+		void getPlaybackInfo(session, item.Id, {
+			mediaSourceId: info.source.Id,
+			audioStreamIndex: nextAudio ? Number(nextAudio) : undefined,
+			subtitleStreamIndex: nextSubtitle ? Number(nextSubtitle) : -1,
+		}).then((playback) => {
+			if (request !== qualityRequestRef.current) return;
+			const parsed = playbackStreams(playback);
+			const source = preserveTrickplay(parsed.source, info.source);
+			if (!source) throw new Error("Jellyfin did not return a media source.");
+			setInfo((previous) => ({ ...parsed, source, qualities: previous?.qualities ?? parsed.qualities }));
+			setUrl(playbackUrl(session, item.Id, source, source.TranscodingUrl ? 1_000_000 : 0));
+		}).catch(() => {
+			if (request === qualityRequestRef.current) {
+				setQualityLoading(false);
+				setError("This track could not be loaded.");
+			}
+		});
+	}
 	function skip(marker?: PlaybackMarker) { if (marker) seekTo(marker.end); }
 	function handleVideoError() {
 		const video = videoRef.current;
@@ -459,8 +494,8 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 				{previewUnavailable && <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 rounded bg-black/90 px-3 py-2 text-xs text-white/65">Preview unavailable</div>}
 			</div>
 			<div className="relative flex items-center gap-3"><button aria-label="Skip back 10 seconds" onClick={() => seek(-10)}><SkipBack /></button><button aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>{playing ? <Pause /> : <Play />}</button><button aria-label="Skip forward 10 seconds" onClick={() => seek(10)}><SkipForward /></button><span className="text-sm tabular-nums text-white/80">-{formatPlayerTime(Math.max(0, duration - currentTime))}</span><span className="flex-1" />{(info?.audio.length ?? 0) > 1 && <button data-player-context-trigger aria-label={t("audioTrack")} onClick={() => { setTrackMenu(trackMenu === "audio" ? null : "audio"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><AudioLines /></button>}{(info?.subtitles.length ?? 0) > 0 && <button data-player-context-trigger aria-label={t("subtitleTrack")} onClick={() => { setTrackMenu(trackMenu === "subtitle" ? null : "subtitle"); setSettingsOpen(false); }} className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"><Captions /></button>}<div className="group relative flex items-center"><div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"><input aria-label="Volume" type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} className="h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300" /></div><button aria-label={muted ? "Unmute" : "Mute"} onClick={() => setMuted(!muted)}>{muted ? <VolumeX /> : <Volume2 />}</button></div><button data-player-context-trigger aria-label={t("settings")} onClick={() => { setSettingsOpen(!settingsOpen); setSettingsSection("root"); setTrackMenu(null); }}><Settings /></button><button aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"} onClick={toggleFullscreen}>{isFullscreen ? <Minimize /> : <Maximize />}</button>
-				{trackMenu === "audio" && <ChoicePanel options={info!.audio.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("audioTrack") }))} value={audio} onChange={setAudio} />}
-				{trackMenu === "subtitle" && <ChoicePanel options={[{ value: "", label: t("subtitlesOff") }, ...info!.subtitles.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack") }))]} value={subtitle} onChange={setSubtitle} />}
+				{trackMenu === "audio" && <ChoicePanel options={info!.audio.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("audioTrack") }))} value={audio} onChange={(value) => chooseTrack("audio", value)} />}
+				{trackMenu === "subtitle" && <ChoicePanel options={[{ value: "", label: t("subtitlesOff") }, ...info!.subtitles.map((track) => ({ value: String(track.Index), label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack") }))]} value={subtitle} onChange={(value) => chooseTrack("subtitle", value)} />}
 				{settingsOpen && <div data-player-context onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute bottom-full right-0 z-30 mb-2 min-w-64 rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl">
 				{settingsSection === "root" && <div className="grid gap-1"><MenuRow label={t("quality")} onClick={() => setSettingsSection("quality")} /><MenuRow label={t("speed")} onClick={() => setSettingsSection("speed")} /><MenuRow label={t("subtitleOffset")} onClick={() => setSettingsSection("offset")} /></div>}
 				{settingsSection === "quality" && <SettingsSubmenu title={t("quality")} onBack={() => setSettingsSection("root")}><ChoicePanel floating={false} options={(info?.qualities ?? [0]).map((value) => ({ value: String(value), label: value ? `${Math.round(value / 1_000_000)} Mbps` : "Auto" }))} value={quality} onChange={chooseQuality} /></SettingsSubmenu>}

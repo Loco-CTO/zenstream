@@ -280,8 +280,8 @@ export function DetailPage({
 							/>
 						</div>
 						{trackChoices &&
-							(trackChoices.audio.length > 1 ||
-								trackChoices.subtitles.length > 1) && (
+							(trackChoices.audio.length > 0 ||
+								trackChoices.subtitles.length > 0) && (
 								<InlineTrackChoices
 									tracks={trackChoices}
 									selected={selectedTracks}
@@ -361,7 +361,7 @@ function InlineTrackChoices({
 					onChange={(audio) => onChange({ ...selected, audio: Number(audio) })}
 				/>
 			)}
-			{tracks.subtitles.length > 1 && (
+			{tracks.subtitles.length > 0 && (
 				<TrackSelect
 					label={t("subtitleTrack")}
 					options={[
@@ -418,7 +418,7 @@ function TrackSelectionDialog({
 							onChange={(audio) => onChange({ ...selected, audio })}
 						/>
 					)}
-					{tracks.subtitles.length > 1 && (
+					{tracks.subtitles.length > 0 && (
 						<TrackSelect
 							label={t("subtitleTrack")}
 							options={[

@@ -1,8 +1,13 @@
 import http from "node:http";
 import https from "node:https";
+import { readFileSync } from "node:fs";
 import module from "node:module";
 
 const require = module.createRequire(import.meta.url);
+process.env.NODE_ENV = "production";
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(
+	JSON.parse(readFileSync(".next/required-server-files.json", "utf8")).config,
+);
 const next = require("next");
 const app = next({ dev: false, dir: "." });
 const handle = app.getRequestHandler();

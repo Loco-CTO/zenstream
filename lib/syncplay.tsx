@@ -218,7 +218,8 @@ export function SyncplayProvider({
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
 		void refreshRef.current().catch(() => undefined);
-		const socketOrigin = process.env.NEXT_PUBLIC_ZSO_URL ?? window.location.origin;
+		const socketOrigin = (process.env.NEXT_PUBLIC_ZSO_URL ?? window.location.origin)
+			.replace(/\/+$/, "");
 		const socket = io(`${socketOrigin}/syncplay`, {
 			path: "/api/socket.io",
 			transports: ["websocket"],

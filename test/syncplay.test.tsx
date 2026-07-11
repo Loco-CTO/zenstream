@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import { io } from "socket.io-client";
 import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
@@ -66,6 +67,18 @@ function SyncplayTestProvider({ children }: { children: ReactNode }) {
 }
 
 describe("SyncplayProvider", () => {
+	it("normalizes a trailing slash in the public Socket.IO origin", () => {
+		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
+		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.amai.space/";
+		const socketFactory = vi.mocked(io);
+		const initialCalls = socketFactory.mock.calls.length;
+		const view = render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
+		expect(socketFactory.mock.calls[initialCalls]?.[0]).toBe("https://zso.amai.space/syncplay");
+		view.unmount();
+		if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_ZSO_URL;
+		else process.env.NEXT_PUBLIC_ZSO_URL = originalOrigin;
+	});
+
 	it("disconnects the Socket.IO client when the provider unmounts", () => {
 		TestSocket.openAutomatically = false;
 		const view = render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);

@@ -63,7 +63,14 @@ server.on("upgrade", (request, socket, head) => {
 		sendUpgradeResponse(socket, response);
 		socket.end();
 	});
-	upstream.on("error", () => socket.destroy());
+	upstream.on("error", (error) => {
+		console.error("Syncplay WebSocket upstream connection failed", {
+			code: error.code,
+			message: error.message,
+			target: target.origin,
+		});
+		socket.destroy();
+	});
 	upstream.end();
 });
 

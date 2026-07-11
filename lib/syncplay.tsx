@@ -244,9 +244,12 @@ export function SyncplayProvider({
 				group.itemId !== activeRef.current?.itemId
 			)
 				announcePlayback(group.itemId);
-			if (activeRef.current?.id === group.id)
-				reconcile(group.members.some((member) => member.userId === session.userId) ? group : null);
-			else setCurrent(group);
+			const isMember = group.members.some((member) => member.userId === session.userId);
+			if (activeRef.current?.id === group.id) reconcile(isMember ? group : null);
+			// All users receive group broadcasts so they can discover public groups.
+			// A broadcast for a group someone else joined must never turn that group
+			// into this user's active session.
+			else if (isMember) setCurrent(group);
 			setGroups((old) => {
 				const previous = old.find((entry) => entry.id === group.id);
 				if (previous && previous.revision > group.revision) return old;

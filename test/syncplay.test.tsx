@@ -45,6 +45,10 @@ const group = (revision: number): SyncplayGroup => ({
 	updatedAt: 0,
 	members: [],
 });
+const joinedGroup = (revision: number): SyncplayGroup => ({
+	...group(revision),
+	members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }],
+});
 
 function Controls() {
 	const syncplay = useSyncplay();
@@ -104,14 +108,14 @@ describe("SyncplayProvider", () => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 				return new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] }));
-			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(group(1)));
+			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(joinedGroup(1)));
 			if (url.endsWith("/groups/group/command")) {
 				const revision = JSON.parse(String(init?.body)).expectedRevision;
 				return revision === 1
 					? new Response(JSON.stringify({ message: "Playback state is out of date." }), { status: 409 })
-					: new Response(JSON.stringify(group(3)));
+					: new Response(JSON.stringify(joinedGroup(3)));
 			}
-			if (url.endsWith("/groups/group")) return new Response(JSON.stringify(group(2)));
+			if (url.endsWith("/groups/group")) return new Response(JSON.stringify(joinedGroup(2)));
 			throw new Error(`Unexpected request: ${url}`);
 		});
 
@@ -151,12 +155,29 @@ describe("SyncplayProvider", () => {
 		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("2"));
 	});
 
+	it("keeps another user's broadcast discoverable without joining it", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(JSON.stringify({ groups: [] })),
+		);
+		render(<SyncplayTestProvider><Controls /><GroupCount /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("none"));
+		act(() => TestSocket.latest?.receive("syncplay:group", {
+			group: {
+				...group(1),
+				hostUserId: "alex",
+				members: [{ userId: "alex", username: "Alex", viewing: false, loading: false, role: "host" }],
+			},
+		}));
+		await waitFor(() => expect(screen.getByTestId("group-count")).toHaveTextContent("1"));
+		expect(screen.getByTestId("active-group")).toHaveTextContent("none");
+	});
+
 	it("clears a stale group when leaving it is rejected because membership changed", async () => {
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 				return new Response(JSON.stringify({ groups: [] }));
-			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(group(1)));
+			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(joinedGroup(1)));
 			if (url.endsWith("/groups/group") && init?.method === "DELETE")
 				return new Response(JSON.stringify({ message: "Join this group first." }), { status: 403 });
 			throw new Error(`Unexpected request: ${url}`);

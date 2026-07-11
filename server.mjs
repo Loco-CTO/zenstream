@@ -51,7 +51,12 @@ server.on("upgrade", (request, socket, head) => {
 		host: target.hostname,
 		port: target.port || undefined,
 		path: `${target.pathname}${target.search}`,
-		headers: { ...request.headers, host: target.host },
+		headers: {
+			...request.headers,
+			host: target.host,
+			connection: "Upgrade",
+			upgrade: "websocket",
+		},
 	});
 	upstream.on("upgrade", (response, upstreamSocket, upstreamHead) => {
 		sendUpgradeResponse(socket, response);

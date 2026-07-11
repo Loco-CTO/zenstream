@@ -170,3 +170,4 @@ syncplayLeaveFailed: Syncplay グループから退出できませんでした�
 syncplaySettingsFailed: Syncplay の設定を更新できませんでした。
 syncplayPlaybackFailed: Syncplay の再生状態を更新できませんでした。
 syncplayPresenceFailed: Syncplay の準備状態を更新できませんでした。
+syncplayRemoveMember: "{member} を削除"

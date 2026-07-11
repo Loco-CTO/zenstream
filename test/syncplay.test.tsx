@@ -41,6 +41,7 @@ const group = (revision: number): SyncplayGroup => ({
 	playing: false,
 	resumeWhenReady: false,
 	revision,
+	mediaGeneration: 0,
 	updatedAt: 0,
 	members: [],
 });

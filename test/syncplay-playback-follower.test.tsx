@@ -27,6 +27,7 @@ const group = (overrides: Partial<SyncplayGroup> = {}): SyncplayGroup => ({
 	playing: true,
 	resumeWhenReady: false,
 	revision: 3,
+	mediaGeneration: 1,
 	updatedAt: 0,
 	members: [],
 	...overrides,

@@ -25,12 +25,14 @@ export type SyncplayGroup = {
 	playing: boolean;
 	resumeWhenReady: boolean;
 	revision: number;
+	mediaGeneration: number;
 	updatedAt: number;
 	members: {
 		userId: string;
 		username: string;
 		viewing: boolean;
 		loading: boolean;
+		readyGeneration: number;
 		role: "host" | "viewer";
 	}[];
 };
@@ -48,6 +50,7 @@ type Context = {
 	leave: () => Promise<void>;
 	refresh: () => Promise<void>;
 	setControls: (value: boolean) => Promise<void>;
+	removeMember: (userId: string) => Promise<void>;
 	command: (value: Command) => Promise<void>;
 	presence: (viewing: boolean, loading: boolean) => Promise<void>;
 	canControl: boolean;
@@ -60,6 +63,7 @@ const emptyContext: Context = {
 	leave: async () => undefined,
 	refresh: async () => undefined,
 	setControls: async () => undefined,
+	removeMember: async () => undefined,
 	command: async () => undefined,
 	presence: async () => undefined,
 	canControl: false,
@@ -69,6 +73,7 @@ class SyncplayRequestError extends Error {
 	constructor(
 		message: string,
 		readonly status: number,
+		readonly group?: SyncplayGroup,
 	) {
 		super(message);
 	}
@@ -80,13 +85,20 @@ async function call(path: string, method = "GET", body?: unknown) {
 		body: body ? JSON.stringify(body) : undefined,
 		cache: "no-store",
 	});
-	if (!response.ok)
+	if (!response.ok) {
+		const error = await response.json().catch(() => ({}));
 		throw new SyncplayRequestError(
-			(await response.json().catch(() => ({}))).message ??
+			error.message ??
 				"Syncplay request failed.",
 			response.status,
+			error.group,
 		);
+	}
 	return response.status === 204 ? null : response.json();
+}
+
+function operationId() {
+	return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
 
 export function SyncplayProvider({
@@ -103,10 +115,14 @@ export function SyncplayProvider({
 	const activeRef = useRef<SyncplayGroup | null>(null);
 	const socketRef = useRef<Socket | null>(null);
 	const commandInFlightRef = useRef(false);
+	const presenceSequenceRef = useRef(0);
+	const revisionRef = useRef(new Map<string, number>());
+	const tombstonesRef = useRef(new Map<string, number>());
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
 
 	const setCurrent = useCallback((group: SyncplayGroup | null) => {
+		if (group) revisionRef.current.set(group.id, group.revision);
 		activeRef.current = group;
 		setActive(group);
 	}, []);
@@ -171,7 +187,10 @@ export function SyncplayProvider({
 	);
 	const refresh = useCallback(async () => {
 		const data = (await call("groups")) as { groups: SyncplayGroup[] };
-		setGroups(data.groups);
+		setGroups((old) => data.groups.map((group) => {
+			const known = old.find((entry) => entry.id === group.id);
+			return known && known.revision > group.revision ? known : group;
+		}));
 		const current = activeRef.current;
 		reconcile(
 			current
@@ -191,9 +210,13 @@ export function SyncplayProvider({
 	}, [reconcile, refresh]);
 	const adopt = useCallback(
 		(group: SyncplayGroup, announceNewMedia = false) => {
+			const tombstone = tombstonesRef.current.get(group.id);
+			const knownRevision = revisionRef.current.get(group.id);
+			if ((tombstone != null && group.revision <= tombstone) || (knownRevision != null && group.revision < knownRevision)) return;
 			if (activeRef.current?.id === group.id && group.revision < activeRef.current.revision)
 				return;
 			hydratedRef.current = true;
+			revisionRef.current.set(group.id, group.revision);
 			if (
 				announceNewMedia &&
 				activeRef.current?.id !== group.id &&
@@ -234,7 +257,7 @@ export function SyncplayProvider({
 		socket.on("connect", () => void refreshRef.current().catch(() => undefined));
 		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
 			const next = message.groups ?? [];
-			setGroups(next);
+			for (const group of next) adopt(group);
 			const current = activeRef.current;
 			reconcileRef.current(current
 				? (next.find((group) => group.id === current.id && group.members.some((member) => member.userId === session.userId)) ?? null)
@@ -243,18 +266,16 @@ export function SyncplayProvider({
 		socket.on("syncplay:group", (message: { group?: SyncplayGroup }) => {
 			if (!message.group) return;
 			const group = message.group;
-			setGroups((old) => {
-				const previous = old.find((entry) => entry.id === group.id);
-				if (previous && previous.revision > group.revision) return old;
-				return [group, ...old.filter((entry) => entry.id !== group.id)];
-			});
-			if (activeRef.current?.id === group.id)
-				reconcileRef.current(group.members.some((member) => member.userId === session.userId) ? group : null);
-			else if (!activeRef.current && group.members.some((member) => member.userId === session.userId)) reconcileRef.current(group);
+			adopt(group);
 		});
-		socket.on("syncplay:group-ended", (message: { id?: string }) => {
+		socket.on("syncplay:group-ended", (message: { id?: string; revision?: number }) => {
 			if (!message.id) return;
 			const id = message.id;
+			const revision = message.revision ?? Number.MAX_SAFE_INTEGER;
+			const known = revisionRef.current.get(id) ?? -1;
+			if (revision < known) return;
+			tombstonesRef.current.set(id, revision);
+			revisionRef.current.set(id, revision);
 			setGroups((old) => old.filter((group) => group.id !== id));
 			if (activeRef.current?.id === id) reconcileRef.current(null);
 		});
@@ -276,7 +297,8 @@ export function SyncplayProvider({
 	};
 	const join = async (id: string) => {
 		try {
-			const group = (await call(`groups/${id}/join`, "POST")) as SyncplayGroup;
+			const known = groups.find((entry) => entry.id === id);
+			const group = (await call(`groups/${id}/join`, "POST", { expectedRevision: known?.revision, operationId: operationId() })) as SyncplayGroup;
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
 		} catch (error) {
@@ -288,7 +310,7 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return;
 		try {
-			await call(`groups/${group.id}`, "DELETE");
+			await call(`groups/${group.id}`, "DELETE", { expectedRevision: group.revision, operationId: operationId() });
 			setCurrent(null);
 			await refresh();
 			toast.success(t("syncplayLeftGroup", { group: group.name }));
@@ -313,8 +335,20 @@ export function SyncplayProvider({
 			adopt(
 				(await call(`groups/${group.id}`, "PATCH", {
 					allowViewerControls: value,
+					expectedRevision: group.revision,
+					operationId: operationId(),
 				})) as SyncplayGroup,
 			);
+		} catch (error) {
+			toast.error(t("syncplaySettingsFailed"));
+			throw error;
+		}
+	};
+	const removeMember = async (userId: string) => {
+		const group = activeRef.current;
+		if (!group) return;
+		try {
+			adopt((await call(`groups/${group.id}/members/${encodeURIComponent(userId)}`, "DELETE", { expectedRevision: group.revision, operationId: operationId() })) as SyncplayGroup);
 		} catch (error) {
 			toast.error(t("syncplaySettingsFailed"));
 			throw error;
@@ -324,10 +358,12 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group || commandInFlightRef.current) return;
 		commandInFlightRef.current = true;
+		const id = operationId();
 		const send = (revision: number) =>
 			call(`groups/${group.id}/command`, "POST", {
 				...value,
-				revision,
+				expectedRevision: revision,
+				operationId: id,
 			}) as Promise<SyncplayGroup>;
 		try {
 			try {
@@ -335,7 +371,7 @@ export function SyncplayProvider({
 			} catch (error) {
 				if (!(error instanceof SyncplayRequestError) || error.status !== 409)
 					throw error;
-				const latest = (await call(`groups/${group.id}`)) as SyncplayGroup;
+				const latest = (error.group ?? await call(`groups/${group.id}`)) as SyncplayGroup;
 				adopt(latest);
 				try {
 					adopt(await send(latest.revision), true);
@@ -363,6 +399,9 @@ export function SyncplayProvider({
 				(await call(`groups/${group.id}/presence`, "POST", {
 					viewing,
 					loading,
+					mediaGeneration: group.mediaGeneration,
+					presenceSequence: ++presenceSequenceRef.current,
+					operationId: operationId(),
 				})) as SyncplayGroup,
 			);
 		} catch (error) {
@@ -378,6 +417,7 @@ export function SyncplayProvider({
 		leave,
 		refresh,
 		setControls,
+		removeMember,
 		command,
 		presence,
 		canControl: Boolean(

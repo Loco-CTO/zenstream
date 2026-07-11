@@ -170,3 +170,4 @@ syncplayLeaveFailed: Could not leave the Syncplay group.
 syncplaySettingsFailed: Could not update Syncplay settings.
 syncplayPlaybackFailed: Could not update Syncplay playback.
 syncplayPresenceFailed: Could not update Syncplay readiness.
+syncplayRemoveMember: Remove {member}

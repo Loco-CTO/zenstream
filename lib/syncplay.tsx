@@ -213,6 +213,7 @@ export function SyncplayProvider({
 		[announcePlayback, reconcile, session.userId, setCurrent],
 	);
 	useEffect(() => {
+		let disposed = false;
 		// The HTTP snapshot is the source of truth when the WebSocket upgrade is
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
@@ -222,8 +223,12 @@ export function SyncplayProvider({
 			path: "/api/socket.io",
 			transports: ["websocket"],
 			auth: { token: session.token },
+			autoConnect: false,
 		});
 		socketRef.current = socket;
+		queueMicrotask(() => {
+			if (!disposed) socket.connect();
+		});
 		// A single recovery read covers an upgrade that loses its first frame.
 		socket.on("connect", () => void refreshRef.current().catch(() => undefined));
 		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
@@ -253,6 +258,7 @@ export function SyncplayProvider({
 			if (activeRef.current?.id === id) reconcileRef.current(null);
 		});
 		return () => {
+			disposed = true;
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
 		};

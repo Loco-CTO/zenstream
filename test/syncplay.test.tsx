@@ -9,6 +9,7 @@ class TestSocket {
 	static latest: TestSocket | null = null;
 	static openAutomatically = true;
 	private handlers = new Map<string, (message?: unknown) => void>();
+	connect = vi.fn();
 	disconnect = vi.fn();
 	constructor() {
 		TestSocket.latest = this;

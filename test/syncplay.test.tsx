@@ -8,13 +8,18 @@ import { I18nProvider } from "@/lib/i18n";
 class TestWebSocket {
 	static latest: TestWebSocket | null = null;
 	static openAutomatically = true;
+	readyState = 0;
 	onopen: (() => void) | null = null;
 	onmessage: ((event: MessageEvent) => void) | null = null;
+	close = vi.fn(() => { this.readyState = 3; });
 	constructor() {
 		TestWebSocket.latest = this;
-		if (TestWebSocket.openAutomatically) queueMicrotask(() => this.onopen?.());
+		if (TestWebSocket.openAutomatically) queueMicrotask(() => {
+			if (this.readyState !== 0) return;
+			this.readyState = 1;
+			this.onopen?.();
+		});
 	}
-	close() {}
 }
 vi.stubGlobal("WebSocket", TestWebSocket);
 
@@ -61,6 +66,15 @@ function SyncplayTestProvider({ children }: { children: ReactNode }) {
 }
 
 describe("SyncplayProvider", () => {
+	it("does not close a socket while its connection is still pending", () => {
+		TestWebSocket.openAutomatically = false;
+		const view = render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
+		const socket = TestWebSocket.latest;
+		view.unmount();
+		expect(socket?.close).not.toHaveBeenCalled();
+		TestWebSocket.openAutomatically = true;
+	});
+
 	it("loads visible groups even when the WebSocket never opens", async () => {
 		TestWebSocket.openAutomatically = false;
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(

@@ -3,13 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        ZSO_WEBSOCKET_URL: ${ZSO_WEBSOCKET_URL:-ws://host.docker.internal:9091}
     ports:
       - "${ZENSTREAM_PORT:-9086}:9086"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_JELLYFIN_URL: ${NEXT_PUBLIC_JELLYFIN_URL:?Set NEXT_PUBLIC_JELLYFIN_URL}
       ZSO_URL: ${ZSO_URL:-http://host.docker.internal:9088}
-      ZSO_WEBSOCKET_URL: ${ZSO_WEBSOCKET_URL:-ws://host.docker.internal:9091}
     restart: unless-stopped

@@ -26,6 +26,13 @@ export type SyncplayGroup = {
 	resumeWhenReady: boolean;
 	revision: number;
 	mediaGeneration?: number;
+	groupRevision?: number;
+	timelineRevision?: number;
+	anchorPosition?: number;
+	anchorServerTime?: number;
+	effectiveAt?: number;
+	playbackState?: "playing" | "paused";
+	pauseReason?: string | null;
 	updatedAt: number;
 	members: {
 		userId: string;
@@ -54,6 +61,7 @@ type Context = {
 	command: (value: Command) => Promise<void>;
 	presence: (viewing: boolean, loading: boolean) => Promise<void>;
 	canControl: boolean;
+	serverNow: () => number;
 };
 const emptyContext: Context = {
 	groups: [],
@@ -67,6 +75,7 @@ const emptyContext: Context = {
 	command: async () => undefined,
 	presence: async () => undefined,
 	canControl: false,
+	serverNow: () => Date.now() / 1000,
 };
 const SyncplayContext = createContext<Context>(emptyContext);
 class SyncplayRequestError extends Error {
@@ -119,6 +128,8 @@ export function SyncplayProvider({
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
 	const tombstonesRef = useRef(new Map<string, number>());
+	const clockOffsetRef = useRef(0);
+	const bestRttRef = useRef(Infinity);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
 
@@ -255,7 +266,21 @@ export function SyncplayProvider({
 			if (!disposed) socket.connect();
 		});
 		// A single recovery read covers an upgrade that loses its first frame.
-		socket.on("connect", () => void refreshRef.current().catch(() => undefined));
+		const syncClock = () => {
+			if (typeof (socket as unknown as { emit?: unknown }).emit !== "function") return;
+			const sent = Date.now() / 1000;
+			socket.emit("syncplay:clock", { clientSentAt: sent }, (reply?: { serverReceivedAt?: number; serverSentAt?: number }) => {
+				const received = Date.now() / 1000;
+				if (!reply?.serverReceivedAt || !reply.serverSentAt) return;
+				const rtt = Math.max(0, received - sent - (reply.serverSentAt - reply.serverReceivedAt));
+				if (rtt <= bestRttRef.current) {
+					bestRttRef.current = rtt;
+					clockOffsetRef.current = ((reply.serverReceivedAt + reply.serverSentAt) - (sent + received)) / 2;
+				}
+			});
+		};
+		socket.on("connect", () => { void refreshRef.current().catch(() => undefined); syncClock(); });
+		const clockTimer = window.setInterval(syncClock, 30_000);
 		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
 			const next = message.groups ?? [];
 			for (const group of next) adopt(group);
@@ -285,6 +310,7 @@ export function SyncplayProvider({
 			if (activeRef.current?.id === id) reconcileRef.current(null);
 		});
 		return () => {
+			window.clearInterval(clockTimer);
 			disposed = true;
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
@@ -430,6 +456,7 @@ export function SyncplayProvider({
 			active &&
 			(active.hostUserId === session.userId || active.allowViewerControls),
 		),
+		serverNow: () => Date.now() / 1000 + clockOffsetRef.current,
 	};
 	return (
 		<SyncplayContext.Provider value={value}>

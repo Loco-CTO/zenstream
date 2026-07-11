@@ -160,6 +160,8 @@ export function VideoPlayer({
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
+	const bufferingTimerRef = useRef<number | undefined>(undefined);
+	const bufferedRef = useRef(false);
 	const [url, setUrl] = useState<string>();
 	const [info, setInfo] = useState<ReturnType<typeof playbackStreams>>();
 	const [markers, setMarkers] = useState<{
@@ -359,26 +361,29 @@ export function VideoPlayer({
 		const state = syncplay.active;
 		const video = videoRef.current;
 		if (!state || !video || state.itemId !== item.Id) return;
-		const elapsed = state.playing
-			? Math.max(0, Date.now() / 1000 - state.updatedAt)
-			: 0;
-		const target = state.position + elapsed;
-		applyingSyncRef.current = true;
-		if (Math.abs(video.currentTime - target) > 1) video.currentTime = target;
-		if (state.playing && video.paused) {
-			suppressSyncPlayRef.current = true;
-			void video.play().catch(() => {
-				suppressSyncPlayRef.current = false;
-			});
-		}
-		if (!state.playing && !video.paused) {
-			suppressSyncPauseRef.current = true;
-			video.pause();
-		}
-		window.setTimeout(() => {
-			applyingSyncRef.current = false;
-		}, 0);
-	}, [syncplay.active?.revision, syncplay.active?.itemId, item.Id]);
+		const apply = () => {
+			const now = syncplay.serverNow();
+			const startsAt = state.effectiveAt ?? state.updatedAt;
+			const anchorAt = state.anchorServerTime ?? state.updatedAt;
+			const target = (state.anchorPosition ?? state.position) + (state.playbackState === "playing" && now >= startsAt ? Math.max(0, now - anchorAt) : 0);
+			const error = video.currentTime - target;
+			applyingSyncRef.current = true;
+			if (Math.abs(error) > 2) video.currentTime = target;
+			else if (Math.abs(error) <= .25) video.playbackRate = 1;
+			else video.playbackRate = Math.max(.95, Math.min(1.05, 1 - error / 12));
+			if (state.playbackState === "playing" && now >= startsAt && video.paused) {
+				suppressSyncPlayRef.current = true;
+				void video.play().catch(() => { suppressSyncPlayRef.current = false; });
+			}
+			if (state.playbackState !== "playing" && !video.paused) {
+				suppressSyncPauseRef.current = true; video.pause(); video.playbackRate = 1;
+			}
+			window.setTimeout(() => { applyingSyncRef.current = false; }, 0);
+		};
+		apply();
+		const interval = window.setInterval(apply, 1000);
+		return () => { window.clearInterval(interval); video.playbackRate = 1; };
+	}, [syncplay.active?.timelineRevision, syncplay.active?.itemId, item.Id, syncplay.serverNow]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -555,6 +560,14 @@ export function VideoPlayer({
 		controlsTimerRef.current = window.setTimeout(() => {
 			if (!settingsOpen && !trackMenu) setControlsVisible(false);
 		}, 2500);
+	}
+	function reportBuffering(loading: boolean) {
+		if (!syncplay.active || bufferedRef.current === loading) return;
+		if (bufferingTimerRef.current) window.clearTimeout(bufferingTimerRef.current);
+		bufferingTimerRef.current = window.setTimeout(() => {
+			bufferedRef.current = loading;
+			void syncplay.presence(true, loading).catch(() => undefined);
+		}, loading ? 750 : 300);
 	}
 
 	function togglePlay() {
@@ -812,12 +825,10 @@ export function VideoPlayer({
 						void syncplay.presence(true, false).catch(() => undefined);
 				}}
 				onWaiting={() => {
-					if (syncplay.active)
-						void syncplay.presence(true, true).catch(() => undefined);
+					reportBuffering(true);
 				}}
 				onCanPlay={() => {
-					if (syncplay.active)
-						void syncplay.presence(true, false).catch(() => undefined);
+					reportBuffering(false);
 				}}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;

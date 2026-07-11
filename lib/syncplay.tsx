@@ -115,6 +115,7 @@ export function SyncplayProvider({
 	const activeRef = useRef<SyncplayGroup | null>(null);
 	const socketRef = useRef<Socket | null>(null);
 	const commandInFlightRef = useRef(false);
+	const presenceChainRef = useRef(Promise.resolve());
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
 	const tombstonesRef = useRef(new Map<string, number>());
@@ -259,9 +260,13 @@ export function SyncplayProvider({
 			const next = message.groups ?? [];
 			for (const group of next) adopt(group);
 			const current = activeRef.current;
-			reconcileRef.current(current
-				? (next.find((group) => group.id === current.id && group.members.some((member) => member.userId === session.userId)) ?? null)
-				: (next.find((group) => group.members.some((member) => member.userId === session.userId)) ?? null));
+			if (current) {
+				const candidate = next.find((group) => group.id === current.id);
+				// A connection snapshot can be older than a command response or a
+				// socket event already applied locally. It must not evict the session.
+				if (candidate && candidate.revision >= current.revision)
+					reconcileRef.current(candidate.members.some((member) => member.userId === session.userId) ? candidate : null);
+			} else reconcileRef.current(next.find((group) => group.members.some((member) => member.userId === session.userId)) ?? null);
 		});
 		socket.on("syncplay:group", (message: { group?: SyncplayGroup }) => {
 			if (!message.group) return;
@@ -394,20 +399,21 @@ export function SyncplayProvider({
 	const presence = async (viewing: boolean, loading: boolean) => {
 		const group = activeRef.current;
 		if (!group) return;
-		try {
-			adopt(
-				(await call(`groups/${group.id}/presence`, "POST", {
-					viewing,
-					loading,
-					mediaGeneration: group.mediaGeneration ?? 0,
-					presenceSequence: ++presenceSequenceRef.current,
-					operationId: operationId(),
-				})) as SyncplayGroup,
-			);
-		} catch (error) {
-			toast.error(t("syncplayPresenceFailed"));
-			throw error;
-		}
+		const sequence = ++presenceSequenceRef.current;
+		const send = async () => {
+			try {
+				adopt((await call(`groups/${group.id}/presence`, "POST", {
+					viewing, loading, mediaGeneration: group.mediaGeneration ?? 0,
+					presenceSequence: sequence, operationId: operationId(),
+				})) as SyncplayGroup);
+			} catch (error) {
+				toast.error(t("syncplayPresenceFailed"));
+				throw error;
+			}
+		};
+		const next = presenceChainRef.current.catch(() => undefined).then(send);
+		presenceChainRef.current = next;
+		return next;
 	};
 	const value = {
 		groups,

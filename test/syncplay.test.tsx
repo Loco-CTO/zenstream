@@ -106,7 +106,7 @@ describe("SyncplayProvider", () => {
 				return new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] }));
 			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(group(1)));
 			if (url.endsWith("/groups/group/command")) {
-				const revision = JSON.parse(String(init?.body)).revision;
+				const revision = JSON.parse(String(init?.body)).expectedRevision;
 				return revision === 1
 					? new Response(JSON.stringify({ message: "Playback state is out of date." }), { status: 409 })
 					: new Response(JSON.stringify(group(3)));
@@ -123,8 +123,8 @@ describe("SyncplayProvider", () => {
 		await waitFor(() => {
 			const commands = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"));
 			expect(commands).toHaveLength(2);
-			expect(JSON.parse(String(commands[0][1]?.body)).revision).toBe(1);
-			expect(JSON.parse(String(commands[1][1]?.body)).revision).toBe(2);
+			expect(JSON.parse(String(commands[0][1]?.body)).expectedRevision).toBe(1);
+			expect(JSON.parse(String(commands[1][1]?.body)).expectedRevision).toBe(2);
 		});
 	});
 

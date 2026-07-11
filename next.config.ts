@@ -7,6 +7,7 @@ const appRoot = dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  allowedDevOrigins: ["127.0.0.1"],
   turbopack: {
     root: appRoot,
     rules: {

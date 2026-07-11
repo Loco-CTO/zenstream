@@ -302,7 +302,7 @@ export function VideoPlayer({ item, session, initialAudioStreamIndex, initialSub
 		}, 2500);
 	}
 
-	function togglePlay() { const video = videoRef.current; if (!video || (syncplay.active && !syncplay.canControl)) return; if (syncplay.active) { void syncplay.command({ action: video.paused ? "play" : "pause", itemId: item.Id, position: video.currentTime, playing: video.paused }); return; } if (video.paused) void video.play().catch(() => undefined); else video.pause(); }
+	function togglePlay() { const video = videoRef.current; if (!video || (syncplay.active && !syncplay.canControl)) return; if (syncplay.active) { void syncplay.command({ action: video.paused ? "play" : "pause", itemId: item.Id, position: video.currentTime, playing: video.paused }).catch(() => undefined); return; } if (video.paused) void video.play().catch(() => undefined); else video.pause(); }
 	function toggleFullscreen() {
 		if (document.fullscreenElement) {
 			exitFullscreenSafely();

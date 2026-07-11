@@ -101,6 +101,7 @@ export function SyncplayProvider({
 	const [active, setActive] = useState<SyncplayGroup | null>(null);
 	const activeRef = useRef<SyncplayGroup | null>(null);
 	const socketRef = useRef<WebSocket | null>(null);
+	const commandInFlightRef = useRef(false);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
 
@@ -173,12 +174,20 @@ export function SyncplayProvider({
 		const current = activeRef.current;
 		reconcile(
 			current
-				? (data.groups.find((group) => group.id === current.id) ?? null)
+				// A recovery read can have started before a local join completed.
+				// Only WebSocket end/membership events are authoritative removals.
+				? (data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
 						group.members.some((member) => member.userId === session.userId),
 					) ?? null),
 		);
 	}, [reconcile, session.userId]);
+	const reconcileRef = useRef(reconcile);
+	const refreshRef = useRef(refresh);
+	useEffect(() => {
+		reconcileRef.current = reconcile;
+		refreshRef.current = refresh;
+	}, [reconcile, refresh]);
 	const adopt = useCallback(
 		(group: SyncplayGroup, announceNewMedia = false) => {
 			if (activeRef.current?.id === group.id && group.revision < activeRef.current.revision)
@@ -186,6 +195,7 @@ export function SyncplayProvider({
 			hydratedRef.current = true;
 			if (
 				announceNewMedia &&
+				activeRef.current?.id !== group.id &&
 				group.itemId &&
 				group.itemId !== activeRef.current?.itemId
 			)
@@ -199,19 +209,21 @@ export function SyncplayProvider({
 				return [group, ...old.filter((entry) => entry.id !== group.id)];
 			});
 		},
-		[announcePlayback, reconcile, setCurrent],
+		[announcePlayback, reconcile, session.userId, setCurrent],
 	);
 	useEffect(() => {
 		const scheme = window.location.protocol === "https:" ? "wss" : "ws";
 		const socket = new WebSocket(`${scheme}://${window.location.host}/api/syncplay/ws/syncplay?token=${encodeURIComponent(session.token)}`);
 		socketRef.current = socket;
+		// A single recovery read covers an upgrade that loses its first frame.
+		socket.onopen = () => void refreshRef.current().catch(() => undefined);
 		socket.onmessage = ({ data }) => {
 			const message = JSON.parse(String(data)) as { type: string; groups?: SyncplayGroup[]; group?: SyncplayGroup; id?: string };
 			if (message.type === "syncplay:groups") {
 			const next = message.groups ?? [];
 			setGroups(next);
 			const current = activeRef.current;
-			reconcile(current
+			reconcileRef.current(current
 				? (next.find((group) => group.id === current.id && group.members.some((member) => member.userId === session.userId)) ?? null)
 				: (next.find((group) => group.members.some((member) => member.userId === session.userId)) ?? null));
 			return;
@@ -224,20 +236,20 @@ export function SyncplayProvider({
 				return [group, ...old.filter((entry) => entry.id !== group.id)];
 			});
 			if (activeRef.current?.id === group.id)
-				reconcile(group.members.some((member) => member.userId === session.userId) ? group : null);
-			else if (!activeRef.current && group.members.some((member) => member.userId === session.userId)) reconcile(group);
+				reconcileRef.current(group.members.some((member) => member.userId === session.userId) ? group : null);
+			else if (!activeRef.current && group.members.some((member) => member.userId === session.userId)) reconcileRef.current(group);
 			return;
 			}
 			if (message.type !== "syncplay:group-ended" || !message.id) return;
 			const id = message.id;
 			setGroups((old) => old.filter((group) => group.id !== id));
-			if (activeRef.current?.id === id) reconcile(null);
+			if (activeRef.current?.id === id) reconcileRef.current(null);
 		};
 		return () => {
 			socket.close();
 			if (socketRef.current === socket) socketRef.current = null;
 		};
-	}, [reconcile, session.token, session.userId]);
+	}, [session.token, session.userId]);
 	const create = async () => {
 		try {
 			const group = (await call("groups", "POST")) as SyncplayGroup;
@@ -296,7 +308,8 @@ export function SyncplayProvider({
 	};
 	const command = async (value: Command) => {
 		const group = activeRef.current;
-		if (!group) return;
+		if (!group || commandInFlightRef.current) return;
+		commandInFlightRef.current = true;
 		const send = (revision: number) =>
 			call(`groups/${group.id}/command`, "POST", {
 				...value,
@@ -324,6 +337,8 @@ export function SyncplayProvider({
 		} catch (error) {
 			toast.error(t("syncplayPlaybackFailed"));
 			throw error;
+		} finally {
+			commandInFlightRef.current = false;
 		}
 	};
 	const presence = async (viewing: boolean, loading: boolean) => {

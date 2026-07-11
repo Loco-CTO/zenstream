@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
@@ -6,7 +6,13 @@ import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
 
 class TestWebSocket {
+	static latest: TestWebSocket | null = null;
+	onopen: (() => void) | null = null;
 	onmessage: ((event: MessageEvent) => void) | null = null;
+	constructor() {
+		TestWebSocket.latest = this;
+		queueMicrotask(() => this.onopen?.());
+	}
 	close() {}
 }
 vi.stubGlobal("WebSocket", TestWebSocket);
@@ -90,6 +96,16 @@ describe("SyncplayProvider", () => {
 		render(<SyncplayTestProvider><ActiveGroup /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
 		expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups", expect.any(Object));
+	});
+
+	it("applies a newer group state sent by the WebSocket", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
+		);
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("1"));
+		act(() => TestWebSocket.latest?.onmessage?.({ data: JSON.stringify({ type: "syncplay:group", group: { ...group(2), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" }] } }) } as MessageEvent));
+		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("2"));
 	});
 
 	it("clears a stale group when leaving it is rejected because membership changed", async () => {

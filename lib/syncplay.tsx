@@ -368,7 +368,6 @@ export function SyncplayProvider({
 		socket.on("connect_error", (error) =>
 			syncplayDebug("socket connect error", {
 				message: error.message,
-				description: error.description,
 			}),
 		);
 		socket.on("disconnect", (reason) =>

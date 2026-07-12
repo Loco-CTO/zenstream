@@ -38,7 +38,7 @@ export type SyncplayGroup = {
 	updatedAt: number;
 	 members: {
 		userId: string;
-		participantId: string;
+		participantId?: string;
 		username: string;
 		viewing: boolean;
 		loading: boolean;

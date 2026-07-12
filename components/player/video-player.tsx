@@ -55,6 +55,7 @@ type Props = {
 	session: AuthSession;
 	initialAudioStreamIndex?: number;
 	initialSubtitleStreamIndex?: number;
+	initialStreams?: ReturnType<typeof playbackStreams>;
 	onClose: () => void;
 	onNext?: (item: JellyfinItem) => void;
 	onPlayedChange?: (played: boolean) => void;
@@ -93,6 +94,19 @@ export function syncplayTimelineTarget(state: SyncplayGroup, now: number) {
 			(shouldPlay ? Math.max(0, now - anchorAt) : 0),
 		shouldPlay,
 		startsAt,
+	};
+}
+
+export function optimisticSeekTimelineTarget(
+	position: number,
+	playing: boolean,
+	startedAt: number,
+	now: number,
+) {
+	return {
+		position: position + (playing ? Math.max(0, now - startedAt) : 0),
+		shouldPlay: playing,
+		startsAt: startedAt,
 	};
 }
 
@@ -172,6 +186,7 @@ export function VideoPlayer({
 	session,
 	initialAudioStreamIndex,
 	initialSubtitleStreamIndex,
+	initialStreams,
 	onClose,
 	onNext,
 	onPlayedChange,
@@ -201,8 +216,21 @@ export function VideoPlayer({
 	const bufferedRef = useRef(false);
 	const appliedTimelineRef = useRef<string | null>(null);
 	const seekPreviewRef = useRef<{ itemId: string; value: number } | null>(null);
-	const [url, setUrl] = useState<string>();
-	const [info, setInfo] = useState<ReturnType<typeof playbackStreams>>();
+	const optimisticSeekRef = useRef<{
+		itemId: string;
+		position: number;
+		playing: boolean;
+		startedAt: number;
+		expiresAt: number;
+	} | null>(null);
+	const [url, setUrl] = useState<string | undefined>(() =>
+		initialStreams?.source
+			? playbackUrl(session, item.Id, initialStreams.source, 0)
+			: undefined,
+	);
+	const [info, setInfo] = useState<ReturnType<typeof playbackStreams> | undefined>(
+		initialStreams,
+	);
 	const [markers, setMarkers] = useState<{
 		intro?: PlaybackMarker;
 		outro?: PlaybackMarker;
@@ -363,26 +391,36 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
+		const streams = initialStreams
+			? Promise.resolve(initialStreams)
+			: getPlaybackInfo(session, item.Id, {
+					audioStreamIndex: initialAudioStreamIndex,
+					// Keep subtitles out of the media pipeline; the selected track is
+					// fetched as VTT and rendered by CustomSubtitleCue below.
+					subtitleStreamIndex: -1,
+				}).then((playback) => playbackStreams(playback));
 		Promise.all([
-			getPlaybackInfo(session, item.Id, {
-				audioStreamIndex: initialAudioStreamIndex,
-				// Keep subtitles out of the media pipeline; the selected track is
-				// fetched as VTT and rendered by CustomSubtitleCue below.
-				subtitleStreamIndex: -1,
-			}),
+			streams,
 			getPlaybackMarkers(session, item.Id),
 			getTrickplayInfo(session, item.Id).catch(() => undefined),
 		])
-			.then(([playback, markerData, trickplay]) => {
+			.then(([parsed, markerData, trickplay]) => {
 				if (!active) return;
-				const parsed = playbackStreams(playback, trickplay);
-				setInfo(parsed);
-				setUrl(playbackUrl(session, item.Id, parsed.source, 0));
+				const source =
+					parsed.source && !parsed.source.Trickplay && trickplay
+						? {
+								...parsed.source,
+								Trickplay: trickplay[parsed.source.Id ?? ""],
+							}
+						: parsed.source;
+				const next = { ...parsed, source };
+				setInfo(next);
+				setUrl(playbackUrl(session, item.Id, source, 0));
 				setMarkers(markerData);
 				const initialAudio =
 					initialAudioStreamIndex == null
-						? (parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0])
-						: parsed.audio.find(
+						? (next.audio.find((track) => track.IsDefault) ?? next.audio[0])
+						: next.audio.find(
 								(track) => track.Index === initialAudioStreamIndex,
 							);
 				if (initialAudio?.Index != null) setAudio(String(initialAudio.Index));
@@ -391,7 +429,13 @@ export function VideoPlayer({
 		return () => {
 			active = false;
 		};
-	}, [item.Id, session, initialAudioStreamIndex, initialSubtitleStreamIndex]);
+	}, [
+		item.Id,
+		session,
+		initialAudioStreamIndex,
+		initialSubtitleStreamIndex,
+		initialStreams,
+	]);
 	useEffect(() => {
 		const state = syncplay.active;
 		if (!state || state.itemId !== item.Id) return;
@@ -420,9 +464,21 @@ export function VideoPlayer({
 		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
 		let forceSeek = appliedTimelineRef.current !== timelineKey;
 		appliedTimelineRef.current = timelineKey;
+		if (forceSeek) optimisticSeekRef.current = null;
 		const apply = () => {
 			const now = syncplay.serverNow();
-			const timeline = syncplayTimelineTarget(state, now);
+			const pendingSeek = optimisticSeekRef.current;
+			const timeline =
+				pendingSeek &&
+				pendingSeek.itemId === item.Id &&
+				Date.now() < pendingSeek.expiresAt
+					? optimisticSeekTimelineTarget(
+							pendingSeek.position,
+							pendingSeek.playing,
+							pendingSeek.startedAt,
+							now,
+						)
+					: syncplayTimelineTarget(state, now);
 			const error = video.currentTime - timeline.position;
 			applyingSyncRef.current = true;
 			if (forceSeek || Math.abs(error) > 2) video.currentTime = timeline.position;
@@ -711,6 +767,20 @@ export function VideoPlayer({
 		const target = pending.value;
 		seekPreviewRef.current = null;
 		setSeekPreview(null);
+		// Let the person who moved the slider see the seek immediately. The group
+		// command remains authoritative and will correct other members (or this
+		// player after a rejected command), but waiting for a network round trip
+		// makes the control feel broken.
+		const optimistic = {
+			itemId: item.Id,
+			position: target,
+			playing: !video.paused,
+			startedAt: syncplay.serverNow(),
+			expiresAt: Date.now() + 8_000,
+		};
+		optimisticSeekRef.current = optimistic;
+		video.currentTime = target;
+		setCurrentTime(target);
 		void syncplay
 			.command({
 				action: "seek",
@@ -718,7 +788,10 @@ export function VideoPlayer({
 				position: target,
 				playing: !video.paused,
 			})
-			.catch(() => undefined);
+			.catch(() => {
+				if (optimisticSeekRef.current === optimistic)
+					optimisticSeekRef.current = null;
+			});
 	}
 	function chooseQuality(value: string) {
 		const video = videoRef.current;

@@ -7,6 +7,7 @@ import {
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
+	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
 	syncplayTimelineTarget,
@@ -207,6 +208,19 @@ describe("video player controls", () => {
 			position: 32,
 			shouldPlay: true,
 			startsAt: 110,
+		});
+	});
+
+	it("keeps the seek initiator on their chosen position while the command is in flight", () => {
+		expect(optimisticSeekTimelineTarget(45, false, 100, 102)).toEqual({
+			position: 45,
+			shouldPlay: false,
+			startsAt: 100,
+		});
+		expect(optimisticSeekTimelineTarget(45, true, 100, 102)).toEqual({
+			position: 47,
+			shouldPlay: true,
+			startsAt: 100,
 		});
 	});
 

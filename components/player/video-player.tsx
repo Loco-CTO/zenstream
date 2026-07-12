@@ -76,6 +76,12 @@ export function syncplayWaitingForMembers(
 	itemId: string,
 ) {
 	if (!state || state.itemId !== itemId) return false;
+	// An intentional pause is not a readiness barrier. A member can still have
+	// a stale loading flag from the last playback transition, but that should
+	// not obscure a paused player's controls with the loading indicator.
+	const playbackState =
+		state.playbackState ?? (state.playing ? "playing" : "paused");
+	if (!state.resumeWhenReady && playbackState === "paused") return false;
 	return (
 		state.resumeWhenReady ||
 		state.members.some(

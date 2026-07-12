@@ -57,6 +57,8 @@ describe("video player controls", () => {
 				{
 					...group,
 					resumeWhenReady: false,
+					playing: true,
+					playbackState: "playing",
 					members: [
 						{
 							userId: "other",
@@ -83,6 +85,27 @@ describe("video player controls", () => {
 							viewing: true,
 							loading: false,
 							readyGeneration: 2,
+							role: "viewer",
+						},
+					],
+				},
+				"movie",
+			),
+		).toBe(false);
+		expect(
+			syncplayWaitingForMembers(
+				{
+					...group,
+					resumeWhenReady: false,
+					playing: false,
+					playbackState: "paused",
+					members: [
+						{
+							userId: "other",
+							username: "Other",
+							viewing: true,
+							loading: true,
+							readyGeneration: -1,
 							role: "viewer",
 						},
 					],

@@ -14,6 +14,7 @@ import {
 	getPlaybackInfo,
 	getSeasons,
 	getEpisodes,
+	getSeriesEpisodes,
 	getSimilarItems,
 	setFavorite,
 	setPlayed,
@@ -589,6 +590,20 @@ describe("jellyfin api helpers", () => {
 		expect(urls[2].searchParams.get("seasonId")).toBe("season-2");
 		expect(urls[3].pathname).toBe("/Items/series-1/Similar");
 		expect(urls[3].searchParams.get("limit")).toBe("8");
+	});
+
+	it("loads all series episodes with user play state", async () => {
+		vi.mocked(fetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ Items: [] }), { status: 200 }),
+		);
+
+		await getSeriesEpisodes(session, "series 1");
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		expect(url.pathname).toBe("/Shows/series%201/Episodes");
+		expect(url.searchParams.get("userId")).toBe("user-1");
+		expect(url.searchParams.has("seasonId")).toBe(false);
+		expect(url.searchParams.get("enableUserData")).toBe("true");
 	});
 
 	it("persists favorite and played state with the correct methods", async () => {

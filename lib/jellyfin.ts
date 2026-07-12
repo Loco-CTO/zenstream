@@ -1044,6 +1044,22 @@ export function getEpisodes(
 	);
 }
 
+/** Loads every episode in display order so series playback can resume at the first unwatched item. */
+export function getSeriesEpisodes(session: AuthSession, seriesId: string) {
+	return getItemList(
+		session,
+		`/Shows/${encodeURIComponent(seriesId)}/Episodes`,
+		{
+			userId: session.userId,
+			fields: ITEM_FIELDS,
+			enableImages: true,
+			imageTypeLimit: 1,
+			enableImageTypes: ITEM_IMAGE_TYPES,
+			enableUserData: true,
+		},
+	);
+}
+
 export function getSimilarItems(session: AuthSession, itemId: string) {
 	return getItemList(session, `/Items/${encodeURIComponent(itemId)}/Similar`, {
 		userId: session.userId,

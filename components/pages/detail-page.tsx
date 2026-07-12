@@ -7,6 +7,7 @@ import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
 	getPlaybackInfo,
 	getEpisodes,
+	getSeriesEpisodes,
 	getInitialSeason,
 	heroImage,
 	landscapeImage,
@@ -169,13 +170,32 @@ export function DetailPage({
 		}
 	}
 
-	function startPlayback() {
+	async function startPlayback() {
 		setMutationError("");
+		let target = item;
+		if (isSeries) {
+			const finish = start();
+			try {
+				const allEpisodes = await getSeriesEpisodes(session, item.Id);
+				const ordered = [...allEpisodes].sort((a, b) =>
+					(a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
+					(a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
+				);
+				target = ordered.find((episode) => !episode.UserData?.Played) ?? ordered[0] ?? item;
+				if (!target.Id || target.Id === item.Id) return;
+				setItem(target);
+			} catch {
+				setMutationError(t("detailLoadFailed"));
+				return;
+			} finally {
+				finish();
+			}
+		}
 		// The player owns stream loading. Opening it must never wait for a remote
 		// media-info request or a Syncplay round trip, otherwise the Play button
 		// feels frozen on higher-latency connections.
 		setPlayerOpen(true);
-		const mediaCommand = syncplayMediaStartCommand(active, canControl, item.Id);
+		const mediaCommand = syncplayMediaStartCommand(active, canControl, target.Id);
 		if (mediaCommand) {
 			void command(mediaCommand).catch(() =>
 				setMutationError("Playback could not be loaded."),

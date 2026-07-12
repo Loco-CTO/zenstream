@@ -318,6 +318,7 @@ export function VideoPlayer({
 	const [duration, setDuration] = useState(0);
 	const [error, setError] = useState("");
 	const [qualityLoading, setQualityLoading] = useState(false);
+	const [buffering, setBuffering] = useState(true);
 	const [controlsVisible, setControlsVisible] = useState(true);
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [timelinePreview, setTimelinePreview] = useState<
@@ -579,6 +580,7 @@ export function VideoPlayer({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !url) return;
+		setBuffering(true);
 		hlsRef.current?.destroy();
 		hlsRef.current = null;
 		if (/\.m3u8(?:\?|$)/i.test(url) && Hls.isSupported()) {
@@ -1073,15 +1075,6 @@ export function VideoPlayer({
 			}}
 			tabIndex={0}
 		>
-			{syncplayWaitingForMembers(syncplay.active, item.Id) && (
-					<div
-						className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
-						role="status"
-						aria-label="Loading"
-					>
-						<LoaderCircle className="h-12 w-12 animate-spin text-white/80" />
-					</div>
-				)}
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
@@ -1095,6 +1088,7 @@ export function VideoPlayer({
 					);
 				}}
 				onWaiting={() => {
+					setBuffering(true);
 					retryAfterBufferingRef.current = true;
 					playerDebug("video waiting", {
 						currentTime: videoRef.current?.currentTime,
@@ -1103,6 +1097,7 @@ export function VideoPlayer({
 					reportBuffering(true);
 				}}
 				onCanPlay={() => {
+					setBuffering(false);
 					const shouldRetry = retryAfterBufferingRef.current;
 					retryAfterBufferingRef.current = false;
 					playerDebug("video canplay", {
@@ -1197,7 +1192,10 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				onError={handleVideoError}
+				onError={() => {
+					setBuffering(false);
+					handleVideoError();
+				}}
 			></video>
 			{subtitle && subtitleCueData?.track === subtitle && (
 				<CustomSubtitleCue
@@ -1245,6 +1243,16 @@ export function VideoPlayer({
 				>
 					<LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />
 					{t("switchingQuality")}
+				</div>
+			)}
+			{(buffering || syncplayWaitingForMembers(syncplay.active, item.Id)) && (
+				<div
+					data-testid="player-loading"
+					className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 p-4 shadow-xl backdrop-blur-md"
+					role="status"
+					aria-label="Loading"
+				>
+					<LoaderCircle className="h-8 w-8 animate-spin text-white/85" />
 				</div>
 			)}
 			{error && (

@@ -47,7 +47,7 @@ const group = (revision: number): SyncplayGroup => ({
 });
 const joinedGroup = (revision: number): SyncplayGroup => ({
 	...group(revision),
-	members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }],
+	members: [{ userId: "user", participantId: "test-tab", username: "Alex", viewing: false, loading: false, role: "host" }],
 });
 
 function Controls() {

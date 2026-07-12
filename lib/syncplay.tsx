@@ -100,6 +100,9 @@ function participantId() {
 	try { window.sessionStorage.setItem(SYNCPLAY_PARTICIPANT_KEY, generated); } catch { /* private mode */ }
 	return generated;
 }
+function isCurrentParticipant(member: { participantId?: string }, currentId: string) {
+	return member.participantId == null ? true : member.participantId === currentId;
+}
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
 	console.debug(`[Syncplay] ${event}`, details ?? "");
@@ -290,7 +293,7 @@ export function SyncplayProvider({
 					// Only WebSocket end/membership events are authoritative removals.
 					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
-						group.members.some((member) => member.participantId === currentParticipantId),
+						group.members.some((member) => isCurrentParticipant(member, currentParticipantId)),
 					) ?? null),
 		);
 	}, [currentParticipantId, reconcile]);
@@ -324,7 +327,7 @@ export function SyncplayProvider({
 			)
 				announcePlayback(group.itemId);
 			const isMember = group.members.some(
-				(member) => member.participantId === currentParticipantId,
+				(member) => isCurrentParticipant(member, currentParticipantId),
 			);
 			if (activeRef.current?.id === group.id)
 				reconcile(isMember ? group : null);
@@ -412,14 +415,14 @@ export function SyncplayProvider({
 				// socket event already applied locally. It must not evict the session.
 				if (candidate && candidate.revision >= current.revision)
 					reconcileRef.current(
-						candidate.members.some((member) => member.participantId === currentParticipantId)
+						candidate.members.some((member) => isCurrentParticipant(member, currentParticipantId))
 							? candidate
 							: null,
 					);
 			} else
 				reconcileRef.current(
 					next.find((group) =>
-						group.members.some((member) => member.participantId === currentParticipantId),
+						group.members.some((member) => isCurrentParticipant(member, currentParticipantId)),
 					) ?? null,
 				);
 		});

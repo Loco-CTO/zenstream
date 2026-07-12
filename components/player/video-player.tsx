@@ -68,7 +68,7 @@ export const HLS_TEXT_TRACK_CONFIG = {
 };
 const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
-	console.debug(`[ZenStream Player] ${event}`, details ?? "");
+	console.debug(`[Player] ${event}`, details ?? "");
 };
 
 export function advanceToNextEpisode(
@@ -88,7 +88,8 @@ export function nextEpisodeSyncplayCommand(item: JellyfinItem) {
 }
 
 export function syncplayTimelineTarget(state: SyncplayGroup, now: number) {
-	const playbackState = state.playbackState ?? (state.playing ? "playing" : "paused");
+	const playbackState =
+		state.playbackState ?? (state.playing ? "playing" : "paused");
 	const startsAt = state.effectiveAt ?? state.updatedAt;
 	const anchorAt = state.anchorServerTime ?? state.updatedAt;
 	const shouldPlay = playbackState === "playing" && now >= startsAt;
@@ -237,9 +238,9 @@ export function VideoPlayer({
 			? playbackUrl(session, item.Id, initialStreams.source, 0)
 			: undefined,
 	);
-	const [info, setInfo] = useState<ReturnType<typeof playbackStreams> | undefined>(
-		initialStreams,
-	);
+	const [info, setInfo] = useState<
+		ReturnType<typeof playbackStreams> | undefined
+	>(initialStreams);
 	const [markers, setMarkers] = useState<{
 		intro?: PlaybackMarker;
 		outro?: PlaybackMarker;
@@ -490,14 +491,19 @@ export function VideoPlayer({
 					: syncplayTimelineTarget(state, now);
 			const error = video.currentTime - timeline.position;
 			applyingSyncRef.current = true;
-			if (forceSeek || Math.abs(error) > 2) video.currentTime = timeline.position;
-			else if (Math.abs(error) <= .25) video.playbackRate = 1;
-			else video.playbackRate = Math.max(.95, Math.min(1.05, 1 - error / 12));
+			if (forceSeek || Math.abs(error) > 2)
+				video.currentTime = timeline.position;
+			else if (Math.abs(error) <= 0.25) video.playbackRate = 1;
+			else video.playbackRate = Math.max(0.95, Math.min(1.05, 1 - error / 12));
 			if (timeline.shouldPlay && video.paused) startSyncedPlayback(video);
 			if (!timeline.shouldPlay && !video.paused) {
-				suppressSyncPauseRef.current = true; video.pause(); video.playbackRate = 1;
+				suppressSyncPauseRef.current = true;
+				video.pause();
+				video.playbackRate = 1;
 			}
-			window.setTimeout(() => { applyingSyncRef.current = false; }, 0);
+			window.setTimeout(() => {
+				applyingSyncRef.current = false;
+			}, 0);
 			forceSeek = false;
 		};
 		apply();
@@ -548,7 +554,10 @@ export function VideoPlayer({
 					syncplayApi.serverNow(),
 				);
 				applyingSyncRef.current = true;
-				if (Number.isFinite(timeline.position) && timeline.position < video.duration)
+				if (
+					Number.isFinite(timeline.position) &&
+					timeline.position < video.duration
+				)
 					video.currentTime = timeline.position;
 				if (timeline.shouldPlay) startSyncedPlayback(video);
 				else if (!video.paused) {
@@ -683,19 +692,32 @@ export function VideoPlayer({
 		const state = syncplayStateRef.current;
 		if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
 			return;
-		playerDebug("buffering changed", { loading, groupId: state.id, itemId: item.Id, generation: state.mediaGeneration });
-		if (bufferingTimerRef.current) window.clearTimeout(bufferingTimerRef.current);
-		bufferingTimerRef.current = window.setTimeout(() => {
-			const current = syncplayStateRef.current;
-			if (!current || current.itemId !== item.Id) return;
-			bufferedRef.current = loading;
-			void syncplayApiRef.current
-				.presence(true, loading, current.mediaGeneration ?? 0)
-				.catch(() => undefined);
-		}, loading ? 750 : 300);
+		playerDebug("buffering changed", {
+			loading,
+			groupId: state.id,
+			itemId: item.Id,
+			generation: state.mediaGeneration,
+		});
+		if (bufferingTimerRef.current)
+			window.clearTimeout(bufferingTimerRef.current);
+		bufferingTimerRef.current = window.setTimeout(
+			() => {
+				const current = syncplayStateRef.current;
+				if (!current || current.itemId !== item.Id) return;
+				bufferedRef.current = loading;
+				void syncplayApiRef.current
+					.presence(true, loading, current.mediaGeneration ?? 0)
+					.catch(() => undefined);
+			},
+			loading ? 750 : 300,
+		);
 	}
 	function startSyncedPlayback(video: HTMLVideoElement) {
-		playerDebug("sync timeline requested playback", { currentTime: video.currentTime, readyState: video.readyState, networkState: video.networkState });
+		playerDebug("sync timeline requested playback", {
+			currentTime: video.currentTime,
+			readyState: video.readyState,
+			networkState: video.networkState,
+		});
 		suppressSyncPlayRef.current = true;
 		void startSyncedMedia(
 			video,
@@ -709,7 +731,12 @@ export function VideoPlayer({
 	function togglePlay() {
 		const video = videoRef.current;
 		if (!video || (syncplay.active && !syncplay.canControl)) return;
-		playerDebug("toggle play", { paused: video?.paused, currentTime: video?.currentTime, canControl: syncplay.canControl, groupId: syncplay.active?.id });
+		playerDebug("toggle play", {
+			paused: video?.paused,
+			currentTime: video?.currentTime,
+			canControl: syncplay.canControl,
+			groupId: syncplay.active?.id,
+		});
 		if (syncplay.active) {
 			void syncplay
 				.command({
@@ -1000,12 +1027,18 @@ export function VideoPlayer({
 						Math.max(knownDuration, Number.isFinite(value) ? value : 0),
 					);
 				}}
-				 onWaiting={() => {
-					playerDebug("video waiting", { currentTime: videoRef.current?.currentTime, readyState: videoRef.current?.readyState });
+				onWaiting={() => {
+					playerDebug("video waiting", {
+						currentTime: videoRef.current?.currentTime,
+						readyState: videoRef.current?.readyState,
+					});
 					reportBuffering(true);
 				}}
 				onCanPlay={() => {
-					playerDebug("video canplay", { currentTime: videoRef.current?.currentTime, readyState: videoRef.current?.readyState });
+					playerDebug("video canplay", {
+						currentTime: videoRef.current?.currentTime,
+						readyState: videoRef.current?.readyState,
+					});
 					reportBuffering(false);
 				}}
 				onDurationChange={() => {
@@ -1024,7 +1057,12 @@ export function VideoPlayer({
 					else onClose();
 				}}
 				onPlay={(e) => {
-					playerDebug("video play event", { currentTime: e.currentTarget.currentTime, suppressed: suppressSyncPlayRef.current, applying: applyingSyncRef.current, canControl: syncplay.canControl });
+					playerDebug("video play event", {
+						currentTime: e.currentTarget.currentTime,
+						suppressed: suppressSyncPlayRef.current,
+						applying: applyingSyncRef.current,
+						canControl: syncplay.canControl,
+					});
 					handlePlay();
 					if (suppressSyncPlayRef.current) {
 						suppressSyncPlayRef.current = false;
@@ -1045,7 +1083,12 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onPause={(e) => {
-					playerDebug("video pause event", { currentTime: e.currentTarget.currentTime, suppressed: suppressSyncPauseRef.current, applying: applyingSyncRef.current, canControl: syncplay.canControl });
+					playerDebug("video pause event", {
+						currentTime: e.currentTarget.currentTime,
+						suppressed: suppressSyncPauseRef.current,
+						applying: applyingSyncRef.current,
+						canControl: syncplay.canControl,
+					});
 					setPlaying(false);
 					if (suppressSyncPauseRef.current) {
 						suppressSyncPauseRef.current = false;
@@ -1221,9 +1264,7 @@ export function VideoPlayer({
 						max={duration}
 						step="0.1"
 						value={Math.min(
-							seekPreview?.itemId === item.Id
-								? seekPreview.value
-								: currentTime,
+							seekPreview?.itemId === item.Id ? seekPreview.value : currentTime,
 							duration || currentTime,
 						)}
 						className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
@@ -1237,9 +1278,14 @@ export function VideoPlayer({
 						onBlur={() => commitPendingSeek()}
 						onKeyUp={(event) => {
 							if (
-								["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(
-									event.key,
-								)
+								[
+									"ArrowLeft",
+									"ArrowRight",
+									"Home",
+									"End",
+									"PageUp",
+									"PageDown",
+								].includes(event.key)
 							)
 								commitPendingSeek();
 						}}

@@ -141,6 +141,12 @@ export function syncplayMediaIsReady(
 	return video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
 }
 
+export function syncplayInitialLoading(
+	video: Pick<HTMLMediaElement, "readyState"> | null,
+) {
+	return !video || !syncplayMediaIsReady(video);
+}
+
 export function optimisticSeekTimelineTarget(
 	position: number,
 	playing: boolean,
@@ -494,8 +500,11 @@ export function VideoPlayer({
 		// In that case there may be no future event to clear the loading flag, so
 		// inspect the current readyState when entering the readiness barrier.
 		const video = videoRef.current;
-		const loading = !video || !syncplayMediaIsReady(video);
-		bufferedRef.current = !loading;
+		const loading = syncplayInitialLoading(video);
+		// Keep this in the same meaning as reportBuffering(): it stores the last
+		// loading state sent to the server, not whether the video is buffered.
+		// Otherwise a later canplay event can be incorrectly deduplicated.
+		bufferedRef.current = loading;
 		void syncplayApiRef.current
 			.presence(true, loading, generation)
 			.catch(() => undefined);

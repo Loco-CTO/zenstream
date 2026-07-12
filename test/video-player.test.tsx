@@ -10,6 +10,7 @@ import {
 	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
+	syncplayInitialLoading,
 	syncplayMediaIsReady,
 	syncplayStateWantsPlaying,
 	syncplayTimelineTarget,
@@ -135,6 +136,9 @@ describe("video player controls", () => {
 	});
 
 	it("recognizes media that was already buffered before joining Syncplay", () => {
+		expect(syncplayInitialLoading(null)).toBe(true);
+		expect(syncplayInitialLoading({ readyState: 2 })).toBe(true);
+		expect(syncplayInitialLoading({ readyState: 4 })).toBe(false);
 		expect(syncplayMediaIsReady({ readyState: 2 })).toBe(false);
 		expect(syncplayMediaIsReady({ readyState: 3 })).toBe(true);
 		expect(syncplayMediaIsReady({ readyState: 4 })).toBe(true);

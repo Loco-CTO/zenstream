@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
@@ -56,9 +56,11 @@ export function syncplayMediaStartCommand(
 export function DetailPage({
 	initialData,
 	session,
+	autoplay = false,
 }: {
 	initialData: DetailData;
 	session: AuthSession;
+	autoplay?: boolean;
 }) {
 	const { t, locale } = useI18n();
 	const router = useRouter();
@@ -75,6 +77,7 @@ export function DetailPage({
 		streams: ReturnType<typeof playbackStreams>;
 	}>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
+	const autoplayStartedRef = useRef(false);
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
@@ -116,7 +119,6 @@ export function DetailPage({
 		const timer = window.setTimeout(() => setPlayerOpen(true), 0);
 		return () => window.clearTimeout(timer);
 	}, [active?.itemId, item.Id]);
-
 	function goBack() {
 		if (window.history.length > 1) {
 			router.back();
@@ -170,7 +172,7 @@ export function DetailPage({
 		}
 	}
 
-	async function startPlayback() {
+	const startPlayback = useCallback(async () => {
 		setMutationError("");
 		let target = item;
 		if (isSeries) {
@@ -201,7 +203,13 @@ export function DetailPage({
 				setMutationError("Playback could not be loaded."),
 			);
 		}
-	}
+	}, [active, canControl, command, isSeries, item, session, start, t]);
+
+	useEffect(() => {
+		if (!autoplay || autoplayStartedRef.current) return;
+		autoplayStartedRef.current = true;
+		void startPlayback();
+	}, [autoplay, startPlayback]);
 
 	return (
 		<>
@@ -672,19 +680,17 @@ export function EpisodeCard({
 	const progress = progressPercent(episode);
 	const preview = useHoverPreview(episode.Id, episode.RunTimeTicks, session);
 	return (
-		<Link
+		<div
 			onPointerEnter={horizontal ? preview.start : undefined}
 			onPointerLeave={horizontal ? preview.stop : undefined}
-			href={`/show/${seriesId}/episode/${episode.Id}`}
 			className={
 				horizontal
 					? "group/card w-[320px] shrink-0"
-					: "group flex items-start gap-4 rounded-lg p-2 hover:bg-white/[.04]"
+					: "group/card flex items-start gap-4 rounded-lg p-2 hover:bg-white/[.04]"
 			}
 		>
-			<div
-				className={`relative shrink-0 overflow-hidden rounded bg-white/5 ${horizontal ? "aspect-video w-full" : "h-[120px] w-[213px]"}`}
-			>
+			<div className={`relative shrink-0 ${horizontal ? "aspect-video w-full" : "h-[120px] w-[213px]"}`}>
+			<Link href={`/show/${seriesId}/episode/${episode.Id}`} className="block h-full w-full overflow-hidden rounded bg-white/5">
 				{horizontal && <HoverPreviewVideo preview={preview} />}
 				{image && (
 					<BlurHashImage
@@ -697,7 +703,6 @@ export function EpisodeCard({
 						}
 					/>
 				)}
-				{horizontal && !active && <MediaCardOverlay />}
 				{active && (
 					<div className="absolute inset-0 flex items-center justify-center">
 						<span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/80">
@@ -707,8 +712,10 @@ export function EpisodeCard({
 				)}
 				{horizontal && <WatchProgress progress={progress} />}
 				<WatchedIndicator item={episode} />
+			</Link>
+			{!active && <MediaCardOverlay href={`/show/${seriesId}/episode/${episode.Id}`} title={episode.Name} />}
 			</div>
-			<div className={horizontal ? "mt-2" : "min-w-0 flex-1 pt-0.5"}>
+			<Link href={`/show/${seriesId}/episode/${episode.Id}`} className={horizontal ? "mt-2 block" : "min-w-0 flex-1 pt-0.5"}>
 				<p className="truncate text-sm font-medium text-white/80">
 					{episode.IndexNumber}. {episode.Name}
 				</p>
@@ -717,8 +724,8 @@ export function EpisodeCard({
 				>
 					{episode.Overview}
 				</p>
-			</div>
-		</Link>
+			</Link>
+		</div>
 	);
 }
 

@@ -87,6 +87,39 @@ describe("detail views", () => {
     expect(document.querySelector("video")).toBeInTheDocument();
   });
 
+  it("autoplays a movie when the detail route requests it", async () => {
+    renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] }, true);
+
+    expect(document.querySelector("video")).toBeInTheDocument();
+  });
+
+  it("autoplays a series from its first unwatched episode", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/Shows/series/Episodes")) {
+        return new Response(JSON.stringify({
+          Items: [
+            { ...episode("ep-1", 1), UserData: { Played: true } },
+            { ...episode("ep-2", 2), UserData: { Played: false } },
+          ],
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ MediaSources: [] }), { status: 200 });
+    });
+
+    renderDetail({
+      item: { ...movie(), Id: "series", Type: "Series" },
+      seasons: [],
+      episodes: [],
+      similar: [],
+    }, true);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/Items/ep-2/PlaybackInfo"),
+      expect.anything(),
+    ));
+  });
+
   it("announces new host media before the player is mounted", () => {
     expect(syncplayMediaStartCommand({
       id: "group",
@@ -121,9 +154,14 @@ describe("detail views", () => {
   });
 
   it("renders series episodes and switches seasons", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({
-      Items: [{ ...episode("ep-2", 1), Name: "Second Season Premiere" }],
-    }), { status: 200 }));
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input).includes("seasonId=s2")) {
+        return new Response(JSON.stringify({
+          Items: [{ ...episode("ep-2", 1), Name: "Second Season Premiere" }],
+        }), { status: 200 });
+      }
+      return new Response(null, { status: 204 });
+    });
 
     renderDetail({
       item: { ...movie(), Id: "series", Type: "Series", ChildCount: 2 },
@@ -136,7 +174,7 @@ describe("detail views", () => {
     });
 
     expect(screen.getByText("1. Episode 1").closest("a")).toHaveAttribute("href", "/show/series/episode/ep-1");
-    expect(screen.getByText("1. Episode 1").closest("a")?.querySelector("div")).toHaveClass("h-[120px]", "w-[213px]");
+    expect(screen.getByRole("img", { name: "Episode 1" }).parentElement?.parentElement).toHaveClass("h-[120px]", "w-[213px]");
     expect(screen.getByText("1. Episode 1")).toHaveClass("text-sm");
     expect(screen.getByText("Episode overview")).toHaveClass("text-xs");
     expect(screen.getByRole("combobox", { name: "Season" })).toHaveTextContent("S1: The Beginning");
@@ -187,7 +225,7 @@ describe("detail views", () => {
       similar: [],
     });
 
-    const scroller = screen.getByText("2. Episode 2").closest("a")?.parentElement;
+    const scroller = screen.getByRole("region", { name: "Episodes" }).querySelector('[aria-label="Episodes"]');
     if (!scroller) throw new Error("Episode scroller was not rendered");
     const animationFrames: Array<FrameRequestCallback> = [];
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -214,9 +252,9 @@ describe("detail views", () => {
     });
 
     const card = screen.getByText("2. Episode 2").closest("a");
-    expect(card).toHaveClass("group/card");
-    expect(card?.querySelector("img")).toHaveClass("group-hover/card:brightness-50");
-    expect(card?.querySelector(".lucide-play")?.parentElement?.parentElement).toHaveClass(
+    expect(card?.parentElement).toHaveClass("group/card");
+    expect(card?.parentElement?.querySelector("img")).toHaveClass("group-hover/card:brightness-50");
+    expect(card?.parentElement?.querySelector(".lucide-play")?.parentElement?.parentElement).toHaveClass(
       "group-hover/card:bg-black/15",
       "group-hover/card:opacity-100",
     );
@@ -234,8 +272,8 @@ describe("detail views", () => {
       similar: [{ ...movie(), Id: "similar", Name: "Related Film" }],
     });
 
-    const castScroller = screen.getByText("Actor One").closest(".w-\\[120px\\]")?.parentElement;
-    const similarScroller = screen.getByText("Related Film").closest("article")?.parentElement;
+    const castScroller = screen.getByLabelText("Cast & Crew");
+    const similarScroller = screen.getByLabelText("More Like This");
     if (!castScroller || !similarScroller) throw new Error("Detail scrollers were not rendered");
 
     const animationFrames: Array<FrameRequestCallback> = [];
@@ -260,7 +298,10 @@ describe("detail views", () => {
   });
 
   it("rolls back an optimistic favorite mutation after failure", async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error("offline"));
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input).includes("/UserFavoriteItems/")) throw new Error("offline");
+      return new Response(null, { status: 204 });
+    });
     renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
 
     fireEvent.click(screen.getByRole("button", { name: "Add to favorites" }));
@@ -270,8 +311,8 @@ describe("detail views", () => {
   });
 });
 
-function renderDetail(data: DetailData) {
-  return render(<ProgressProvider><DetailPage initialData={data} session={session} /></ProgressProvider>);
+function renderDetail(data: DetailData, autoplay = false) {
+  return render(<ProgressProvider><DetailPage initialData={data} session={session} autoplay={autoplay} /></ProgressProvider>);
 }
 
 function movie(): JellyfinItem {

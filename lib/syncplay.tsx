@@ -83,6 +83,10 @@ const emptyContext: Context = {
 };
 const SyncplayContext = createContext<Context>(emptyContext);
 const SYNCPLAY_REQUEST_TIMEOUT_MS = 8_000;
+const syncplayDebug = (event: string, details?: unknown) => {
+	if (typeof window === "undefined") return;
+	console.debug(`[Syncplay] ${event}`, details ?? "");
+};
 class SyncplayRequestError extends Error {
 	constructor(
 		message: string,
@@ -93,6 +97,8 @@ class SyncplayRequestError extends Error {
 	}
 }
 async function call(path: string, method = "GET", body?: unknown) {
+	const started = performance.now();
+	syncplayDebug("HTTP request", { path, method, body });
 	const controller = new AbortController();
 	const timeout = window.setTimeout(
 		() => controller.abort(),
@@ -110,11 +116,22 @@ async function call(path: string, method = "GET", body?: unknown) {
 	} finally {
 		window.clearTimeout(timeout);
 	}
+	syncplayDebug("HTTP response", {
+		path,
+		method,
+		status: response.status,
+		elapsedMs: Math.round(performance.now() - started),
+	});
 	if (!response.ok) {
 		const error = await response.json().catch(() => ({}));
+		syncplayDebug("HTTP error", {
+			path,
+			method,
+			status: response.status,
+			error,
+		});
 		throw new SyncplayRequestError(
-			error.message ??
-				"Syncplay request failed.",
+			error.message ?? "Syncplay request failed.",
 			response.status,
 			error.group,
 		);
@@ -155,6 +172,19 @@ export function SyncplayProvider({
 	);
 
 	const setCurrent = useCallback((group: SyncplayGroup | null) => {
+		syncplayDebug(
+			"active group changed",
+			group && {
+				id: group.id,
+				itemId: group.itemId,
+				playing: group.playing,
+				playbackState: group.playbackState,
+				resumeWhenReady: group.resumeWhenReady,
+				revision: group.revision,
+				mediaGeneration: group.mediaGeneration,
+				members: group.members,
+			},
+		);
 		if (group) revisionRef.current.set(group.id, group.revision);
 		activeRef.current = group;
 		setActive(group);
@@ -182,18 +212,18 @@ export function SyncplayProvider({
 	const reconcile = useCallback(
 		(next: SyncplayGroup | null) => {
 			const previous = activeRef.current;
-		if (!hydratedRef.current) {
-			hydratedRef.current = true;
-			setCurrent(next);
-			return;
-		}
-		if (
-			previous &&
-			next &&
-			previous.id === next.id &&
-			next.revision < previous.revision
-		)
-			return;
+			if (!hydratedRef.current) {
+				hydratedRef.current = true;
+				setCurrent(next);
+				return;
+			}
+			if (
+				previous &&
+				next &&
+				previous.id === next.id &&
+				next.revision < previous.revision
+			)
+				return;
 			if (previous && !next)
 				toast.success(t("syncplayGroupEnded", { group: previous.name }));
 			if (previous && next && previous.id === next.id) {
@@ -220,16 +250,18 @@ export function SyncplayProvider({
 	);
 	const refresh = useCallback(async () => {
 		const data = (await call("groups")) as { groups: SyncplayGroup[] };
-		setGroups((old) => data.groups.map((group) => {
-			const known = old.find((entry) => entry.id === group.id);
-			return known && known.revision > group.revision ? known : group;
-		}));
+		setGroups((old) =>
+			data.groups.map((group) => {
+				const known = old.find((entry) => entry.id === group.id);
+				return known && known.revision > group.revision ? known : group;
+			}),
+		);
 		const current = activeRef.current;
 		reconcile(
 			current
-				// A recovery read can have started before a local join completed.
-				// Only WebSocket end/membership events are authoritative removals.
-				? (data.groups.find((group) => group.id === current.id) ?? current)
+				? // A recovery read can have started before a local join completed.
+					// Only WebSocket end/membership events are authoritative removals.
+					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
 						group.members.some((member) => member.userId === session.userId),
 					) ?? null),
@@ -245,8 +277,15 @@ export function SyncplayProvider({
 		(group: SyncplayGroup, announceNewMedia = false) => {
 			const tombstone = tombstonesRef.current.get(group.id);
 			const knownRevision = revisionRef.current.get(group.id);
-			if ((tombstone != null && group.revision <= tombstone) || (knownRevision != null && group.revision < knownRevision)) return;
-			if (activeRef.current?.id === group.id && group.revision < activeRef.current.revision)
+			if (
+				(tombstone != null && group.revision <= tombstone) ||
+				(knownRevision != null && group.revision < knownRevision)
+			)
+				return;
+			if (
+				activeRef.current?.id === group.id &&
+				group.revision < activeRef.current.revision
+			)
 				return;
 			hydratedRef.current = true;
 			revisionRef.current.set(group.id, group.revision);
@@ -257,8 +296,11 @@ export function SyncplayProvider({
 				group.itemId !== activeRef.current?.itemId
 			)
 				announcePlayback(group.itemId);
-			const isMember = group.members.some((member) => member.userId === session.userId);
-			if (activeRef.current?.id === group.id) reconcile(isMember ? group : null);
+			const isMember = group.members.some(
+				(member) => member.userId === session.userId,
+			);
+			if (activeRef.current?.id === group.id)
+				reconcile(isMember ? group : null);
 			// All users receive group broadcasts so they can discover public groups.
 			// A broadcast for a group someone else joined must never turn that group
 			// into this user's active session.
@@ -277,34 +319,64 @@ export function SyncplayProvider({
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
 		void refreshRef.current().catch(() => undefined);
-		const socketOrigin = (process.env.NEXT_PUBLIC_ZSO_URL ?? window.location.origin)
-			.replace(/\/+$/, "");
+		const socketOrigin = (
+			process.env.NEXT_PUBLIC_ZSO_URL ?? window.location.origin
+		).replace(/\/+$/, "");
 		const socket = io(`${socketOrigin}/syncplay`, {
 			path: "/api/socket.io",
 			auth: { token: session.token },
 			autoConnect: false,
 		});
 		socketRef.current = socket;
+		syncplayDebug("socket created", { socketOrigin, path: "/api/socket.io" });
 		queueMicrotask(() => {
 			if (!disposed) socket.connect();
 		});
 		// A single recovery read covers an upgrade that loses its first frame.
 		const syncClock = () => {
-			if (typeof (socket as unknown as { emit?: unknown }).emit !== "function") return;
+			if (typeof (socket as unknown as { emit?: unknown }).emit !== "function")
+				return;
 			const sent = Date.now() / 1000;
-			socket.emit("syncplay:clock", { clientSentAt: sent }, (reply?: { serverReceivedAt?: number; serverSentAt?: number }) => {
-				const received = Date.now() / 1000;
-				if (!reply?.serverReceivedAt || !reply.serverSentAt) return;
-				const rtt = Math.max(0, received - sent - (reply.serverSentAt - reply.serverReceivedAt));
-				if (rtt <= bestRttRef.current) {
-					bestRttRef.current = rtt;
-					clockOffsetRef.current = ((reply.serverReceivedAt + reply.serverSentAt) - (sent + received)) / 2;
-				}
-			});
+			socket.emit(
+				"syncplay:clock",
+				{ clientSentAt: sent },
+				(reply?: { serverReceivedAt?: number; serverSentAt?: number }) => {
+					const received = Date.now() / 1000;
+					if (!reply?.serverReceivedAt || !reply.serverSentAt) return;
+					const rtt = Math.max(
+						0,
+						received - sent - (reply.serverSentAt - reply.serverReceivedAt),
+					);
+					if (rtt <= bestRttRef.current) {
+						bestRttRef.current = rtt;
+						clockOffsetRef.current =
+							(reply.serverReceivedAt +
+								reply.serverSentAt -
+								(sent + received)) /
+							2;
+					}
+				},
+			);
 		};
-		socket.on("connect", () => { void refreshRef.current().catch(() => undefined); syncClock(); });
+		socket.on("connect", () => {
+			syncplayDebug("socket connected", { id: socket.id });
+			void refreshRef
+				.current()
+				.catch((error) => syncplayDebug("socket refresh failed", error));
+			syncClock();
+		});
+		socket.on("connect_error", (error) =>
+			syncplayDebug("socket connect error", {
+				message: error.message,
+				description: error.description,
+			}),
+		);
+		socket.on("disconnect", (reason) =>
+			syncplayDebug("socket disconnected", { reason }),
+		);
 		const clockTimer = window.setInterval(syncClock, 30_000);
 		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
+			syncplayDebug("socket groups", message);
 			const next = message.groups ?? [];
 			for (const group of next) adopt(group);
 			const current = activeRef.current;
@@ -313,25 +385,39 @@ export function SyncplayProvider({
 				// A connection snapshot can be older than a command response or a
 				// socket event already applied locally. It must not evict the session.
 				if (candidate && candidate.revision >= current.revision)
-					reconcileRef.current(candidate.members.some((member) => member.userId === session.userId) ? candidate : null);
-			} else reconcileRef.current(next.find((group) => group.members.some((member) => member.userId === session.userId)) ?? null);
+					reconcileRef.current(
+						candidate.members.some((member) => member.userId === session.userId)
+							? candidate
+							: null,
+					);
+			} else
+				reconcileRef.current(
+					next.find((group) =>
+						group.members.some((member) => member.userId === session.userId),
+					) ?? null,
+				);
 		});
 		socket.on("syncplay:group", (message: { group?: SyncplayGroup }) => {
+			syncplayDebug("socket group", message);
 			if (!message.group) return;
 			const group = message.group;
 			adopt(group);
 		});
-		socket.on("syncplay:group-ended", (message: { id?: string; revision?: number }) => {
-			if (!message.id) return;
-			const id = message.id;
-			const revision = message.revision ?? Number.MAX_SAFE_INTEGER;
-			const known = revisionRef.current.get(id) ?? -1;
-			if (revision < known) return;
-			tombstonesRef.current.set(id, revision);
-			revisionRef.current.set(id, revision);
-			setGroups((old) => old.filter((group) => group.id !== id));
-			if (activeRef.current?.id === id) reconcileRef.current(null);
-		});
+		socket.on(
+			"syncplay:group-ended",
+			(message: { id?: string; revision?: number }) => {
+				syncplayDebug("socket group ended", message);
+				if (!message.id) return;
+				const id = message.id;
+				const revision = message.revision ?? Number.MAX_SAFE_INTEGER;
+				const known = revisionRef.current.get(id) ?? -1;
+				if (revision < known) return;
+				tombstonesRef.current.set(id, revision);
+				revisionRef.current.set(id, revision);
+				setGroups((old) => old.filter((group) => group.id !== id));
+				if (activeRef.current?.id === id) reconcileRef.current(null);
+			},
+		);
 		return () => {
 			window.clearInterval(clockTimer);
 			disposed = true;
@@ -352,7 +438,10 @@ export function SyncplayProvider({
 	const join = async (id: string) => {
 		try {
 			const known = groups.find((entry) => entry.id === id);
-			const group = (await call(`groups/${id}/join`, "POST", { expectedRevision: known?.revision, operationId: operationId() })) as SyncplayGroup;
+			const group = (await call(`groups/${id}/join`, "POST", {
+				expectedRevision: known?.revision,
+				operationId: operationId(),
+			})) as SyncplayGroup;
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
 		} catch (error) {
@@ -364,7 +453,10 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return;
 		try {
-			await call(`groups/${group.id}`, "DELETE", { expectedRevision: group.revision, operationId: operationId() });
+			await call(`groups/${group.id}`, "DELETE", {
+				expectedRevision: group.revision,
+				operationId: operationId(),
+			});
 			setCurrent(null);
 			await refresh();
 			toast.success(t("syncplayLeftGroup", { group: group.name }));
@@ -402,7 +494,13 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return;
 		try {
-			adopt((await call(`groups/${group.id}/members/${encodeURIComponent(userId)}`, "DELETE", { expectedRevision: group.revision, operationId: operationId() })) as SyncplayGroup);
+			adopt(
+				(await call(
+					`groups/${group.id}/members/${encodeURIComponent(userId)}`,
+					"DELETE",
+					{ expectedRevision: group.revision, operationId: operationId() },
+				)) as SyncplayGroup,
+			);
 		} catch (error) {
 			toast.error(t("syncplaySettingsFailed"));
 			throw error;
@@ -412,8 +510,10 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return Promise.resolve();
 		const groupId = group.id;
-		const seekVersion = value.action === "seek" ? ++latestSeekRef.current : null;
+		const seekVersion =
+			value.action === "seek" ? ++latestSeekRef.current : null;
 		const run = async () => {
+			syncplayDebug("command queued", { groupId, value, seekVersion });
 			// Arrow-key seeks can arrive faster than a round trip. Older queued
 			// seeks are obsolete, so only send the destination the user settled on.
 			if (seekVersion != null && seekVersion !== latestSeekRef.current) return;
@@ -428,11 +528,23 @@ export function SyncplayProvider({
 				}) as Promise<SyncplayGroup>;
 			try {
 				try {
+					syncplayDebug("command send", {
+						groupId,
+						revision: current.revision,
+						operationId: id,
+						value,
+					});
 					adopt(await send(current.revision), true);
 				} catch (error) {
 					if (!(error instanceof SyncplayRequestError) || error.status !== 409)
 						throw error;
-					const latest = (error.group ?? await call(`groups/${groupId}`)) as SyncplayGroup;
+					const latest = (error.group ??
+						(await call(`groups/${groupId}`))) as SyncplayGroup;
+					syncplayDebug("command stale; retrying", {
+						groupId,
+						latestRevision: latest.revision,
+						error,
+					});
 					adopt(latest);
 					try {
 						adopt(await send(latest.revision), true);
@@ -446,6 +558,7 @@ export function SyncplayProvider({
 					}
 				}
 			} catch (error) {
+				syncplayDebug("command failed", { groupId, value, error });
 				toast.error(t("syncplayPlaybackFailed"));
 				throw error;
 			}
@@ -467,11 +580,31 @@ export function SyncplayProvider({
 		const send = async () => {
 			if (activeRef.current?.id !== groupId) return;
 			try {
-				adopt((await call(`groups/${groupId}/presence`, "POST", {
-					viewing, loading, mediaGeneration: generation,
-					presenceSequence: sequence, operationId: operationId(),
-				})) as SyncplayGroup);
+				syncplayDebug("presence send", {
+					groupId,
+					viewing,
+					loading,
+					generation,
+					sequence,
+				});
+				adopt(
+					(await call(`groups/${groupId}/presence`, "POST", {
+						viewing,
+						loading,
+						mediaGeneration: generation,
+						presenceSequence: sequence,
+						operationId: operationId(),
+					})) as SyncplayGroup,
+				);
 			} catch (error) {
+				syncplayDebug("presence failed", {
+					groupId,
+					viewing,
+					loading,
+					generation,
+					sequence,
+					error,
+				});
 				toast.error(t("syncplayPresenceFailed"));
 				throw error;
 			}

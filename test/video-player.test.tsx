@@ -12,6 +12,7 @@ import {
 	startSyncedMedia,
 	syncplayTimelineTarget,
 	VideoPlayer,
+	syncplayWaitingForMembers,
 } from "@/components/player/video-player";
 import { parseWebVttCues } from "@/lib/subtitle-preferences";
 import { I18nProvider } from "@/lib/i18n";
@@ -19,6 +20,7 @@ import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-p
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
 import type { JellyfinItem } from "@/lib/jellyfin";
+import type { SyncplayGroup } from "@/lib/syncplay";
 
 vi.mock("@/lib/jellyfin", async () => {
 	const actual =
@@ -41,6 +43,55 @@ vi.mock("@/lib/jellyfin", async () => {
 describe("video player controls", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());
+
+	it("detects when Syncplay is waiting for other members", () => {
+		const group = {
+			itemId: "movie",
+			resumeWhenReady: true,
+			mediaGeneration: 2,
+			members: [],
+		} as SyncplayGroup;
+		expect(syncplayWaitingForMembers(group, "movie")).toBe(true);
+		expect(
+			syncplayWaitingForMembers(
+				{
+					...group,
+					resumeWhenReady: false,
+					members: [
+						{
+							userId: "other",
+							username: "Other",
+							viewing: true,
+							loading: true,
+							readyGeneration: -1,
+							role: "viewer",
+						},
+					],
+				},
+				"movie",
+			),
+		).toBe(true);
+		expect(
+			syncplayWaitingForMembers(
+				{
+					...group,
+					resumeWhenReady: false,
+					members: [
+						{
+							userId: "other",
+							username: "Other",
+							viewing: true,
+							loading: false,
+							readyGeneration: 2,
+							role: "viewer",
+						},
+					],
+				},
+				"movie",
+			),
+		).toBe(false);
+		expect(syncplayWaitingForMembers(group, "other")).toBe(false);
+	});
 
 	it("contains player overlays without creating a scrollbar", () => {
 		const { container } = render(

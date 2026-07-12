@@ -71,6 +71,22 @@ const playerDebug = (event: string, details?: unknown) => {
 	console.debug(`[Player] ${event}`, details ?? "");
 };
 
+export function syncplayWaitingForMembers(
+	state: SyncplayGroup | null,
+	itemId: string,
+) {
+	if (!state || state.itemId !== itemId) return false;
+	return (
+		state.resumeWhenReady ||
+		state.members.some(
+			(member) =>
+				!member.viewing ||
+				member.loading ||
+				(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1),
+		)
+	);
+}
+
 export function advanceToNextEpisode(
 	nextItem: JellyfinItem | null,
 	onNext: Props["onNext"],
@@ -1021,6 +1037,15 @@ export function VideoPlayer({
 			}}
 			tabIndex={0}
 		>
+			{syncplayWaitingForMembers(syncplay.active, item.Id) && (
+					<div
+						className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+						role="status"
+						aria-label="Loading"
+					>
+						<LoaderCircle className="h-12 w-12 animate-spin text-white/80" />
+					</div>
+				)}
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"

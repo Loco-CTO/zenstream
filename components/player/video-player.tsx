@@ -1063,10 +1063,15 @@ export function VideoPlayer({
 					else onClose();
 				}}
 				onPlay={(e) => {
+					const syncState = syncplayStateRef.current;
+					const syncWantsPlaying = Boolean(
+						syncState?.playing || syncState?.playbackState === "playing",
+					);
 					playerDebug("video play event", {
 						currentTime: e.currentTarget.currentTime,
 						suppressed: suppressSyncPlayRef.current,
 						applying: applyingSyncRef.current,
+						authoritativePlaying: syncWantsPlaying,
 						canControl: syncplay.canControl,
 					});
 					handlePlay();
@@ -1077,6 +1082,7 @@ export function VideoPlayer({
 					if (
 						syncplay.active &&
 						!applyingSyncRef.current &&
+						!syncWantsPlaying &&
 						syncplay.canControl
 					)
 						void syncplay
@@ -1089,10 +1095,15 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onPause={(e) => {
+					const syncState = syncplayStateRef.current;
+					const syncWantsPlaying = Boolean(
+						syncState?.playing || syncState?.playbackState === "playing",
+					);
 					playerDebug("video pause event", {
 						currentTime: e.currentTarget.currentTime,
 						suppressed: suppressSyncPauseRef.current,
 						applying: applyingSyncRef.current,
+						authoritativePlaying: syncWantsPlaying,
 						canControl: syncplay.canControl,
 					});
 					setPlaying(false);
@@ -1103,6 +1114,7 @@ export function VideoPlayer({
 					if (
 						syncplay.active &&
 						!applyingSyncRef.current &&
+						syncWantsPlaying &&
 						syncplay.canControl
 					)
 						void syncplay

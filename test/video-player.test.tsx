@@ -10,6 +10,7 @@ import {
 	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
+	syncplayStateWantsPlaying,
 	syncplayTimelineTarget,
 	VideoPlayer,
 	syncplayWaitingForMembers,
@@ -114,6 +115,22 @@ describe("video player controls", () => {
 			),
 		).toBe(false);
 		expect(syncplayWaitingForMembers(group, "other")).toBe(false);
+	});
+
+	it("recognizes an authoritative playing state for the current item", () => {
+		const state = {
+			itemId: "movie",
+			playing: true,
+			playbackState: "playing" as const,
+		} as SyncplayGroup;
+		expect(syncplayStateWantsPlaying(state, "movie")).toBe(true);
+		expect(
+			syncplayStateWantsPlaying(
+				{ ...state, playing: false, playbackState: "paused" },
+				"movie",
+			),
+		).toBe(false);
+		expect(syncplayStateWantsPlaying(state, "other")).toBe(false);
 	});
 
 	it("contains player overlays without creating a scrollbar", () => {

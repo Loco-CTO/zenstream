@@ -124,6 +124,17 @@ export function syncplayTimelineTarget(state: SyncplayGroup, now: number) {
 	};
 }
 
+export function syncplayStateWantsPlaying(
+	state: SyncplayGroup | null,
+	itemId: string,
+) {
+	return Boolean(
+		state &&
+		state.itemId === itemId &&
+		(state.playing || state.playbackState === "playing"),
+	);
+}
+
 export function optimisticSeekTimelineTarget(
 	position: number,
 	playing: boolean,
@@ -245,6 +256,7 @@ export function VideoPlayer({
 	const suppressNextClickRef = useRef(false);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
+	const retryAfterBufferingRef = useRef(false);
 	const bufferedRef = useRef(false);
 	const appliedTimelineRef = useRef<string | null>(null);
 	const seekPreviewRef = useRef<{ itemId: string; value: number } | null>(null);
@@ -1065,6 +1077,7 @@ export function VideoPlayer({
 					);
 				}}
 				onWaiting={() => {
+					retryAfterBufferingRef.current = true;
 					playerDebug("video waiting", {
 						currentTime: videoRef.current?.currentTime,
 						readyState: videoRef.current?.readyState,
@@ -1072,11 +1085,20 @@ export function VideoPlayer({
 					reportBuffering(true);
 				}}
 				onCanPlay={() => {
+					const shouldRetry = retryAfterBufferingRef.current;
+					retryAfterBufferingRef.current = false;
 					playerDebug("video canplay", {
 						currentTime: videoRef.current?.currentTime,
 						readyState: videoRef.current?.readyState,
 					});
 					reportBuffering(false);
+					const video = videoRef.current;
+					if (
+						shouldRetry &&
+						video?.paused &&
+						syncplayStateWantsPlaying(syncplayStateRef.current, item.Id)
+					)
+						startSyncedPlayback(video);
 				}}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;

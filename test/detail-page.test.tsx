@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DetailPage,
   syncplayMediaStartCommand,
@@ -19,6 +19,10 @@ describe("detail views", () => {
 		router.back.mockClear();
 		router.push.mockClear();
 		vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
 	});
 
 	it("uses browser history for the detail back button", () => {
@@ -72,6 +76,15 @@ describe("detail views", () => {
       expect.stringContaining("/UserPlayedItems/movie"),
       expect.objectContaining({ method: "DELETE" }),
     ));
+  });
+
+  it("opens the player immediately while media information is still loading", () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => undefined)));
+    renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    expect(document.querySelector("video")).toBeInTheDocument();
   });
 
   it("announces new host media before the player is mounted", () => {

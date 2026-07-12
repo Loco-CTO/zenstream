@@ -69,10 +69,11 @@ export function DetailPage({
 	);
 	const [mutationError, setMutationError] = useState("");
 	const [playerOpen, setPlayerOpen] = useState(false);
-	const [trackChoices, setTrackChoices] =
-		useState<ReturnType<typeof playbackStreams>>();
+	const [trackChoices, setTrackChoices] = useState<{
+		itemId: string;
+		streams: ReturnType<typeof playbackStreams>;
+	}>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
-	const [trackLoading, setTrackLoading] = useState(false);
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
@@ -87,6 +88,8 @@ export function DetailPage({
 		item.People?.filter(
 			(person) => person.Type === "Actor" || person.Type === "Director",
 		) ?? [];
+	const currentTrackChoices =
+		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
 
 	useEffect(() => {
 		let active = true;
@@ -94,7 +97,7 @@ export function DetailPage({
 			.then((playback) => {
 				if (!active) return;
 				const parsed = playbackStreams(playback);
-				setTrackChoices(parsed);
+				setTrackChoices({ itemId: item.Id, streams: parsed });
 				const audio =
 					parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
 				const subtitle =
@@ -166,38 +169,17 @@ export function DetailPage({
 		}
 	}
 
-	async function startPlayback() {
-		setTrackLoading(true);
-		try {
-			// Announce the title as soon as the host presses Play. Waiting for the
-			// host's media element to load leaves every other member with nothing to
-			// navigate to and makes their readiness dependent on the host connection.
-			const mediaCommand = syncplayMediaStartCommand(
-				active,
-				canControl,
-				item.Id,
+	function startPlayback() {
+		setMutationError("");
+		// The player owns stream loading. Opening it must never wait for a remote
+		// media-info request or a Syncplay round trip, otherwise the Play button
+		// feels frozen on higher-latency connections.
+		setPlayerOpen(true);
+		const mediaCommand = syncplayMediaStartCommand(active, canControl, item.Id);
+		if (mediaCommand) {
+			void command(mediaCommand).catch(() =>
+				setMutationError("Playback could not be loaded."),
 			);
-			const mediaTransition = mediaCommand
-				? command(mediaCommand)
-				: Promise.resolve();
-			const [playback] = await Promise.all([
-				getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 }),
-				mediaTransition,
-			]);
-			const parsed = playbackStreams(playback);
-			setTrackChoices(parsed);
-			const audio =
-				parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
-			const subtitle =
-				parsed.subtitles.find((track) => track.IsDefault) ??
-				parsed.subtitles[0];
-			const defaults = { audio: audio?.Index, subtitle: subtitle?.Index };
-			setSelectedTracks(defaults);
-			setPlayerOpen(true);
-		} catch {
-			setMutationError("Playback could not be loaded.");
-		} finally {
-			setTrackLoading(false);
 		}
 	}
 
@@ -213,6 +195,7 @@ export function DetailPage({
 							: Number(selectedTracks.audio)
 					}
 					initialSubtitleStreamIndex={selectedTracks.subtitle}
+					initialStreams={currentTrackChoices}
 					onClose={() => setPlayerOpen(false)}
 					onNext={(next) => setItem(next)}
 					onPlayedChange={(played) =>
@@ -274,8 +257,7 @@ export function DetailPage({
 					<div className="space-y-3">
 						<div className="flex flex-wrap items-center gap-3 mb-8">
 							<PrimaryActionButton
-								onClick={() => void startPlayback()}
-								disabled={trackLoading}
+								onClick={startPlayback}
 							>
 								<Play className="h-4 w-4 fill-black text-black" />
 								{t("play")}
@@ -301,11 +283,11 @@ export function DetailPage({
 								}
 							/>
 						</div>
-						{trackChoices &&
-							(trackChoices.audio.length > 0 ||
-								trackChoices.subtitles.length > 0) && (
+						{currentTrackChoices &&
+							(currentTrackChoices.audio.length > 0 ||
+								currentTrackChoices.subtitles.length > 0) && (
 								<InlineTrackChoices
-									tracks={trackChoices}
+									tracks={currentTrackChoices}
 									selected={selectedTracks}
 									onChange={setSelectedTracks}
 								/>

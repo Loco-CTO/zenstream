@@ -174,3 +174,4 @@ syncplayRemoveMember: Remove {member}
 syncplayAlreadyInGroup: You already belong to an active Syncplay group.
 syncplayMustLeaveGroup: Leave your current Syncplay group before joining another.
 syncplayHostDisconnected: The host disconnected. The room will close if they do not reconnect within five minutes.
+syncplayParticipantReplaced: You were disconnected from Syncplay because this account joined from another device or tab.

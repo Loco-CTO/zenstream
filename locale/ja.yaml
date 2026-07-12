@@ -174,3 +174,4 @@ syncplayRemoveMember: "{member} を削除"
 syncplayAlreadyInGroup: すでにアクティブな Syncplay グループに参加しています。
 syncplayMustLeaveGroup: 別のグループに参加する前に、現在の Syncplay グループを退出してください。
 syncplayHostDisconnected: ホストが切断されました。5分以内に再接続しない場合、ルームは終了します。
+syncplayParticipantReplaced: このアカウントが別のデバイスまたはタブから参加したため、Syncplayから切断されました。

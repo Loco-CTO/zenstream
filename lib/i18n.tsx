@@ -184,6 +184,7 @@ export const TRANSLATION_KEYS = [
 	"syncplayAlreadyInGroup",
 	"syncplayMustLeaveGroup",
 	"syncplayHostDisconnected",
+	"syncplayParticipantReplaced",
 ] as const;
 
 export type TranslationKey = (typeof TRANSLATION_KEYS)[number];

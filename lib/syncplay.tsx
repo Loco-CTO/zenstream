@@ -447,6 +447,16 @@ export function SyncplayProvider({
 				if (activeRef.current?.id === id) reconcileRef.current(null);
 			},
 		);
+		socket.on(
+			"syncplay:participant-replaced",
+			(message: { id?: string }) => {
+				syncplayDebug("participant replaced", message);
+				if (!message.id || activeRef.current?.id !== message.id) return;
+				tombstonesRef.current.set(message.id, Number.MAX_SAFE_INTEGER);
+				setCurrent(null);
+				toast.error(t("syncplayParticipantReplaced"));
+			},
+		);
 		return () => {
 			window.clearInterval(clockTimer);
 			disposed = true;
@@ -475,6 +485,7 @@ export function SyncplayProvider({
 				expectedRevision: known?.revision,
 				operationId: operationId(),
 			})) as SyncplayGroup;
+			tombstonesRef.current.delete(id);
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
 		} catch (error) {

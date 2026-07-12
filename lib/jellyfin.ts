@@ -715,6 +715,11 @@ export function subtitleUrl(
 	const params = new URLSearchParams({
 		api_key: session.token,
 		MediaSourceId: source?.Id ?? itemId,
+		// Ask Jellyfin for a browser-compatible WebVTT stream and preserve the
+		// media timeline when the source is being remuxed/transcoded.
+		format: "vtt",
+		addVttTimeMap: "true",
+		copyTimestamps: "true",
 	});
 	return `/api/jellyfin/video/${encodeURIComponent(itemId)}/${encodeURIComponent(source?.Id ?? itemId)}/Subtitles/${streamIndex}/Stream.vtt?${params}`;
 }

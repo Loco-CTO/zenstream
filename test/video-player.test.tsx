@@ -13,6 +13,7 @@ import {
 	syncplayTimelineTarget,
 	VideoPlayer,
 } from "@/components/player/video-player";
+import { parseWebVttCues } from "@/lib/subtitle-preferences";
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
@@ -327,6 +328,11 @@ describe("video player controls", () => {
 			"text-shadow: -2px -2px 0 #112233",
 		);
 		expect(cues[0].getAttribute("style")).toContain("2px 2px 0 #112233");
+	});
+
+	it("parses Jellyfin VTT with a BOM and cue settings", () => {
+		expect(parseWebVttCues("\uFEFFWEBVTT\n\n1\n00:00.000 --> 00:02.000 align:start\nHello"))
+			.toEqual([{ start: 0, end: 2, text: "Hello" }]);
 	});
 
 	it("does not show an ending cue at the next cue boundary", () => {

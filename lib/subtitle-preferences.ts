@@ -36,7 +36,7 @@ export function subtitleOuterShadow(size: number, color: string) {
 }
 
 export function parseWebVttCues(input: string): SubtitleCue[] {
-  return input.split(/\r?\n\s*\r?\n/).flatMap((block) => {
+	return input.replace(/^\uFEFF/, "").split(/\r?\n\s*\r?\n/).flatMap((block) => {
     const lines = block.split(/\r?\n/);
     const timingIndex = lines.findIndex((line) => line.includes(" --> "));
     if (timingIndex < 0) return [];

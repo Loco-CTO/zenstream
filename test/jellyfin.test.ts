@@ -30,6 +30,7 @@ import {
 	getHeroTrailer,
 	playbackStreams,
 	playbackUrl,
+	subtitleUrl,
 	preserveTrickplay,
 	trickplayPreview,
 	youtubeVideoId,
@@ -150,6 +151,15 @@ describe("jellyfin api helpers", () => {
 		expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({
 			UserId: "user-1",
 		});
+	});
+
+	it("requests Jellyfin subtitles as timeline-preserving WebVTT", () => {
+		const url = new URL(subtitleUrl(session, "movie-1", { Id: "source-1" }, 3), "https://app.test");
+		expect(url.pathname).toBe("/api/jellyfin/video/movie-1/source-1/Subtitles/3/Stream.vtt");
+		expect(url.searchParams.get("MediaSourceId")).toBe("source-1");
+		expect(url.searchParams.get("format")).toBe("vtt");
+		expect(url.searchParams.get("addVttTimeMap")).toBe("true");
+		expect(url.searchParams.get("copyTimestamps")).toBe("true");
 	});
 
 	it("sends playback limits and stream selections in the PlaybackInfo body", async () => {

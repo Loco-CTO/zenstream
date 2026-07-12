@@ -38,7 +38,7 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 			</div>
 			<CardText item={item} />
 				</Link>
-				<MediaCardOverlay href={detailHref(item)} title={item.Name} />
+				<MediaCardOverlay href={detailHref(item)} title={item.Name} className="inset-x-0 top-0 aspect-video" />
 			</div>
 		</article>
 	);
@@ -66,7 +66,7 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 			</div>
 			<CardText item={item} />
 			</Link>
-			<MediaCardOverlay href={detailHref(item)} title={item.Name} />
+			<MediaCardOverlay href={detailHref(item)} title={item.Name} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
 	);
@@ -97,7 +97,7 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 					<p className="mt-0.5 truncate text-xs text-white/30">{stacked ? item.ProductionYear ?? item.Type : subtitle(item)}</p>
 				</div>
 			</Link>
-			<MediaCardOverlay href={detailHref(item)} title={stacked ? item.SeriesName ?? item.Name : item.Name} />
+			<MediaCardOverlay href={detailHref(item)} title={stacked ? item.SeriesName ?? item.Name : item.Name} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
 	);
@@ -115,13 +115,13 @@ export const MEDIA_CARD_IMAGE_CLASS =
 export const MEDIA_CARD_TAG_CLASS =
 	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
-export function MediaCardOverlay({ href, title }: { href: string; title?: string }) {
+export function MediaCardOverlay({ href, title, className = "inset-0" }: { href: string; title?: string; className?: string }) {
 	const router = useRouter();
 	const { t } = useI18n();
 	const autoplayHref = `${href}${href.includes("?") ? "&" : "?"}autoplay=1`;
 
 	return (
-		<div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100">
+		<div className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 ${className}`}>
 			<button
 				type="button"
 				aria-label={title ? `${t("play")} ${title}` : t("play")}

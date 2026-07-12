@@ -390,7 +390,7 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 				<p className="mt-2 truncate text-xs font-medium text-white/80">{item.Name}</p>
 				<p className="mt-0.5 truncate text-xs text-white/30">{item.ProductionYear ?? item.Type}</p>
 			</Link>
-			<MediaCardOverlay href={href} title={item.Name} />
+			<MediaCardOverlay href={href} title={item.Name} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
 	);

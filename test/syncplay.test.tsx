@@ -57,6 +57,8 @@ function Controls() {
 		<button onClick={() => void syncplay.leave()}>Leave</button>
 		<button onClick={() => void syncplay.refresh()}>Refresh</button>
 		<button onClick={() => void syncplay.command({ action: "play", itemId: "movie", position: 0, playing: true })}>Play</button>
+		<button onClick={() => void syncplay.command({ action: "seek", itemId: "movie", position: 10, playing: true })}>Seek 10</button>
+		<button onClick={() => void syncplay.command({ action: "seek", itemId: "movie", position: 20, playing: true })}>Seek 20</button>
 		<span data-testid="active-group">{syncplay.active?.id ?? "none"}</span>
 		<span data-testid="active-revision">{syncplay.active?.revision ?? "none"}</span>
 	</>;
@@ -143,6 +145,28 @@ describe("SyncplayProvider", () => {
 		render(<SyncplayTestProvider><ActiveGroup /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
 		expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups", expect.any(Object));
+	});
+
+	it("keeps only the latest queued seek", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(JSON.stringify(joinedGroup(2)));
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		fireEvent.click(screen.getByRole("button", { name: "Seek 10" }));
+		fireEvent.click(screen.getByRole("button", { name: "Seek 20" }));
+
+		await waitFor(() => {
+			const commands = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"));
+			expect(commands).toHaveLength(1);
+			expect(JSON.parse(String(commands[0][1]?.body)).position).toBe(20);
+		});
 	});
 
 	it("applies a newer group state sent by the WebSocket", async () => {

@@ -82,6 +82,7 @@ const emptyContext: Context = {
 	serverNow: () => Date.now() / 1000,
 };
 const SyncplayContext = createContext<Context>(emptyContext);
+const SYNCPLAY_REQUEST_TIMEOUT_MS = 8_000;
 class SyncplayRequestError extends Error {
 	constructor(
 		message: string,
@@ -92,12 +93,23 @@ class SyncplayRequestError extends Error {
 	}
 }
 async function call(path: string, method = "GET", body?: unknown) {
-	const response = await fetch(`/api/syncplay/${path}`, {
-		method,
-		headers: body ? { "Content-Type": "application/json" } : undefined,
-		body: body ? JSON.stringify(body) : undefined,
-		cache: "no-store",
-	});
+	const controller = new AbortController();
+	const timeout = window.setTimeout(
+		() => controller.abort(),
+		SYNCPLAY_REQUEST_TIMEOUT_MS,
+	);
+	let response: Response;
+	try {
+		response = await fetch(`/api/syncplay/${path}`, {
+			method,
+			headers: body ? { "Content-Type": "application/json" } : undefined,
+			body: body ? JSON.stringify(body) : undefined,
+			cache: "no-store",
+			signal: controller.signal,
+		});
+	} finally {
+		window.clearTimeout(timeout);
+	}
 	if (!response.ok) {
 		const error = await response.json().catch(() => ({}));
 		throw new SyncplayRequestError(
@@ -128,6 +140,7 @@ export function SyncplayProvider({
 	const activeRef = useRef<SyncplayGroup | null>(null);
 	const socketRef = useRef<Socket | null>(null);
 	const commandChainRef = useRef(Promise.resolve());
+	const latestSeekRef = useRef(0);
 	const presenceChainRef = useRef(Promise.resolve());
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
@@ -399,7 +412,11 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return Promise.resolve();
 		const groupId = group.id;
+		const seekVersion = value.action === "seek" ? ++latestSeekRef.current : null;
 		const run = async () => {
+			// Arrow-key seeks can arrive faster than a round trip. Older queued
+			// seeks are obsolete, so only send the destination the user settled on.
+			if (seekVersion != null && seekVersion !== latestSeekRef.current) return;
 			const current = activeRef.current;
 			if (!current || current.id !== groupId) return;
 			const id = operationId();

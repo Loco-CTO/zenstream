@@ -66,6 +66,10 @@ export const HLS_TEXT_TRACK_CONFIG = {
 	enableCEA708Captions: false,
 	renderTextTracksNatively: false,
 };
+const playerDebug = (event: string, details?: unknown) => {
+	if (typeof window === "undefined") return;
+	console.debug(`[ZenStream Player] ${event}`, details ?? "");
+};
 
 export function advanceToNextEpisode(
 	nextItem: JellyfinItem | null,
@@ -115,21 +119,26 @@ export async function startSyncedMedia(
 	onMutedFallback: () => void,
 	onBlocked: () => void,
 ) {
+	playerDebug("play requested", { muted: video.muted });
 	try {
 		await video.play();
+		playerDebug("play started", { muted: video.muted });
 		return true;
-	} catch {
+	} catch (error) {
+		playerDebug("play rejected", { muted: video.muted, error });
 		if (!video.muted) {
 			video.muted = true;
 			onMutedFallback();
 			try {
 				await video.play();
+				playerDebug("muted fallback play started");
 				return true;
 			} catch {
 				// The stream is still not playable; use the readiness barrier below.
 			}
 		}
 		onBlocked();
+		playerDebug("play blocked; reporting buffering");
 		return false;
 	}
 }
@@ -674,6 +683,7 @@ export function VideoPlayer({
 		const state = syncplayStateRef.current;
 		if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
 			return;
+		playerDebug("buffering changed", { loading, groupId: state.id, itemId: item.Id, generation: state.mediaGeneration });
 		if (bufferingTimerRef.current) window.clearTimeout(bufferingTimerRef.current);
 		bufferingTimerRef.current = window.setTimeout(() => {
 			const current = syncplayStateRef.current;
@@ -685,6 +695,7 @@ export function VideoPlayer({
 		}, loading ? 750 : 300);
 	}
 	function startSyncedPlayback(video: HTMLVideoElement) {
+		playerDebug("sync timeline requested playback", { currentTime: video.currentTime, readyState: video.readyState, networkState: video.networkState });
 		suppressSyncPlayRef.current = true;
 		void startSyncedMedia(
 			video,
@@ -698,6 +709,7 @@ export function VideoPlayer({
 	function togglePlay() {
 		const video = videoRef.current;
 		if (!video || (syncplay.active && !syncplay.canControl)) return;
+		playerDebug("toggle play", { paused: video?.paused, currentTime: video?.currentTime, canControl: syncplay.canControl, groupId: syncplay.active?.id });
 		if (syncplay.active) {
 			void syncplay
 				.command({
@@ -988,10 +1000,12 @@ export function VideoPlayer({
 						Math.max(knownDuration, Number.isFinite(value) ? value : 0),
 					);
 				}}
-				onWaiting={() => {
+				 onWaiting={() => {
+					playerDebug("video waiting", { currentTime: videoRef.current?.currentTime, readyState: videoRef.current?.readyState });
 					reportBuffering(true);
 				}}
 				onCanPlay={() => {
+					playerDebug("video canplay", { currentTime: videoRef.current?.currentTime, readyState: videoRef.current?.readyState });
 					reportBuffering(false);
 				}}
 				onDurationChange={() => {
@@ -1010,6 +1024,7 @@ export function VideoPlayer({
 					else onClose();
 				}}
 				onPlay={(e) => {
+					playerDebug("video play event", { currentTime: e.currentTarget.currentTime, suppressed: suppressSyncPlayRef.current, applying: applyingSyncRef.current, canControl: syncplay.canControl });
 					handlePlay();
 					if (suppressSyncPlayRef.current) {
 						suppressSyncPlayRef.current = false;
@@ -1030,6 +1045,7 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onPause={(e) => {
+					playerDebug("video pause event", { currentTime: e.currentTarget.currentTime, suppressed: suppressSyncPauseRef.current, applying: applyingSyncRef.current, canControl: syncplay.canControl });
 					setPlaying(false);
 					if (suppressSyncPauseRef.current) {
 						suppressSyncPauseRef.current = false;

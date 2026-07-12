@@ -4,6 +4,8 @@ import { Hero } from "@/components/home/hero";
 import type { JellyfinItem } from "@/lib/jellyfin";
 
 const session = { token: "token", userId: "user", username: "Alex" };
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 describe("Hero", () => {
 	it("constrains long titles so they cannot overrun the hero", () => {
@@ -67,6 +69,16 @@ describe("Hero", () => {
 		expect(infoButton).toHaveClass("font-medium");
 		expect(infoButton).toHaveClass("tracking-normal");
 		expect(infoButton).not.toHaveClass("uppercase");
+	});
+
+	it("routes the featured title to autoplay when Play is clicked", () => {
+		const item = heroItem("featured", "Featured Title");
+
+		render(<Hero items={[item]} session={session} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+		expect(router.push).toHaveBeenCalledWith("/show/featured?autoplay=1");
 	});
 
 	it("uses the Logo image in place of the visual title when present", () => {

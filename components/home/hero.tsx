@@ -8,6 +8,7 @@ import {
 	Volume2,
 	VolumeX,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	heroImage,
@@ -35,6 +36,7 @@ export function Hero({
 	session: AuthSession;
 }) {
 	const { locale, t } = useI18n();
+	const router = useRouter();
 	const slides = useMemo(() => items.filter(hasVisualImage), [items]);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [slideDirection, setSlideDirection] = useState<SlideDirection>("next");
@@ -335,7 +337,7 @@ export function Hero({
 
 					<div className="flex items-center gap-3">
 						<PrimaryActionButton
-							disabled
+							onClick={() => router.push(`/show/${item.Id}?autoplay=1`)}
 						>
 							<Play className="h-4 w-4 fill-black text-black" />
 							{t("play")}

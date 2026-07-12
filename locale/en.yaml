@@ -171,3 +171,6 @@ syncplaySettingsFailed: Could not update Syncplay settings.
 syncplayPlaybackFailed: Could not update Syncplay playback.
 syncplayPresenceFailed: Could not update Syncplay readiness.
 syncplayRemoveMember: Remove {member}
+syncplayAlreadyInGroup: You already belong to an active Syncplay group.
+syncplayMustLeaveGroup: Leave your current Syncplay group before joining another.
+syncplayHostDisconnected: The host disconnected. The room will close if they do not reconnect within five minutes.

@@ -181,6 +181,9 @@ export const TRANSLATION_KEYS = [
 	"syncplayPlaybackFailed",
 	"syncplayPresenceFailed",
 	"syncplayRemoveMember",
+	"syncplayAlreadyInGroup",
+	"syncplayMustLeaveGroup",
+	"syncplayHostDisconnected",
 ] as const;
 
 export type TranslationKey = (typeof TRANSLATION_KEYS)[number];

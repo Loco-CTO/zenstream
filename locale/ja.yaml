@@ -171,3 +171,6 @@ syncplaySettingsFailed: Syncplay の設定を更新できませんでした。
 syncplayPlaybackFailed: Syncplay の再生状態を更新できませんでした。
 syncplayPresenceFailed: Syncplay の準備状態を更新できませんでした。
 syncplayRemoveMember: "{member} を削除"
+syncplayAlreadyInGroup: すでにアクティブな Syncplay グループに参加しています。
+syncplayMustLeaveGroup: 別のグループに参加する前に、現在の Syncplay グループを退出してください。
+syncplayHostDisconnected: ホストが切断されました。5分以内に再接続しない場合、ルームは終了します。

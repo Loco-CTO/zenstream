@@ -703,7 +703,7 @@ export function playbackUrl(
 		TranscodingMaxAudioChannels: "2",
 		...(bitrate ? { TranscodingMaxBitrate: String(bitrate) } : {}),
 	});
-	return `/api/jellyfin/video/${encodeURIComponent(itemId)}/${bitrate ? "stream.mp4" : "stream"}?${params}`;
+	return `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/${bitrate ? "stream.mp4" : "stream"}?${params}`;
 }
 
 export function subtitleUrl(
@@ -721,7 +721,7 @@ export function subtitleUrl(
 		addVttTimeMap: "true",
 		copyTimestamps: "true",
 	});
-	return `/api/jellyfin/video/${encodeURIComponent(itemId)}/${encodeURIComponent(source?.Id ?? itemId)}/Subtitles/${streamIndex}/Stream.vtt?${params}`;
+	return `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/${encodeURIComponent(source?.Id ?? itemId)}/Subtitles/${streamIndex}/Stream.vtt?${params}`;
 }
 
 export interface TrickplayPreview {

@@ -1,4 +1,13 @@
 import { isLocale, type Locale } from "@/lib/i18n";
+import { getAuthSession } from "@/lib/session";
+
+function preferencesUrl(path: string) {
+  return `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/zenstream/preferences/${path}`;
+}
+function preferenceHeaders(): Record<string, string> {
+  const token = getAuthSession()?.token;
+  return token ? { "X-Jellyfin-Token": token } : {};
+}
 
 export const LOCALE_STORAGE_KEY = "zenstream.locale";
 
@@ -22,7 +31,7 @@ export function storeLocale(locale: Locale): void {
 }
 
 export async function getLocalePreference(): Promise<Locale> {
-  const response = await fetch("/api/preferences/locale", { cache: "no-store" });
+  const response = await fetch(preferencesUrl("locale"), { cache: "no-store", headers: preferenceHeaders() });
   if (!response.ok) throw new Error("Could not load locale preference.");
   const data: unknown = await response.json();
   if (!isPreference(data)) throw new Error("Invalid locale preference response.");
@@ -31,9 +40,9 @@ export async function getLocalePreference(): Promise<Locale> {
 }
 
 export async function setLocalePreference(locale: Locale): Promise<Locale> {
-  const response = await fetch("/api/preferences/locale", {
+  const response = await fetch(preferencesUrl("locale"), {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...preferenceHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ locale }),
   });
   if (!response.ok) throw new Error("Could not save locale preference.");

@@ -13,6 +13,9 @@ export type SubtitleStyle = {
 };
 
 export type SubtitleCue = { start: number; end: number; text: string };
+import { getAuthSession } from "@/lib/session";
+const preferenceUrl = `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/zenstream/preferences/subtitles`;
+const preferenceHeaders = (): Record<string, string> => { const token = getAuthSession()?.token; return token ? { "X-Jellyfin-Token": token } : {}; };
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { fontFamily: "sans", bold: false, textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };
 
@@ -64,7 +67,7 @@ function decodeSubtitleText(value: string) {
 }
 
 export async function getSubtitlePreference(): Promise<SubtitleStyle> {
-  const response = await fetch("/api/preferences/subtitles", { cache: "no-store" });
+  const response = await fetch(preferenceUrl, { cache: "no-store", headers: preferenceHeaders() });
   if (!response.ok) throw new Error("Could not load subtitle preferences.");
   const data: unknown = await response.json();
   const style = normalizeSubtitleStyle(data);
@@ -73,7 +76,7 @@ export async function getSubtitlePreference(): Promise<SubtitleStyle> {
 }
 
 export async function setSubtitlePreference(style: SubtitleStyle): Promise<SubtitleStyle> {
-  const response = await fetch("/api/preferences/subtitles", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(style) });
+  const response = await fetch(preferenceUrl, { method: "PATCH", headers: { ...preferenceHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(style) });
   if (!response.ok) throw new Error("Could not save subtitle preferences.");
   const data: unknown = await response.json();
   if (!isSubtitleStyle(data)) throw new Error("Invalid subtitle preference response.");

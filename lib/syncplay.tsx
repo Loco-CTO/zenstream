@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { getItem } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
+import { getAuthSession } from "@/lib/session";
 
 export type SyncplayGroup = {
 	id: string;
@@ -106,9 +107,14 @@ async function call(path: string, method = "GET", body?: unknown) {
 	);
 	let response: Response;
 	try {
-		response = await fetch(`/api/syncplay/${path}`, {
+		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
+		response = await fetch(`${base}/api/zenstream/syncplay/${path}`, {
 			method,
-			headers: body ? { "Content-Type": "application/json" } : undefined,
+			headers: {
+				...(getAuthSession()?.token ? { "X-Jellyfin-Token": getAuthSession()!.token } : {}),
+				...(getAuthSession()?.username ? { "X-ZenStream-Username": getAuthSession()!.username } : {}),
+				...(body ? { "Content-Type": "application/json" } : {}),
+			},
 			body: body ? JSON.stringify(body) : undefined,
 			cache: "no-store",
 			signal: controller.signal,

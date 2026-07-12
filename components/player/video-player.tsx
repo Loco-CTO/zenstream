@@ -135,6 +135,12 @@ export function syncplayStateWantsPlaying(
 	);
 }
 
+export function syncplayMediaIsReady(
+	video: Pick<HTMLMediaElement, "readyState">,
+) {
+	return video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
+}
+
 export function optimisticSeekTimelineTarget(
 	position: number,
 	playing: boolean,
@@ -484,11 +490,14 @@ export function VideoPlayer({
 		const state = syncplay.active;
 		if (!state || state.itemId !== item.Id) return;
 		const generation = state.mediaGeneration ?? 0;
-		// Metadata is not sufficient to release a group: the browser must first
-		// have enough media buffered to accept play().
-		bufferedRef.current = true;
+		// A client can join after the media element already emitted `canplay`.
+		// In that case there may be no future event to clear the loading flag, so
+		// inspect the current readyState when entering the readiness barrier.
+		const video = videoRef.current;
+		const loading = !video || !syncplayMediaIsReady(video);
+		bufferedRef.current = !loading;
 		void syncplayApiRef.current
-			.presence(true, true, generation)
+			.presence(true, loading, generation)
 			.catch(() => undefined);
 		return () => {
 			void syncplayApiRef.current

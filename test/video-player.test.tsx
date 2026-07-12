@@ -10,6 +10,7 @@ import {
 	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
+	syncplayMediaIsReady,
 	syncplayStateWantsPlaying,
 	syncplayTimelineTarget,
 	VideoPlayer,
@@ -131,6 +132,12 @@ describe("video player controls", () => {
 			),
 		).toBe(false);
 		expect(syncplayStateWantsPlaying(state, "other")).toBe(false);
+	});
+
+	it("recognizes media that was already buffered before joining Syncplay", () => {
+		expect(syncplayMediaIsReady({ readyState: 2 })).toBe(false);
+		expect(syncplayMediaIsReady({ readyState: 3 })).toBe(true);
+		expect(syncplayMediaIsReady({ readyState: 4 })).toBe(true);
 	});
 
 	it("contains player overlays without creating a scrollbar", () => {

@@ -367,6 +367,7 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 		: `/show/${item.Id}`;
 	return (
 		<article className="group/card min-w-0 cursor-pointer select-none">
+			<div className="relative">
 			<Link href={href} className="block">
 				<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 					{image && (
@@ -378,7 +379,6 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 							className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 						/>
 					)}
-					<MediaCardOverlay />
 					{item.CommunityRating != null && (
 						<div className="absolute bottom-2 left-2 flex items-center gap-1">
 							<Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
@@ -390,6 +390,8 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 				<p className="mt-2 truncate text-xs font-medium text-white/80">{item.Name}</p>
 				<p className="mt-0.5 truncate text-xs text-white/30">{item.ProductionYear ?? item.Type}</p>
 			</Link>
+			<MediaCardOverlay href={href} title={item.Name} />
+			</div>
 		</article>
 	);
 }

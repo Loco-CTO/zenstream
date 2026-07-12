@@ -104,6 +104,9 @@ export function AppShell() {
 		typeof window !== "undefined"
 			? (new URLSearchParams(window.location.search).get("q") ?? "")
 			: "";
+	const autoplay =
+		typeof window !== "undefined" &&
+		new URLSearchParams(window.location.search).get("autoplay") === "1";
 	const loadDetail = useCallback(
 		async (nextSession: AuthSession, itemId: string) => {
 			const finishProgress = start();
@@ -248,7 +251,7 @@ export function AppShell() {
 								/>
 							)}
 							{status === "ready" && detailData && detailId && (
-								<DetailPage initialData={detailData} session={session} />
+								<DetailPage initialData={detailData} session={session} autoplay={autoplay} />
 							)}
 							{status === "ready" && pathname === "/library" && (
 								<LibraryPage session={session} />

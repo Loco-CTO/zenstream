@@ -94,6 +94,16 @@ describe("detail views", () => {
   });
 
   it("autoplays a series from its first unwatched episode", async () => {
+    const textTracks = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      length: 0,
+      [Symbol.iterator]: function* () {},
+    };
+    Object.defineProperty(HTMLVideoElement.prototype, "textTracks", {
+      configurable: true,
+      get: () => textTracks,
+    });
     vi.mocked(fetch).mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/Shows/series/Episodes")) {
@@ -217,7 +227,7 @@ describe("detail views", () => {
     );
   });
 
-  it("uses the shared horizontal scroller for an episode season", () => {
+  it("uses the shared horizontal scroller for an episode season", async () => {
     renderDetail({
       item: episode("ep-1", 1),
       seasons: [],
@@ -236,8 +246,14 @@ describe("detail views", () => {
       clientWidth: { configurable: true, value: 320 },
       scrollWidth: { configurable: true, value: 640 },
     });
+    Object.defineProperty(scroller, "scrollTo", {
+      configurable: true,
+      value: vi.fn(),
+    });
     fireEvent.scroll(scroller);
 
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Scroll Episodes right" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Scroll Episodes right" }));
     animationFrames.shift()?.(0);
     expect(scroller.scrollLeft).toBeCloseTo(51.2);
@@ -261,7 +277,7 @@ describe("detail views", () => {
     expect(container.querySelectorAll(".lucide-play")).toHaveLength(2);
   });
 
-  it("uses the shared horizontal scroller for cast and similar titles", () => {
+  it("uses the shared horizontal scroller for cast and similar titles", async () => {
     renderDetail({
       item: {
         ...movie(),
@@ -286,9 +302,19 @@ describe("detail views", () => {
         clientWidth: { configurable: true, value: 320 },
         scrollWidth: { configurable: true, value: 640 },
       });
+      Object.defineProperty(scroller, "scrollTo", {
+        configurable: true,
+        value: vi.fn(),
+      });
       fireEvent.scroll(scroller);
     }
 
+    fireEvent.scroll(castScroller);
+    fireEvent.scroll(similarScroller);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Scroll Cast & Crew right" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Scroll More Like This right" })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Scroll Cast & Crew right" }));
     fireEvent.click(screen.getByRole("button", { name: "Scroll More Like This right" }));
     animationFrames.shift()?.(0);

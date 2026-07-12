@@ -34,6 +34,7 @@ export type SyncplayGroup = {
 	effectiveAt?: number;
 	playbackState?: "playing" | "paused";
 	pauseReason?: string | null;
+	hostDisconnectedAt?: number | null;
 	updatedAt: number;
 	members: {
 		userId: string;
@@ -172,6 +173,7 @@ export function SyncplayProvider({
 	const bestRttRef = useRef(Infinity);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
+	const membershipActionRef = useRef(false);
 	const serverNow = useCallback(
 		() => Date.now() / 1000 + clockOffsetRef.current,
 		[],
@@ -233,6 +235,8 @@ export function SyncplayProvider({
 			if (previous && !next)
 				toast.success(t("syncplayGroupEnded", { group: previous.name }));
 			if (previous && next && previous.id === next.id) {
+				if (!previous.hostDisconnectedAt && next.hostDisconnectedAt)
+					toast.error(t("syncplayHostDisconnected"));
 				const before = new Map(
 					previous.members.map((member) => [member.userId, member]),
 				);
@@ -431,16 +435,20 @@ export function SyncplayProvider({
 		};
 	}, [session.token, session.userId]);
 	const create = async () => {
+		if (activeRef.current || membershipActionRef.current) return;
+		membershipActionRef.current = true;
 		try {
 			const group = (await call("groups", "POST")) as SyncplayGroup;
 			adopt(group);
 			toast.success(t("syncplayGroupCreated"));
 		} catch (error) {
-			toast.error(t("syncplayCreateFailed"));
+			toast.error(error instanceof SyncplayRequestError && error.status === 409 ? t("syncplayAlreadyInGroup") : t("syncplayCreateFailed"));
 			throw error;
-		}
+		} finally { membershipActionRef.current = false; }
 	};
 	const join = async (id: string) => {
+		if ((activeRef.current && activeRef.current.id !== id) || membershipActionRef.current) return;
+		membershipActionRef.current = true;
 		try {
 			const known = groups.find((entry) => entry.id === id);
 			const group = (await call(`groups/${id}/join`, "POST", {
@@ -450,9 +458,9 @@ export function SyncplayProvider({
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
 		} catch (error) {
-			toast.error(t("syncplayJoinFailed"));
+			toast.error(error instanceof SyncplayRequestError && error.status === 409 ? t("syncplayMustLeaveGroup") : t("syncplayJoinFailed"));
 			throw error;
-		}
+		} finally { membershipActionRef.current = false; }
 	};
 	const leave = async () => {
 		const group = activeRef.current;

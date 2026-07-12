@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, Play } from "lucide-react";
 import {
 	landscapeImage,
@@ -20,7 +21,8 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 
 	return (
 		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[320px] shrink-0 cursor-pointer select-none">
-			<Link href={detailHref(item)} draggable={false} className="block">
+			<div className="relative">
+				<Link href={detailHref(item)} draggable={false} className="block">
 				<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 					{(item.Type === "Movie" || item.Type === "Episode") && <HoverPreviewVideo preview={preview} />}
 				{image && (
@@ -33,10 +35,11 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 				)}
 				<WatchProgress progress={progress} />
 				<WatchedIndicator item={item} />
-				<MediaCardOverlay />
 			</div>
 			<CardText item={item} />
-			</Link>
+				</Link>
+				<MediaCardOverlay href={detailHref(item)} title={item.Name} />
+			</div>
 		</article>
 	);
 }
@@ -47,6 +50,7 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 
 	return (
 		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[200px] shrink-0 cursor-pointer select-none">
+			<div className="relative">
 			<Link href={detailHref(item)} draggable={false} className="block">
 			<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 				{item.Type === "Movie" && <HoverPreviewVideo preview={preview} />}
@@ -58,11 +62,12 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 						className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 					/>
 				)}
-				<MediaCardOverlay />
 				<WatchedIndicator item={item} />
 			</div>
 			<CardText item={item} />
 			</Link>
+			<MediaCardOverlay href={detailHref(item)} title={item.Name} />
+			</div>
 		</article>
 	);
 }
@@ -74,6 +79,7 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 
 	return (
 		<article className="group/card w-[200px] shrink-0 cursor-pointer select-none">
+			<div className="relative">
 			<Link href={detailHref(item)} draggable={false} className="block">
 				<div className="relative">
 					{stacked && <>
@@ -84,7 +90,6 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 						{image && <BlurHashImage image={image} alt={stacked ? item.SeriesName ?? item.Name : item.Name} draggable={false} className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`} />}
 						{stacked && <span className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}>{items.length} EP</span>}
 						<WatchedIndicator item={item} unwatchedCount={items.filter((episode) => !episode.UserData?.Played).length} />
-						<MediaCardOverlay />
 					</div>
 				</div>
 				<div className="mt-2">
@@ -92,6 +97,8 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 					<p className="mt-0.5 truncate text-xs text-white/30">{stacked ? item.ProductionYear ?? item.Type : subtitle(item)}</p>
 				</div>
 			</Link>
+			<MediaCardOverlay href={detailHref(item)} title={stacked ? item.SeriesName ?? item.Name : item.Name} />
+			</div>
 		</article>
 	);
 }
@@ -108,12 +115,25 @@ export const MEDIA_CARD_IMAGE_CLASS =
 export const MEDIA_CARD_TAG_CLASS =
 	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
-export function MediaCardOverlay() {
+export function MediaCardOverlay({ href, title }: { href: string; title?: string }) {
+	const router = useRouter();
+	const { t } = useI18n();
+	const autoplayHref = `${href}${href.includes("?") ? "&" : "?"}autoplay=1`;
+
 	return (
-		<div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100">
-			<span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 backdrop-blur">
+		<div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100">
+			<button
+				type="button"
+				aria-label={title ? `${t("play")} ${title}` : t("play")}
+				onClick={(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					router.push(autoplayHref);
+				}}
+				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 hover:shadow-lg hover:shadow-black/40 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
+			>
 				<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
-			</span>
+			</button>
 		</div>
 	);
 }

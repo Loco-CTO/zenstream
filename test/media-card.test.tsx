@@ -1,8 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PosterCard, StackedPosterCard, WideCard } from "@/components/home/media-card";
 import { EpisodeCard } from "@/components/pages/detail-page";
 import type { JellyfinItem } from "@/lib/jellyfin";
+
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const item = {
   Id: "item-1",
@@ -25,6 +28,17 @@ describe("media card sizing", () => {
     const { container } = render(<WideCard item={item} />);
 
     expect(container.firstElementChild).toHaveClass("w-[320px]");
+  });
+
+  it("routes the play button to autoplay without changing the detail link", () => {
+    render(<WideCard item={item} />);
+
+    expect(screen.getByRole("link", { name: /Test title/ })).toHaveAttribute("href", "/show/item-1");
+    const playButton = screen.getByRole("button", { name: "Play Test title" });
+    expect(playButton).toHaveClass("hover:scale-110", "focus:ring-2");
+    playButton.click();
+
+    expect(router.push).toHaveBeenCalledWith("/show/item-1?autoplay=1");
   });
 
   it("uses the enlarged portrait card width", () => {
@@ -93,6 +107,23 @@ describe("media card sizing", () => {
     );
 
     expect(container.querySelector('[style="width: 25%;"]')?.parentElement).toHaveClass("h-0.5");
+  });
+
+  it("adds a playable overlay to vertical season episode rows", () => {
+    render(
+      <EpisodeCard
+        seriesId="series-1"
+        episode={{ ...item, Type: "Episode", SeriesId: "series-1", IndexNumber: 1 }}
+        horizontal={false}
+        active={false}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Play Test title" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /1\. Test title/ })).toHaveAttribute(
+      "href",
+      "/show/series-1/episode/item-1",
+    );
   });
 
   it.each([

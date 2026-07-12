@@ -722,7 +722,13 @@ export function VideoPlayer({
 		void startSyncedMedia(
 			video,
 			() => setMuted(true),
-			() => reportBuffering(true),
+			() => {
+				// A rejected play() means this member is not ready, even if the
+				// media element previously emitted canplay. Clear the optimistic
+				// readiness flag so the barrier receives the loading transition.
+				bufferedRef.current = false;
+				reportBuffering(true);
+			},
 		).then((started) => {
 			if (!started) suppressSyncPlayRef.current = false;
 		});

@@ -54,6 +54,8 @@ function Controls() {
 	const syncplay = useSyncplay();
 	return <>
 		<button onClick={() => void syncplay.join("group")}>Join</button>
+		<button onClick={() => void syncplay.create()}>Create</button>
+		<button onClick={() => void syncplay.join("other-group")}>Join other</button>
 		<button onClick={() => void syncplay.leave()}>Leave</button>
 		<button onClick={() => void syncplay.refresh()}>Refresh</button>
 		<button onClick={() => void syncplay.command({ action: "play", itemId: "movie", position: 0, playing: true })}>Play</button>
@@ -145,6 +147,18 @@ describe("SyncplayProvider", () => {
 		render(<SyncplayTestProvider><ActiveGroup /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
 		expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups", expect.any(Object));
+	});
+
+	it("blocks creating or joining another group while already active", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(JSON.stringify({ groups: [{ ...joinedGroup(1) }] })),
+		);
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		fireEvent.click(screen.getByRole("button", { name: "Create" }));
+		fireEvent.click(screen.getByRole("button", { name: "Join other" }));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(fetchMock.mock.calls.filter(([url, init]) => String(url).includes("/groups") && init?.method === "POST")).toHaveLength(0);
 	});
 
 	it("keeps only the latest queued seek", async () => {

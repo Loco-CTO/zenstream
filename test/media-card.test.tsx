@@ -36,6 +36,7 @@ describe("media card sizing", () => {
     expect(screen.getByRole("link", { name: /Test title/ })).toHaveAttribute("href", "/show/item-1");
     const playButton = screen.getByRole("button", { name: "Play Test title" });
     expect(playButton).toHaveClass("hover:scale-110", "focus:ring-2");
+    expect(playButton).not.toHaveClass("shadow-lg", "shadow-black/40");
     playButton.click();
 
     expect(router.push).toHaveBeenCalledWith("/show/item-1?autoplay=1");

@@ -130,7 +130,7 @@ export function MediaCardOverlay({ href, title, className = "inset-0" }: { href:
 					event.stopPropagation();
 					router.push(autoplayHref);
 				}}
-				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 hover:shadow-lg hover:shadow-black/40 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
+				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
 			>
 				<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
 			</button>

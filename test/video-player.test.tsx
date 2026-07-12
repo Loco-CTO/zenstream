@@ -161,7 +161,7 @@ describe("video player controls", () => {
 	});
 
 	it("shows the Syncplay groups control in the player header", () => {
-		const { getByRole } = render(
+		const { container, getByRole } = render(
 			<I18nProvider locale="en">
 				<ToastProvider>
 					<SyncplayProvider
@@ -180,7 +180,17 @@ describe("video player controls", () => {
 				</ToastProvider>
 			</I18nProvider>,
 		);
-		expect(getByRole("button", { name: "Groups" })).toBeInTheDocument();
+		const groupButton = getByRole("button", { name: "Groups" });
+		const groupContainer = groupButton.parentElement?.parentElement;
+		expect(groupButton).toBeInTheDocument();
+		expect(groupContainer).toHaveClass("opacity-100");
+
+		fireEvent.pointerMove(container.firstElementChild!);
+		act(() => vi.advanceTimersByTime(2501));
+		expect(groupContainer).toHaveClass("pointer-events-none", "opacity-0");
+
+		fireEvent.pointerMove(container.firstElementChild!);
+		expect(groupContainer).toHaveClass("opacity-100");
 	});
 
 	it("locks document scrolling while the player is open and restores it on close", () => {

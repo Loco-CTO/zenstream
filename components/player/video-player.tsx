@@ -1228,7 +1228,9 @@ export function VideoPlayer({
 					)}
 				</div>
 			</div>
-			<div className="absolute right-5 top-5 md:right-10 md:top-8">
+			<div
+				className={`absolute right-5 top-5 transition-opacity duration-300 md:right-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+			>
 				<SyncplayGroupMenu
 					userId={session.userId}
 					playerContext
@@ -1252,7 +1254,7 @@ export function VideoPlayer({
 					role="status"
 					aria-label="Loading"
 				>
-					<LoaderCircle className="h-8 w-8 animate-spin text-white/85" />
+					<LoaderCircle className="h-8 w-8 animate-spin text-white/85 drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]" />
 				</div>
 			)}
 			{error && (

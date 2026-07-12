@@ -36,27 +36,31 @@ export function subtitleOuterShadow(size: number, color: string) {
 }
 
 export function parseWebVttCues(input: string): SubtitleCue[] {
-	return input.replace(/^\uFEFF/, "").split(/\r?\n\s*\r?\n/).flatMap((block) => {
-    const lines = block.split(/\r?\n/);
-    const timingIndex = lines.findIndex((line) => line.includes(" --> "));
-    if (timingIndex < 0) return [];
-    const timing = lines[timingIndex].split(" --> ");
-    const start = parseSubtitleTimestamp(timing[0]);
-    const end = parseSubtitleTimestamp(timing[1]?.split(/\s+/)[0] ?? "");
-    if (start == null || end == null) return [];
-    const text = lines.slice(timingIndex + 1).join("\n")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\{\\[^}]*\}/g, "")
-      .trim();
-    return text ? [{ start, end, text }] : [];
-  });
+	const lines = input.replace(/^\uFEFF/, "").split(/\r?\n/);
+	const cues: SubtitleCue[] = [];
+	for (let index = 0; index < lines.length; index += 1) {
+		const timing = lines[index].match(/^\s*(\S+)\s+-->\s+(\S+)/);
+		if (!timing) continue;
+		const start = parseSubtitleTimestamp(timing[1]);
+		const end = parseSubtitleTimestamp(timing[2]);
+		if (start == null || end == null || end <= start) continue;
+		const textLines: string[] = [];
+		for (index += 1; index < lines.length && lines[index].trim() !== ""; index += 1) textLines.push(lines[index]);
+		const text = decodeSubtitleText(textLines.join("\n"));
+		if (text) cues.push({ start, end, text });
+	}
+	return cues;
 }
 
 function parseSubtitleTimestamp(value: string): number | null {
-  const match = value.trim().match(/^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/);
+	const match = value.trim().replace(",", ".").match(/^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/);
   if (!match) return null;
   return Number(match[1] ?? 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) + Number(match[4]) / 1000;
+}
+
+function decodeSubtitleText(value: string) {
+	return value.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\{\\[^}]*\}/g, "")
+		.replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&nbsp;/gi, " ").trim();
 }
 
 export async function getSubtitlePreference(): Promise<SubtitleStyle> {

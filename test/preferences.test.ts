@@ -76,5 +76,6 @@ describe("subtitle preferences", () => {
     expect(parseWebVttCues("WEBVTT\n\n00:00:01.000 --> 00:00:03.500\nHello<br>world")).toEqual([{ start: 1, end: 3.5, text: "Hello\nworld" }]);
     expect(parseWebVttCues("WEBVTT\n\n00:00:01.000 --> 00:00:03.500 line:80%\n{\\bord4}<i>Styled</i> text")).toEqual([{ start: 1, end: 3.5, text: "Styled text" }]);
     expect(parseWebVttCues("WEBVTT\n\n00:00:01.000 --> 00:00:03.500\nFirst\n\n00:00:01.000 --> 00:00:03.500\nSecond")).toHaveLength(2);
+    expect(parseWebVttCues("WEBVTT\r\n00:00:01,000 --> 00:00:03,500\r\nA &amp; B\r\n\r\nNOTE ignored\r\n")).toEqual([{ start: 1, end: 3.5, text: "A & B" }]);
   });
 });

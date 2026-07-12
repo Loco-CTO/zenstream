@@ -227,6 +227,27 @@ describe("video player controls", () => {
 		expect(gradient).toHaveClass("opacity-0");
 	});
 
+	it("keeps the loading indicator visible after controls time out", () => {
+		const { container, getByTestId } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		fireEvent.pointerMove(container.firstElementChild!);
+		act(() => vi.advanceTimersByTime(2501));
+
+		expect(getByTestId("player-loading")).toBeVisible();
+		fireEvent.canPlay(container.querySelector("video")!);
+		expect(container.querySelector('[data-testid="player-loading"]')).toBeNull();
+	});
+
 	it("keeps the active skip intro action interactive independently of controls", () => {
 		const onSkip = vi.fn();
 		const { getByRole } = render(

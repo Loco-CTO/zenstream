@@ -36,8 +36,9 @@ export type SyncplayGroup = {
 	pauseReason?: string | null;
 	hostDisconnectedAt?: number | null;
 	updatedAt: number;
-	members: {
+	 members: {
 		userId: string;
+		participantId: string;
 		username: string;
 		viewing: boolean;
 		loading: boolean;
@@ -85,6 +86,20 @@ const emptyContext: Context = {
 };
 const SyncplayContext = createContext<Context>(emptyContext);
 const SYNCPLAY_REQUEST_TIMEOUT_MS = 8_000;
+const SYNCPLAY_PARTICIPANT_KEY = "zenstream-syncplay-tab-id";
+let memoryParticipantId: string | null = null;
+function participantId() {
+	if (typeof window === "undefined") return "server";
+	try {
+		const stored = window.sessionStorage.getItem(SYNCPLAY_PARTICIPANT_KEY);
+		if (stored) return stored;
+	} catch { /* fall through to memory */ }
+	if (memoryParticipantId) return memoryParticipantId;
+	const generated = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+	memoryParticipantId = generated;
+	try { window.sessionStorage.setItem(SYNCPLAY_PARTICIPANT_KEY, generated); } catch { /* private mode */ }
+	return generated;
+}
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
 	console.debug(`[Syncplay] ${event}`, details ?? "");
@@ -114,6 +129,7 @@ async function call(path: string, method = "GET", body?: unknown) {
 			headers: {
 				...(getAuthSession()?.token ? { "X-Jellyfin-Token": getAuthSession()!.token } : {}),
 				...(getAuthSession()?.username ? { "X-ZenStream-Username": getAuthSession()!.username } : {}),
+				"X-ZenStream-Participant": participantId(),
 				...(body ? { "Content-Type": "application/json" } : {}),
 			},
 			body: body ? JSON.stringify(body) : undefined,
@@ -174,6 +190,7 @@ export function SyncplayProvider({
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
 	const membershipActionRef = useRef(false);
+	const currentParticipantId = participantId();
 	const serverNow = useCallback(
 		() => Date.now() / 1000 + clockOffsetRef.current,
 		[],
@@ -238,25 +255,25 @@ export function SyncplayProvider({
 				if (!previous.hostDisconnectedAt && next.hostDisconnectedAt)
 					toast.error(t("syncplayHostDisconnected"));
 				const before = new Map(
-					previous.members.map((member) => [member.userId, member]),
+					previous.members.map((member) => [member.participantId, member]),
 				);
 				const after = new Map(
-					next.members.map((member) => [member.userId, member]),
+					next.members.map((member) => [member.participantId, member]),
 				);
 				for (const member of next.members)
-					if (member.userId !== session.userId && !before.has(member.userId))
+					if (member.participantId !== currentParticipantId && !before.has(member.participantId))
 						toast.success(
 							t("syncplayMemberJoined", { member: member.username }),
 						);
 				for (const member of previous.members)
-					if (member.userId !== session.userId && !after.has(member.userId))
+					if (member.participantId !== currentParticipantId && !after.has(member.participantId))
 						toast.success(t("syncplayMemberLeft", { member: member.username }));
 				if (next.itemId && next.itemId !== previous.itemId)
 					announcePlayback(next.itemId);
 			}
 			setCurrent(next);
 		},
-		[announcePlayback, session.userId, setCurrent, t, toast],
+		[announcePlayback, currentParticipantId, setCurrent, t, toast],
 	);
 	const refresh = useCallback(async () => {
 		const data = (await call("groups")) as { groups: SyncplayGroup[] };
@@ -273,10 +290,10 @@ export function SyncplayProvider({
 					// Only WebSocket end/membership events are authoritative removals.
 					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
-						group.members.some((member) => member.userId === session.userId),
+						group.members.some((member) => member.participantId === currentParticipantId),
 					) ?? null),
 		);
-	}, [reconcile, session.userId]);
+	}, [currentParticipantId, reconcile]);
 	const reconcileRef = useRef(reconcile);
 	const refreshRef = useRef(refresh);
 	useEffect(() => {
@@ -307,7 +324,7 @@ export function SyncplayProvider({
 			)
 				announcePlayback(group.itemId);
 			const isMember = group.members.some(
-				(member) => member.userId === session.userId,
+				(member) => member.participantId === currentParticipantId,
 			);
 			if (activeRef.current?.id === group.id)
 				reconcile(isMember ? group : null);
@@ -321,7 +338,7 @@ export function SyncplayProvider({
 				return [group, ...old.filter((entry) => entry.id !== group.id)];
 			});
 		},
-		[announcePlayback, reconcile, session.userId, setCurrent],
+		[announcePlayback, currentParticipantId, reconcile, setCurrent],
 	);
 	useEffect(() => {
 		let disposed = false;
@@ -334,7 +351,7 @@ export function SyncplayProvider({
 		).replace(/\/+$/, "");
 		const socket = io(`${socketOrigin}/syncplay`, {
 			path: "/api/socket.io",
-			auth: { token: session.token },
+			auth: { token: session.token, participantId: participantId() },
 			autoConnect: false,
 		});
 		socketRef.current = socket;
@@ -395,14 +412,14 @@ export function SyncplayProvider({
 				// socket event already applied locally. It must not evict the session.
 				if (candidate && candidate.revision >= current.revision)
 					reconcileRef.current(
-						candidate.members.some((member) => member.userId === session.userId)
+						candidate.members.some((member) => member.participantId === currentParticipantId)
 							? candidate
 							: null,
 					);
 			} else
 				reconcileRef.current(
 					next.find((group) =>
-						group.members.some((member) => member.userId === session.userId),
+						group.members.some((member) => member.participantId === currentParticipantId),
 					) ?? null,
 				);
 		});
@@ -433,7 +450,7 @@ export function SyncplayProvider({
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
 		};
-	}, [session.token, session.userId]);
+	}, [currentParticipantId, session.token]);
 	const create = async () => {
 		if (activeRef.current || membershipActionRef.current) return;
 		membershipActionRef.current = true;

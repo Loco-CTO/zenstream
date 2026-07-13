@@ -8,6 +8,11 @@ export type BrowserPlaybackProfile = {
 export type BrowserDeviceProfile = {
 	directPlayProfiles: BrowserPlaybackProfile[];
 	transcodingProfiles: BrowserPlaybackProfile[];
+	subtitleProfiles: Array<{
+		Format: string;
+		Method: "External";
+		DeliveryMethod: "External";
+	}>;
 };
 
 type VideoElementLike = Pick<HTMLVideoElement, "canPlayType">;
@@ -69,6 +74,14 @@ export function browserDeviceProfile(
 
 	return {
 		directPlayProfiles,
+		// Subtitles are fetched as VTT by the custom overlay. Explicitly telling
+		// Jellyfin to deliver them externally prevents a transcoded HLS source
+		// from burning the same cue into the video as well.
+		subtitleProfiles: [{
+			Format: "vtt",
+			Method: "External",
+			DeliveryMethod: "External",
+		}],
 		// Always keep this conservative profile. It is the one used after a real
 		// native-media or hls.js failure, independent of any direct-play result.
 		transcodingProfiles: [{

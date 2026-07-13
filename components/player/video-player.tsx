@@ -726,7 +726,7 @@ export function VideoPlayer({
 				if (!active) return;
 				if (validation.status === "unsupported") {
 					if (!transcodeAttemptRef.current && !source?.TranscodingUrl) {
-						await requestForcedTranscode();
+						await retryWithoutHevc();
 					} else {
 						setQualityLoading(false);
 						setError(t("mediaPlaybackFailed"));

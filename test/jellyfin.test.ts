@@ -231,7 +231,7 @@ describe("jellyfin api helpers", () => {
 				mime.includes("hvc1") || mime.includes("avc1") || mime.includes("mp4a")
 					? "probably"
 					: "",
-		});
+		}, { hevcPaths: new Set(["direct-mp4"]) });
 
 		expect(capabilities.directPlayProfiles).toEqual([
 			expect.objectContaining({
@@ -248,7 +248,7 @@ describe("jellyfin api helpers", () => {
 		const capabilities = browserPlaybackCapabilities({
 			canPlayType: (mime) =>
 				mime.includes("hvc1") || mime.includes("mp4a") ? "probably" : "",
-		});
+		}, { hevcPaths: new Set(["direct-mp4"]) });
 
 		expect(capabilities.transcodingVideoCodec).toBe("hevc");
 	});

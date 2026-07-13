@@ -40,6 +40,7 @@ import {
 } from "@/lib/jellyfin";
 import {
 	browserPlaybackCapabilities,
+	clearBrowserPlaybackCapabilitiesCache,
 	HEVC_PROBES,
 	qualifyHevc,
 	resolveHevcCapabilities,
@@ -294,6 +295,7 @@ describe("jellyfin api helpers", () => {
 	});
 
 	it("queries browser capabilities before requesting playback info", async () => {
+		clearBrowserPlaybackCapabilitiesCache();
 		const canPlayType = vi.fn((mime: string) =>
 			mime.includes("avc1") || mime.includes("mp4a") ? "probably" : "",
 		);
@@ -452,7 +454,7 @@ describe("jellyfin api helpers", () => {
 		});
 	});
 
-	it("uses playback quality when requestVideoFrameCallback is unavailable", async () => {
+	it("keeps timing-only playback quality evidence unknown", async () => {
 		vi.stubGlobal("requestAnimationFrame", undefined);
 		try {
 			await expect(
@@ -464,10 +466,7 @@ describe("jellyfin api helpers", () => {
 					videoHeight: 720,
 					getVideoPlaybackQuality: () => ({ totalVideoFrames: 4 }),
 				}),
-			).resolves.toMatchObject({
-				status: "supported",
-				reason: "playback-quality-frames",
-			});
+			).resolves.toMatchObject({ status: "unknown" });
 		} finally {
 			vi.unstubAllGlobals();
 		}

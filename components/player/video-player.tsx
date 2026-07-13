@@ -420,12 +420,21 @@ export function VideoPlayer({
 		if (target && syncplay.active) {
 			if (!syncplay.canControl) return;
 			advancingToNextRef.current = true;
-			try {
-				await syncplay.command(nextEpisodeSyncplayCommand(target));
-			} catch {
-				advancingToNextRef.current = false;
-				return;
-			}
+			// Move this player immediately. Waiting for the Syncplay round trip here
+			// leaves every member on the old media's readiness barrier while the
+			// command is in flight. The command remains authoritative for the group;
+			// remote members will navigate from the resulting media state.
+			setNextItem(null);
+			setNextChecked(false);
+			setCurrentTime(0);
+			setDuration(0);
+			setUrl(undefined);
+			advanceToNextEpisode(target, onNext, onClose);
+			void syncplay.command(nextEpisodeSyncplayCommand(target)).catch(() => {
+				// The local transition is still useful if the request is delayed or
+				// fails; the next group snapshot will reconcile the other members.
+			});
+			return;
 		}
 		advancingToNextRef.current = true;
 		setNextItem(null);

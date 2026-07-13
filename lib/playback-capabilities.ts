@@ -82,6 +82,9 @@ export const HEVC_PROBES: HevcProbe[] = [
 
 const hevcCapabilityCache = new Map<string, RenderedVideoFrameValidation["status"]>();
 export function clearHevcCapabilityCache() { hevcCapabilityCache.clear(); }
+export function markHevcPathUnsupported(path: HevcPlaybackPath) {
+	for (const key of hevcCapabilityCache.keys()) if (key.startsWith(`${path}:`)) hevcCapabilityCache.set(key, "unsupported");
+}
 
 export type RenderedVideoFrameValidation = {
 	status: "supported" | "unsupported" | "unknown";

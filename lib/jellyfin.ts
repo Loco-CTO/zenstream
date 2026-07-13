@@ -1,4 +1,8 @@
 import type { AuthSession } from "@/lib/session";
+import {
+	browserPlaybackCapabilities,
+	type BrowserPlaybackCapabilities,
+} from "@/lib/playback-capabilities";
 
 export interface AuthResponse {
 	AccessToken?: string;
@@ -564,8 +568,11 @@ export async function getPlaybackInfo(
 		mediaSourceId?: string;
 		audioStreamIndex?: number;
 		subtitleStreamIndex?: number;
+		browserCapabilities?: BrowserPlaybackCapabilities;
 	} = {},
 ) {
+	const browserCapabilities =
+		options.browserCapabilities ?? browserPlaybackCapabilities();
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({
@@ -594,22 +601,14 @@ export async function getPlaybackInfo(
 				DeviceProfile: {
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
-					DirectPlayProfiles: [{
-						Type: "Video",
-						// Keep direct play to the baseline codecs supported by mobile
-						// browsers. Some devices can play the audio from VP9/AV1 while
-						// silently failing to render the video track.
-						Container: "mp4,m4v",
-						VideoCodec: "h264",
-						AudioCodec: "aac,mp3,opus,vorbis,flac",
-					}],
+					DirectPlayProfiles: browserCapabilities.directPlayProfiles,
 					TranscodingProfiles: [{
 						Type: "Video",
 						Context: "Streaming",
 						Protocol: "hls",
 						Container: "ts",
-						VideoCodec: "h264",
-						AudioCodec: "aac",
+						VideoCodec: browserCapabilities.transcodingVideoCodec,
+						AudioCodec: browserCapabilities.transcodingAudioCodec,
 						MaxAudioChannels: "2",
 						MinSegments: 1,
 						BreakOnNonKeyFrames: true,

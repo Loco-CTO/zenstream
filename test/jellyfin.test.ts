@@ -37,6 +37,7 @@ import {
 	youtubeVideoId,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
+import { browserPlaybackCapabilities } from "@/lib/playback-capabilities";
 
 const session = { token: "abc", userId: "user-1", username: "Alex" };
 
@@ -186,13 +187,52 @@ describe("jellyfin api helpers", () => {
 		});
 	});
 
-	it("advertises only mobile-safe direct-play video codecs", async () => {
-		await getPlaybackInfo(session, "movie-1");
+	it("ranks efficient direct-play codecs and selects H.264 for transcoding", () => {
+		const capabilities = browserPlaybackCapabilities({
+			canPlayType: (mime) =>
+				mime.includes("hvc1") || mime.includes("avc1") || mime.includes("mp4a")
+					? "probably"
+					: "",
+		});
+
+		expect(capabilities.directPlayProfiles).toEqual([
+			expect.objectContaining({
+				Container: "mp4,m4v",
+				VideoCodec: "hevc,h264",
+				AudioCodec: "aac",
+			}),
+		]);
+		expect(capabilities.transcodingVideoCodec).toBe("h264");
+		expect(capabilities.transcodingAudioCodec).toBe("aac");
+	});
+
+	it("uses HEVC for transcoding when H.264 is not supported", () => {
+		const capabilities = browserPlaybackCapabilities({
+			canPlayType: (mime) =>
+				mime.includes("hvc1") || mime.includes("mp4a") ? "probably" : "",
+		});
+
+		expect(capabilities.transcodingVideoCodec).toBe("hevc");
+	});
+
+	it("sends the target browser capabilities to Jellyfin", async () => {
+		await getPlaybackInfo(session, "movie-1", {
+			browserCapabilities: {
+				directPlayProfiles: [{
+					Type: "Video",
+					Container: "mp4,m4v",
+					VideoCodec: "hevc,h264",
+					AudioCodec: "aac",
+				}],
+				transcodingVideoCodec: "h264",
+				transcodingAudioCodec: "aac",
+			},
+		});
 
 		const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
-		expect(body.DeviceProfile.DirectPlayProfiles[0]).toMatchObject({
-			Container: "mp4,m4v",
-			VideoCodec: "h264",
+		expect(body.DeviceProfile).toMatchObject({
+			DirectPlayProfiles: [{ VideoCodec: "hevc,h264" }],
+			TranscodingProfiles: [{ VideoCodec: "h264", AudioCodec: "aac" }],
 		});
 	});
 

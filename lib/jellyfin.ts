@@ -56,6 +56,15 @@ export interface JellyfinMediaStream {
 	DisplayTitle?: string;
 	Title?: string;
 	Codec?: string;
+	Profile?: string;
+	Level?: number;
+	Width?: number;
+	Height?: number;
+	BitRate?: number;
+	AverageFrameRate?: number;
+	RealFrameRate?: number;
+	Channels?: number;
+	SampleRate?: number;
 	IsDefault?: boolean;
 	IsForced?: boolean;
 	IsExternal?: boolean;
@@ -569,6 +578,7 @@ export async function getPlaybackInfo(
 		audioStreamIndex?: number;
 		subtitleStreamIndex?: number;
 		browserCapabilities?: BrowserPlaybackCapabilities;
+		forceTranscoding?: boolean;
 	} = {},
 ) {
 	const browserCapabilities =
@@ -582,8 +592,8 @@ export async function getPlaybackInfo(
 			audioStreamIndex: options.audioStreamIndex,
 			subtitleStreamIndex: options.subtitleStreamIndex,
 			mediaSourceId: options.mediaSourceId,
-			enableDirectPlay: true,
-			enableDirectStream: true,
+			enableDirectPlay: !options.forceTranscoding,
+			enableDirectStream: !options.forceTranscoding,
 			enableTranscoding: true,
 		})}`,
 		{
@@ -595,8 +605,8 @@ export async function getPlaybackInfo(
 				MediaSourceId: options.mediaSourceId,
 				AudioStreamIndex: options.audioStreamIndex,
 				SubtitleStreamIndex: options.subtitleStreamIndex,
-				EnableDirectPlay: true,
-				EnableDirectStream: true,
+				EnableDirectPlay: !options.forceTranscoding,
+				EnableDirectStream: !options.forceTranscoding,
 				EnableTranscoding: true,
 				DeviceProfile: {
 					Name: "ZenStream Web",

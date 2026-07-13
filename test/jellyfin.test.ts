@@ -37,7 +37,11 @@ import {
 	youtubeVideoId,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
-import { browserPlaybackCapabilities } from "@/lib/playback-capabilities";
+import {
+	browserPlaybackCapabilities,
+	createMediaDecodingConfiguration,
+	validateMediaDecoding,
+} from "@/lib/playback-capabilities";
 
 const session = { token: "abc", userId: "user-1", username: "Alex" };
 
@@ -215,6 +219,26 @@ describe("jellyfin api helpers", () => {
 		expect(capabilities.transcodingVideoCodec).toBe("hevc");
 	});
 
+	it("queries browser capabilities before requesting playback info", async () => {
+		const canPlayType = vi.fn((mime: string) =>
+			mime.includes("avc1") || mime.includes("mp4a") ? "probably" : "",
+		);
+		const createElement = vi
+			.spyOn(document, "createElement")
+			.mockReturnValue({ canPlayType } as HTMLVideoElement);
+
+		try {
+			await getPlaybackInfo(session, "movie-1");
+		} finally {
+			createElement.mockRestore();
+		}
+
+		expect(canPlayType).toHaveBeenCalled();
+		expect(canPlayType.mock.invocationCallOrder[0]).toBeLessThan(
+			vi.mocked(fetch).mock.invocationCallOrder[0],
+		);
+	});
+
 	it("sends the target browser capabilities to Jellyfin", async () => {
 		await getPlaybackInfo(session, "movie-1", {
 			browserCapabilities: {
@@ -233,6 +257,98 @@ describe("jellyfin api helpers", () => {
 		expect(body.DeviceProfile).toMatchObject({
 			DirectPlayProfiles: [{ VideoCodec: "hevc,h264" }],
 			TranscodingProfiles: [{ VideoCodec: "h264", AudioCodec: "aac" }],
+		});
+	});
+
+	it("forces direct-play negotiation off for an explicit transcode request", async () => {
+		await getPlaybackInfo(session, "movie-1", { forceTranscoding: true });
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+		expect(url.searchParams.get("enableDirectPlay")).toBe("false");
+		expect(url.searchParams.get("enableDirectStream")).toBe("false");
+		expect(body.EnableDirectPlay).toBe(false);
+		expect(body.EnableDirectStream).toBe(false);
+	});
+
+	it("builds an exact decoding configuration from loaded media metadata", () => {
+		expect(
+			createMediaDecodingConfiguration(
+				{
+					container: "mp4",
+					videoCodec: "avc1.640028",
+					width: 3840,
+					height: 2160,
+					bitrate: 18_000_000,
+					framerate: 60,
+				},
+				"media-source",
+			),
+		).toEqual({
+			type: "media-source",
+			video: {
+				contentType: 'video/mp4; codecs="avc1.640028"',
+				width: 3840,
+				height: 2160,
+				bitrate: 18_000_000,
+				framerate: 60,
+			},
+		});
+	});
+
+	it("rejects unsupported or non-smooth final decoding configurations", async () => {
+		const decodingInfo = vi
+			.fn()
+			.mockResolvedValueOnce({ supported: true, smooth: false, powerEfficient: true })
+			.mockResolvedValueOnce({ supported: false, smooth: false, powerEfficient: false });
+		const previous = navigator.mediaCapabilities;
+		Object.defineProperty(navigator, "mediaCapabilities", {
+			configurable: true,
+			value: { decodingInfo },
+		});
+		const metadata = {
+			container: "mp4",
+			videoCodec: "h264",
+			width: 3840,
+			height: 2160,
+			bitrate: 18_000_000,
+			framerate: 60,
+		};
+
+		try {
+			await expect(
+				validateMediaDecoding(metadata, { type: "file" }),
+			).resolves.toMatchObject({ status: "unsupported", reason: "not-smooth" });
+			await expect(
+				validateMediaDecoding(metadata, { type: "file" }),
+			).resolves.toMatchObject({ status: "unsupported", reason: "not-supported" });
+		} finally {
+			Object.defineProperty(navigator, "mediaCapabilities", {
+				configurable: true,
+				value: previous,
+			});
+		}
+	});
+
+	it("rejects a codec that the hls.js media source cannot accept", async () => {
+		const result = await validateMediaDecoding(
+			{
+				container: "mp4",
+				videoCodec: "hevc",
+				width: 1920,
+				height: 1080,
+				bitrate: 5_000_000,
+				framerate: 30,
+			},
+			{
+				type: "media-source",
+				mediaSource: { isTypeSupported: () => false },
+			},
+		);
+
+		expect(result).toMatchObject({
+			status: "unsupported",
+			reason: "media-source-codec-unsupported",
 		});
 	});
 

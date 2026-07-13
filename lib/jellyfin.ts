@@ -701,6 +701,12 @@ export function playbackUrl(
 		...(startTimeTicks
 			? { startTimeTicks: String(Math.max(0, Math.round(startTimeTicks))) }
 			: {}),
+		...(bitrate && transcodeWidth
+			? {
+					Width: String(transcodeWidth),
+					Height: String(Math.round((transcodeWidth * 9) / 16)),
+				}
+			: {}),
 		TranscodingMaxAudioChannels: "2",
 		...(bitrate ? { TranscodingMaxBitrate: String(bitrate) } : {}),
 	});

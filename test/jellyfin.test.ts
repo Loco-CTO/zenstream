@@ -160,6 +160,19 @@ describe("jellyfin api helpers", () => {
 		);
 	});
 
+	it("uses Jellyfin's negotiated direct stream URL without rebuilding it", () => {
+		const url = playbackUrl(session, "episode-1", {
+			Id: "source-1",
+			DirectStreamUrl: "/Videos/episode-guid/stream?MediaSourceId=source-1",
+		});
+
+		const parsed = new URL(url);
+		expect(parsed.pathname).toBe("/Videos/episode-guid/stream");
+		expect(parsed.searchParams.get("MediaSourceId")).toBe("source-1");
+		expect(parsed.searchParams.get("api_key")).toBe("abc");
+		expect(parsed.searchParams.has("VideoCodec")).toBe(false);
+	});
+
 	it("does not add transcoding codec constraints to direct-play URLs", () => {
 		const url = playbackUrl(session, "movie-1", { Id: "source-1" });
 		const parsed = new URL(url, "https://miru.amai.space");

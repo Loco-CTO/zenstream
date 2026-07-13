@@ -266,6 +266,7 @@ export function VideoPlayer({
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
+	const videoClickTimerRef = useRef<number | null>(null);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const retryAfterBufferingRef = useRef(false);
@@ -706,6 +707,8 @@ export function VideoPlayer({
 				window.clearTimeout(controlsTimerRef.current);
 			if (bufferingTimerRef.current)
 				window.clearTimeout(bufferingTimerRef.current);
+			if (videoClickTimerRef.current)
+				window.clearTimeout(videoClickTimerRef.current);
 		},
 		[],
 	);
@@ -812,11 +815,23 @@ export function VideoPlayer({
 		else video.pause();
 	}
 	function toggleFullscreen() {
+		if (videoClickTimerRef.current) {
+			window.clearTimeout(videoClickTimerRef.current);
+			videoClickTimerRef.current = null;
+		}
 		if (document.fullscreenElement) {
 			exitFullscreenSafely();
 		} else {
 			void playerRef.current?.requestFullscreen?.();
 		}
+	}
+	function handleVideoClick() {
+		if (videoClickTimerRef.current)
+			window.clearTimeout(videoClickTimerRef.current);
+		videoClickTimerRef.current = window.setTimeout(() => {
+			videoClickTimerRef.current = null;
+			togglePlay();
+		}, 250);
 	}
 	function handlePlay() {
 		setPlaying(true);
@@ -1078,7 +1093,7 @@ export function VideoPlayer({
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
-				onClick={togglePlay}
+				onClick={handleVideoClick}
 				onDoubleClick={toggleFullscreen}
 				muted={muted}
 				onLoadedMetadata={() => {

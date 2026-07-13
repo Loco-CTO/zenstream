@@ -349,6 +349,7 @@ export function VideoPlayer({
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
 	const videoClickTimerRef = useRef<number | null>(null);
+	const touchVideoInteractionRef = useRef(false);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const retryAfterBufferingRef = useRef(false);
@@ -1069,7 +1070,23 @@ export function VideoPlayer({
 			void playerRef.current?.requestFullscreen?.();
 		}
 	}
+	function handleVideoPointerDown(event: React.PointerEvent<HTMLVideoElement>) {
+		if (event.pointerType !== "touch") return;
+		touchVideoInteractionRef.current = true;
+		event.stopPropagation();
+		if (controlsVisible) {
+			if (controlsTimerRef.current)
+				window.clearTimeout(controlsTimerRef.current);
+			setControlsVisible(false);
+		} else {
+			showControls();
+		}
+	}
 	function handleVideoClick() {
+		if (touchVideoInteractionRef.current) {
+			touchVideoInteractionRef.current = false;
+			return;
+		}
 		if (videoClickTimerRef.current)
 			window.clearTimeout(videoClickTimerRef.current);
 		videoClickTimerRef.current = window.setTimeout(() => {
@@ -1301,6 +1318,7 @@ export function VideoPlayer({
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
+				onPointerDown={handleVideoPointerDown}
 				playsInline
 				preload="auto"
 				onClick={handleVideoClick}

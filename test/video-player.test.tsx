@@ -191,6 +191,29 @@ describe("video player controls", () => {
 		).toBe(true);
 	});
 
+	it("does not toggle playback when the video is touched", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		const video = container.querySelector("video")!;
+		const pause = vi.spyOn(video, "pause");
+		const play = vi.spyOn(video, "play").mockResolvedValue(undefined);
+
+		fireEvent.pointerDown(video, { pointerType: "touch" });
+		fireEvent.click(video);
+
+		expect(pause).not.toHaveBeenCalled();
+		expect(play).not.toHaveBeenCalled();
+	});
+
 	it("shows the Syncplay groups control in the player header", () => {
 		const { container, getByRole } = render(
 			<I18nProvider locale="en">

@@ -1,7 +1,9 @@
 import type { AuthSession } from "@/lib/session";
 import {
 	browserPlaybackCapabilities,
+	resolveBrowserPlaybackCapabilities,
 	type BrowserPlaybackCapabilities,
+	type HevcCapabilityEnvelope,
 } from "@/lib/playback-capabilities";
 
 export interface AuthResponse {
@@ -58,6 +60,12 @@ export interface JellyfinMediaStream {
 	Codec?: string;
 	Profile?: string;
 	Level?: number;
+	BitDepth?: number;
+	VideoRangeType?: string;
+	ColorPrimaries?: string;
+	ColorTransfer?: string;
+	ColorSpace?: string;
+	IsInterlaced?: boolean;
 	Width?: number;
 	Height?: number;
 	BitRate?: number;
@@ -99,6 +107,45 @@ export interface JellyfinTrickplayInfo {
 export interface JellyfinPlaybackInfo {
 	MediaSources?: JellyfinMediaSource[];
 	PlaySessionId?: string;
+}
+
+export function hevcCodecProfile(envelope: HevcCapabilityEnvelope) {
+	return {
+		Type: "Video",
+		Codec: "hevc",
+		Conditions: [
+			{ Condition: "EqualsAny", Property: "VideoProfile", Value: "main", IsRequired: true },
+			{ Condition: "Equals", Property: "VideoBitDepth", Value: String(envelope.bitDepth), IsRequired: true },
+			{ Condition: "EqualsAny", Property: "VideoRangeType", Value: "SDR", IsRequired: true },
+			{ Condition: "LessThanEqual", Property: "VideoLevel", Value: String(envelope.level), IsRequired: true },
+			{ Condition: "NotEquals", Property: "IsInterlaced", Value: "true", IsRequired: true },
+			{ Condition: "LessThanEqual", Property: "Width", Value: String(envelope.maxWidth), IsRequired: true },
+			{ Condition: "LessThanEqual", Property: "Height", Value: String(envelope.maxHeight), IsRequired: true },
+			{ Condition: "LessThanEqual", Property: "VideoFramerate", Value: String(envelope.maxFramerate), IsRequired: true },
+		],
+	};
+}
+
+export function sourceFitsHevcEnvelope(
+	source: JellyfinMediaSource | undefined,
+	envelope: HevcCapabilityEnvelope | undefined,
+) {
+	if (!envelope) return false;
+	const video = source?.MediaStreams?.find((stream) => stream.Type === "Video");
+	if (!video || video.Codec?.toLowerCase() !== "hevc") return false;
+	const rate = Number(video.RealFrameRate ?? video.AverageFrameRate);
+	return video.Profile?.toLowerCase() === envelope.profile &&
+		video.BitDepth === envelope.bitDepth &&
+		video.VideoRangeType?.toLowerCase() === envelope.dynamicRange &&
+		video.IsInterlaced === false &&
+		Number.isFinite(video.Level) && video.Level! <= envelope.level &&
+		Number.isFinite(video.Width) && video.Width! <= envelope.maxWidth &&
+		Number.isFinite(video.Height) && video.Height! <= envelope.maxHeight &&
+		Number.isFinite(rate) && rate <= envelope.maxFramerate;
+}
+
+export function sourceVideoCodec(source: JellyfinMediaSource | undefined) {
+	return source?.MediaStreams?.find((stream) => stream.Type === "Video")?.Codec?.toLowerCase();
 }
 
 export interface PlaybackMarker {
@@ -583,15 +630,17 @@ export async function getPlaybackInfo(
 	} = {},
 ) {
 	const browserCapabilities =
-		options.browserCapabilities ?? browserPlaybackCapabilities();
+		options.browserCapabilities ?? await resolveBrowserPlaybackCapabilities();
 	const excluded = new Set((options.excludeVideoCodecs ?? []).map((codec) => codec.toLowerCase()));
-	const directPlayProfiles = browserCapabilities.directPlayProfiles.map((profile) => ({
-		...profile,
-		VideoCodec: profile.VideoCodec.split(",").filter((codec) => !excluded.has(codec.toLowerCase())).join(","),
-	})).filter((profile) => profile.VideoCodec);
+	const directPlayProfiles = browserCapabilities.directPlayProfiles.flatMap((profile) =>
+		profile.VideoCodec.split(",")
+			.filter((codec) => !excluded.has(codec.toLowerCase()))
+			.map((VideoCodec) => ({ ...profile, VideoCodec })),
+	);
 	const transcodingVideoCodec = excluded.has(browserCapabilities.transcodingVideoCodec.toLowerCase())
 		? "h264"
-		: browserCapabilities.transcodingVideoCodec;
+		: "h264";
+	const hevcEnvelope = excluded.has("hevc") ? undefined : browserCapabilities.hevcEnvelope;
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({
@@ -621,6 +670,7 @@ export async function getPlaybackInfo(
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
 					DirectPlayProfiles: directPlayProfiles,
+					CodecProfiles: hevcEnvelope ? [hevcCodecProfile(hevcEnvelope)] : [],
 					TranscodingProfiles: [{
 						Type: "Video",
 						Context: "Streaming",

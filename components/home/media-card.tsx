@@ -20,7 +20,7 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
-		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[320px] shrink-0 cursor-pointer select-none">
+		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[240px] shrink-0 cursor-pointer select-none sm:w-[280px] md:w-[320px]">
 			<div className="relative">
 				<Link href={detailHref(item)} draggable={false} className="block">
 				<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
@@ -49,7 +49,7 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
-		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[200px] shrink-0 cursor-pointer select-none">
+		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
 			<div className="relative">
 			<Link href={detailHref(item)} draggable={false} className="block">
 			<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
@@ -78,7 +78,7 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 	const image = seriesPosterImage(item);
 
 	return (
-		<article className="group/card w-[200px] shrink-0 cursor-pointer select-none">
+		<article className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
 			<div className="relative">
 			<Link href={detailHref(item)} draggable={false} className="block">
 				<div className="relative">

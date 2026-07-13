@@ -22,5 +22,8 @@ describe("BlurHashImage", () => {
 			"src",
 			expect.stringMatching(/^data:image\/svg\+xml,/),
 		);
+		expect(container.querySelector("img[aria-hidden='true']")).not.toHaveClass(
+			"hero-backdrop-active",
+		);
 	});
 });

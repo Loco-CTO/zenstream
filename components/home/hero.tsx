@@ -219,6 +219,8 @@ export function Hero({
 							alt=""
 							aria-hidden="true"
 							draggable={false}
+							loading={isActive ? "eager" : "lazy"}
+							fetchPriority={isActive ? "high" : "low"}
 							className={`absolute inset-0 h-full w-full object-cover object-center brightness-[0.55] transition-[opacity,transform,filter] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,transform] ${
 								isActive
 									? "hero-backdrop-active opacity-100 blur-0"
@@ -232,6 +234,8 @@ export function Hero({
 					image={image}
 					alt=""
 					draggable={false}
+					loading="eager"
+					fetchPriority="high"
 					className="absolute inset-0 h-full w-full object-cover object-center brightness-[0.55]"
 				/>
 			) : null}

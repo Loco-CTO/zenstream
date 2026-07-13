@@ -33,7 +33,7 @@ export function BlurHashImage({
 					alt=""
 					aria-hidden="true"
 					draggable={false}
-					className={`${className ?? ""} absolute inset-0 scale-105 blur-xl transition-opacity duration-300 ${
+					className={`absolute inset-0 h-full w-full scale-105 object-cover blur-xl transition-opacity duration-300 ${
 						loaded ? "opacity-0" : "opacity-100"
 					}`}
 				/>

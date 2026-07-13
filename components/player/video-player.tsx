@@ -52,6 +52,8 @@ import {
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 import {
 	browserPlaybackCapabilities,
+	resolveHevcCapabilities,
+	markHevcPathUnsupported,
 	validateMediaDecoding,
 	validateRenderedVideoFrame,
 	type BrowserPlaybackCapabilities,
@@ -545,14 +547,22 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
-		const streams = initialStreams
-			? Promise.resolve(initialStreams)
-			: getPlaybackInfo(session, item.Id, {
+		const streams = (initialStreams ? Promise.resolve(new Set()) : resolveHevcCapabilities({
+			mediaSource: Hls.isSupported() ? Hls.getMediaSource() ?? undefined : undefined,
+		})).then((hevcPaths) => {
+			if (!initialStreams) {
+				browserCapabilitiesRef.current = browserPlaybackCapabilities(undefined, { hevcPaths });
+			}
+			return initialStreams
+				? initialStreams
+				: getPlaybackInfo(session, item.Id, {
 					audioStreamIndex: initialAudioStreamIndex,
 					// Keep subtitles out of the media pipeline; the selected track is
 					// fetched as VTT and rendered by CustomSubtitleCue below.
 					subtitleStreamIndex: -1,
+					browserCapabilities: browserCapabilitiesRef.current,
 				}).then((playback) => playbackStreams(playback));
+		});
 		Promise.all([
 			streams,
 			getPlaybackMarkers(session, item.Id),
@@ -956,7 +966,7 @@ export function VideoPlayer({
 			if (videoRef.current !== video || url !== sourceKey) return;
 			if (validation.status !== "unsupported") return;
 			if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
-				await requestForcedTranscode();
+				await retryWithoutHevc();
 				return;
 			}
 			setQualityLoading(false);
@@ -968,6 +978,37 @@ export function VideoPlayer({
 		} finally {
 			if (frameValidationInFlightRef.current === task)
 				frameValidationInFlightRef.current = null;
+		}
+	}
+	function hevcPathForCurrentSource(): "direct-mp4" | "mse-fmp4" | "native-hls" | "hlsjs-mse" {
+		if (/\.m3u8(?:\?|$)/i.test(url ?? "")) return hlsRef.current ? "hlsjs-mse" : "native-hls";
+		return hlsRef.current ? "mse-fmp4" : "direct-mp4";
+	}
+	async function retryWithoutHevc() {
+		if (transcodeAttemptRef.current) return false;
+		transcodeAttemptRef.current = true;
+		markHevcPathUnsupported(hevcPathForCurrentSource());
+		setError("");
+		setQualityLoading(true);
+		try {
+			const playback = await getPlaybackInfo(session, item.Id, {
+				mediaSourceId: sourceRef.current?.Id,
+				audioStreamIndex: audio ? Number(audio) : undefined,
+				subtitleStreamIndex: -1,
+				browserCapabilities: browserCapabilitiesRef.current,
+				excludeVideoCodecs: ["hevc"],
+			});
+			const next = playbackStreams(playback);
+			if (!next.source) throw new Error("Jellyfin did not return a fallback source.");
+			sourceRef.current = next.source;
+			setInfo((previous) => ({ ...next, qualities: previous?.qualities ?? next.qualities }));
+			setQuality("0");
+			setUrl(playbackUrl(session, item.Id, next.source, 0));
+			return true;
+		} catch {
+			setQualityLoading(false);
+			setError(t("mediaPlaybackFailed"));
+			return false;
 		}
 	}
 	async function fetchForcedTranscode(

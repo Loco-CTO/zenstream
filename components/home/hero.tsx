@@ -212,7 +212,10 @@ export function Hero({
 					const slideImage = heroImage(slide);
 					const isActive = index === visibleIndex;
 
-					return slideImage ? (
+					// Keep the carousel's item list, but only mount the active backdrop.
+					// Mobile browsers can otherwise retain many large GPU image layers
+					// after fast navigation and render the hero as black or partially tiled.
+					return isActive && slideImage ? (
 						<BlurHashImage
 							key={slide.Id}
 							image={slideImage}

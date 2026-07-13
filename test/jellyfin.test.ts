@@ -33,6 +33,7 @@ import {
 	playbackUrl,
 	subtitleUrl,
 	preserveTrickplay,
+	sourceFitsHevcEnvelope,
 	trickplayPreview,
 	youtubeVideoId,
 	type JellyfinItem,
@@ -47,11 +48,23 @@ import {
 	validateRenderedVideoFrame,
 } from "@/lib/playback-capabilities";
 
+const hevcEnvelope = {
+	path: "direct-mp4" as const, container: "mp4" as const, sampleEntry: "hvc1" as const,
+	profile: "main" as const, bitDepth: 8 as const, level: 120 as const,
+	chromaFormat: "4:2:0" as const, dynamicRange: "sdr" as const,
+	maxWidth: 1920 as const, maxHeight: 1080 as const, maxFramerate: 30 as const,
+	browserIdentity: "test", visualEvidenceCount: 3,
+};
+
 	const session = { token: "abc", userId: "user-1", username: "Alex" };
 
 describe("HEVC preflight", () => {
+	it("requires complete returned source metadata to fit an HEVC envelope", () => {
+		expect(sourceFitsHevcEnvelope({ MediaStreams: [{ Type: "Video", Codec: "hevc", Profile: "Main", BitDepth: 8, VideoRangeType: "SDR", IsInterlaced: false, Level: 120, Width: 1920, Height: 1080, RealFrameRate: 30 }] }, hevcEnvelope)).toBe(true);
+		expect(sourceFitsHevcEnvelope({ MediaStreams: [{ Type: "Video", Codec: "hevc", Profile: "Main", BitDepth: 10, VideoRangeType: "SDR", IsInterlaced: false, Level: 120, Width: 1920, Height: 1080, RealFrameRate: 30 }] }, hevcEnvelope)).toBe(false);
+	});
 	it("uses complete variant MIME strings and separates MSE paths", async () => {
-		const probe = HEVC_PROBES.find((entry) => entry.variant === "hvc1-main10")!;
+		const probe = HEVC_PROBES[0]!;
 		const canPlayType = vi.fn(() => "probably");
 		const result = await qualifyHevc(probe, {
 			video: { canPlayType } as unknown as HTMLVideoElement,
@@ -59,7 +72,7 @@ describe("HEVC preflight", () => {
 			probe: vi.fn().mockResolvedValue({ status: "supported" }),
 		});
 		expect(result.status).toBe("supported");
-		expect(canPlayType).toHaveBeenCalledWith(expect.stringContaining("hvc1.2.4"));
+		expect(canPlayType).toHaveBeenCalledWith(expect.stringContaining("hvc1.1.6"));
 	});
 
 	it("does not advertise a path unless its visual probe succeeds", async () => {
@@ -69,7 +82,7 @@ describe("HEVC preflight", () => {
 			video: { canPlayType: () => "probably" } as unknown as HTMLVideoElement,
 			probe: vi.fn().mockResolvedValue({ status: "unknown" }),
 		});
-		expect(paths.size).toBe(0);
+		expect(paths).toHaveLength(0);
 	});
 });
 
@@ -258,7 +271,7 @@ describe("jellyfin api helpers", () => {
 				mime.includes("hvc1") || mime.includes("avc1") || mime.includes("mp4a")
 					? "probably"
 					: "",
-		}, { hevcPaths: new Set(["direct-mp4"]) });
+		}, { hevcEnvelopes: [hevcEnvelope] });
 
 		expect(capabilities.directPlayProfiles).toEqual([
 			expect.objectContaining({
@@ -271,13 +284,13 @@ describe("jellyfin api helpers", () => {
 		expect(capabilities.transcodingAudioCodec).toBe("aac");
 	});
 
-	it("uses HEVC for transcoding when H.264 is not supported", () => {
+	it("keeps H.264 as the transcoding target when direct HEVC is supported", () => {
 		const capabilities = browserPlaybackCapabilities({
 			canPlayType: (mime) =>
 				mime.includes("hvc1") || mime.includes("mp4a") ? "probably" : "",
-		}, { hevcPaths: new Set(["direct-mp4"]) });
+		}, { hevcEnvelopes: [hevcEnvelope] });
 
-		expect(capabilities.transcodingVideoCodec).toBe("hevc");
+		expect(capabilities.transcodingVideoCodec).toBe("h264");
 	});
 
 	it("queries browser capabilities before requesting playback info", async () => {
@@ -286,7 +299,7 @@ describe("jellyfin api helpers", () => {
 		);
 		const createElement = vi
 			.spyOn(document, "createElement")
-			.mockReturnValue({ canPlayType } as HTMLVideoElement);
+			.mockReturnValue({ canPlayType } as unknown as HTMLVideoElement);
 
 		try {
 			await getPlaybackInfo(session, "movie-1");
@@ -311,15 +324,24 @@ describe("jellyfin api helpers", () => {
 						AudioCodec: "aac",
 					},
 				],
-				transcodingVideoCodec: "h264",
-				transcodingAudioCodec: "aac",
-			},
+			transcodingVideoCodec: "h264",
+			transcodingAudioCodec: "aac",
+			hevcEnvelope,
+		},
 		});
 
 		const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
 		expect(body.DeviceProfile).toMatchObject({
-			DirectPlayProfiles: [{ VideoCodec: "hevc,h264" }],
+			DirectPlayProfiles: [{ VideoCodec: "hevc" }, { VideoCodec: "h264" }],
 			TranscodingProfiles: [{ VideoCodec: "h264", AudioCodec: "aac" }],
+			CodecProfiles: [{
+				Codec: "hevc",
+				Conditions: expect.arrayContaining([
+					expect.objectContaining({ Property: "VideoProfile", Value: "main" }),
+					expect.objectContaining({ Property: "VideoBitDepth", Value: "8" }),
+					expect.objectContaining({ Property: "VideoRangeType", Value: "SDR" }),
+				]),
+			}],
 		});
 	});
 

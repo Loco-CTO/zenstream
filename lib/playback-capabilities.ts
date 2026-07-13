@@ -735,6 +735,7 @@ export function browserPlaybackCapabilities(
 }
 
 let browserCapabilitiesPromise: Promise<BrowserPlaybackCapabilities> | undefined;
+export function clearBrowserPlaybackCapabilitiesCache() { browserCapabilitiesPromise = undefined; }
 export function resolveBrowserPlaybackCapabilities() {
 	if (!browserCapabilitiesPromise) browserCapabilitiesPromise = resolveHevcCapabilities({
 		mediaSource: Hls.isSupported() ? Hls.getMediaSource() ?? undefined : undefined,

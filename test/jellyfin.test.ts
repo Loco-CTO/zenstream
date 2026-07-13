@@ -41,6 +41,7 @@ import {
 	browserPlaybackCapabilities,
 	createMediaDecodingConfiguration,
 	validateMediaDecoding,
+	validateRenderedVideoFrame,
 } from "@/lib/playback-capabilities";
 
 const session = { token: "abc", userId: "user-1", username: "Alex" };
@@ -354,6 +355,63 @@ describe("jellyfin api helpers", () => {
 			status: "unsupported",
 			reason: "media-source-codec-unsupported",
 		});
+	});
+
+	it("uses playback quality when requestVideoFrameCallback is unavailable", async () => {
+		await expect(
+			validateRenderedVideoFrame({
+				currentTime: 1,
+				paused: false,
+				readyState: 3,
+				videoWidth: 1280,
+				videoHeight: 720,
+				getVideoPlaybackQuality: () => ({ totalVideoFrames: 4 }),
+			}),
+		).resolves.toMatchObject({
+			status: "supported",
+			reason: "playback-quality-frames",
+		});
+	});
+
+	it("detects consecutive black frames when canvas pixels are readable", async () => {
+		const originalCreateElement = document.createElement.bind(document);
+		const canvas = {
+			getContext: () => ({
+				drawImage: vi.fn(),
+				getImageData: () => ({
+					data: new Uint8ClampedArray(32 * 18 * 4),
+				}),
+			}),
+		} as unknown as HTMLCanvasElement;
+		const createElement = vi
+			.spyOn(document, "createElement")
+			.mockImplementation(((tagName: string) =>
+				tagName === "canvas" ? canvas : originalCreateElement(tagName)) as typeof document.createElement);
+		let frame = 0;
+		const video = {
+			currentTime: 0,
+			paused: false,
+			readyState: 3,
+			videoWidth: 1280,
+			videoHeight: 720,
+			requestVideoFrameCallback: (callback: (now: number, metadata: { mediaTime: number }) => void) => {
+				const currentFrame = ++frame;
+				queueMicrotask(() => callback(0, { mediaTime: currentFrame * 0.05 }));
+				return currentFrame;
+			},
+			cancelVideoFrameCallback: vi.fn(),
+		};
+
+		try {
+			await expect(validateRenderedVideoFrame(video)).resolves.toMatchObject({
+				status: "unsupported",
+				reason: "decoded-frames-are-black",
+				framesPresented: 6,
+				pixelsSampled: true,
+			});
+		} finally {
+			createElement.mockRestore();
+		}
 	});
 
 	it("preserves trickplay metadata when a negotiated source omits it", () => {

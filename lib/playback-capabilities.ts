@@ -37,6 +37,29 @@ export type MediaSourceTypeChecker = {
 	isTypeSupported: (contentType: string) => boolean;
 };
 
+export type RenderedVideoFrameValidation = {
+	status: "supported" | "unsupported" | "unknown";
+	framesPresented?: number;
+	pixelsSampled?: boolean;
+	reason?: string;
+};
+
+type VideoFrameCallbackMetadataLike = {
+	mediaTime?: number;
+	presentedFrames?: number;
+};
+
+type VideoFrameValidationVideo = Pick<
+	HTMLVideoElement,
+	"currentTime" | "paused" | "readyState" | "videoHeight" | "videoWidth"
+> & {
+	requestVideoFrameCallback?: (
+		callback: (now: number, metadata: VideoFrameCallbackMetadataLike) => void,
+	) => number;
+	cancelVideoFrameCallback?: (handle: number) => void;
+	getVideoPlaybackQuality?: () => { totalVideoFrames?: number };
+};
+
 type VideoCapabilityProbe = {
 	codec: string;
 	container: "mp4" | "webm";
@@ -266,6 +289,138 @@ export async function validateMediaDecoding(
 	} catch {
 		return { status: "unknown", reason: "media-capabilities-error", configuration };
 	}
+}
+
+function sampleRenderedVideoPixels(
+	video: VideoFrameValidationVideo,
+	canvas: HTMLCanvasElement,
+): boolean | undefined {
+	if (
+		typeof document === "undefined" ||
+		video.videoWidth <= 0 ||
+		video.videoHeight <= 0
+	)
+		return undefined;
+	const context = canvas.getContext("2d", { willReadFrequently: true });
+	if (!context) return undefined;
+	canvas.width = 32;
+	canvas.height = 18;
+	try {
+		context.drawImage(video as CanvasImageSource, 0, 0, 32, 18);
+		const pixels = context.getImageData(0, 0, 32, 18).data;
+		let visiblePixels = 0;
+		for (let index = 0; index < pixels.length; index += 4) {
+			const brightestChannel = Math.max(
+				pixels[index] ?? 0,
+				pixels[index + 1] ?? 0,
+				pixels[index + 2] ?? 0,
+			);
+			if (brightestChannel > 16) visiblePixels += 1;
+		}
+		// A single bright compression/noise pixel should not count as a frame.
+		return visiblePixels >= pixels.length / 4 * 0.02;
+	} catch {
+		// Cross-origin media without CORS, protected media, and some embedded
+		// browsers make canvas pixel reads unavailable. The frame callback is
+		// still a valid decoded-frame signal in that case.
+		return undefined;
+	}
+}
+
+export function validateRenderedVideoFrame(
+	video: VideoFrameValidationVideo,
+	options: { maxObservationMs?: number; requiredBlackFrames?: number } = {},
+): Promise<RenderedVideoFrameValidation> {
+	const requestVideoFrameCallback = video.requestVideoFrameCallback;
+	if (typeof requestVideoFrameCallback !== "function") {
+		const quality = video.getVideoPlaybackQuality?.();
+		if (quality?.totalVideoFrames && quality.totalVideoFrames > 0)
+			return Promise.resolve({
+				status: "supported",
+				framesPresented: quality.totalVideoFrames,
+				reason: "playback-quality-frames",
+			});
+		if (video.readyState >= 3 && !video.paused && video.currentTime > 0)
+			return Promise.resolve({
+				status: "supported",
+				reason: "playback-time-advanced",
+			});
+		return Promise.resolve({ status: "unknown", reason: "frame-api-unavailable" });
+	}
+
+	const maxObservationMs = options.maxObservationMs ?? 1500;
+	const requiredBlackFrames = options.requiredBlackFrames ?? 6;
+	const canvas =
+		typeof document === "undefined" ? undefined : document.createElement("canvas");
+
+	return new Promise((resolve) => {
+		let settled = false;
+		let handle: number | undefined;
+		let frameCount = 0;
+		let blackFrameCount = 0;
+		let firstMediaTime: number | undefined;
+		let lastMediaTime: number | undefined;
+		let pixelsSampled = false;
+		const finish = (result: RenderedVideoFrameValidation) => {
+			if (settled) return;
+			settled = true;
+			if (handle != null) video.cancelVideoFrameCallback?.(handle);
+			resolve({ ...result, framesPresented: frameCount, pixelsSampled });
+		};
+		const timeout = setTimeout(
+			() => finish({ status: "unknown", reason: "frame-observation-timeout" }),
+			maxObservationMs,
+		);
+		const observe = (now: number, metadata: VideoFrameCallbackMetadataLike) => {
+			void now;
+			if (settled) return;
+			frameCount += 1;
+			const mediaTime = Number.isFinite(metadata.mediaTime)
+				? metadata.mediaTime
+				: video.currentTime;
+			if (firstMediaTime == null) firstMediaTime = mediaTime;
+			lastMediaTime = mediaTime;
+			if (!canvas) {
+				clearTimeout(timeout);
+				finish({ status: "supported", reason: "video-frame-presented" });
+				return;
+			}
+			const pixels = sampleRenderedVideoPixels(video, canvas);
+			if (pixels == null) {
+				clearTimeout(timeout);
+				finish({ status: "supported", reason: "video-frame-presented" });
+				return;
+			}
+			pixelsSampled = true;
+			if (pixels) {
+				clearTimeout(timeout);
+				finish({ status: "supported", reason: "visible-video-frame" });
+				return;
+			}
+			blackFrameCount += 1;
+			const mediaTimeAdvanced =
+				lastMediaTime != null && firstMediaTime != null
+					? lastMediaTime - firstMediaTime >= 0.2
+					: false;
+			if (blackFrameCount >= requiredBlackFrames && mediaTimeAdvanced) {
+				clearTimeout(timeout);
+				finish({ status: "unsupported", reason: "decoded-frames-are-black" });
+				return;
+			}
+			try {
+				handle = requestVideoFrameCallback(observe);
+			} catch {
+				clearTimeout(timeout);
+				finish({ status: "unknown", reason: "frame-callback-error" });
+			}
+		};
+		try {
+			handle = requestVideoFrameCallback(observe);
+		} catch {
+			clearTimeout(timeout);
+			finish({ status: "unknown", reason: "frame-callback-error" });
+		}
+	});
 }
 
 export function browserPlaybackCapabilities(

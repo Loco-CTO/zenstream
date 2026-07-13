@@ -53,6 +53,7 @@ import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 import {
 	browserPlaybackCapabilities,
 	validateMediaDecoding,
+	validateRenderedVideoFrame,
 	type BrowserPlaybackCapabilities,
 	type PlaybackMediaMetadata,
 } from "@/lib/playback-capabilities";
@@ -341,6 +342,8 @@ export function VideoPlayer({
 		initialStreams?.source,
 	);
 	const transcodeAttemptRef = useRef(false);
+	const frameValidationKeyRef = useRef<string | null>(null);
+	const frameValidationInFlightRef = useRef<Promise<void> | null>(null);
 	const resumeTimeRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
@@ -431,6 +434,8 @@ export function VideoPlayer({
 	useEffect(() => {
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
+		frameValidationKeyRef.current = null;
+		frameValidationInFlightRef.current = null;
 		advancingToNextRef.current = false;
 	}, [item.Id]);
 
@@ -686,6 +691,8 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		if (!video || !url) return;
 		let active = true;
+		frameValidationKeyRef.current = null;
+		frameValidationInFlightRef.current = null;
 		setBuffering(true);
 		hlsRef.current?.destroy();
 		hlsRef.current = null;
@@ -932,6 +939,35 @@ export function VideoPlayer({
 				mediaSource: hlsMediaSource,
 			},
 		);
+	}
+	async function validateRenderedFrame(video: HTMLVideoElement) {
+		const sourceKey = url;
+		if (
+			!sourceKey ||
+			video.paused ||
+			frameValidationKeyRef.current === sourceKey ||
+			frameValidationInFlightRef.current
+		)
+			return;
+		frameValidationKeyRef.current = sourceKey;
+		const task = (async () => {
+			const validation = await validateRenderedVideoFrame(video);
+			if (videoRef.current !== video || url !== sourceKey) return;
+			if (validation.status !== "unsupported") return;
+			if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
+				await requestForcedTranscode();
+				return;
+			}
+			setQualityLoading(false);
+			setError("This media could not be played.");
+		})();
+		frameValidationInFlightRef.current = task;
+		try {
+			await task;
+		} finally {
+			if (frameValidationInFlightRef.current === task)
+				frameValidationInFlightRef.current = null;
+		}
 	}
 	async function fetchForcedTranscode(
 		audioStreamIndex?: number,
@@ -1353,6 +1389,10 @@ export function VideoPlayer({
 								playing: true,
 							})
 							.catch(() => undefined);
+				}}
+				onPlaying={(e) => {
+					setError("");
+					void validateRenderedFrame(e.currentTarget);
 				}}
 				onPause={(e) => {
 					const syncState = syncplayStateRef.current;

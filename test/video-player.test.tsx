@@ -547,6 +547,7 @@ describe("video player controls", () => {
 			enableWebVTT: false,
 			enableCEA708Captions: false,
 			renderTextTracksNatively: false,
+			subtitleDisplay: false,
 		});
 		const tracks = [{ mode: "showing" }, { mode: "hidden" }];
 		disableNativeSubtitleTracks({

@@ -67,6 +67,7 @@ export const HLS_TEXT_TRACK_CONFIG = {
 	enableWebVTT: false,
 	enableCEA708Captions: false,
 	renderTextTracksNatively: false,
+	subtitleDisplay: false,
 };
 const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
@@ -616,18 +617,10 @@ export function VideoPlayer({
 		setBuffering(true);
 		void clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
-		if (/\.m3u8(?:\?|$)/i.test(url) && shouldUseHlsJs() && Hls.isSupported()) {
-			const hls = new Hls(HLS_TEXT_TRACK_CONFIG);
-			hlsRef.current = hls;
-			hls.on(Hls.Events.ERROR, (_event, data) => {
-			if (active && data.fatal) void requestCompatibilityPlayback();
-		});
-			hls.loadSource(url);
-			hls.attachMedia(video);
-		} else {
-			video.src = url;
-			video.load();
-		}
+		// Native HLS and hls.js can add a second subtitle track asynchronously.
+		// Install the suppression listener before assigning src so the browser
+		// cannot briefly select the stream's original captions.
+		disableNativeSubtitleTracks(video);
 		const position = item.UserData?.PlaybackPositionTicks
 			? item.UserData.PlaybackPositionTicks / 10_000_000
 			: 0;
@@ -674,11 +667,29 @@ export function VideoPlayer({
 		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
 		const textTracks = video.textTracks;
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
+		video.addEventListener("canplay", onTextTrackAdded);
+		video.addEventListener("playing", onTextTrackAdded);
+		video.addEventListener("progress", onTextTrackAdded);
 		if (typeof textTracks.addEventListener === "function")
 			textTracks.addEventListener("addtrack", onTextTrackAdded);
+		if (/\.m3u8(?:\?|$)/i.test(url) && shouldUseHlsJs() && Hls.isSupported()) {
+			const hls = new Hls(HLS_TEXT_TRACK_CONFIG);
+			hlsRef.current = hls;
+			hls.on(Hls.Events.ERROR, (_event, data) => {
+				if (active && data.fatal) void requestCompatibilityPlayback();
+			});
+			hls.loadSource(url);
+			hls.attachMedia(video);
+		} else {
+			video.src = url;
+			video.load();
+		}
 		return () => {
 			active = false;
 			video.removeEventListener("loadedmetadata", onMetadata);
+			video.removeEventListener("canplay", onTextTrackAdded);
+			video.removeEventListener("playing", onTextTrackAdded);
+			video.removeEventListener("progress", onTextTrackAdded);
 			if (typeof textTracks.removeEventListener === "function")
 				textTracks.removeEventListener("addtrack", onTextTrackAdded);
 			hlsRef.current?.destroy();
@@ -1253,7 +1264,8 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				onPlaying={() => {
+				onPlaying={(event) => {
+					disableNativeSubtitleTracks(event.currentTarget);
 					setQualityLoading(false);
 				}}
 				onPause={(e) => {

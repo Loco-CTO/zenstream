@@ -610,6 +610,32 @@ async function runHevcProbe(probe: HevcProbe, video: HTMLVideoElement) {
 		} catch { return { status: "unknown" as const, reason: "hls-probe-failed" }; }
 		finally { hls.stopLoad(); hls.detachMedia(); hls.destroy(); }
 	}
+	if (probe.path === "mse-fmp4") {
+		if (typeof MediaSource === "undefined" || !MediaSource.isTypeSupported(probe.mime))
+			return { status: "unsupported" as const, reason: "mse-unavailable" };
+		const mediaSource = new MediaSource();
+		const objectUrl = URL.createObjectURL(mediaSource);
+		try {
+			video.src = objectUrl;
+			await new Promise<void>((resolve, reject) => {
+				mediaSource.addEventListener("sourceopen", () => resolve(), { once: true });
+				window.setTimeout(() => reject(new Error("mse probe timeout")), 3_000);
+			});
+			const response = await fetch(probe.url, { cache: "no-store" });
+			if (!response.ok) throw new Error("mse probe fetch failed");
+			const bytes = await response.arrayBuffer();
+			const sourceBuffer = mediaSource.addSourceBuffer(probe.mime);
+			await new Promise<void>((resolve, reject) => {
+				sourceBuffer.addEventListener("updateend", () => resolve(), { once: true });
+				sourceBuffer.addEventListener("error", () => reject(new Error("mse append failed")), { once: true });
+				sourceBuffer.appendBuffer(bytes);
+			});
+			if (mediaSource.readyState === "open") mediaSource.endOfStream();
+			await video.play();
+			return await validateVisibleProbeFrames(video);
+		} catch { return { status: "unknown" as const, reason: "mse-probe-failed" }; }
+		finally { URL.revokeObjectURL(objectUrl); }
+	}
 	video.src = probe.url;
 	video.load();
 	try { await video.play(); } catch { return { status: "unknown" as const, reason: "probe-play-failed" }; }

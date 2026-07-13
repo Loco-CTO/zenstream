@@ -596,8 +596,11 @@ export async function getPlaybackInfo(
 					MaxStreamingBitrate: options.maxStreamingBitrate,
 					DirectPlayProfiles: [{
 						Type: "Video",
-						Container: "mp4,m4v,webm",
-						VideoCodec: "h264,vp8,vp9,av1",
+						// Keep direct play to the baseline codecs supported by mobile
+						// browsers. Some devices can play the audio from VP9/AV1 while
+						// silently failing to render the video track.
+						Container: "mp4,m4v",
+						VideoCodec: "h264",
 						AudioCodec: "aac,mp3,opus,vorbis,flac",
 					}],
 					TranscodingProfiles: [{

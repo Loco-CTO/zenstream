@@ -186,6 +186,16 @@ describe("jellyfin api helpers", () => {
 		});
 	});
 
+	it("advertises only mobile-safe direct-play video codecs", async () => {
+		await getPlaybackInfo(session, "movie-1");
+
+		const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+		expect(body.DeviceProfile.DirectPlayProfiles[0]).toMatchObject({
+			Container: "mp4,m4v",
+			VideoCodec: "h264",
+		});
+	});
+
 	it("preserves trickplay metadata when a negotiated source omits it", () => {
 		const trickplay = { "320": { Width: 320, Height: 180, Interval: 10_000 } };
 		const source = preserveTrickplay(

@@ -35,6 +35,7 @@ import {
 	subtitleUrl,
 	trickplayPreview,
 	type JellyfinItem,
+	type JellyfinMediaSource,
 	type PlaybackMarker,
 } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
@@ -49,6 +50,12 @@ import {
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
+import {
+	browserPlaybackCapabilities,
+	validateMediaDecoding,
+	type BrowserPlaybackCapabilities,
+	type PlaybackMediaMetadata,
+} from "@/lib/playback-capabilities";
 
 type Props = {
 	item: JellyfinItem;
@@ -70,6 +77,72 @@ const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
 	console.debug(`[Player] ${event}`, details ?? "");
 };
+
+type HlsLevelMetadata = {
+	videoCodec?: string;
+	audioCodec?: string;
+	width?: number;
+	height?: number;
+	bitrate?: number;
+	averageBitrate?: number;
+	frameRate?: number;
+};
+
+type HlsLevelValidationMetadata = HlsLevelMetadata & {
+	supportedPromise?: Promise<{
+		supported: boolean;
+		decodingInfoResults: ReadonlyArray<{ supported: boolean; smooth: boolean }>;
+	}>;
+	supportedResult?: {
+		supported: boolean;
+		decodingInfoResults: ReadonlyArray<{ supported: boolean; smooth: boolean }>;
+	};
+};
+
+function playbackMetadataFromSource(
+	source: JellyfinMediaSource | undefined,
+	fallback: BrowserPlaybackCapabilities,
+	video?: Pick<HTMLVideoElement, "videoWidth" | "videoHeight">,
+	level?: HlsLevelMetadata,
+): PlaybackMediaMetadata {
+	const videoStream = source?.MediaStreams?.find((stream) => stream.Type === "Video");
+	const audioStream = source?.MediaStreams?.find((stream) => stream.Type === "Audio");
+	const transcoded = Boolean(source?.TranscodingUrl);
+	return {
+		container: level ? "mp4" : source?.Container,
+		videoCodec:
+			level?.videoCodec ??
+			videoStream?.Codec ??
+			(transcoded ? fallback.transcodingVideoCodec : undefined),
+		audioCodec:
+			level?.audioCodec ??
+			audioStream?.Codec ??
+			(transcoded ? fallback.transcodingAudioCodec : undefined),
+		width: video?.videoWidth || level?.width || videoStream?.Width,
+		height: video?.videoHeight || level?.height || videoStream?.Height,
+		bitrate:
+			level?.averageBitrate ||
+			level?.bitrate ||
+			videoStream?.BitRate ||
+			source?.Bitrate,
+		framerate:
+			level?.frameRate ||
+			videoStream?.AverageFrameRate ||
+			videoStream?.RealFrameRate,
+		audioBitrate: audioStream?.BitRate,
+		audioChannels: audioStream?.Channels,
+		audioSamplerate: audioStream?.SampleRate,
+	};
+}
+
+function currentHlsLevel(hls: Hls | null, video: HTMLVideoElement) {
+	if (!hls?.levels.length) return undefined;
+	const matching = hls.levels.find(
+		(level) => level.width === video.videoWidth && level.height === video.videoHeight,
+	);
+	if (matching) return matching;
+	return hls.currentLevel >= 0 ? hls.levels[hls.currentLevel] : hls.levels[0];
+}
 
 export function syncplayWaitingForMembers(
 	state: SyncplayGroup | null,
@@ -139,12 +212,6 @@ export function syncplayMediaIsReady(
 	video: Pick<HTMLMediaElement, "readyState">,
 ) {
 	return video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
-}
-
-export function hasRenderedVideoFrame(
-	video: Pick<HTMLVideoElement, "videoWidth" | "videoHeight">,
-) {
-	return video.videoWidth > 0 && video.videoHeight > 0;
 }
 
 export function syncplayInitialLoading(
@@ -267,7 +334,13 @@ export function VideoPlayer({
 		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
-	const directPlayFallbackRef = useRef(false);
+	const browserCapabilitiesRef = useRef<BrowserPlaybackCapabilities>(
+		browserPlaybackCapabilities(),
+	);
+	const sourceRef = useRef<JellyfinMediaSource | undefined>(
+		initialStreams?.source,
+	);
+	const transcodeAttemptRef = useRef(false);
 	const resumeTimeRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
@@ -275,7 +348,6 @@ export function VideoPlayer({
 	const videoClickTimerRef = useRef<number | null>(null);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
-	const videoFrameTimerRef = useRef<number | undefined>(undefined);
 	const retryAfterBufferingRef = useRef(false);
 	const bufferedRef = useRef(false);
 	const appliedTimelineRef = useRef<string | null>(null);
@@ -357,7 +429,8 @@ export function VideoPlayer({
 		};
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
-		directPlayFallbackRef.current = false;
+		sourceRef.current = undefined;
+		transcodeAttemptRef.current = false;
 		advancingToNextRef.current = false;
 	}, [item.Id]);
 
@@ -479,7 +552,7 @@ export function VideoPlayer({
 			getPlaybackMarkers(session, item.Id),
 			getTrickplayInfo(session, item.Id).catch(() => undefined),
 		])
-			.then(([parsed, markerData, trickplay]) => {
+			.then(async ([parsed, markerData, trickplay]) => {
 				if (!active) return;
 				const source =
 					parsed.source && !parsed.source.Trickplay && trickplay
@@ -488,9 +561,23 @@ export function VideoPlayer({
 								Trickplay: trickplay[parsed.source.Id ?? ""],
 							}
 						: parsed.source;
-				const next = { ...parsed, source };
+				let next = { ...parsed, source };
+				if (source && !source.TranscodingUrl) {
+					const validation = await validatePlaybackSource(source);
+					if (!active) return;
+					if (validation.status === "unsupported") {
+						const forced = await fetchForcedTranscode(
+							initialAudioStreamIndex,
+							source,
+						);
+						if (!active) return;
+						next = forced;
+					}
+				}
+				sourceRef.current = next.source;
+				transcodeAttemptRef.current = Boolean(next.source?.TranscodingUrl);
 				setInfo(next);
-				setUrl(playbackUrl(session, item.Id, source, 0));
+				setUrl(playbackUrl(session, item.Id, next.source, 0));
 				setMarkers(markerData);
 				const initialAudio =
 					initialAudioStreamIndex == null
@@ -598,6 +685,7 @@ export function VideoPlayer({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !url) return;
+		let active = true;
 		setBuffering(true);
 		hlsRef.current?.destroy();
 		hlsRef.current = null;
@@ -614,48 +702,64 @@ export function VideoPlayer({
 			? item.UserData.PlaybackPositionTicks / 10_000_000
 			: 0;
 		const onMetadata = () => {
-			disableNativeSubtitleTracks(video);
-			// A quality/track switch can resolve through the Syncplay path too;
-			// clear the transient overlay before any early return below.
-			setQualityLoading(false);
-			const groupState = syncplayStateRef.current;
-			const syncplayApi = syncplayApiRef.current;
-			if (groupState?.itemId === item.Id) {
-				const timeline = syncplayTimelineTarget(
-					groupState,
-					syncplayApi.serverNow(),
-				);
-				applyingSyncRef.current = true;
-				if (
-					Number.isFinite(timeline.position) &&
-					timeline.position < video.duration
-				)
-					video.currentTime = timeline.position;
-				if (timeline.shouldPlay) startSyncedPlayback(video);
-				else if (!video.paused) {
-					suppressSyncPauseRef.current = true;
-					video.pause();
+			void (async () => {
+				const source = sourceRef.current;
+				const validation = await validatePlaybackSource(source, video);
+				if (!active) return;
+				if (validation.status !== "supported") {
+					if (!transcodeAttemptRef.current && !source?.TranscodingUrl) {
+						await requestForcedTranscode();
+					} else {
+						setQualityLoading(false);
+						setError("This media could not be played.");
+					}
+					return;
 				}
-				window.setTimeout(() => {
-					applyingSyncRef.current = false;
-				}, 0);
-				return;
-			}
-			if (groupState) return;
-			const resumeTime = resumeTimeRef.current || position;
-			if (resumeTime > 0 && resumeTime < video.duration - 5)
-				video.currentTime = resumeTime;
-			resumeTimeRef.current = 0;
-			const mediaDuration = Number.isFinite(video.duration)
-				? video.duration
-				: 0;
-			setDuration(Math.max(knownDuration, mediaDuration));
-			void video.play().catch(() => undefined);
+				disableNativeSubtitleTracks(video);
+				// A quality/track switch can resolve through the Syncplay path too;
+				// clear the transient overlay only after the loaded source passes
+				// the final capability check.
+				setQualityLoading(false);
+				const groupState = syncplayStateRef.current;
+				const syncplayApi = syncplayApiRef.current;
+				if (groupState?.itemId === item.Id) {
+					const timeline = syncplayTimelineTarget(
+						groupState,
+						syncplayApi.serverNow(),
+					);
+					applyingSyncRef.current = true;
+					if (
+						Number.isFinite(timeline.position) &&
+						timeline.position < video.duration
+					)
+						video.currentTime = timeline.position;
+					if (timeline.shouldPlay) startSyncedPlayback(video);
+					else if (!video.paused) {
+						suppressSyncPauseRef.current = true;
+						video.pause();
+					}
+					window.setTimeout(() => {
+						applyingSyncRef.current = false;
+					}, 0);
+					return;
+				}
+				if (groupState) return;
+				const resumeTime = resumeTimeRef.current || position;
+				if (resumeTime > 0 && resumeTime < video.duration - 5)
+					video.currentTime = resumeTime;
+				resumeTimeRef.current = 0;
+				const mediaDuration = Number.isFinite(video.duration)
+					? video.duration
+					: 0;
+				setDuration(Math.max(knownDuration, mediaDuration));
+				void video.play().catch(() => undefined);
+			})();
 		};
 		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
 		video.textTracks.addEventListener("addtrack", onTextTrackAdded);
 		return () => {
+			active = false;
 			video.removeEventListener("loadedmetadata", onMetadata);
 			video.textTracks.removeEventListener("addtrack", onTextTrackAdded);
 			hlsRef.current?.destroy();
@@ -724,8 +828,6 @@ export function VideoPlayer({
 				window.clearTimeout(controlsTimerRef.current);
 			if (bufferingTimerRef.current)
 				window.clearTimeout(bufferingTimerRef.current);
-			if (videoFrameTimerRef.current)
-				window.clearTimeout(videoFrameTimerRef.current);
 			if (videoClickTimerRef.current)
 				window.clearTimeout(videoClickTimerRef.current);
 		},
@@ -788,6 +890,91 @@ export function VideoPlayer({
 			loading ? 750 : 300,
 		);
 	}
+	async function validateHlsLevel(level: HlsLevelValidationMetadata | undefined) {
+		if (!level) return true;
+		if (level.supportedPromise) {
+			try {
+				await level.supportedPromise;
+			} catch {
+				return false;
+			}
+		}
+		const result = level.supportedResult;
+		if (!result) return true;
+		return (
+			result.supported &&
+			result.decodingInfoResults.every((entry) => entry.supported && entry.smooth)
+		);
+	}
+	async function validatePlaybackSource(
+		source: JellyfinMediaSource | undefined,
+		video?: HTMLVideoElement,
+	) {
+		const hls = hlsRef.current;
+		const level = video ? currentHlsLevel(hls, video) : undefined;
+		if (!(await validateHlsLevel(level)))
+			return { status: "unsupported" as const, reason: "hls-level-unsupported" };
+		const hlsMediaSource = source?.TranscodingUrl && Hls.isSupported()
+			? Hls.getMediaSource()
+			: undefined;
+		return validateMediaDecoding(
+			playbackMetadataFromSource(
+				source,
+				browserCapabilitiesRef.current,
+				video,
+				level,
+			),
+			{
+				type: hlsMediaSource ? "media-source" : "file",
+				mediaSource: hlsMediaSource,
+			},
+		);
+	}
+	async function fetchForcedTranscode(
+		audioStreamIndex?: number,
+		previousSource?: JellyfinMediaSource,
+	) {
+		const playback = await getPlaybackInfo(session, item.Id, {
+			mediaSourceId: previousSource?.Id ?? sourceRef.current?.Id,
+			audioStreamIndex: audioStreamIndex ?? (audio ? Number(audio) : undefined),
+			subtitleStreamIndex: -1,
+			browserCapabilities: browserCapabilitiesRef.current,
+			forceTranscoding: true,
+		});
+		const parsed = playbackStreams(playback);
+		if (!parsed.source?.TranscodingUrl)
+			throw new Error("Jellyfin did not return a transcoding URL.");
+		return {
+			...parsed,
+			source: preserveTrickplay(parsed.source, previousSource ?? sourceRef.current),
+		};
+	}
+	async function requestForcedTranscode() {
+		if (transcodeAttemptRef.current) {
+			setQualityLoading(false);
+			setError("This media could not be played.");
+			return false;
+		}
+		transcodeAttemptRef.current = true;
+		setError("");
+		setQualityLoading(true);
+		try {
+			const next = await fetchForcedTranscode();
+			if (!next.source) throw new Error("Missing transcoded source.");
+			sourceRef.current = next.source;
+			setInfo((previous) => ({
+				...next,
+				qualities: previous?.qualities ?? next.qualities,
+			}));
+			setQuality("1");
+			setUrl(playbackUrl(session, item.Id, next.source, 1_000_000));
+			return true;
+		} catch {
+			setQualityLoading(false);
+			setError("This media could not be played.");
+			return false;
+		}
+	}
 	function startSyncedPlayback(video: HTMLVideoElement) {
 		playerDebug("sync timeline requested playback", {
 			currentTime: video.currentTime,
@@ -809,29 +996,6 @@ export function VideoPlayer({
 			if (!started) suppressSyncPlayRef.current = false;
 		});
 	}
-	function scheduleVideoFrameCheck() {
-		if (videoFrameTimerRef.current)
-			window.clearTimeout(videoFrameTimerRef.current);
-		videoFrameTimerRef.current = window.setTimeout(() => {
-			videoFrameTimerRef.current = undefined;
-			const video = videoRef.current;
-			if (
-				!video ||
-				video.paused ||
-				video.readyState < HTMLMediaElement.HAVE_METADATA ||
-				hasRenderedVideoFrame(video)
-			)
-				return;
-			// Mobile browsers may emit play/playing and continue the audio track
-			// without raising a media error when the video codec is unsupported.
-			playerDebug("playback has audio but no rendered video frame", {
-				readyState: video.readyState,
-				networkState: video.networkState,
-			});
-			handleVideoError(true);
-		}, 3000);
-	}
-
 	function togglePlay() {
 		const video = videoRef.current;
 		if (!video || (syncplay.active && !syncplay.canControl)) return;
@@ -979,6 +1143,8 @@ export function VideoPlayer({
 				if (!parsed.source?.TranscodingUrl)
 					throw new Error("Jellyfin did not return a transcoding URL.");
 				const source = preserveTrickplay(parsed.source, info?.source);
+				sourceRef.current = source;
+				transcodeAttemptRef.current = Boolean(source?.TranscodingUrl);
 				setInfo((previous) => ({
 					...parsed,
 					source,
@@ -1022,6 +1188,8 @@ export function VideoPlayer({
 				const parsed = playbackStreams(playback);
 				const source = preserveTrickplay(parsed.source, info.source);
 				if (!source) throw new Error("Jellyfin did not return a media source.");
+				sourceRef.current = source;
+				transcodeAttemptRef.current = Boolean(source.TranscodingUrl);
 				setInfo((previous) => ({
 					...parsed,
 					source,
@@ -1048,47 +1216,6 @@ export function VideoPlayer({
 		if (!marker) return;
 		stageSeek(marker.end);
 		commitPendingSeek();
-	}
-	function handleVideoError(forceTranscode = false) {
-		const video = videoRef.current;
-		if (!video || directPlayFallbackRef.current || !info?.source) {
-			setError("This media could not be played.");
-			return;
-		}
-		const errorCode = video.error?.code;
-		if (
-			!forceTranscode &&
-			errorCode !== MediaError.MEDIA_ERR_DECODE &&
-			errorCode !== MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
-		) {
-			setError("This media could not be played.");
-			return;
-		}
-		directPlayFallbackRef.current = true;
-		setError("");
-		setQualityLoading(true);
-		void getPlaybackInfo(session, item.Id, {
-			mediaSourceId: info.source.Id,
-			audioStreamIndex: audio ? Number(audio) : undefined,
-			subtitleStreamIndex: -1,
-		})
-			.then((playback) => {
-				const parsed = playbackStreams(playback);
-				if (!parsed.source?.TranscodingUrl)
-					throw new Error("Jellyfin did not return a transcoding URL.");
-				const source = preserveTrickplay(parsed.source, info.source);
-				setInfo((previous) => ({
-					...parsed,
-					source,
-					qualities: previous?.qualities ?? parsed.qualities,
-				}));
-				setQuality("1");
-				setUrl(playbackUrl(session, item.Id, source, 1_000_000));
-			})
-			.catch(() => {
-				setQualityLoading(false);
-				setError("This media could not be played.");
-			});
 	}
 	function previewTimeline(event: React.PointerEvent<HTMLInputElement>) {
 		if (!duration) return;
@@ -1172,7 +1299,6 @@ export function VideoPlayer({
 					)
 						startSyncedPlayback(video);
 				}}
-				onPlaying={scheduleVideoFrameCheck}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
 					if (Number.isFinite(value) && value > 0)
@@ -1254,7 +1380,8 @@ export function VideoPlayer({
 				}}
 				onError={() => {
 					setBuffering(false);
-					handleVideoError();
+					setQualityLoading(false);
+					setError("This media could not be played.");
 				}}
 			></video>
 			{subtitle && subtitleCueData?.track === subtitle && (

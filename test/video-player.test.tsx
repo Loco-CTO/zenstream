@@ -14,9 +14,8 @@ import {
 	syncplayMediaIsReady,
 	syncplayStateWantsPlaying,
 	syncplayTimelineTarget,
-		VideoPlayer,
-	hasRenderedVideoFrame,
-		syncplayWaitingForMembers,
+	VideoPlayer,
+	syncplayWaitingForMembers,
 } from "@/components/player/video-player";
 import { parseWebVttCues } from "@/lib/subtitle-preferences";
 import { I18nProvider } from "@/lib/i18n";
@@ -143,12 +142,6 @@ describe("video player controls", () => {
 		expect(syncplayMediaIsReady({ readyState: 2 })).toBe(false);
 		expect(syncplayMediaIsReady({ readyState: 3 })).toBe(true);
 		expect(syncplayMediaIsReady({ readyState: 4 })).toBe(true);
-	});
-
-	it("detects whether a video element has dimensions to render", () => {
-		expect(hasRenderedVideoFrame({ videoWidth: 1920, videoHeight: 1080 })).toBe(true);
-		expect(hasRenderedVideoFrame({ videoWidth: 0, videoHeight: 1080 })).toBe(false);
-		expect(hasRenderedVideoFrame({ videoWidth: 1920, videoHeight: 0 })).toBe(false);
 	});
 
 	it("contains player overlays without creating a scrollbar", () => {

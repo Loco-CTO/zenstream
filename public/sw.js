@@ -1,5 +1,5 @@
 const CACHE_NAME = "zenstream-shell-v1";
-const APP_SHELL = ["/", "/icon.png"];
+const APP_SHELL = ["/", "/icon.png", "/icon-pwa.png"];
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(

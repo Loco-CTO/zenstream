@@ -30,6 +30,7 @@ import {
 	playbackStreams,
 	playbackUrl,
 	preserveTrickplay,
+	negotiatedVideoCodec,
 	sourceFitsHevcEnvelope,
 	sourceVideoCodec,
 	reportPlayback,
@@ -1008,25 +1009,22 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		if (video) await clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
+		// Do not let an old native/HLS session resume and clear the recovery UI
+		// while the fresh H.264 negotiation is in flight.
+		setUrl(undefined);
 		setError("");
 		setQualityLoading(true);
 		try {
-			const playback = await getPlaybackInfo(session, item.Id, {
-				audioStreamIndex: audio ? Number(audio) : undefined,
-				subtitleStreamIndex: -1,
-				browserCapabilities: browserCapabilitiesRef.current,
-				excludeVideoCodecs: ["hevc"],
-			});
-			let next = playbackStreams(playback);
-			if (!next.source) throw new Error("Jellyfin did not return a fallback source.");
-			if (sourceVideoCodec(next.source) === "hevc")
-				next = await fetchForcedTranscode(undefined, undefined, ["hevc"]);
-			if (!next.source || sourceVideoCodec(next.source) === "hevc")
-				throw new Error("Jellyfin did not return a non-HEVC fallback source.");
+			// A no-HEVC direct-play profile can still select another source that is
+			// unusable on this device. Recovery must request the fixed H.264/AAC HLS
+			// transcode explicitly and load that returned transcoding URL.
+			const next = await fetchForcedTranscode(undefined, undefined, ["hevc"]);
+			if (!next.source || negotiatedVideoCodec(next.source) !== "h264")
+				throw new Error("Jellyfin did not return an H.264 fallback source.");
 			sourceRef.current = next.source;
 			setInfo((previous) => ({ ...next, qualities: previous?.qualities ?? next.qualities }));
-			setQuality("0");
-			setUrl(playbackUrl(session, item.Id, next.source, 0));
+			setQuality("1");
+			setUrl(playbackUrl(session, item.Id, next.source, 1_000_000));
 			return true;
 		} catch {
 			setQualityLoading(false);
@@ -1044,7 +1042,7 @@ export function VideoPlayer({
 			audioStreamIndex: audioStreamIndex ?? (audio ? Number(audio) : undefined),
 			subtitleStreamIndex: -1,
 			browserCapabilities: browserCapabilitiesRef.current,
-			excludeVideoCodecs,
+			excludeVideoCodecs: [...new Set([...(excludeVideoCodecs ?? []), "hevc"])],
 			forceTranscoding: true,
 		});
 		const parsed = playbackStreams(playback);
@@ -1065,7 +1063,7 @@ export function VideoPlayer({
 		setError("");
 		setQualityLoading(true);
 		try {
-			const next = await fetchForcedTranscode();
+			const next = await fetchForcedTranscode(undefined, undefined, ["hevc"]);
 			if (!next.source) throw new Error("Missing transcoded source.");
 			sourceRef.current = next.source;
 			setInfo((previous) => ({
@@ -1475,7 +1473,7 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onPlaying={(e) => {
-					setError("");
+					if (!qualityLoading) setError("");
 					void validateRenderedFrame(e.currentTarget);
 				}}
 				onPause={(e) => {
@@ -1512,6 +1510,10 @@ export function VideoPlayer({
 				}}
 				onError={() => {
 					const video = videoRef.current;
+					if (!transcodeAttemptRef.current && sourceVideoCodec(sourceRef.current) === "hevc") {
+						void retryWithoutHevc();
+						return;
+					}
 					if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
 						void requestForcedTranscode();
 						return;

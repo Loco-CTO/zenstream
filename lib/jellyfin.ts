@@ -147,6 +147,14 @@ export function sourceVideoCodec(source: JellyfinMediaSource | undefined) {
 	return source?.MediaStreams?.find((stream) => stream.Type === "Video")?.Codec?.toLowerCase();
 }
 
+// Jellyfin keeps the original stream metadata on transcoded media sources.
+// ZenStream's only HLS transcode profile is H.264/AAC, so use the negotiated
+// profile for recovery verification instead of misclassifying that source as
+// the original HEVC stream.
+export function negotiatedVideoCodec(source: JellyfinMediaSource | undefined) {
+	return source?.TranscodingUrl ? "h264" : sourceVideoCodec(source);
+}
+
 export interface PlaybackMarker {
 	start: number;
 	end: number;

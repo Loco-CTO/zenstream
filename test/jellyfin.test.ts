@@ -33,6 +33,7 @@ import {
 	playbackUrl,
 	subtitleUrl,
 	preserveTrickplay,
+	negotiatedVideoCodec,
 	sourceFitsHevcEnvelope,
 	trickplayPreview,
 	youtubeVideoId,
@@ -60,6 +61,9 @@ const hevcEnvelope = {
 	const session = { token: "abc", userId: "user-1", username: "Alex" };
 
 describe("HEVC preflight", () => {
+	it("treats the fixed H.264 transcode profile as the negotiated fallback codec", () => {
+		expect(negotiatedVideoCodec({ TranscodingUrl: "/master.m3u8", MediaStreams: [{ Type: "Video", Codec: "hevc" }] })).toBe("h264");
+	});
 	it("requires complete returned source metadata to fit an HEVC envelope", () => {
 		expect(sourceFitsHevcEnvelope({ MediaStreams: [{ Type: "Video", Codec: "hevc", Profile: "Main", BitDepth: 8, VideoRangeType: "SDR", IsInterlaced: false, Level: 120, Width: 1920, Height: 1080, RealFrameRate: 30 }] }, hevcEnvelope)).toBe(true);
 		expect(sourceFitsHevcEnvelope({ MediaStreams: [{ Type: "Video", Codec: "hevc", Profile: "Main", BitDepth: 10, VideoRangeType: "SDR", IsInterlaced: false, Level: 120, Width: 1920, Height: 1080, RealFrameRate: 30 }] }, hevcEnvelope)).toBe(false);

@@ -39,12 +39,39 @@ import {
 } from "@/lib/jellyfin";
 import {
 	browserPlaybackCapabilities,
+	HEVC_PROBES,
+	qualifyHevc,
+	resolveHevcCapabilities,
 	createMediaDecodingConfiguration,
 	validateMediaDecoding,
 	validateRenderedVideoFrame,
 } from "@/lib/playback-capabilities";
 
-const session = { token: "abc", userId: "user-1", username: "Alex" };
+	const session = { token: "abc", userId: "user-1", username: "Alex" };
+
+describe("HEVC preflight", () => {
+	it("uses complete variant MIME strings and separates MSE paths", async () => {
+		const probe = HEVC_PROBES.find((entry) => entry.variant === "hvc1-main10")!;
+		const canPlayType = vi.fn(() => "probably");
+		const result = await qualifyHevc(probe, {
+			video: { canPlayType } as unknown as HTMLVideoElement,
+			mediaSource: { isTypeSupported: () => true },
+			probe: vi.fn().mockResolvedValue({ status: "supported" }),
+		});
+		expect(result.status).toBe("supported");
+		expect(canPlayType).toHaveBeenCalledWith(expect.stringContaining("hvc1.2.4"));
+	});
+
+	it("does not advertise a path unless its visual probe succeeds", async () => {
+		const probes = HEVC_PROBES.slice(0, 2);
+		const paths = await resolveHevcCapabilities({
+			probes,
+			video: { canPlayType: () => "probably" } as unknown as HTMLVideoElement,
+			probe: vi.fn().mockResolvedValue({ status: "unknown" }),
+		});
+		expect(paths.size).toBe(0);
+	});
+});
 
 describe("jellyfin api helpers", () => {
 	it("builds relevance-ranked search queries", async () => {

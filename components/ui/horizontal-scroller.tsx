@@ -180,7 +180,7 @@ export function HorizontalScroller({
           event.stopPropagation();
           dragRef.current.dragged = false;
         }}
-        className={`flex cursor-grab touch-pan-x touch-pan-y gap-3 overflow-x-auto pb-1 active:cursor-grabbing [scrollbar-width:none] ${className}`}
+        className={`flex cursor-grab [touch-action:pan-x_pan-y] gap-3 overflow-x-auto pb-1 active:cursor-grabbing [scrollbar-width:none] ${className}`}
       >
         {children}
       </div>

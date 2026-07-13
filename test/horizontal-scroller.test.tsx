@@ -10,6 +10,6 @@ describe("HorizontalScroller", () => {
       </HorizontalScroller>,
     );
 
-    expect(screen.getByLabelText("Popular")).toHaveClass("touch-pan-x", "touch-pan-y");
+    expect(screen.getByLabelText("Popular")).toHaveClass("[touch-action:pan-x_pan-y]");
   });
 });

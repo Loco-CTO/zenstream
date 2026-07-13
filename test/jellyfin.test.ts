@@ -48,7 +48,9 @@ const session = { token: "abc", userId: "user-1", username: "Alex" };
 
 describe("jellyfin api helpers", () => {
 	it("builds relevance-ranked search queries", async () => {
-		vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ Items: [] }), { status: 200 }));
+		vi.mocked(fetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ Items: [] }), { status: 200 }),
+		);
 
 		await getSearchItems(session, "  dune  ");
 
@@ -64,7 +66,9 @@ describe("jellyfin api helpers", () => {
 		window.addEventListener("zenstream:auth-expired", onExpired);
 		vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 401 }));
 
-		await expect(getItems(session, { limit: 1 })).rejects.toThrow("Request failed with 401.");
+		await expect(getItems(session, { limit: 1 })).rejects.toThrow(
+			"Request failed with 401.",
+		);
 		expect(onExpired).toHaveBeenCalledOnce();
 		window.removeEventListener("zenstream:auth-expired", onExpired);
 	});
@@ -96,7 +100,9 @@ describe("jellyfin api helpers", () => {
 			expect.objectContaining({
 				method: "POST",
 				headers: expect.objectContaining({
-					Authorization: expect.stringMatching(/MediaBrowser Client="Web".*DeviceId="[^"]+"/),
+					Authorization: expect.stringMatching(
+						/MediaBrowser Client="Web".*DeviceId="[^"]+"/,
+					),
 				}),
 				body: JSON.stringify({ Username: "alex", Pw: "secret" }),
 			}),
@@ -105,14 +111,26 @@ describe("jellyfin api helpers", () => {
 
 	it("keeps a unique device identity across authenticated requests", async () => {
 		vi.mocked(fetch)
-			.mockResolvedValueOnce(new Response(JSON.stringify({ AccessToken: "token" }), { status: 200 }))
-			.mockResolvedValueOnce(new Response(JSON.stringify({ Items: [] }), { status: 200 }));
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ AccessToken: "token" }), { status: 200 }),
+			)
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ Items: [] }), { status: 200 }),
+			);
 
 		await authenticateByName("alex", "secret");
 		await getItems(session, { limit: 1 });
 
-		const loginAuthorization = String(vi.mocked(fetch).mock.calls[0][1]?.headers && (vi.mocked(fetch).mock.calls[0][1]?.headers as Record<string, string>).Authorization);
-		const requestAuthorization = String(vi.mocked(fetch).mock.calls[1][1]?.headers && (vi.mocked(fetch).mock.calls[1][1]?.headers as Record<string, string>).Authorization);
+		const loginAuthorization = String(
+			vi.mocked(fetch).mock.calls[0][1]?.headers &&
+				(vi.mocked(fetch).mock.calls[0][1]?.headers as Record<string, string>)
+					.Authorization,
+		);
+		const requestAuthorization = String(
+			vi.mocked(fetch).mock.calls[1][1]?.headers &&
+				(vi.mocked(fetch).mock.calls[1][1]?.headers as Record<string, string>)
+					.Authorization,
+		);
 		const loginDevice = loginAuthorization.match(/DeviceId="([^"]+)"/)?.[1];
 		const requestDevice = requestAuthorization.match(/DeviceId="([^"]+)"/)?.[1];
 		expect(loginDevice).toBeTruthy();
@@ -131,10 +149,16 @@ describe("jellyfin api helpers", () => {
 	});
 
 	it("uses Jellyfin's negotiated HLS transcode URL for selected quality", () => {
-		const url = playbackUrl(session, "episode-1", {
-			Id: "source-1",
-			TranscodingUrl: "/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
-		}, 4_000_000);
+		const url = playbackUrl(
+			session,
+			"episode-1",
+			{
+				Id: "source-1",
+				TranscodingUrl:
+					"/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
+			},
+			4_000_000,
+		);
 
 		expect(url).toBe(
 			"https://miru.amai.space/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
@@ -155,14 +179,21 @@ describe("jellyfin api helpers", () => {
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
 		expect(url.searchParams.get("subtitleStreamIndex")).toBe("-1");
-		expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({
+		expect(
+			JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)),
+		).toMatchObject({
 			UserId: "user-1",
 		});
 	});
 
 	it("requests Jellyfin subtitles as timeline-preserving WebVTT", () => {
-		const url = new URL(subtitleUrl(session, "movie-1", { Id: "source-1" }, 3), "https://app.test");
-		expect(url.pathname).toBe("/api/jellyfin/video/movie-1/source-1/Subtitles/3/Stream.vtt");
+		const url = new URL(
+			subtitleUrl(session, "movie-1", { Id: "source-1" }, 3),
+			"https://app.test",
+		);
+		expect(url.pathname).toBe(
+			"/api/jellyfin/video/movie-1/source-1/Subtitles/3/Stream.vtt",
+		);
 		expect(url.searchParams.get("MediaSourceId")).toBe("source-1");
 		expect(url.searchParams.get("format")).toBe("vtt");
 		expect(url.searchParams.get("addVttTimeMap")).toBe("true");
@@ -178,7 +209,9 @@ describe("jellyfin api helpers", () => {
 			subtitleStreamIndex: -1,
 		});
 
-		expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({
+		expect(
+			JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)),
+		).toMatchObject({
 			UserId: "user-1",
 			MaxStreamingBitrate: 4_000_000,
 			StartTimeTicks: 123,
@@ -243,12 +276,14 @@ describe("jellyfin api helpers", () => {
 	it("sends the target browser capabilities to Jellyfin", async () => {
 		await getPlaybackInfo(session, "movie-1", {
 			browserCapabilities: {
-				directPlayProfiles: [{
-					Type: "Video",
-					Container: "mp4,m4v",
-					VideoCodec: "hevc,h264",
-					AudioCodec: "aac",
-				}],
+				directPlayProfiles: [
+					{
+						Type: "Video",
+						Container: "mp4,m4v",
+						VideoCodec: "hevc,h264",
+						AudioCodec: "aac",
+					},
+				],
 				transcodingVideoCodec: "h264",
 				transcodingAudioCodec: "aac",
 			},
@@ -300,8 +335,16 @@ describe("jellyfin api helpers", () => {
 	it("rejects unsupported final decoding configurations but allows non-smooth playback", async () => {
 		const decodingInfo = vi
 			.fn()
-			.mockResolvedValueOnce({ supported: true, smooth: false, powerEfficient: true })
-			.mockResolvedValueOnce({ supported: false, smooth: false, powerEfficient: false });
+			.mockResolvedValueOnce({
+				supported: true,
+				smooth: false,
+				powerEfficient: true,
+			})
+			.mockResolvedValueOnce({
+				supported: false,
+				smooth: false,
+				powerEfficient: false,
+			});
 		const previous = navigator.mediaCapabilities;
 		Object.defineProperty(navigator, "mediaCapabilities", {
 			configurable: true,
@@ -326,7 +369,10 @@ describe("jellyfin api helpers", () => {
 			});
 			await expect(
 				validateMediaDecoding(metadata, { type: "file" }),
-			).resolves.toMatchObject({ status: "unsupported", reason: "not-supported" });
+			).resolves.toMatchObject({
+				status: "unsupported",
+				reason: "not-supported",
+			});
 		} finally {
 			Object.defineProperty(navigator, "mediaCapabilities", {
 				configurable: true,
@@ -391,7 +437,9 @@ describe("jellyfin api helpers", () => {
 		const createElement = vi
 			.spyOn(document, "createElement")
 			.mockImplementation(((tagName: string) =>
-				tagName === "canvas" ? canvas : originalCreateElement(tagName)) as typeof document.createElement);
+				tagName === "canvas"
+					? canvas
+					: originalCreateElement(tagName)) as typeof document.createElement);
 		let frame = 0;
 		const video = {
 			currentTime: 0,
@@ -399,7 +447,9 @@ describe("jellyfin api helpers", () => {
 			readyState: 3,
 			videoWidth: 1280,
 			videoHeight: 720,
-			requestVideoFrameCallback: (callback: (now: number, metadata: { mediaTime: number }) => void) => {
+			requestVideoFrameCallback: (
+				callback: (now: number, metadata: { mediaTime: number }) => void,
+			) => {
 				const currentFrame = ++frame;
 				queueMicrotask(() => callback(0, { mediaTime: currentFrame * 0.05 }));
 				return currentFrame;

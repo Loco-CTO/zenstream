@@ -30,6 +30,8 @@ import {
 	playbackStreams,
 	playbackUrl,
 	preserveTrickplay,
+	sourceFitsHevcEnvelope,
+	sourceVideoCodec,
 	reportPlayback,
 	setPlayed,
 	subtitleUrl,
@@ -52,8 +54,8 @@ import {
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 import {
 	browserPlaybackCapabilities,
-	resolveHevcCapabilities,
-	markHevcPathUnsupported,
+	resolveBrowserPlaybackCapabilities,
+	markHevcEnvelopeUnsupported,
 	validateMediaDecoding,
 	validateRenderedVideoFrame,
 	type BrowserPlaybackCapabilities,
@@ -145,6 +147,16 @@ function currentHlsLevel(hls: Hls | null, video: HTMLVideoElement) {
 	);
 	if (matching) return matching;
 	return hls.currentLevel >= 0 ? hls.levels[hls.currentLevel] : hls.levels[0];
+}
+
+export async function clearMediaSession(video: HTMLVideoElement, hls?: Hls | null) {
+	hls?.stopLoad();
+	hls?.detachMedia();
+	hls?.destroy();
+	video.pause();
+	video.removeAttribute("src");
+	while (video.firstChild) video.removeChild(video.firstChild);
+	video.load();
 }
 
 export function syncplayWaitingForMembers(
@@ -337,9 +349,7 @@ export function VideoPlayer({
 		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
-	const browserCapabilitiesRef = useRef<BrowserPlaybackCapabilities>(
-		browserPlaybackCapabilities(),
-	);
+	const browserCapabilitiesRef = useRef<BrowserPlaybackCapabilities>(browserPlaybackCapabilities());
 	const sourceRef = useRef<JellyfinMediaSource | undefined>(
 		initialStreams?.source,
 	);
@@ -547,21 +557,26 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
-		const streams = (initialStreams ? Promise.resolve(new Set<import("@/lib/playback-capabilities").HevcPlaybackPath>()) : resolveHevcCapabilities({
-			mediaSource: Hls.isSupported() ? Hls.getMediaSource() ?? undefined : undefined,
-		})).then((hevcPaths) => {
-			if (!initialStreams) {
-				browserCapabilitiesRef.current = browserPlaybackCapabilities(undefined, { hevcPaths });
-			}
-			return initialStreams
+		const streams = resolveBrowserPlaybackCapabilities().then(async (capabilities) => {
+			browserCapabilitiesRef.current = capabilities;
+			let parsed = initialStreams
 				? initialStreams
-				: getPlaybackInfo(session, item.Id, {
+				: playbackStreams(await getPlaybackInfo(session, item.Id, {
 					audioStreamIndex: initialAudioStreamIndex,
 					// Keep subtitles out of the media pipeline; the selected track is
 					// fetched as VTT and rendered by CustomSubtitleCue below.
 					subtitleStreamIndex: -1,
-					browserCapabilities: browserCapabilitiesRef.current,
-				}).then((playback) => playbackStreams(playback));
+					browserCapabilities: capabilities,
+				}));
+			if (sourceVideoCodec(parsed.source) === "hevc" && !sourceFitsHevcEnvelope(parsed.source, capabilities.hevcEnvelope)) {
+				parsed = playbackStreams(await getPlaybackInfo(session, item.Id, {
+					audioStreamIndex: initialAudioStreamIndex,
+					subtitleStreamIndex: -1,
+					browserCapabilities: capabilities,
+					excludeVideoCodecs: ["hevc"],
+				}));
+			}
+			return parsed;
 		});
 		Promise.all([
 			streams,
@@ -725,7 +740,7 @@ export function VideoPlayer({
 				const validation = await validatePlaybackSource(source, video);
 				if (!active) return;
 				if (validation.status === "unsupported") {
-					if (!transcodeAttemptRef.current && !source?.TranscodingUrl) {
+					if (sourceVideoCodec(source) === "hevc" && !transcodeAttemptRef.current) {
 						await retryWithoutHevc();
 					} else {
 						setQualityLoading(false);
@@ -964,8 +979,13 @@ export function VideoPlayer({
 		const task = (async () => {
 			const validation = await validateRenderedVideoFrame(video);
 			if (videoRef.current !== video || url !== sourceKey) return;
-			if (validation.status !== "unsupported") return;
-			if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
+			const sourceIsHevc = sourceVideoCodec(sourceRef.current) === "hevc";
+			const preflighted = sourceFitsHevcEnvelope(
+				sourceRef.current,
+				browserCapabilitiesRef.current.hevcEnvelope,
+			);
+			if (validation.status === "supported" || !sourceIsHevc) return;
+			if (!transcodeAttemptRef.current && (!preflighted || validation.status === "unsupported" || validation.status === "unknown")) {
 				await retryWithoutHevc();
 				return;
 			}
@@ -980,26 +1000,29 @@ export function VideoPlayer({
 				frameValidationInFlightRef.current = null;
 		}
 	}
-	function hevcPathForCurrentSource(): "direct-mp4" | "mse-fmp4" | "native-hls" | "hlsjs-mse" {
-		if (/\.m3u8(?:\?|$)/i.test(url ?? "")) return hlsRef.current ? "hlsjs-mse" : "native-hls";
-		return hlsRef.current ? "mse-fmp4" : "direct-mp4";
-	}
 	async function retryWithoutHevc() {
 		if (transcodeAttemptRef.current) return false;
 		transcodeAttemptRef.current = true;
-		markHevcPathUnsupported(hevcPathForCurrentSource());
+		const envelope = browserCapabilitiesRef.current.hevcEnvelope;
+		if (envelope) markHevcEnvelopeUnsupported(envelope);
+		const video = videoRef.current;
+		if (video) await clearMediaSession(video, hlsRef.current);
+		hlsRef.current = null;
 		setError("");
 		setQualityLoading(true);
 		try {
 			const playback = await getPlaybackInfo(session, item.Id, {
-				mediaSourceId: sourceRef.current?.Id,
 				audioStreamIndex: audio ? Number(audio) : undefined,
 				subtitleStreamIndex: -1,
 				browserCapabilities: browserCapabilitiesRef.current,
 				excludeVideoCodecs: ["hevc"],
 			});
-			const next = playbackStreams(playback);
+			let next = playbackStreams(playback);
 			if (!next.source) throw new Error("Jellyfin did not return a fallback source.");
+			if (sourceVideoCodec(next.source) === "hevc")
+				next = await fetchForcedTranscode(undefined, undefined, ["hevc"]);
+			if (!next.source || sourceVideoCodec(next.source) === "hevc")
+				throw new Error("Jellyfin did not return a non-HEVC fallback source.");
 			sourceRef.current = next.source;
 			setInfo((previous) => ({ ...next, qualities: previous?.qualities ?? next.qualities }));
 			setQuality("0");
@@ -1014,12 +1037,14 @@ export function VideoPlayer({
 	async function fetchForcedTranscode(
 		audioStreamIndex?: number,
 		previousSource?: JellyfinMediaSource,
+		excludeVideoCodecs?: string[],
 	) {
 		const playback = await getPlaybackInfo(session, item.Id, {
 			mediaSourceId: previousSource?.Id ?? sourceRef.current?.Id,
 			audioStreamIndex: audioStreamIndex ?? (audio ? Number(audio) : undefined),
 			subtitleStreamIndex: -1,
 			browserCapabilities: browserCapabilitiesRef.current,
+			excludeVideoCodecs,
 			forceTranscoding: true,
 		});
 		const parsed = playbackStreams(playback);

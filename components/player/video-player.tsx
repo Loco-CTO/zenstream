@@ -756,12 +756,15 @@ export function VideoPlayer({
 			})();
 		};
 		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
+		const textTracks = video.textTracks;
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
-		video.textTracks.addEventListener("addtrack", onTextTrackAdded);
+		if (typeof textTracks.addEventListener === "function")
+			textTracks.addEventListener("addtrack", onTextTrackAdded);
 		return () => {
 			active = false;
 			video.removeEventListener("loadedmetadata", onMetadata);
-			video.textTracks.removeEventListener("addtrack", onTextTrackAdded);
+			if (typeof textTracks.removeEventListener === "function")
+				textTracks.removeEventListener("addtrack", onTextTrackAdded);
 			hlsRef.current?.destroy();
 			hlsRef.current = null;
 		};
@@ -903,7 +906,7 @@ export function VideoPlayer({
 		if (!result) return true;
 		return (
 			result.supported &&
-			result.decodingInfoResults.every((entry) => entry.supported && entry.smooth)
+			result.decodingInfoResults.every((entry) => entry.supported)
 		);
 	}
 	async function validatePlaybackSource(
@@ -1283,6 +1286,11 @@ export function VideoPlayer({
 					reportBuffering(true);
 				}}
 				onCanPlay={() => {
+					// A media error can be emitted while the browser is still
+					// recovering the source. `canplay` is the authoritative signal
+					// that the current element can be played, so clear any stale
+					// error overlay here.
+					setError("");
 					setBuffering(false);
 					const shouldRetry = retryAfterBufferingRef.current;
 					retryAfterBufferingRef.current = false;
@@ -1379,6 +1387,15 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onError={() => {
+					const video = videoRef.current;
+					if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
+						void requestForcedTranscode();
+						return;
+					}
+					// Do not replace an already playable source with an error overlay
+					// when the browser has recovered and can play it.
+					if (video && video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA)
+						return;
 					setBuffering(false);
 					setQualityLoading(false);
 					setError("This media could not be played.");

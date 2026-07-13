@@ -296,7 +296,7 @@ describe("jellyfin api helpers", () => {
 		});
 	});
 
-	it("rejects unsupported or non-smooth final decoding configurations", async () => {
+	it("rejects unsupported final decoding configurations but allows non-smooth playback", async () => {
 		const decodingInfo = vi
 			.fn()
 			.mockResolvedValueOnce({ supported: true, smooth: false, powerEfficient: true })
@@ -318,7 +318,11 @@ describe("jellyfin api helpers", () => {
 		try {
 			await expect(
 				validateMediaDecoding(metadata, { type: "file" }),
-			).resolves.toMatchObject({ status: "unsupported", reason: "not-smooth" });
+			).resolves.toMatchObject({
+				status: "supported",
+				supported: true,
+				smooth: false,
+			});
 			await expect(
 				validateMediaDecoding(metadata, { type: "file" }),
 			).resolves.toMatchObject({ status: "unsupported", reason: "not-supported" });

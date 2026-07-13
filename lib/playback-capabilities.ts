@@ -253,11 +253,14 @@ export async function validateMediaDecoding(
 	try {
 		const result = await navigator.mediaCapabilities.decodingInfo(configuration);
 		return {
-			status: result.supported && result.smooth ? "supported" : "unsupported",
+			// `smooth` is a performance hint, not a compatibility result. A
+			// browser may report a high-resolution stream as non-smooth while it
+			// still decodes and plays it correctly.
+			status: result.supported ? "supported" : "unsupported",
 			supported: result.supported,
 			smooth: result.smooth,
 			powerEfficient: result.powerEfficient,
-			reason: result.supported ? (result.smooth ? undefined : "not-smooth") : "not-supported",
+			reason: result.supported ? undefined : "not-supported",
 			configuration,
 		};
 	} catch {

@@ -36,6 +36,7 @@ import { useSortPreference } from "@/lib/sort-preferences";
 
 const PAGE_SIZE = 40;
 const CARD_MIN_WIDTH = 200;
+const MOBILE_CARD_MIN_WIDTH = 132;
 const GRID_GAP = 12;
 const CARD_TEXT_HEIGHT = 48;
 const OVERSCAN_ROWS = 3;
@@ -315,8 +316,9 @@ function VirtualMediaGrid({
 		};
 	}, []);
 
-	const columns = Math.max(1, Math.floor((width + GRID_GAP) / (CARD_MIN_WIDTH + GRID_GAP)));
-	const cardWidth = width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : CARD_MIN_WIDTH;
+	const minCardWidth = width > 0 && width < 640 ? MOBILE_CARD_MIN_WIDTH : CARD_MIN_WIDTH;
+	const columns = Math.max(1, Math.floor((width + GRID_GAP) / (minCardWidth + GRID_GAP)));
+	const cardWidth = width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : minCardWidth;
 	const rowHeight = cardWidth * 1.5 + CARD_TEXT_HEIGHT + GRID_GAP;
 	const rowCount = Math.ceil(items.length / columns);
 	const relativeTop = Math.max(0, viewport.scrollY - containerTop);

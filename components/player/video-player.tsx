@@ -141,6 +141,12 @@ export function syncplayMediaIsReady(
 	return video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
 }
 
+export function hasRenderedVideoFrame(
+	video: Pick<HTMLVideoElement, "videoWidth" | "videoHeight">,
+) {
+	return video.videoWidth > 0 && video.videoHeight > 0;
+}
+
 export function syncplayInitialLoading(
 	video: Pick<HTMLMediaElement, "readyState"> | null,
 ) {
@@ -269,6 +275,7 @@ export function VideoPlayer({
 	const videoClickTimerRef = useRef<number | null>(null);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
+	const videoFrameTimerRef = useRef<number | undefined>(undefined);
 	const retryAfterBufferingRef = useRef(false);
 	const bufferedRef = useRef(false);
 	const appliedTimelineRef = useRef<string | null>(null);
@@ -350,6 +357,7 @@ export function VideoPlayer({
 		};
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
+		directPlayFallbackRef.current = false;
 		advancingToNextRef.current = false;
 	}, [item.Id]);
 
@@ -716,6 +724,8 @@ export function VideoPlayer({
 				window.clearTimeout(controlsTimerRef.current);
 			if (bufferingTimerRef.current)
 				window.clearTimeout(bufferingTimerRef.current);
+			if (videoFrameTimerRef.current)
+				window.clearTimeout(videoFrameTimerRef.current);
 			if (videoClickTimerRef.current)
 				window.clearTimeout(videoClickTimerRef.current);
 		},
@@ -798,6 +808,28 @@ export function VideoPlayer({
 		).then((started) => {
 			if (!started) suppressSyncPlayRef.current = false;
 		});
+	}
+	function scheduleVideoFrameCheck() {
+		if (videoFrameTimerRef.current)
+			window.clearTimeout(videoFrameTimerRef.current);
+		videoFrameTimerRef.current = window.setTimeout(() => {
+			videoFrameTimerRef.current = undefined;
+			const video = videoRef.current;
+			if (
+				!video ||
+				video.paused ||
+				video.readyState < HTMLMediaElement.HAVE_METADATA ||
+				hasRenderedVideoFrame(video)
+			)
+				return;
+			// Mobile browsers may emit play/playing and continue the audio track
+			// without raising a media error when the video codec is unsupported.
+			playerDebug("playback has audio but no rendered video frame", {
+				readyState: video.readyState,
+				networkState: video.networkState,
+			});
+			handleVideoError(true);
+		}, 3000);
 	}
 
 	function togglePlay() {
@@ -1017,7 +1049,7 @@ export function VideoPlayer({
 		stageSeek(marker.end);
 		commitPendingSeek();
 	}
-	function handleVideoError() {
+	function handleVideoError(forceTranscode = false) {
 		const video = videoRef.current;
 		if (!video || directPlayFallbackRef.current || !info?.source) {
 			setError("This media could not be played.");
@@ -1025,6 +1057,7 @@ export function VideoPlayer({
 		}
 		const errorCode = video.error?.code;
 		if (
+			!forceTranscode &&
 			errorCode !== MediaError.MEDIA_ERR_DECODE &&
 			errorCode !== MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
 		) {
@@ -1102,6 +1135,8 @@ export function VideoPlayer({
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
+				playsInline
+				preload="auto"
 				onClick={handleVideoClick}
 				onDoubleClick={toggleFullscreen}
 				muted={muted}
@@ -1137,6 +1172,7 @@ export function VideoPlayer({
 					)
 						startSyncedPlayback(video);
 				}}
+				onPlaying={scheduleVideoFrameCheck}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
 					if (Number.isFinite(value) && value > 0)
@@ -1429,7 +1465,7 @@ export function VideoPlayer({
 						</div>
 					)}
 				</div>
-					<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
+				<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
 					<button
 						aria-label="Skip back 10 seconds"
 						onClick={() => seek(-10)}

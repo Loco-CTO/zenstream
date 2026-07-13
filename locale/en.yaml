@@ -68,6 +68,7 @@ changePassword: Change Password
 appearance: Appearance
 languageDescription: Choose the language used throughout ZenStream
 playback: Playback
+mediaPlaybackFailed: This media could not be played.
 audioLanguage: Audio Language
 subtitleLanguage: Subtitle Language
 audioTrack: Audio

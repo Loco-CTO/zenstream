@@ -718,7 +718,7 @@ export function VideoPlayer({
 						await requestForcedTranscode();
 					} else {
 						setQualityLoading(false);
-						setError("This media could not be played.");
+						setError(t("mediaPlaybackFailed"));
 					}
 					return;
 				}
@@ -959,7 +959,7 @@ export function VideoPlayer({
 				return;
 			}
 			setQualityLoading(false);
-			setError("This media could not be played.");
+			setError(t("mediaPlaybackFailed"));
 		})();
 		frameValidationInFlightRef.current = task;
 		try {
@@ -991,7 +991,7 @@ export function VideoPlayer({
 	async function requestForcedTranscode() {
 		if (transcodeAttemptRef.current) {
 			setQualityLoading(false);
-			setError("This media could not be played.");
+			setError(t("mediaPlaybackFailed"));
 			return false;
 		}
 		transcodeAttemptRef.current = true;
@@ -1010,7 +1010,7 @@ export function VideoPlayer({
 			return true;
 		} catch {
 			setQualityLoading(false);
-			setError("This media could not be played.");
+			setError(t("mediaPlaybackFailed"));
 			return false;
 		}
 	}
@@ -1438,7 +1438,7 @@ export function VideoPlayer({
 						return;
 					setBuffering(false);
 					setQualityLoading(false);
-					setError("This media could not be played.");
+					setError(t("mediaPlaybackFailed"));
 				}}
 			></video>
 			{subtitle && subtitleCueData?.track === subtitle && (

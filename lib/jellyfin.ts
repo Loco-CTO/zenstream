@@ -578,11 +578,20 @@ export async function getPlaybackInfo(
 		audioStreamIndex?: number;
 		subtitleStreamIndex?: number;
 		browserCapabilities?: BrowserPlaybackCapabilities;
+		excludeVideoCodecs?: string[];
 		forceTranscoding?: boolean;
 	} = {},
 ) {
 	const browserCapabilities =
 		options.browserCapabilities ?? browserPlaybackCapabilities();
+	const excluded = new Set((options.excludeVideoCodecs ?? []).map((codec) => codec.toLowerCase()));
+	const directPlayProfiles = browserCapabilities.directPlayProfiles.map((profile) => ({
+		...profile,
+		VideoCodec: profile.VideoCodec.split(",").filter((codec) => !excluded.has(codec.toLowerCase())).join(","),
+	})).filter((profile) => profile.VideoCodec);
+	const transcodingVideoCodec = excluded.has(browserCapabilities.transcodingVideoCodec.toLowerCase())
+		? "h264"
+		: browserCapabilities.transcodingVideoCodec;
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({
@@ -611,13 +620,13 @@ export async function getPlaybackInfo(
 				DeviceProfile: {
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
-					DirectPlayProfiles: browserCapabilities.directPlayProfiles,
+					DirectPlayProfiles: directPlayProfiles,
 					TranscodingProfiles: [{
 						Type: "Video",
 						Context: "Streaming",
 						Protocol: "hls",
 						Container: "ts",
-						VideoCodec: browserCapabilities.transcodingVideoCodec,
+						VideoCodec: transcodingVideoCodec,
 						AudioCodec: browserCapabilities.transcodingAudioCodec,
 						MaxAudioChannels: "2",
 						MinSegments: 1,

@@ -547,7 +547,7 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
-		const streams = (initialStreams ? Promise.resolve(new Set()) : resolveHevcCapabilities({
+		const streams = (initialStreams ? Promise.resolve(new Set<import("@/lib/playback-capabilities").HevcPlaybackPath>()) : resolveHevcCapabilities({
 			mediaSource: Hls.isSupported() ? Hls.getMediaSource() ?? undefined : undefined,
 		})).then((hevcPaths) => {
 			if (!initialStreams) {

@@ -69,6 +69,7 @@ appearance: Appearance
 languageDescription: Choose the language used throughout ZenStream
 playback: Playback
 mediaPlaybackFailed: This media could not be played.
+playCompatibilityVersion: Play compatibility version
 audioLanguage: Audio Language
 subtitleLanguage: Subtitle Language
 audioTrack: Audio

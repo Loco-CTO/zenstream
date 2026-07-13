@@ -1,9 +1,5 @@
 import type { AuthSession } from "@/lib/session";
-import {
-	resolveBrowserPlaybackCapabilities,
-	type BrowserPlaybackCapabilities,
-	type HevcCapabilityEnvelope,
-} from "@/lib/playback-capabilities";
+import { browserDeviceProfile } from "@/lib/browser-device-profile";
 
 export interface AuthResponse {
 	AccessToken?: string;
@@ -106,53 +102,6 @@ export interface JellyfinTrickplayInfo {
 export interface JellyfinPlaybackInfo {
 	MediaSources?: JellyfinMediaSource[];
 	PlaySessionId?: string;
-}
-
-export function hevcCodecProfile(envelope: HevcCapabilityEnvelope) {
-	return {
-		Type: "Video",
-		Codec: "hevc",
-		Conditions: [
-			{ Condition: "EqualsAny", Property: "VideoProfile", Value: "main", IsRequired: true },
-			{ Condition: "Equals", Property: "VideoBitDepth", Value: String(envelope.bitDepth), IsRequired: true },
-			{ Condition: "EqualsAny", Property: "VideoRangeType", Value: "SDR", IsRequired: true },
-			{ Condition: "LessThanEqual", Property: "VideoLevel", Value: String(envelope.level), IsRequired: true },
-			{ Condition: "NotEquals", Property: "IsInterlaced", Value: "true", IsRequired: true },
-			{ Condition: "LessThanEqual", Property: "Width", Value: String(envelope.maxWidth), IsRequired: true },
-			{ Condition: "LessThanEqual", Property: "Height", Value: String(envelope.maxHeight), IsRequired: true },
-			{ Condition: "LessThanEqual", Property: "VideoFramerate", Value: String(envelope.maxFramerate), IsRequired: true },
-		],
-	};
-}
-
-export function sourceFitsHevcEnvelope(
-	source: JellyfinMediaSource | undefined,
-	envelope: HevcCapabilityEnvelope | undefined,
-) {
-	if (!envelope) return false;
-	const video = source?.MediaStreams?.find((stream) => stream.Type === "Video");
-	if (!video || video.Codec?.toLowerCase() !== "hevc") return false;
-	const rate = Number(video.RealFrameRate ?? video.AverageFrameRate);
-	return video.Profile?.toLowerCase() === envelope.profile &&
-		video.BitDepth === envelope.bitDepth &&
-		video.VideoRangeType?.toLowerCase() === envelope.dynamicRange &&
-		video.IsInterlaced === false &&
-		Number.isFinite(video.Level) && video.Level! <= envelope.level &&
-		Number.isFinite(video.Width) && video.Width! <= envelope.maxWidth &&
-		Number.isFinite(video.Height) && video.Height! <= envelope.maxHeight &&
-		Number.isFinite(rate) && rate <= envelope.maxFramerate;
-}
-
-export function sourceVideoCodec(source: JellyfinMediaSource | undefined) {
-	return source?.MediaStreams?.find((stream) => stream.Type === "Video")?.Codec?.toLowerCase();
-}
-
-// Jellyfin keeps the original stream metadata on transcoded media sources.
-// ZenStream's only HLS transcode profile is H.264/AAC, so use the negotiated
-// profile for recovery verification instead of misclassifying that source as
-// the original HEVC stream.
-export function negotiatedVideoCodec(source: JellyfinMediaSource | undefined) {
-	return source?.TranscodingUrl ? "h264" : sourceVideoCodec(source);
 }
 
 export interface PlaybackMarker {
@@ -631,23 +580,11 @@ export async function getPlaybackInfo(
 		mediaSourceId?: string;
 		audioStreamIndex?: number;
 		subtitleStreamIndex?: number;
-		browserCapabilities?: BrowserPlaybackCapabilities;
-		excludeVideoCodecs?: string[];
 		forceTranscoding?: boolean;
 	} = {},
 ) {
-	const browserCapabilities =
-		options.browserCapabilities ?? await resolveBrowserPlaybackCapabilities();
-	const excluded = new Set((options.excludeVideoCodecs ?? []).map((codec) => codec.toLowerCase()));
-	const hevcEnvelope = excluded.has("hevc") ? undefined : browserCapabilities.hevcEnvelope;
-	const directPlayProfiles = browserCapabilities.directPlayProfiles.flatMap((profile) =>
-		profile.VideoCodec.split(",")
-			.filter((codec) => !excluded.has(codec.toLowerCase()) && (codec.toLowerCase() !== "hevc" || Boolean(hevcEnvelope)))
-			.map((VideoCodec) => ({ ...profile, VideoCodec })),
-	);
-	const transcodingVideoCodec = excluded.has(browserCapabilities.transcodingVideoCodec.toLowerCase())
-		? "h264"
-		: "h264";
+	const profile = browserDeviceProfile();
+	const directPlayEnabled = !options.forceTranscoding;
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({
@@ -657,8 +594,10 @@ export async function getPlaybackInfo(
 			audioStreamIndex: options.audioStreamIndex,
 			subtitleStreamIndex: options.subtitleStreamIndex,
 			mediaSourceId: options.mediaSourceId,
-			enableDirectPlay: !options.forceTranscoding,
-			enableDirectStream: !options.forceTranscoding,
+			enableDirectPlay: directPlayEnabled,
+			enableDirectStream: directPlayEnabled,
+			allowVideoStreamCopy: directPlayEnabled,
+			allowAudioStreamCopy: directPlayEnabled,
 			enableTranscoding: true,
 		})}`,
 		{
@@ -670,25 +609,26 @@ export async function getPlaybackInfo(
 				MediaSourceId: options.mediaSourceId,
 				AudioStreamIndex: options.audioStreamIndex,
 				SubtitleStreamIndex: options.subtitleStreamIndex,
-				EnableDirectPlay: !options.forceTranscoding,
-				EnableDirectStream: !options.forceTranscoding,
+				EnableDirectPlay: directPlayEnabled,
+				EnableDirectStream: directPlayEnabled,
+				AllowVideoStreamCopy: directPlayEnabled,
+				AllowAudioStreamCopy: directPlayEnabled,
 				EnableTranscoding: true,
 				DeviceProfile: {
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
-					DirectPlayProfiles: directPlayProfiles,
-					CodecProfiles: hevcEnvelope ? [hevcCodecProfile(hevcEnvelope)] : [],
-					TranscodingProfiles: [{
+					DirectPlayProfiles: profile.directPlayProfiles,
+					TranscodingProfiles: profile.transcodingProfiles.map((transcoding) => ({
 						Type: "Video",
 						Context: "Streaming",
 						Protocol: "hls",
-						Container: "ts",
-						VideoCodec: transcodingVideoCodec,
-						AudioCodec: browserCapabilities.transcodingAudioCodec,
+						Container: transcoding.Container,
+						VideoCodec: transcoding.VideoCodec,
+						AudioCodec: transcoding.AudioCodec,
 						MaxAudioChannels: "2",
 						MinSegments: 1,
 						BreakOnNonKeyFrames: true,
-					}],
+					})),
 				},
 			}),
 		},
@@ -747,14 +687,11 @@ export function playbackUrl(
 	startTimeTicks?: number,
 	transcodeWidth?: number,
 ) {
-	if (bitrate && source?.TranscodingUrl) {
-		const remote = new URL(source.TranscodingUrl, jellyfinBaseUrl());
+	const negotiatedUrl = source?.TranscodingUrl ?? source?.DirectStreamUrl;
+	if (negotiatedUrl) {
+		const remote = new URL(negotiatedUrl, jellyfinBaseUrl());
 		const hasApiKey = [...remote.searchParams.keys()].some((key) => key.toLowerCase() === "api_key" || key.toLowerCase() === "apikey");
 		if (!hasApiKey) remote.searchParams.set("api_key", session.token);
-		if (transcodeWidth) {
-			remote.searchParams.set("Width", String(transcodeWidth));
-			remote.searchParams.set("Height", String(Math.round((transcodeWidth * 9) / 16)));
-		}
 		return remote.toString();
 	}
 	const params = new URLSearchParams({
@@ -763,20 +700,6 @@ export function playbackUrl(
 		MediaSourceId: source?.Id ?? itemId,
 		...(startTimeTicks
 			? { startTimeTicks: String(Math.max(0, Math.round(startTimeTicks))) }
-			: {}),
-		...(bitrate ? { VideoCodec: "h264", AudioCodec: "aac" } : {}),
-			...(bitrate && transcodeWidth
-				? {
-						Width: String(transcodeWidth),
-						Height: String(Math.round((transcodeWidth * 9) / 16)),
-				  }
-				: {}),
-		...(bitrate
-			? {
-					Container: "mp4",
-					TranscodingContainer: "mp4",
-					TranscodingProtocol: "http",
-				}
 			: {}),
 		TranscodingMaxAudioChannels: "2",
 		...(bitrate ? { TranscodingMaxBitrate: String(bitrate) } : {}),

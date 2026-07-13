@@ -33,63 +33,13 @@ import {
 	playbackUrl,
 	subtitleUrl,
 	preserveTrickplay,
-	negotiatedVideoCodec,
-	sourceFitsHevcEnvelope,
 	trickplayPreview,
 	youtubeVideoId,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
-import {
-	browserPlaybackCapabilities,
-	clearBrowserPlaybackCapabilitiesCache,
-	HEVC_PROBES,
-	qualifyHevc,
-	resolveHevcCapabilities,
-	createMediaDecodingConfiguration,
-	validateMediaDecoding,
-	validateRenderedVideoFrame,
-} from "@/lib/playback-capabilities";
+import { browserDeviceProfile } from "@/lib/browser-device-profile";
 
-const hevcEnvelope = {
-	path: "direct-mp4" as const, container: "mp4" as const, sampleEntry: "hvc1" as const,
-	profile: "main" as const, bitDepth: 8 as const, level: 120 as const,
-	chromaFormat: "4:2:0" as const, dynamicRange: "sdr" as const,
-	maxWidth: 1920 as const, maxHeight: 1080 as const, maxFramerate: 30 as const,
-	browserIdentity: "test", visualEvidenceCount: 3,
-};
-
-	const session = { token: "abc", userId: "user-1", username: "Alex" };
-
-describe("HEVC preflight", () => {
-	it("treats the fixed H.264 transcode profile as the negotiated fallback codec", () => {
-		expect(negotiatedVideoCodec({ TranscodingUrl: "/master.m3u8", MediaStreams: [{ Type: "Video", Codec: "hevc" }] })).toBe("h264");
-	});
-	it("requires complete returned source metadata to fit an HEVC envelope", () => {
-		expect(sourceFitsHevcEnvelope({ MediaStreams: [{ Type: "Video", Codec: "hevc", Profile: "Main", BitDepth: 8, VideoRangeType: "SDR", IsInterlaced: false, Level: 120, Width: 1920, Height: 1080, RealFrameRate: 30 }] }, hevcEnvelope)).toBe(true);
-		expect(sourceFitsHevcEnvelope({ MediaStreams: [{ Type: "Video", Codec: "hevc", Profile: "Main", BitDepth: 10, VideoRangeType: "SDR", IsInterlaced: false, Level: 120, Width: 1920, Height: 1080, RealFrameRate: 30 }] }, hevcEnvelope)).toBe(false);
-	});
-	it("uses complete variant MIME strings and separates MSE paths", async () => {
-		const probe = HEVC_PROBES[0]!;
-		const canPlayType = vi.fn(() => "probably");
-		const result = await qualifyHevc(probe, {
-			video: { canPlayType } as unknown as HTMLVideoElement,
-			mediaSource: { isTypeSupported: () => true },
-			probe: vi.fn().mockResolvedValue({ status: "supported" }),
-		});
-		expect(result.status).toBe("supported");
-		expect(canPlayType).toHaveBeenCalledWith(expect.stringContaining("hvc1.1.6"));
-	});
-
-	it("does not advertise a path unless its visual probe succeeds", async () => {
-		const probes = HEVC_PROBES.slice(0, 2);
-		const paths = await resolveHevcCapabilities({
-			probes,
-			video: { canPlayType: () => "probably" } as unknown as HTMLVideoElement,
-			probe: vi.fn().mockResolvedValue({ status: "unknown" }),
-		});
-		expect(paths).toHaveLength(0);
-	});
-});
+const session = { token: "abc", userId: "user-1", username: "Alex" };
 
 describe("jellyfin api helpers", () => {
 	it("builds relevance-ranked search queries", async () => {

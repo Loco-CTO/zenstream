@@ -59,6 +59,7 @@ appearance: 外観
 languageDescription: ZenStream全体で使用する言語を選択します
 playback: 再生
 mediaPlaybackFailed: このメディアを再生できませんでした。
+playCompatibilityVersion: 互換性バージョンで再生
 audioLanguage: 音声言語
 subtitleLanguage: 字幕言語
 audioTrack: 音声

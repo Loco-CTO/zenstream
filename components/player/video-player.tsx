@@ -30,9 +30,6 @@ import {
 	playbackStreams,
 	playbackUrl,
 	preserveTrickplay,
-	negotiatedVideoCodec,
-	sourceFitsHevcEnvelope,
-	sourceVideoCodec,
 	reportPlayback,
 	setPlayed,
 	subtitleUrl,
@@ -41,6 +38,7 @@ import {
 	type JellyfinMediaSource,
 	type PlaybackMarker,
 } from "@/lib/jellyfin";
+import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
@@ -53,15 +51,6 @@ import {
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
-import {
-	browserPlaybackCapabilities,
-	resolveBrowserPlaybackCapabilities,
-	markHevcEnvelopeUnsupported,
-	validateMediaDecoding,
-	validateRenderedVideoFrame,
-	type BrowserPlaybackCapabilities,
-	type PlaybackMediaMetadata,
-} from "@/lib/playback-capabilities";
 
 type Props = {
 	item: JellyfinItem;
@@ -83,72 +72,6 @@ const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
 	console.debug(`[Player] ${event}`, details ?? "");
 };
-
-type HlsLevelMetadata = {
-	videoCodec?: string;
-	audioCodec?: string;
-	width?: number;
-	height?: number;
-	bitrate?: number;
-	averageBitrate?: number;
-	frameRate?: number;
-};
-
-type HlsLevelValidationMetadata = HlsLevelMetadata & {
-	supportedPromise?: Promise<{
-		supported: boolean;
-		decodingInfoResults: ReadonlyArray<{ supported: boolean; smooth: boolean }>;
-	}>;
-	supportedResult?: {
-		supported: boolean;
-		decodingInfoResults: ReadonlyArray<{ supported: boolean; smooth: boolean }>;
-	};
-};
-
-function playbackMetadataFromSource(
-	source: JellyfinMediaSource | undefined,
-	fallback: BrowserPlaybackCapabilities,
-	video?: Pick<HTMLVideoElement, "videoWidth" | "videoHeight">,
-	level?: HlsLevelMetadata,
-): PlaybackMediaMetadata {
-	const videoStream = source?.MediaStreams?.find((stream) => stream.Type === "Video");
-	const audioStream = source?.MediaStreams?.find((stream) => stream.Type === "Audio");
-	const transcoded = Boolean(source?.TranscodingUrl);
-	return {
-		container: level ? "mp4" : source?.Container,
-		videoCodec:
-			level?.videoCodec ??
-			videoStream?.Codec ??
-			(transcoded ? fallback.transcodingVideoCodec : undefined),
-		audioCodec:
-			level?.audioCodec ??
-			audioStream?.Codec ??
-			(transcoded ? fallback.transcodingAudioCodec : undefined),
-		width: video?.videoWidth || level?.width || videoStream?.Width,
-		height: video?.videoHeight || level?.height || videoStream?.Height,
-		bitrate:
-			level?.averageBitrate ||
-			level?.bitrate ||
-			videoStream?.BitRate ||
-			source?.Bitrate,
-		framerate:
-			level?.frameRate ||
-			videoStream?.AverageFrameRate ||
-			videoStream?.RealFrameRate,
-		audioBitrate: audioStream?.BitRate,
-		audioChannels: audioStream?.Channels,
-		audioSamplerate: audioStream?.SampleRate,
-	};
-}
-
-function currentHlsLevel(hls: Hls | null, video: HTMLVideoElement) {
-	if (!hls?.levels.length) return undefined;
-	const matching = hls.levels.find(
-		(level) => level.width === video.videoWidth && level.height === video.videoHeight,
-	);
-	if (matching) return matching;
-	return hls.currentLevel >= 0 ? hls.levels[hls.currentLevel] : hls.levels[0];
-}
 
 export async function clearMediaSession(video: HTMLVideoElement, hls?: Hls | null) {
 	hls?.stopLoad();
@@ -350,13 +273,10 @@ export function VideoPlayer({
 		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
-	const browserCapabilitiesRef = useRef<BrowserPlaybackCapabilities>(browserPlaybackCapabilities());
 	const sourceRef = useRef<JellyfinMediaSource | undefined>(
 		initialStreams?.source,
 	);
 	const transcodeAttemptRef = useRef(false);
-	const frameValidationKeyRef = useRef<string | null>(null);
-	const frameValidationInFlightRef = useRef<Promise<void> | null>(null);
 	const resumeTimeRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
@@ -414,6 +334,7 @@ export function VideoPlayer({
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const [error, setError] = useState("");
+	const [compatibilityAvailable, setCompatibilityAvailable] = useState(true);
 	const [qualityLoading, setQualityLoading] = useState(false);
 	const [buffering, setBuffering] = useState(true);
 	const [controlsVisible, setControlsVisible] = useState(true);
@@ -448,8 +369,7 @@ export function VideoPlayer({
 	useEffect(() => {
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
-		frameValidationKeyRef.current = null;
-		frameValidationInFlightRef.current = null;
+		setCompatibilityAvailable(true);
 		advancingToNextRef.current = false;
 	}, [item.Id]);
 
@@ -558,33 +478,20 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
-		const streams = resolveBrowserPlaybackCapabilities().then(async (capabilities) => {
-			browserCapabilitiesRef.current = capabilities;
-			let parsed = initialStreams
-				? initialStreams
-				: playbackStreams(await getPlaybackInfo(session, item.Id, {
-					audioStreamIndex: initialAudioStreamIndex,
-					// Keep subtitles out of the media pipeline; the selected track is
-					// fetched as VTT and rendered by CustomSubtitleCue below.
-					subtitleStreamIndex: -1,
-					browserCapabilities: capabilities,
-				}));
-			if (sourceVideoCodec(parsed.source) === "hevc" && !sourceFitsHevcEnvelope(parsed.source, capabilities.hevcEnvelope)) {
-				parsed = playbackStreams(await getPlaybackInfo(session, item.Id, {
-					audioStreamIndex: initialAudioStreamIndex,
-					subtitleStreamIndex: -1,
-					browserCapabilities: capabilities,
-					excludeVideoCodecs: ["hevc"],
-				}));
-			}
-			return parsed;
-		});
+		const streams = initialStreams
+			? Promise.resolve(initialStreams)
+			: getPlaybackInfo(session, item.Id, {
+				audioStreamIndex: initialAudioStreamIndex,
+				// Keep subtitles out of the media pipeline; the selected track is
+				// fetched as VTT and rendered by CustomSubtitleCue below.
+				subtitleStreamIndex: -1,
+			}).then(playbackStreams);
 		Promise.all([
 			streams,
 			getPlaybackMarkers(session, item.Id),
 			getTrickplayInfo(session, item.Id).catch(() => undefined),
 		])
-			.then(async ([parsed, markerData, trickplay]) => {
+			.then(([parsed, markerData, trickplay]) => {
 				if (!active) return;
 				const source =
 					parsed.source && !parsed.source.Trickplay && trickplay
@@ -593,19 +500,7 @@ export function VideoPlayer({
 								Trickplay: trickplay[parsed.source.Id ?? ""],
 							}
 						: parsed.source;
-				let next = { ...parsed, source };
-				if (source && !source.TranscodingUrl) {
-					const validation = await validatePlaybackSource(source);
-					if (!active) return;
-					if (validation.status === "unsupported") {
-						const forced = await fetchForcedTranscode(
-							initialAudioStreamIndex,
-							source,
-						);
-						if (!active) return;
-						next = forced;
-					}
-				}
+				const next = { ...parsed, source };
 				sourceRef.current = next.source;
 				transcodeAttemptRef.current = Boolean(next.source?.TranscodingUrl);
 				setInfo(next);
@@ -718,14 +613,15 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		if (!video || !url) return;
 		let active = true;
-		frameValidationKeyRef.current = null;
-		frameValidationInFlightRef.current = null;
 		setBuffering(true);
-		hlsRef.current?.destroy();
+		void clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
-		if (/\.m3u8(?:\?|$)/i.test(url) && Hls.isSupported()) {
+		if (/\.m3u8(?:\?|$)/i.test(url) && shouldUseHlsJs() && Hls.isSupported()) {
 			const hls = new Hls(HLS_TEXT_TRACK_CONFIG);
 			hlsRef.current = hls;
+			hls.on(Hls.Events.ERROR, (_event, data) => {
+			if (active && data.fatal) void requestCompatibilityPlayback();
+		});
 			hls.loadSource(url);
 			hls.attachMedia(video);
 		} else {
@@ -737,22 +633,8 @@ export function VideoPlayer({
 			: 0;
 		const onMetadata = () => {
 			void (async () => {
-				const source = sourceRef.current;
-				const validation = await validatePlaybackSource(source, video);
 				if (!active) return;
-				if (validation.status === "unsupported") {
-					if (sourceVideoCodec(source) === "hevc" && !transcodeAttemptRef.current) {
-						await retryWithoutHevc();
-					} else {
-						setQualityLoading(false);
-						setError(t("mediaPlaybackFailed"));
-					}
-					return;
-				}
 				disableNativeSubtitleTracks(video);
-				// A quality/track switch can resolve through the Syncplay path too;
-				// clear the transient overlay only after the loaded source passes
-				// the final capability check.
 				setQualityLoading(false);
 				const groupState = syncplayStateRef.current;
 				const syncplayApi = syncplayApiRef.current;
@@ -927,122 +809,14 @@ export function VideoPlayer({
 			loading ? 750 : 300,
 		);
 	}
-	async function validateHlsLevel(level: HlsLevelValidationMetadata | undefined) {
-		if (!level) return true;
-		if (level.supportedPromise) {
-			try {
-				await level.supportedPromise;
-			} catch {
-				return false;
-			}
-		}
-		const result = level.supportedResult;
-		if (!result) return true;
-		return (
-			result.supported &&
-			result.decodingInfoResults.every((entry) => entry.supported)
-		);
-	}
-	async function validatePlaybackSource(
-		source: JellyfinMediaSource | undefined,
-		video?: HTMLVideoElement,
-	) {
-		const hls = hlsRef.current;
-		const level = video ? currentHlsLevel(hls, video) : undefined;
-		if (!(await validateHlsLevel(level)))
-			return { status: "unsupported" as const, reason: "hls-level-unsupported" };
-		const hlsMediaSource = source?.TranscodingUrl && Hls.isSupported()
-			? Hls.getMediaSource()
-			: undefined;
-		return validateMediaDecoding(
-			playbackMetadataFromSource(
-				source,
-				browserCapabilitiesRef.current,
-				video,
-				level,
-			),
-			{
-				type: hlsMediaSource ? "media-source" : "file",
-				mediaSource: hlsMediaSource,
-			},
-		);
-	}
-	async function validateRenderedFrame(video: HTMLVideoElement) {
-		const sourceKey = url;
-		if (
-			!sourceKey ||
-			video.paused ||
-			frameValidationKeyRef.current === sourceKey ||
-			frameValidationInFlightRef.current
-		)
-			return;
-		frameValidationKeyRef.current = sourceKey;
-		const task = (async () => {
-			const validation = await validateRenderedVideoFrame(video);
-			if (videoRef.current !== video || url !== sourceKey) return;
-			const sourceIsHevc = sourceVideoCodec(sourceRef.current) === "hevc";
-			const preflighted = sourceFitsHevcEnvelope(
-				sourceRef.current,
-				browserCapabilitiesRef.current.hevcEnvelope,
-			);
-			if (validation.status === "supported" || !sourceIsHevc) return;
-			if (!transcodeAttemptRef.current && (!preflighted || validation.status === "unsupported" || validation.status === "unknown")) {
-				await retryWithoutHevc();
-				return;
-			}
-			setQualityLoading(false);
-			setError(t("mediaPlaybackFailed"));
-		})();
-		frameValidationInFlightRef.current = task;
-		try {
-			await task;
-		} finally {
-			if (frameValidationInFlightRef.current === task)
-				frameValidationInFlightRef.current = null;
-		}
-	}
-	async function retryWithoutHevc() {
-		if (transcodeAttemptRef.current) return false;
-		transcodeAttemptRef.current = true;
-		const envelope = browserCapabilitiesRef.current.hevcEnvelope;
-		if (envelope) markHevcEnvelopeUnsupported(envelope);
-		const video = videoRef.current;
-		if (video) await clearMediaSession(video, hlsRef.current);
-		hlsRef.current = null;
-		// Do not let an old native/HLS session resume and clear the recovery UI
-		// while the fresh H.264 negotiation is in flight.
-		setUrl(undefined);
-		setError("");
-		setQualityLoading(true);
-		try {
-			// A no-HEVC direct-play profile can still select another source that is
-			// unusable on this device. Recovery must request the fixed H.264/AAC HLS
-			// transcode explicitly and load that returned transcoding URL.
-			const next = await fetchForcedTranscode(undefined, undefined, ["hevc"]);
-			if (!next.source || negotiatedVideoCodec(next.source) !== "h264")
-				throw new Error("Jellyfin did not return an H.264 fallback source.");
-			sourceRef.current = next.source;
-			setInfo((previous) => ({ ...next, qualities: previous?.qualities ?? next.qualities }));
-			setQuality("1");
-			setUrl(playbackUrl(session, item.Id, next.source, 1_000_000));
-			return true;
-		} catch {
-			setQualityLoading(false);
-			setError(t("mediaPlaybackFailed"));
-			return false;
-		}
-	}
-	async function fetchForcedTranscode(
+	async function fetchCompatibilityTranscode(
 		audioStreamIndex?: number,
 		previousSource?: JellyfinMediaSource,
-		excludeVideoCodecs?: string[],
 	) {
 		const playback = await getPlaybackInfo(session, item.Id, {
 			mediaSourceId: previousSource?.Id ?? sourceRef.current?.Id,
 			audioStreamIndex: audioStreamIndex ?? (audio ? Number(audio) : undefined),
 			subtitleStreamIndex: -1,
-			browserCapabilities: browserCapabilitiesRef.current,
-			excludeVideoCodecs: [...new Set([...(excludeVideoCodecs ?? []), "hevc"])],
 			forceTranscoding: true,
 		});
 		const parsed = playbackStreams(playback);
@@ -1053,17 +827,24 @@ export function VideoPlayer({
 			source: preserveTrickplay(parsed.source, previousSource ?? sourceRef.current),
 		};
 	}
-	async function requestForcedTranscode() {
+	async function requestCompatibilityPlayback() {
 		if (transcodeAttemptRef.current) {
 			setQualityLoading(false);
 			setError(t("mediaPlaybackFailed"));
 			return false;
 		}
 		transcodeAttemptRef.current = true;
+		setCompatibilityAvailable(false);
+		const video = videoRef.current;
+		if (video && Number.isFinite(video.currentTime))
+			resumeTimeRef.current = video.currentTime;
+		if (video) await clearMediaSession(video, hlsRef.current);
+		hlsRef.current = null;
+		setUrl(undefined);
 		setError("");
 		setQualityLoading(true);
 		try {
-			const next = await fetchForcedTranscode(undefined, undefined, ["hevc"]);
+			const next = await fetchCompatibilityTranscode();
 			if (!next.source) throw new Error("Missing transcoded source.");
 			sourceRef.current = next.source;
 			setInfo((previous) => ({
@@ -1472,9 +1253,8 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				onPlaying={(e) => {
-					if (!qualityLoading) setError("");
-					void validateRenderedFrame(e.currentTarget);
+				onPlaying={() => {
+					setQualityLoading(false);
 				}}
 				onPause={(e) => {
 					const syncState = syncplayStateRef.current;
@@ -1510,12 +1290,8 @@ export function VideoPlayer({
 				}}
 				onError={() => {
 					const video = videoRef.current;
-					if (!transcodeAttemptRef.current && sourceVideoCodec(sourceRef.current) === "hevc") {
-						void retryWithoutHevc();
-						return;
-					}
 					if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
-						void requestForcedTranscode();
+						void requestCompatibilityPlayback();
 						return;
 					}
 					// Do not replace an already playable source with an error overlay
@@ -1588,12 +1364,21 @@ export function VideoPlayer({
 				</div>
 			)}
 			{error && (
-				<p
+				<div
 					role="alert"
-					className="absolute left-1/2 top-1/2 -translate-x-1/2 rounded bg-black/70 px-4 py-3 text-sm text-red-200"
+					className="absolute left-1/2 top-1/2 flex -translate-x-1/2 flex-col items-center gap-3 rounded bg-black/70 px-4 py-3 text-sm text-red-200"
 				>
-					{error}
-				</p>
+					<p>{error}</p>
+					{compatibilityAvailable && (
+						<button
+							type="button"
+							onClick={() => void requestCompatibilityPlayback()}
+							className="rounded bg-violet-300 px-3 py-2 text-xs font-semibold text-black transition hover:bg-violet-200"
+						>
+							{t("playCompatibilityVersion")}
+						</button>
+					)}
+				</div>
 			)}
 			<SkipMarkerActions
 				markers={markers}
@@ -1875,6 +1660,12 @@ export function VideoPlayer({
 										label={t("subtitleOffset")}
 										onClick={() => setSettingsSection("offset")}
 									/>
+									{compatibilityAvailable && (
+										<MenuRow
+											label={t("playCompatibilityVersion")}
+											onClick={() => void requestCompatibilityPlayback()}
+										/>
+									)}
 								</div>
 							)}
 							{settingsSection === "quality" && (

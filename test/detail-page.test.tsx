@@ -49,7 +49,7 @@ describe("detail views", () => {
     expect(screen.getByText("Drama")).toHaveClass("text-xs");
     expect(screen.getByText("Studio")).toBeInTheDocument();
     const relatedCard = screen.getByText("Related Film").closest("article");
-    expect(relatedCard).toHaveClass("w-[200px]");
+    expect(relatedCard).toHaveClass("w-[148px]", "md:w-[200px]");
     expect(screen.getByText("Related Film")).toHaveClass("text-xs");
     expect(screen.getByText("Related Film").closest("a")).toHaveAttribute("href", "/show/similar");
     const playButton = screen.getByRole("button", { name: "Play" });

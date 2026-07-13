@@ -102,6 +102,25 @@ describe("LibraryPage", () => {
 		expect(screen.getByTestId("virtual-media-grid").style.height).not.toBe("");
 	});
 
+	it("uses two columns for narrow mobile library grids", async () => {
+		Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+			configurable: true,
+			get: () => 320,
+		});
+		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: makeItems(4),
+			totalRecordCount: 4,
+		});
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(screen.getAllByTestId("virtual-grid-row")[0]).toHaveStyle({
+				gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+			}),
+		);
+	});
+
 	it("supports sorting series by the date their latest episode was added", async () => {
 		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
 			items: makeItems(1),

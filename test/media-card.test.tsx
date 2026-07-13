@@ -27,7 +27,7 @@ describe("media card sizing", () => {
   it("uses the enlarged landscape card width", () => {
     const { container } = render(<WideCard item={item} />);
 
-    expect(container.firstElementChild).toHaveClass("w-[320px]");
+    expect(container.firstElementChild).toHaveClass("w-[min(calc((100vw-2.75rem)/2),180px)]", "md:w-[320px]");
   });
 
   it("routes the play button to autoplay without changing the detail link", () => {
@@ -45,7 +45,7 @@ describe("media card sizing", () => {
   it("uses the enlarged portrait card width", () => {
     const { container } = render(<PosterCard item={item} />);
 
-    expect(container.firstElementChild).toHaveClass("w-[200px]");
+    expect(container.firstElementChild).toHaveClass("w-[148px]", "md:w-[200px]");
   });
 
   it.each([

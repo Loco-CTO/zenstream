@@ -74,7 +74,10 @@ const playerDebug = (event: string, details?: unknown) => {
 	console.debug(`[Player] ${event}`, details ?? "");
 };
 
-export async function clearMediaSession(video: HTMLVideoElement, hls?: Hls | null) {
+export async function clearMediaSession(
+	video: HTMLVideoElement,
+	hls?: Hls | null,
+) {
 	hls?.stopLoad();
 	hls?.detachMedia();
 	hls?.destroy();
@@ -335,7 +338,9 @@ export function VideoPlayer({
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const [error, setError] = useState("");
-	const [compatibilityAttemptItemId, setCompatibilityAttemptItemId] = useState<string | null>(null);
+	const [compatibilityAttemptItemId, setCompatibilityAttemptItemId] = useState<
+		string | null
+	>(null);
 	const compatibilityAvailable = compatibilityAttemptItemId !== item.Id;
 	const [qualityLoading, setQualityLoading] = useState(false);
 	const [buffering, setBuffering] = useState(true);
@@ -482,11 +487,11 @@ export function VideoPlayer({
 		const streams = initialStreams
 			? Promise.resolve(initialStreams)
 			: getPlaybackInfo(session, item.Id, {
-				audioStreamIndex: initialAudioStreamIndex,
-				// Keep subtitles out of the media pipeline; the selected track is
-				// fetched as VTT and rendered by CustomSubtitleCue below.
-				subtitleStreamIndex: -1,
-			}).then(playbackStreams);
+					audioStreamIndex: initialAudioStreamIndex,
+					// Keep subtitles out of the media pipeline; the selected track is
+					// fetched as VTT and rendered by CustomSubtitleCue below.
+					subtitleStreamIndex: -1,
+				}).then(playbackStreams);
 		Promise.all([
 			streams,
 			getPlaybackMarkers(session, item.Id),
@@ -665,16 +670,29 @@ export function VideoPlayer({
 			})();
 		};
 		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
+		const suppressHlsSubtitles = () => {
+			const hls = hlsRef.current;
+			if (hls) {
+				hls.subtitleDisplay = false;
+				hls.subtitleTrack = -1;
+			}
+			disableNativeSubtitleTracks(video);
+		};
 		const textTracks = video.textTracks;
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
 		video.addEventListener("canplay", onTextTrackAdded);
 		video.addEventListener("playing", onTextTrackAdded);
 		video.addEventListener("progress", onTextTrackAdded);
+		video.addEventListener("timeupdate", onTextTrackAdded);
 		if (typeof textTracks.addEventListener === "function")
 			textTracks.addEventListener("addtrack", onTextTrackAdded);
 		if (/\.m3u8(?:\?|$)/i.test(url) && shouldUseHlsJs() && Hls.isSupported()) {
 			const hls = new Hls(HLS_TEXT_TRACK_CONFIG);
 			hlsRef.current = hls;
+			suppressHlsSubtitles();
+			hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, suppressHlsSubtitles);
+			hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, suppressHlsSubtitles);
+			hls.on(Hls.Events.SUBTITLE_TRACK_LOADED, suppressHlsSubtitles);
 			hls.on(Hls.Events.ERROR, (_event, data) => {
 				if (active && data.fatal) void requestCompatibilityPlayback();
 			});
@@ -690,6 +708,7 @@ export function VideoPlayer({
 			video.removeEventListener("canplay", onTextTrackAdded);
 			video.removeEventListener("playing", onTextTrackAdded);
 			video.removeEventListener("progress", onTextTrackAdded);
+			video.removeEventListener("timeupdate", onTextTrackAdded);
 			if (typeof textTracks.removeEventListener === "function")
 				textTracks.removeEventListener("addtrack", onTextTrackAdded);
 			hlsRef.current?.destroy();
@@ -835,7 +854,10 @@ export function VideoPlayer({
 			throw new Error("Jellyfin did not return a transcoding URL.");
 		return {
 			...parsed,
-			source: preserveTrickplay(parsed.source, previousSource ?? sourceRef.current),
+			source: preserveTrickplay(
+				parsed.source,
+				previousSource ?? sourceRef.current,
+			),
 		};
 	}
 	async function requestCompatibilityPlayback() {
@@ -1302,7 +1324,10 @@ export function VideoPlayer({
 				}}
 				onError={() => {
 					const video = videoRef.current;
-					if (!transcodeAttemptRef.current && !sourceRef.current?.TranscodingUrl) {
+					if (
+						!transcodeAttemptRef.current &&
+						!sourceRef.current?.TranscodingUrl
+					) {
 						void requestCompatibilityPlayback();
 						return;
 					}
@@ -1342,7 +1367,9 @@ export function VideoPlayer({
 							: item.Name}
 					</p>
 					{item.Type === "Episode" && (
-						<h1 className="mt-1 line-clamp-2 text-base font-semibold sm:text-lg">{item.Name}</h1>
+						<h1 className="mt-1 line-clamp-2 text-base font-semibold sm:text-lg">
+							{item.Name}
+						</h1>
 					)}
 				</div>
 			</div>

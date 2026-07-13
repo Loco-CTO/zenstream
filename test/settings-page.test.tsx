@@ -77,7 +77,7 @@ describe("SettingsPage", () => {
   it("separates subtitle background opacity from the following playback setting", () => {
     render(<SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} />);
 
-    expect(screen.getByLabelText("Subtitle background opacity").parentElement?.parentElement).toHaveClass("border-b");
+		expect(screen.getByLabelText("Subtitle background opacity").closest("div.border-b")).not.toBeNull();
   });
 
   it("localizes every settings section and control", () => {

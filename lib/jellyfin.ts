@@ -618,6 +618,7 @@ export async function getPlaybackInfo(
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
 					DirectPlayProfiles: profile.directPlayProfiles,
+					SubtitleProfiles: profile.subtitleProfiles,
 					TranscodingProfiles: profile.transcodingProfiles.map((transcoding) => ({
 						Type: "Video",
 						Context: "Streaming",

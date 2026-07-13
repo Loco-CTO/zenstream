@@ -220,85 +220,38 @@ describe("jellyfin api helpers", () => {
 		});
 	});
 
-	it("ranks efficient direct-play codecs and selects H.264 for transcoding", () => {
-		const capabilities = browserPlaybackCapabilities({
+	it("uses a Jellyfin-style device profile and keeps H.264/AAC transcoding conservative", () => {
+		const profile = browserDeviceProfile({
 			canPlayType: (mime) =>
 				mime.includes("hvc1") || mime.includes("avc1") || mime.includes("mp4a")
 					? "probably"
 					: "",
-		}, { hevcEnvelopes: [hevcEnvelope] });
+		});
 
-		expect(capabilities.directPlayProfiles).toEqual([
-			expect.objectContaining({
-				Container: "mp4,m4v",
-				VideoCodec: "hevc,h264",
-				AudioCodec: "aac",
-			}),
-		]);
-		expect(capabilities.transcodingVideoCodec).toBe("h264");
-		expect(capabilities.transcodingAudioCodec).toBe("aac");
+		expect(profile.directPlayProfiles).toContainEqual(expect.objectContaining({
+			Container: "mp4,m4v", VideoCodec: "hevc,h264", AudioCodec: "aac",
+		}));
+		expect(profile.transcodingProfiles).toEqual([expect.objectContaining({
+			Container: "ts", VideoCodec: "h264", AudioCodec: "aac",
+		})]);
 	});
 
-	it("keeps H.264 as the transcoding target when direct HEVC is supported", () => {
-		const capabilities = browserPlaybackCapabilities({
-			canPlayType: (mime) =>
-				mime.includes("hvc1") || mime.includes("mp4a") ? "probably" : "",
-		}, { hevcEnvelopes: [hevcEnvelope] });
-
-		expect(capabilities.transcodingVideoCodec).toBe("h264");
-	});
-
-	it("queries browser capabilities before requesting playback info", async () => {
-		clearBrowserPlaybackCapabilitiesCache();
+	it("builds the device profile synchronously before PlaybackInfo", async () => {
 		const canPlayType = vi.fn((mime: string) =>
 			mime.includes("avc1") || mime.includes("mp4a") ? "probably" : "",
 		);
 		const createElement = vi
 			.spyOn(document, "createElement")
 			.mockReturnValue({ canPlayType } as unknown as HTMLVideoElement);
-
 		try {
 			await getPlaybackInfo(session, "movie-1");
 		} finally {
 			createElement.mockRestore();
 		}
-
 		expect(canPlayType).toHaveBeenCalled();
 		expect(canPlayType.mock.invocationCallOrder[0]).toBeLessThan(
 			vi.mocked(fetch).mock.invocationCallOrder[0],
 		);
-	});
-
-	it("sends the target browser capabilities to Jellyfin", async () => {
-		await getPlaybackInfo(session, "movie-1", {
-			browserCapabilities: {
-				directPlayProfiles: [
-					{
-						Type: "Video",
-						Container: "mp4,m4v",
-						VideoCodec: "hevc,h264",
-						AudioCodec: "aac",
-					},
-				],
-			transcodingVideoCodec: "h264",
-			transcodingAudioCodec: "aac",
-			hevcEnvelope,
-		},
-		});
-
-		const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
-		expect(body.DeviceProfile).toMatchObject({
-			DirectPlayProfiles: [{ VideoCodec: "hevc" }, { VideoCodec: "h264" }],
-			TranscodingProfiles: [{ VideoCodec: "h264", AudioCodec: "aac" }],
-			CodecProfiles: [{
-				Codec: "hevc",
-				Conditions: expect.arrayContaining([
-					expect.objectContaining({ Property: "VideoProfile", Value: "main" }),
-					expect.objectContaining({ Property: "VideoBitDepth", Value: "8" }),
-					expect.objectContaining({ Property: "VideoRangeType", Value: "SDR" }),
-				]),
-			}],
-		});
 	});
 
 	it("forces direct-play negotiation off for an explicit transcode request", async () => {
@@ -310,165 +263,8 @@ describe("jellyfin api helpers", () => {
 		expect(url.searchParams.get("enableDirectStream")).toBe("false");
 		expect(body.EnableDirectPlay).toBe(false);
 		expect(body.EnableDirectStream).toBe(false);
-	});
-
-	it("builds an exact decoding configuration from loaded media metadata", () => {
-		expect(
-			createMediaDecodingConfiguration(
-				{
-					container: "mp4",
-					videoCodec: "avc1.640028",
-					width: 3840,
-					height: 2160,
-					bitrate: 18_000_000,
-					framerate: 60,
-				},
-				"media-source",
-			),
-		).toEqual({
-			type: "media-source",
-			video: {
-				contentType: 'video/mp4; codecs="avc1.640028"',
-				width: 3840,
-				height: 2160,
-				bitrate: 18_000_000,
-				framerate: 60,
-			},
-		});
-	});
-
-	it("rejects unsupported final decoding configurations but allows non-smooth playback", async () => {
-		const decodingInfo = vi
-			.fn()
-			.mockResolvedValueOnce({
-				supported: true,
-				smooth: false,
-				powerEfficient: true,
-			})
-			.mockResolvedValueOnce({
-				supported: false,
-				smooth: false,
-				powerEfficient: false,
-			});
-		const previous = navigator.mediaCapabilities;
-		Object.defineProperty(navigator, "mediaCapabilities", {
-			configurable: true,
-			value: { decodingInfo },
-		});
-		const metadata = {
-			container: "mp4",
-			videoCodec: "h264",
-			width: 3840,
-			height: 2160,
-			bitrate: 18_000_000,
-			framerate: 60,
-		};
-
-		try {
-			await expect(
-				validateMediaDecoding(metadata, { type: "file" }),
-			).resolves.toMatchObject({
-				status: "supported",
-				supported: true,
-				smooth: false,
-			});
-			await expect(
-				validateMediaDecoding(metadata, { type: "file" }),
-			).resolves.toMatchObject({
-				status: "unsupported",
-				reason: "not-supported",
-			});
-		} finally {
-			Object.defineProperty(navigator, "mediaCapabilities", {
-				configurable: true,
-				value: previous,
-			});
-		}
-	});
-
-	it("rejects a codec that the hls.js media source cannot accept", async () => {
-		const result = await validateMediaDecoding(
-			{
-				container: "mp4",
-				videoCodec: "hevc",
-				width: 1920,
-				height: 1080,
-				bitrate: 5_000_000,
-				framerate: 30,
-			},
-			{
-				type: "media-source",
-				mediaSource: { isTypeSupported: () => false },
-			},
-		);
-
-		expect(result).toMatchObject({
-			status: "unsupported",
-			reason: "media-source-codec-unsupported",
-		});
-	});
-
-	it("keeps timing-only playback quality evidence unknown", async () => {
-		vi.stubGlobal("requestAnimationFrame", undefined);
-		try {
-			await expect(
-				validateRenderedVideoFrame({
-					currentTime: 1,
-					paused: false,
-					readyState: 3,
-					videoWidth: 1280,
-					videoHeight: 720,
-					getVideoPlaybackQuality: () => ({ totalVideoFrames: 4 }),
-				}),
-			).resolves.toMatchObject({ status: "unknown" });
-		} finally {
-			vi.unstubAllGlobals();
-		}
-	});
-
-	it("detects consecutive black frames when canvas pixels are readable", async () => {
-		const originalCreateElement = document.createElement.bind(document);
-		const canvas = {
-			getContext: () => ({
-				drawImage: vi.fn(),
-				getImageData: () => ({
-					data: new Uint8ClampedArray(32 * 18 * 4),
-				}),
-			}),
-		} as unknown as HTMLCanvasElement;
-		const createElement = vi
-			.spyOn(document, "createElement")
-			.mockImplementation(((tagName: string) =>
-				tagName === "canvas"
-					? canvas
-					: originalCreateElement(tagName)) as typeof document.createElement);
-		let frame = 0;
-		const video = {
-			currentTime: 0,
-			paused: false,
-			readyState: 3,
-			videoWidth: 1280,
-			videoHeight: 720,
-			requestVideoFrameCallback: (
-				callback: (now: number, metadata: { mediaTime: number }) => void,
-			) => {
-				const currentFrame = ++frame;
-				queueMicrotask(() => callback(0, { mediaTime: currentFrame * 0.05 }));
-				return currentFrame;
-			},
-			cancelVideoFrameCallback: vi.fn(),
-		};
-
-		try {
-			await expect(validateRenderedVideoFrame(video)).resolves.toMatchObject({
-				status: "unsupported",
-				reason: "decoded-frames-are-black",
-				framesPresented: 6,
-				pixelsSampled: true,
-			});
-		} finally {
-			createElement.mockRestore();
-		}
+		expect(body.AllowVideoStreamCopy).toBe(false);
+		expect(body.AllowAudioStreamCopy).toBe(false);
 	});
 
 	it("preserves trickplay metadata when a negotiated source omits it", () => {

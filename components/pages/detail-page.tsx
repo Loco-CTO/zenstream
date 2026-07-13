@@ -660,7 +660,7 @@ export function EpisodeCard({
 			onPointerLeave={horizontal ? preview.stop : undefined}
 			className={
 				horizontal
-					? "group/card w-[320px] shrink-0"
+					? "group/card w-[240px] shrink-0 sm:w-[280px] md:w-[320px]"
 					: "group/card flex items-start gap-4 rounded-lg p-2 hover:bg-white/[.04]"
 			}
 		>

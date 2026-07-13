@@ -3,7 +3,7 @@
 #EXT-X-TARGETDURATION:2
 #EXT-X-MEDIA-SEQUENCE:0
 #EXT-X-PLAYLIST-TYPE:VOD
-#EXT-X-MAP:URI="init.mp4"
+#EXT-X-MAP:URI="native-main-8-sdr-1080p30-init.mp4"
 #EXTINF:2.000000,
-native-hls-hvc1-sdr0.m4s
+native-main-8-sdr-1080p30-0.m4s
 #EXT-X-ENDLIST

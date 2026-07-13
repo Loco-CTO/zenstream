@@ -62,8 +62,9 @@ export function browserDeviceProfile(
 	if (webmVideo.length && webmAudio.length) directPlayProfiles.push({
 		Type: "Video", Container: "webm", VideoCodec: webmVideo.join(","), AudioCodec: webmAudio.join(","),
 	});
-	if (hls && aac) directPlayProfiles.push({
-		Type: "Video", Container: "ts", VideoCodec: ["h264", ...mp4Video.filter((codec) => codec === "hevc")].join(","), AudioCodec: "aac",
+	const hlsVideo = mp4Video.filter((codec) => codec === "h264" || codec === "hevc");
+	if (hls && aac && hlsVideo.length) directPlayProfiles.push({
+		Type: "Video", Container: "ts", VideoCodec: hlsVideo.join(","), AudioCodec: "aac",
 	});
 
 	return {

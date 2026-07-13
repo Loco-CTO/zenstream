@@ -71,14 +71,14 @@ describe("Hero", () => {
 		expect(infoButton).not.toHaveClass("uppercase");
 	});
 
-	it("routes the featured title to autoplay when Play is clicked", () => {
+	it("routes the featured title to the native player URL when Play is clicked", () => {
 		const item = heroItem("featured", "Featured Title");
 
 		render(<Hero items={[item]} session={session} />);
 
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
-		expect(router.push).toHaveBeenCalledWith("/show/featured?autoplay=1");
+		expect(router.push).toHaveBeenCalledWith("/play/featured");
 	});
 
 	it("uses the Logo image in place of the visual title when present", () => {

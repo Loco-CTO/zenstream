@@ -118,7 +118,6 @@ export const MEDIA_CARD_TAG_CLASS =
 export function MediaCardOverlay({ href, title, className = "inset-0" }: { href: string; title?: string; className?: string }) {
 	const router = useRouter();
 	const { t } = useI18n();
-	const autoplayHref = `${href}${href.includes("?") ? "&" : "?"}autoplay=1`;
 
 	return (
 		<div className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 ${className}`}>
@@ -128,7 +127,7 @@ export function MediaCardOverlay({ href, title, className = "inset-0" }: { href:
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					router.push(autoplayHref);
+					router.push(playHref(href));
 				}}
 				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
 			>
@@ -136,6 +135,13 @@ export function MediaCardOverlay({ href, title, className = "inset-0" }: { href:
 			</button>
 		</div>
 	);
+}
+
+function playHref(href: string) {
+	const match = href.match(/\/show\/[^/]+\/episode\/([^/?#]+)/);
+	if (match) return `/play/${match[1]}`;
+	const itemId = href.match(/\/show\/([^/?#]+)/)?.[1];
+	return itemId ? `/play/${itemId}` : href;
 }
 
 export function WatchedIndicator({ item, unwatchedCount }: { item: JellyfinItem; unwatchedCount?: number }) {

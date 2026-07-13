@@ -30,7 +30,7 @@ describe("media card sizing", () => {
     expect(container.firstElementChild).toHaveClass("w-[min(calc((100vw-2.75rem)/2),180px)]", "md:w-[320px]");
   });
 
-  it("routes the play button to autoplay without changing the detail link", () => {
+	it("routes the play button to the native player URL", () => {
     render(<WideCard item={item} />);
 
     expect(screen.getByRole("link", { name: /Test title/ })).toHaveAttribute("href", "/show/item-1");
@@ -39,7 +39,7 @@ describe("media card sizing", () => {
     expect(playButton).not.toHaveClass("shadow-lg", "shadow-black/40");
     playButton.click();
 
-    expect(router.push).toHaveBeenCalledWith("/show/item-1?autoplay=1");
+		expect(router.push).toHaveBeenCalledWith("/play/item-1");
   });
 
   it("uses the enlarged portrait card width", () => {

@@ -87,48 +87,6 @@ describe("detail views", () => {
     expect(document.querySelector("video")).toBeInTheDocument();
   });
 
-  it("autoplays a movie when the detail route requests it", async () => {
-    renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] }, true);
-
-    expect(document.querySelector("video")).toBeInTheDocument();
-  });
-
-  it("autoplays a series from its first unwatched episode", async () => {
-    const textTracks = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      length: 0,
-      [Symbol.iterator]: function* () {},
-    };
-    Object.defineProperty(HTMLVideoElement.prototype, "textTracks", {
-      configurable: true,
-      get: () => textTracks,
-    });
-    vi.mocked(fetch).mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.includes("/Shows/series/Episodes")) {
-        return new Response(JSON.stringify({
-          Items: [
-            { ...episode("ep-1", 1), UserData: { Played: true } },
-            { ...episode("ep-2", 2), UserData: { Played: false } },
-          ],
-        }), { status: 200 });
-      }
-      return new Response(JSON.stringify({ MediaSources: [] }), { status: 200 });
-    });
-
-    renderDetail({
-      item: { ...movie(), Id: "series", Type: "Series" },
-      seasons: [],
-      episodes: [],
-      similar: [],
-    }, true);
-
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/Items/ep-2/PlaybackInfo"),
-      expect.anything(),
-    ));
-  });
 
   it("announces new host media before the player is mounted", () => {
     expect(syncplayMediaStartCommand({
@@ -337,8 +295,8 @@ describe("detail views", () => {
   });
 });
 
-function renderDetail(data: DetailData, autoplay = false) {
-  return render(<ProgressProvider><DetailPage initialData={data} session={session} autoplay={autoplay} /></ProgressProvider>);
+function renderDetail(data: DetailData) {
+  return render(<ProgressProvider><DetailPage initialData={data} session={session} /></ProgressProvider>);
 }
 
 function movie(): JellyfinItem {

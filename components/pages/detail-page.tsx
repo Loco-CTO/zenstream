@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
@@ -55,11 +55,9 @@ export function syncplayMediaStartCommand(
 export function DetailPage({
 	initialData,
 	session,
-	autoplay = false,
 }: {
 	initialData: DetailData;
 	session: AuthSession;
-	autoplay?: boolean;
 }) {
 	const { t, locale } = useI18n();
 	const router = useRouter();
@@ -75,7 +73,6 @@ export function DetailPage({
 		streams: ReturnType<typeof playbackStreams>;
 	}>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
-	const autoplayStartedRef = useRef(false);
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
@@ -197,12 +194,6 @@ export function DetailPage({
 			);
 		}
 	}, [active, canControl, command, isSeries, item, router, session, start, t]);
-
-	useEffect(() => {
-		if (!autoplay || autoplayStartedRef.current) return;
-		autoplayStartedRef.current = true;
-		void startPlayback();
-	}, [autoplay, startPlayback]);
 
 	return (
 		<>
@@ -688,7 +679,7 @@ export function EpisodeCard({
 				{horizontal && <WatchProgress progress={progress} />}
 				<WatchedIndicator item={episode} />
 			</Link>
-			{!active && <MediaCardOverlay href={`/show/${seriesId}/episode/${episode.Id}`} title={episode.Name} />}
+			{!active && <MediaCardOverlay href={`/play/${episode.Id}`} title={episode.Name} />}
 			</div>
 			<Link href={`/show/${seriesId}/episode/${episode.Id}`} className={horizontal ? "mt-2 block" : "min-w-0 flex-1 pt-0.5"}>
 				<p className="truncate text-sm font-medium text-white/80">

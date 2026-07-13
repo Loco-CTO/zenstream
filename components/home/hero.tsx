@@ -344,7 +344,7 @@ export function Hero({
 
 					<div className="flex items-center gap-3">
 						<PrimaryActionButton
-							onClick={() => router.push(`/show/${item.Id}?autoplay=1`)}
+							onClick={() => router.push(`/play/${item.Id}`)}
 						>
 							<Play className="h-4 w-4 fill-black text-black" />
 							{t("play")}

@@ -70,7 +70,7 @@ export function Navbar({
 								<Users className="h-[22px] w-[22px]" />
 							</button>
 							{groupsOpen && (
-							<div className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-80 md:max-w-[calc(100vw-2rem)] md:overflow-hidden">
+							<div data-testid="navbar-group-popup" className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-80 md:max-w-[calc(100vw-2rem)] md:overflow-hidden">
 								<div className="mb-2 flex items-center justify-between">
 									<p className="text-xs font-semibold text-white">
 										{t("syncplayGroups")}

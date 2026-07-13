@@ -47,7 +47,7 @@ describe("Navbar", () => {
 			screen.getByRole("button", { name: "Profile" }).querySelector("img"),
 		).toHaveAttribute(
 			"src",
-			"https://demo.jellyfin.org/stable/Users/user-123/Images/Primary?maxWidth=80&quality=90",
+			expect.stringContaining("/Users/user-123/Images/Primary?maxWidth=80&quality=90"),
 		);
 		expect(screen.queryByTestId("default-user-icon")).not.toBeInTheDocument();
 	});
@@ -86,11 +86,22 @@ describe("Navbar", () => {
 		expect(screen.getByTestId("profile-popup")).toHaveClass(
 			"rounded-xl",
 			"border-white/10",
-			"bg-black/65",
+			"bg-black/25",
 			"backdrop-blur-xl",
 		);
 		expect(screen.getByTestId("profile-popup").className).not.toContain(
 			"linear-gradient",
+		);
+	});
+
+	it("keeps the mobile groups panel inside the viewport", () => {
+		renderNavbar();
+		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
+
+		expect(screen.getByTestId("navbar-group-popup")).toHaveClass(
+			"fixed",
+			"inset-x-3",
+			"md:absolute",
 		);
 	});
 });

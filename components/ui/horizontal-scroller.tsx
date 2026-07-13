@@ -72,7 +72,7 @@ export function HorizontalScroller({
       }
       stopDragAnimation();
     };
-  }, [children, stopDragAnimation, updateScrollBoundaries]);
+  }, [stopDragAnimation, updateScrollBoundaries]);
 
   const animateTowardTarget = useCallback(() => {
     if (animationFrameRef.current !== null) return;
@@ -102,6 +102,7 @@ export function HorizontalScroller({
     const scroller = scrollRef.current;
     if (!scroller) return;
 
+    stopDragAnimation();
     const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
     const target = Math.max(
       0,

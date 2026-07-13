@@ -559,7 +559,7 @@ export async function qualifyHevc(
 	try {
 		if (!video.canPlayType(probe.mime)) return { status: "unsupported", reason: "can-play-type-unsupported" };
 	} catch { return { status: "unknown", reason: "can-play-type-error" }; }
-	if (options.mediaSource && !options.mediaSource.isTypeSupported(probe.mime))
+	if (options.mediaSource && (probe.path === "mse-fmp4" || probe.path === "hlsjs-mse") && !options.mediaSource.isTypeSupported(probe.mime))
 		return { status: "unsupported", reason: "media-source-codec-unsupported" };
 	if (typeof navigator !== "undefined" && navigator.mediaCapabilities?.decodingInfo) {
 		try {
@@ -601,7 +601,7 @@ export function browserPlaybackCapabilities(
 			: document.createElement("video"));
 	const supportedVideo = VIDEO_CAPABILITIES.filter((candidate) =>
 		supportsMimeType(probe, candidate.mimes),
-	).filter((candidate) => candidate.codec !== "hevc" || Boolean(options.hevcPaths?.size));
+	).filter((candidate) => candidate.codec !== "hevc" || Boolean(options.hevcPaths?.has("direct-mp4")));
 	const supportedAudio = AUDIO_CAPABILITIES.filter((candidate) =>
 		supportsMimeType(probe, candidate.mimes),
 	);

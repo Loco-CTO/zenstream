@@ -85,7 +85,7 @@ describe("media card sizing", () => {
 
   it("shows watched badges for movies, episodes, and series", () => {
     const { rerender } = render(<PosterCard item={{ ...item, UserData: { Played: true } }} />);
-    expect(screen.getByLabelText("All episodes watched")).toHaveClass("text-[10px]");
+    expect(screen.getByLabelText("All episodes watched")).toHaveClass("text-xs");
 
     rerender(<PosterCard item={{ ...item, Type: "Series", UserData: { UnplayedItemCount: 4 } }} />);
     expect(screen.getByLabelText("4 unwatched")).toBeInTheDocument();

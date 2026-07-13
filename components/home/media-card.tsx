@@ -113,7 +113,7 @@ export const MEDIA_CARD_IMAGE_CLASS =
 	"h-full w-full object-cover transition group-hover/card:brightness-50";
 
 export const MEDIA_CARD_TAG_CLASS =
-	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white/75 backdrop-blur-sm";
+	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-xs font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
 export function MediaCardOverlay({ href, title, className = "inset-0" }: { href: string; title?: string; className?: string }) {
 	const router = useRouter();

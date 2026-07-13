@@ -26,7 +26,7 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 		void fetchDetailData(session, targetItemId)
 			.then(({ item }) => {
 				if (cancelled) return;
-				const target = playbackPath(item.Id ?? targetItemId, item.Type, item.SeriesId);
+		const target = playbackPath(item.Id ?? targetItemId);
 				if (target !== pathname) router.push(target);
 			})
 			.catch(() => {
@@ -40,12 +40,10 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 	return null;
 }
 
-export function playbackPath(itemId: string, itemType?: string, seriesId?: string) {
-	if (itemType === "Episode" && seriesId)
-		return `/show/${encodeURIComponent(seriesId)}/episode/${encodeURIComponent(itemId)}`;
-	return `/show/${encodeURIComponent(itemId)}`;
+export function playbackPath(itemId: string) {
+	return `/play/${encodeURIComponent(itemId)}`;
 }
 
 function isViewingItem(pathname: string, itemId: string) {
-	return pathname === `/show/${encodeURIComponent(itemId)}` || pathname.endsWith(`/episode/${encodeURIComponent(itemId)}`);
+	return pathname === `/play/${encodeURIComponent(itemId)}`;
 }

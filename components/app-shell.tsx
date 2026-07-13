@@ -22,6 +22,7 @@ import { HomePage } from "@/components/pages/home-page";
 import { LoginPage } from "@/components/pages/login-page";
 import { SettingsPage } from "@/components/pages/settings-page";
 import { DetailPage } from "@/components/pages/detail-page";
+import { PlayerPage } from "@/components/pages/player-page";
 import { LibraryPage } from "@/components/pages/library-page";
 import { FavoritesPage } from "@/components/pages/favorites-page";
 import { SearchPage } from "@/components/pages/search-page";
@@ -100,6 +101,7 @@ export function AppShell() {
 	);
 
 	const detailId = detailIdFromPath(pathname);
+	const playId = playIdFromPath(pathname);
 	const searchQuery =
 		typeof window !== "undefined"
 			? (new URLSearchParams(window.location.search).get("q") ?? "")
@@ -149,12 +151,13 @@ export function AppShell() {
 		setSession(stored);
 		loadPreferences();
 		finishProgress();
-		if (detailId) void loadDetail(stored, detailId);
+		if (detailId || playId) void loadDetail(stored, detailId ?? playId!);
 		else if (pathname === "/library" || pathname === "/favorites")
 			setStatus("ready");
 		else void loadHome(stored);
 	}, [
 		detailId,
+		playId,
 		loadDetail,
 		loadHome,
 		loadPreferences,
@@ -169,7 +172,7 @@ export function AppShell() {
 		setAuthCookies(nextSession);
 		setSession(nextSession);
 		loadPreferences();
-		if (detailId) await loadDetail(nextSession, detailId);
+		if (detailId || playId) await loadDetail(nextSession, detailId ?? playId!);
 		else if (pathname === "/search") {
 			setSearchData(searchQuery);
 			setStatus("ready");
@@ -250,7 +253,10 @@ export function AppShell() {
 									}
 								/>
 							)}
-							{status === "ready" && detailData && detailId && (
+							{status === "ready" && detailData && playId && (
+								<PlayerPage initialData={detailData} session={session} />
+							)}
+							{status === "ready" && detailData && detailId && !playId && (
 								<DetailPage initialData={detailData} session={session} autoplay={autoplay} />
 							)}
 							{status === "ready" && pathname === "/library" && (
@@ -300,4 +306,9 @@ function detailIdFromPath(pathname: string) {
 	if (episode) return decodeURIComponent(episode[1]);
 	const show = pathname.match(/^\/show\/([^/]+)$/);
 	return show ? decodeURIComponent(show[1]) : null;
+}
+
+function playIdFromPath(pathname: string) {
+	const match = pathname.match(/^\/play\/([^/]+)$/);
+	return match ? decodeURIComponent(match[1]) : null;
 }

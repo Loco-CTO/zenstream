@@ -35,7 +35,6 @@ import {
 } from "@/components/home/media-card";
 import { Dropdown } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
-import { VideoPlayer } from "@/components/player/video-player";
 import {
 	HoverPreviewVideo,
 	useHoverPreview,
@@ -71,7 +70,6 @@ export function DetailPage({
 		getInitialSeason(initialData.item, initialData.seasons)?.Id ?? "",
 	);
 	const [mutationError, setMutationError] = useState("");
-	const [playerOpen, setPlayerOpen] = useState(false);
 	const [trackChoices, setTrackChoices] = useState<{
 		itemId: string;
 		streams: ReturnType<typeof playbackStreams>;
@@ -114,11 +112,6 @@ export function DetailPage({
 			active = false;
 		};
 	}, [item.Id, session]);
-	useEffect(() => {
-		if (active?.itemId !== item.Id) return;
-		const timer = window.setTimeout(() => setPlayerOpen(true), 0);
-		return () => window.clearTimeout(timer);
-	}, [active?.itemId, item.Id]);
 	function goBack() {
 		if (window.history.length > 1) {
 			router.back();
@@ -196,14 +189,14 @@ export function DetailPage({
 		// The player owns stream loading. Opening it must never wait for a remote
 		// media-info request or a Syncplay round trip, otherwise the Play button
 		// feels frozen on higher-latency connections.
-		setPlayerOpen(true);
+		router.push(`/play/${encodeURIComponent(target.Id)}`);
 		const mediaCommand = syncplayMediaStartCommand(active, canControl, target.Id);
 		if (mediaCommand) {
 			void command(mediaCommand).catch(() =>
 				setMutationError("Playback could not be loaded."),
 			);
 		}
-	}, [active, canControl, command, isSeries, item, session, start, t]);
+	}, [active, canControl, command, isSeries, item, router, session, start, t]);
 
 	useEffect(() => {
 		if (!autoplay || autoplayStartedRef.current) return;
@@ -213,24 +206,6 @@ export function DetailPage({
 
 	return (
 		<>
-			{playerOpen && (
-				<VideoPlayer
-					item={item}
-					session={session}
-					initialAudioStreamIndex={
-						selectedTracks.audio == null
-							? undefined
-							: Number(selectedTracks.audio)
-					}
-					initialSubtitleStreamIndex={selectedTracks.subtitle}
-					initialStreams={currentTrackChoices}
-					onClose={() => setPlayerOpen(false)}
-					onNext={(next) => setItem(next)}
-					onPlayedChange={(played) =>
-						setItem((current) => updateUserData(current, { Played: played }))
-					}
-				/>
-			)}
 			<main className="min-h-screen pb-24">
 				<section className="relative h-[min(70vh,560px)] overflow-hidden">
 					{background && (

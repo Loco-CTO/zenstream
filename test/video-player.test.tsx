@@ -160,6 +160,37 @@ describe("video player controls", () => {
 		expect(container.firstElementChild).toHaveClass("overflow-hidden");
 	});
 
+	it("keeps the mobile toolbar controls touch-sized and responsive", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		const controls = container.querySelector(".zenstream-player-controls");
+		const toolbar = container.querySelector(".zenstream-player-toolbar");
+		const toolbarButtons = toolbar
+			? Array.from(toolbar.querySelectorAll("button"))
+			: [];
+
+		expect(controls).toHaveClass("zenstream-player-controls");
+		expect(toolbar).toHaveClass("zenstream-player-toolbar");
+		expect(toolbarButtons.length).toBeGreaterThan(0);
+		expect(
+			toolbarButtons.every(
+				(button) =>
+					button.classList.contains("h-10") &&
+					button.classList.contains("w-10"),
+			),
+		).toBe(true);
+	});
+
 	it("shows the Syncplay groups control in the player header", () => {
 		const { container, getByRole } = render(
 			<I18nProvider locale="en">

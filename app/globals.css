@@ -58,6 +58,81 @@ body {
   }
 }
 
+/* Player overlays stay inside the safe viewport on phones, including short
+   landscape viewports where an anchored menu can otherwise extend above the
+   screen or underneath the browser controls. */
+@media (max-width: 767px) {
+  .zenstream-player-panel {
+    position: fixed;
+    top: auto;
+    right: 0.75rem;
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin-bottom: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .zenstream-player-volume-popover {
+    position: fixed;
+    top: auto;
+    right: auto;
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    left: 50%;
+    width: 3.5rem;
+    height: min(9rem, calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 0.75rem 0.5rem;
+  }
+
+  .zenstream-player-volume-input {
+    height: min(7rem, calc(100dvh - 7.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+    max-height: 100%;
+  }
+
+  .zenstream-player-next-up {
+    right: 0.75rem;
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .zenstream-player-skip-actions {
+    right: 0.75rem;
+    bottom: calc(5.25rem + env(safe-area-inset-bottom));
+    left: 0.75rem;
+    justify-content: center;
+  }
+
+  .zenstream-player-timeline-preview {
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .zenstream-player-controls {
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    left: max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .zenstream-player-toolbar {
+    flex-wrap: nowrap;
+    gap: 0.125rem;
+  }
+
+  .zenstream-player-next-up {
+    max-height: calc(100dvh - 5.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
 button,
 input {
   font-family: inherit;

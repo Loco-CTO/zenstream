@@ -203,13 +203,13 @@ export function SkipMarkerActions({
 	onSkip: (marker: PlaybackMarker) => void;
 }) {
 	return (
-		<div className="pointer-events-none absolute bottom-24 left-5 right-5 z-20 flex justify-end gap-3 md:bottom-28 md:left-10 md:right-10">
+		<div className="zenstream-player-skip-actions pointer-events-none absolute bottom-24 left-5 right-5 z-20 flex flex-wrap justify-end gap-2 md:bottom-28 md:left-10 md:right-10">
 			{markers?.intro &&
 				currentTime >= markers.intro.start &&
 				currentTime < markers.intro.end && (
 					<button
 						aria-label={labelIntro}
-						className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40"
+						className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-sm font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40 sm:px-6 sm:py-3 sm:text-base"
 						onClick={() => {
 							if (markers.intro) onSkip(markers.intro);
 						}}
@@ -223,7 +223,7 @@ export function SkipMarkerActions({
 				currentTime < markers.outro.end && (
 					<button
 						aria-label={labelOutro}
-						className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/25 bg-black/25 px-6 py-3 text-base font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40"
+						className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-sm font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40 sm:px-6 sm:py-3 sm:text-base"
 						onClick={() => {
 							if (markers.outro) onSkip(markers.outro);
 						}}
@@ -1241,7 +1241,7 @@ export function VideoPlayer({
 				>
 					<ArrowLeft />
 				</button>
-				<div>
+				<div className="min-w-0">
 					<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
 						{item.Type === "Episode"
 							? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`
@@ -1299,7 +1299,7 @@ export function VideoPlayer({
 			{nextUpVisible && nextItem && (
 				<div
 					data-testid="next-up"
-					className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 w-[min(calc(100vw-1.5rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:right-4 md:bottom-28 md:right-10"
+					className="zenstream-player-next-up absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 w-[min(calc(100vw-1.5rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:right-4 md:bottom-28 md:right-10"
 				>
 					<div className="h-1 bg-gradient-to-r from-violet-400 via-fuchsia-300 to-violet-400" />
 					<div className="p-4">
@@ -1351,7 +1351,7 @@ export function VideoPlayer({
 				</div>
 			)}
 			<div
-				className={`absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+				className={`zenstream-player-controls absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<div className="relative mb-3 flex h-5 items-center">
 					<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20">
@@ -1429,17 +1429,29 @@ export function VideoPlayer({
 						</div>
 					)}
 				</div>
-				<div className="relative flex flex-wrap items-center gap-1.5 sm:gap-3">
-					<button aria-label="Skip back 10 seconds" onClick={() => seek(-10)}>
+					<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
+					<button
+						aria-label="Skip back 10 seconds"
+						onClick={() => seek(-10)}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+					>
 						<SkipBack />
 					</button>
-					<button aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>
+					<button
+						aria-label={playing ? "Pause" : "Play"}
+						onClick={togglePlay}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+					>
 						{playing ? <Pause /> : <Play />}
 					</button>
-					<button aria-label="Skip forward 10 seconds" onClick={() => seek(10)}>
+					<button
+						aria-label="Skip forward 10 seconds"
+						onClick={() => seek(10)}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+					>
 						<SkipForward />
 					</button>
-					<span className="min-w-10 text-xs tabular-nums text-white/80 sm:text-sm">
+					<span className="min-w-10 shrink-0 text-xs tabular-nums text-white/80 sm:text-sm">
 						-{formatPlayerTime(Math.max(0, duration - currentTime))}
 					</span>
 					<span className="min-w-2 flex-1" />
@@ -1451,7 +1463,7 @@ export function VideoPlayer({
 								setTrackMenu(trackMenu === "audio" ? null : "audio");
 								setSettingsOpen(false);
 							}}
-							className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
 						>
 							<AudioLines />
 						</button>
@@ -1464,13 +1476,13 @@ export function VideoPlayer({
 								setTrackMenu(trackMenu === "subtitle" ? null : "subtitle");
 								setSettingsOpen(false);
 							}}
-							className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
 						>
 							<Captions />
 						</button>
 					)}
 					<div className="group relative flex items-center">
-						<div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 max-h-[30vh] -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+						<div className="zenstream-player-volume-popover pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 max-h-[30vh] -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
 							<input
 								aria-label="Volume"
 								type="range"
@@ -1482,12 +1494,13 @@ export function VideoPlayer({
 									setVolume(Number(event.target.value));
 									setMuted(false);
 								}}
-								className="h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300"
+								className="zenstream-player-volume-input h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300"
 							/>
 						</div>
 						<button
 							aria-label={muted ? "Unmute" : "Mute"}
 							onClick={() => setMuted(!muted)}
+							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 						>
 							{muted ? <VolumeX /> : <Volume2 />}
 						</button>
@@ -1495,6 +1508,7 @@ export function VideoPlayer({
 					<button
 						data-player-context-trigger
 						aria-label={t("settings")}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 						onClick={() => {
 							setSettingsOpen(!settingsOpen);
 							setSettingsSection("root");
@@ -1506,6 +1520,7 @@ export function VideoPlayer({
 					<button
 						aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
 						onClick={toggleFullscreen}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 					>
 						{isFullscreen ? <Minimize /> : <Maximize />}
 					</button>
@@ -1538,7 +1553,7 @@ export function VideoPlayer({
 							data-player-context
 							onPointerDown={(event) => event.stopPropagation()}
 							onClick={(event) => event.stopPropagation()}
-							className="absolute bottom-full right-0 z-30 mb-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
+							className="zenstream-player-panel absolute bottom-full right-0 z-30 mb-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
 						>
 							{settingsSection === "root" && (
 								<div className="grid gap-1">
@@ -1679,7 +1694,7 @@ function ChoicePanel({
 			data-player-context={floating ? true : undefined}
 			className={
 				floating
-					? "absolute bottom-full right-0 z-20 mb-2 w-[min(14rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
+					? "zenstream-player-panel absolute bottom-full right-0 z-20 mb-2 w-[min(14rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
 					: "text-xs"
 			}
 		>
@@ -1785,10 +1800,15 @@ function TrickplayBubble({
 	onError: () => void;
 }) {
 	const scale = Math.min(1, 240 / preview.width, 150 / preview.height);
+	const previewWidth = preview.width * scale;
+	const previewEdge = previewWidth / 2;
 	return (
 		<div
-			className="pointer-events-none absolute bottom-8 -translate-x-1/2 overflow-hidden rounded-md border border-white/20 bg-black shadow-2xl"
-			style={{ left: `${preview.left * 100}%`, width: preview.width * scale }}
+			className="zenstream-player-timeline-preview pointer-events-none absolute bottom-8 -translate-x-1/2 overflow-hidden rounded-md border border-white/20 bg-black shadow-2xl"
+			style={{
+				left: `clamp(${previewEdge}px, ${preview.left * 100}%, calc(100% - ${previewEdge}px))`,
+				width: previewWidth,
+			}}
 		>
 			<div
 				className="relative overflow-hidden"

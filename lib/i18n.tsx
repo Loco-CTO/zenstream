@@ -79,6 +79,7 @@ export const TRANSLATION_KEYS = [
 	"languageDescription",
 	"playback",
 	"mediaPlaybackFailed",
+	"playCompatibilityVersion",
 	"audioLanguage",
 	"subtitleLanguage",
 	"audioTrack",

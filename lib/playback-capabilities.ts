@@ -37,6 +37,52 @@ export type MediaSourceTypeChecker = {
 	isTypeSupported: (contentType: string) => boolean;
 };
 
+export type HevcPlaybackPath = "direct-mp4" | "mse-fmp4" | "native-hls" | "hlsjs-mse";
+export type HevcCodecVariant = "hvc1-sdr" | "hvc1-main10" | "hev1" | "hdr10" | "dolby-vision";
+export type HevcProbe = {
+	path: HevcPlaybackPath;
+	variant: HevcCodecVariant;
+	mime: string;
+	url: string;
+	width: number;
+	height: number;
+	bitrate: number;
+	framerate: number;
+};
+
+export type HevcCapabilityResolverOptions = {
+	video?: HTMLVideoElement;
+	mediaSource?: MediaSourceTypeChecker;
+	probes?: HevcProbe[];
+	probe?: (probe: HevcProbe, video: HTMLVideoElement) => Promise<RenderedVideoFrameValidation>;
+};
+
+const HEVC_PROBE_BASE = "/playback-probes/hevc";
+export const HEVC_PROBES: HevcProbe[] = [
+	["direct-mp4", "hvc1-sdr", "mp4", 1920, 1080, 8_000_000, 30],
+	["mse-fmp4", "hvc1-sdr", "fmp4", 1920, 1080, 8_000_000, 30],
+	["native-hls", "hvc1-sdr", "m3u8", 1920, 1080, 8_000_000, 30],
+	["hlsjs-mse", "hvc1-sdr", "m3u8", 1920, 1080, 8_000_000, 30],
+	["direct-mp4", "hvc1-main10", "mp4", 3840, 2160, 18_000_000, 60],
+	["direct-mp4", "hev1", "mp4", 1920, 1080, 8_000_000, 30],
+	["direct-mp4", "hdr10", "mp4", 3840, 2160, 25_000_000, 60],
+	["direct-mp4", "dolby-vision", "mp4", 3840, 2160, 25_000_000, 60],
+].map(([path, variant, extension, width, height, bitrate, framerate]) => ({
+	path: path as HevcPlaybackPath,
+	variant: variant as HevcCodecVariant,
+	mime: extension === "m3u8"
+		? 'application/vnd.apple.mpegurl; codecs="hvc1.1.6.L120.B0, mp4a.40.2"'
+		: `video/mp4; codecs="${variant === "hvc1-main10" ? "hvc1.2.4.L120.B0" : variant === "hev1" ? "hev1.1.6.L120.B0" : variant === "hdr10" ? "hvc1.2.4.L120.B0" : variant === "dolby-vision" ? "dvh1.05.06" : "hvc1.1.6.L120.B0"}, mp4a.40.2"`,
+	url: `${HEVC_PROBE_BASE}/${path}-${variant}.${extension}`,
+	width: width as number,
+	height: height as number,
+	bitrate: bitrate as number,
+	framerate: framerate as number,
+}));
+
+const hevcCapabilityCache = new Map<string, RenderedVideoFrameValidation["status"]>();
+export function clearHevcCapabilityCache() { hevcCapabilityCache.clear(); }
+
 export type RenderedVideoFrameValidation = {
 	status: "supported" | "unsupported" | "unknown";
 	framesPresented?: number;
@@ -491,8 +537,59 @@ export function validateRenderedVideoFrame(
 	});
 }
 
+async function runHevcProbe(probe: HevcProbe, video: HTMLVideoElement) {
+	video.crossOrigin = "anonymous";
+	video.muted = true;
+	video.playsInline = true;
+	video.src = probe.url;
+	video.load();
+	try { await video.play(); } catch { return { status: "unknown" as const, reason: "probe-play-failed" }; }
+	return validateRenderedVideoFrame(video, { maxObservationMs: 2500, requiredBlackFrames: 4 });
+}
+
+export async function qualifyHevc(
+	probe: HevcProbe,
+	options: HevcCapabilityResolverOptions = {},
+): Promise<RenderedVideoFrameValidation> {
+	const video = options.video ?? (typeof document === "undefined" ? undefined : document.createElement("video"));
+	if (!video) return { status: "unknown", reason: "video-api-unavailable" };
+	try {
+		if (!video.canPlayType(probe.mime)) return { status: "unsupported", reason: "can-play-type-unsupported" };
+	} catch { return { status: "unknown", reason: "can-play-type-error" }; }
+	if (options.mediaSource && !options.mediaSource.isTypeSupported(probe.mime))
+		return { status: "unsupported", reason: "media-source-codec-unsupported" };
+	if (typeof navigator !== "undefined" && navigator.mediaCapabilities?.decodingInfo) {
+		try {
+			const result = await navigator.mediaCapabilities.decodingInfo({
+				type: probe.path === "mse-fmp4" || probe.path === "hlsjs-mse" ? "media-source" : "file",
+				video: { contentType: probe.mime, width: probe.width, height: probe.height, bitrate: probe.bitrate, framerate: probe.framerate },
+			});
+			if (!result.supported) return { status: "unsupported", reason: "not-supported" };
+		} catch { /* The real probe remains authoritative. */ }
+	}
+	return (options.probe ?? runHevcProbe)(probe, video);
+}
+
+export async function resolveHevcCapabilities(
+	options: HevcCapabilityResolverOptions = {},
+): Promise<Set<HevcPlaybackPath>> {
+	const supported = new Set<HevcPlaybackPath>();
+	const probes = options.probes ?? HEVC_PROBES;
+	await Promise.all(probes.map(async (probe) => {
+		const key = `${probe.path}:${probe.variant}:${probe.width}x${probe.height}@${probe.framerate}`;
+		let status = hevcCapabilityCache.get(key);
+		if (!status) {
+			status = (await qualifyHevc(probe, options)).status;
+			if (status !== "unknown") hevcCapabilityCache.set(key, status);
+		}
+		if (status === "supported") supported.add(probe.path);
+	}));
+	return supported;
+}
+
 export function browserPlaybackCapabilities(
 	video?: Pick<HTMLVideoElement, "canPlayType">,
+	options: { hevcPaths?: ReadonlySet<HevcPlaybackPath> } = {},
 ): BrowserPlaybackCapabilities {
 	const probe =
 		video ??
@@ -501,7 +598,7 @@ export function browserPlaybackCapabilities(
 			: document.createElement("video"));
 	const supportedVideo = VIDEO_CAPABILITIES.filter((candidate) =>
 		supportsMimeType(probe, candidate.mimes),
-	);
+	).filter((candidate) => candidate.codec !== "hevc" || Boolean(options.hevcPaths?.size));
 	const supportedAudio = AUDIO_CAPABILITIES.filter((candidate) =>
 		supportsMimeType(probe, candidate.mimes),
 	);

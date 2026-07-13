@@ -334,7 +334,8 @@ export function VideoPlayer({
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const [error, setError] = useState("");
-	const [compatibilityAvailable, setCompatibilityAvailable] = useState(true);
+	const [compatibilityAttemptItemId, setCompatibilityAttemptItemId] = useState<string | null>(null);
+	const compatibilityAvailable = compatibilityAttemptItemId !== item.Id;
 	const [qualityLoading, setQualityLoading] = useState(false);
 	const [buffering, setBuffering] = useState(true);
 	const [controlsVisible, setControlsVisible] = useState(true);
@@ -369,7 +370,6 @@ export function VideoPlayer({
 	useEffect(() => {
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
-		setCompatibilityAvailable(true);
 		advancingToNextRef.current = false;
 	}, [item.Id]);
 
@@ -834,7 +834,7 @@ export function VideoPlayer({
 			return false;
 		}
 		transcodeAttemptRef.current = true;
-		setCompatibilityAvailable(false);
+		setCompatibilityAttemptItemId(item.Id);
 		const video = videoRef.current;
 		if (video && Number.isFinite(video.currentTime))
 			resumeTimeRef.current = video.currentTime;

@@ -1,6 +1,5 @@
 import type { AuthSession } from "@/lib/session";
 import {
-	browserPlaybackCapabilities,
 	resolveBrowserPlaybackCapabilities,
 	type BrowserPlaybackCapabilities,
 	type HevcCapabilityEnvelope,
@@ -632,15 +631,15 @@ export async function getPlaybackInfo(
 	const browserCapabilities =
 		options.browserCapabilities ?? await resolveBrowserPlaybackCapabilities();
 	const excluded = new Set((options.excludeVideoCodecs ?? []).map((codec) => codec.toLowerCase()));
+	const hevcEnvelope = excluded.has("hevc") ? undefined : browserCapabilities.hevcEnvelope;
 	const directPlayProfiles = browserCapabilities.directPlayProfiles.flatMap((profile) =>
 		profile.VideoCodec.split(",")
-			.filter((codec) => !excluded.has(codec.toLowerCase()))
+			.filter((codec) => !excluded.has(codec.toLowerCase()) && (codec.toLowerCase() !== "hevc" || Boolean(hevcEnvelope)))
 			.map((VideoCodec) => ({ ...profile, VideoCodec })),
 	);
 	const transcodingVideoCodec = excluded.has(browserCapabilities.transcodingVideoCodec.toLowerCase())
 		? "h264"
 		: "h264";
-	const hevcEnvelope = excluded.has("hevc") ? undefined : browserCapabilities.hevcEnvelope;
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({

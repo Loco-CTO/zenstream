@@ -17,6 +17,7 @@ describe("ToastProvider", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Error" }));
 		expect(screen.getByRole("status")).toHaveTextContent("Joined the group");
 		expect(screen.getByRole("alert")).toHaveTextContent("Could not join");
+		expect(screen.getByRole("status").parentElement).toHaveClass("z-[400]");
 		fireEvent.click(screen.getAllByRole("button", { name: "Dismiss notification" })[0]);
 		expect(screen.queryByText("Joined the group")).not.toBeInTheDocument();
 		act(() => vi.advanceTimersByTime(5_000));

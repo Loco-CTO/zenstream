@@ -713,7 +713,7 @@ export function VideoPlayer({
 				const source = sourceRef.current;
 				const validation = await validatePlaybackSource(source, video);
 				if (!active) return;
-				if (validation.status !== "supported") {
+				if (validation.status === "unsupported") {
 					if (!transcodeAttemptRef.current && !source?.TranscodingUrl) {
 						await requestForcedTranscode();
 					} else {

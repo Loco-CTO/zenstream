@@ -578,7 +578,7 @@ export function validateRenderedVideoFrame(
 
 function browserIdentity() {
 	if (typeof navigator === "undefined") return "server";
-	const hints = navigator.userAgentData as { platform?: string; mobile?: boolean; model?: string } | undefined;
+	const hints = (navigator as Navigator & { userAgentData?: { platform?: string; mobile?: boolean; model?: string } }).userAgentData;
 	return [navigator.userAgent, hints?.platform, hints?.mobile, hints?.model].filter((value) => value != null).join("|");
 }
 

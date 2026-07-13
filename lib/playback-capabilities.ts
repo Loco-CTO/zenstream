@@ -301,7 +301,12 @@ function sampleRenderedVideoPixels(
 		video.videoHeight <= 0
 	)
 		return undefined;
-	const context = canvas.getContext("2d", { willReadFrequently: true });
+	let context: CanvasRenderingContext2D | null;
+	try {
+		context = canvas.getContext("2d", { willReadFrequently: true });
+	} catch {
+		return undefined;
+	}
 	if (!context) return undefined;
 	canvas.width = 32;
 	canvas.height = 18;
@@ -327,31 +332,94 @@ function sampleRenderedVideoPixels(
 	}
 }
 
+function fallbackRenderedVideoValidation(
+	video: VideoFrameValidationVideo,
+): RenderedVideoFrameValidation {
+	const quality = video.getVideoPlaybackQuality?.();
+	if (quality?.totalVideoFrames && quality.totalVideoFrames > 0)
+		return {
+			status: "supported",
+			framesPresented: quality.totalVideoFrames,
+			reason: "playback-quality-frames",
+		};
+	if (video.readyState >= 3 && !video.paused && video.currentTime > 0)
+		return { status: "supported", reason: "playback-time-advanced" };
+	return { status: "unknown", reason: "frame-api-unavailable" };
+}
+
+function validateWithAnimationFrames(
+	video: VideoFrameValidationVideo,
+	canvas: HTMLCanvasElement,
+	options: { maxObservationMs: number; requiredBlackFrames: number },
+): Promise<RenderedVideoFrameValidation> | undefined {
+	if (typeof requestAnimationFrame !== "function") return undefined;
+	return new Promise((resolve) => {
+		let settled = false;
+		let animationFrame: number | undefined;
+		let frameCount = 0;
+		let blackFrameCount = 0;
+		let firstMediaTime: number | undefined;
+		let pixelsSampled = false;
+		const finish = (result: RenderedVideoFrameValidation) => {
+			if (settled) return;
+			settled = true;
+			if (animationFrame != null) cancelAnimationFrame(animationFrame);
+			resolve({ ...result, framesPresented: frameCount, pixelsSampled });
+		};
+		const timeout = setTimeout(
+			() => finish({ status: "unknown", reason: "frame-observation-timeout" }),
+			options.maxObservationMs,
+		);
+		const observe = () => {
+			if (settled) return;
+			frameCount += 1;
+			const mediaTime = video.currentTime;
+			if (firstMediaTime == null) firstMediaTime = mediaTime;
+			const pixels = sampleRenderedVideoPixels(video, canvas);
+			if (pixels == null) {
+				clearTimeout(timeout);
+				finish(fallbackRenderedVideoValidation(video));
+				return;
+			}
+			pixelsSampled = true;
+			if (pixels) {
+				clearTimeout(timeout);
+				finish({ status: "supported", reason: "visible-video-frame" });
+				return;
+			}
+			blackFrameCount += 1;
+			if (
+				blackFrameCount >= options.requiredBlackFrames &&
+				mediaTime - (firstMediaTime ?? mediaTime) >= 0.2
+			) {
+				clearTimeout(timeout);
+				finish({ status: "unsupported", reason: "decoded-frames-are-black" });
+				return;
+			}
+			animationFrame = requestAnimationFrame(observe);
+		};
+		animationFrame = requestAnimationFrame(observe);
+	});
+}
+
 export function validateRenderedVideoFrame(
 	video: VideoFrameValidationVideo,
 	options: { maxObservationMs?: number; requiredBlackFrames?: number } = {},
 ): Promise<RenderedVideoFrameValidation> {
 	const requestVideoFrameCallback = video.requestVideoFrameCallback;
-	if (typeof requestVideoFrameCallback !== "function") {
-		const quality = video.getVideoPlaybackQuality?.();
-		if (quality?.totalVideoFrames && quality.totalVideoFrames > 0)
-			return Promise.resolve({
-				status: "supported",
-				framesPresented: quality.totalVideoFrames,
-				reason: "playback-quality-frames",
-			});
-		if (video.readyState >= 3 && !video.paused && video.currentTime > 0)
-			return Promise.resolve({
-				status: "supported",
-				reason: "playback-time-advanced",
-			});
-		return Promise.resolve({ status: "unknown", reason: "frame-api-unavailable" });
-	}
-
 	const maxObservationMs = options.maxObservationMs ?? 1500;
 	const requiredBlackFrames = options.requiredBlackFrames ?? 6;
 	const canvas =
 		typeof document === "undefined" ? undefined : document.createElement("canvas");
+	if (typeof requestVideoFrameCallback !== "function") {
+		const animationFrameValidation = canvas
+			? validateWithAnimationFrames(video, canvas, {
+					maxObservationMs,
+					requiredBlackFrames,
+				})
+			: undefined;
+		return animationFrameValidation ?? Promise.resolve(fallbackRenderedVideoValidation(video));
+	}
 
 	return new Promise((resolve) => {
 		let settled = false;

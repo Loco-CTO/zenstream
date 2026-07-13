@@ -358,19 +358,24 @@ describe("jellyfin api helpers", () => {
 	});
 
 	it("uses playback quality when requestVideoFrameCallback is unavailable", async () => {
-		await expect(
-			validateRenderedVideoFrame({
-				currentTime: 1,
-				paused: false,
-				readyState: 3,
-				videoWidth: 1280,
-				videoHeight: 720,
-				getVideoPlaybackQuality: () => ({ totalVideoFrames: 4 }),
-			}),
-		).resolves.toMatchObject({
-			status: "supported",
-			reason: "playback-quality-frames",
-		});
+		vi.stubGlobal("requestAnimationFrame", undefined);
+		try {
+			await expect(
+				validateRenderedVideoFrame({
+					currentTime: 1,
+					paused: false,
+					readyState: 3,
+					videoWidth: 1280,
+					videoHeight: 720,
+					getVideoPlaybackQuality: () => ({ totalVideoFrames: 4 }),
+				}),
+			).resolves.toMatchObject({
+				status: "supported",
+				reason: "playback-quality-frames",
+			});
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	it("detects consecutive black frames when canvas pixels are readable", async () => {

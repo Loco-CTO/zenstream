@@ -41,6 +41,7 @@
 html {
   background: var(--background);
   font-size: 18px;
+  overflow-x: clip;
 }
 
 body {
@@ -48,6 +49,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-noto-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-x: clip;
 }
 
 @media (max-width: 640px) {

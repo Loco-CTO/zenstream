@@ -201,8 +201,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	);
 
 	return (
-		<main className="min-h-screen px-6 pb-24 pt-24 md:px-10 md:pb-8">
-			<div className="mb-10 flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.035] p-1">
+		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8">
+			<div className="mb-8 flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.035] p-1 sm:mb-10 sm:w-fit">
 				{libraries.map((library) => (
 					<button
 						key={library.Id}
@@ -219,7 +219,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				))}
 			</div>
 
-			<div className="mb-5 flex items-end justify-between gap-4">
+			<div className="mb-5 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
 				<div>
 					<h1 className="text-3xl font-black leading-none tracking-tight text-white">
 						{activeLibrary?.Name ?? t("library")}
@@ -228,7 +228,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 						{t("libraryItems", { count: total })}
 					</p>
 				</div>
-				<div className="flex shrink-0 items-center gap-2">
+				<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
 					<button
 						type="button"
 						aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")}
@@ -242,7 +242,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 						value={sortBy}
 						options={sortOptions}
 						onChange={(value) => setSort((current) => ({ ...current, sortBy: value as LibrarySortBy }))}
-						className="min-w-36 rounded-full py-1.5 uppercase tracking-wider"
+						className="w-full min-w-0 rounded-full py-1.5 uppercase tracking-wider sm:w-auto sm:min-w-36"
 					/>
 				</div>
 			</div>

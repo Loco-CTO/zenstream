@@ -133,7 +133,7 @@ export function ErrorContent({
 	const { t } = useI18n();
 
 	return (
-		<main className="relative z-10 flex min-h-screen items-center justify-center px-6 py-24">
+		<main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-24 sm:px-6">
 			<section className="w-full max-w-2xl text-center">
 				<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-white/70 shadow-2xl shadow-black/30 backdrop-blur-xl">
 					<AlertTriangle className="h-6 w-6" />

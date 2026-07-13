@@ -24,7 +24,7 @@ describe("Hero", () => {
 
 		expect(heading).toHaveClass("line-clamp-3");
 		expect(heading).toHaveClass("[overflow-wrap:anywhere]");
-		expect(heading).toHaveClass("text-4xl");
+		expect(heading).toHaveClass("text-[clamp(2rem,9vw,4rem)]");
 		expect(heading).toHaveClass("md:text-6xl");
 		expect(heading).toHaveClass("lg:text-7xl");
 	});
@@ -44,7 +44,7 @@ describe("Hero", () => {
 			screen
 				.getByRole("heading", { level: 1, name: item.Name })
 			.closest("section"),
-		).toHaveClass("h-[85svh]");
+		).toHaveClass("h-[min(72svh,640px)]", "md:h-[85svh]");
 	});
 
 	it("uses readable mixed-case typography for hero action buttons", () => {
@@ -114,7 +114,7 @@ describe("Hero", () => {
 		expect(screen.getByRole("heading", { level: 1, name: first.Name })).toBeInTheDocument();
 	});
 
-	it("keeps slideshow layers mounted for smooth animated transitions", () => {
+	it("mounts only the active slideshow layer for mobile rendering stability", () => {
 		const first = heroItem("first", "First Feature");
 		const second = heroItem("second", "Second Feature");
 
@@ -122,10 +122,9 @@ describe("Hero", () => {
 
 		const hero = screen.getByRole("region", { name: /featured title/i });
 		const backgrounds = container.querySelectorAll("img[aria-hidden='true']");
-		expect(backgrounds).toHaveLength(2);
+		expect(backgrounds).toHaveLength(1);
 		expect(backgrounds[0]).toHaveClass("opacity-100");
 		expect(backgrounds[0]).toHaveClass("hero-backdrop-active");
-		expect(backgrounds[1]).toHaveClass("opacity-0");
 		expect(hero.querySelector(".hero-slide-content")).toHaveAttribute(
 			"data-slide-direction",
 			"next",
@@ -133,8 +132,8 @@ describe("Hero", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /show next featured slide/i }));
 
-		expect(backgrounds[0]).toHaveClass("opacity-0");
-		expect(backgrounds[1]).toHaveClass("opacity-100");
+		expect(container.querySelectorAll("img[aria-hidden='true']")).toHaveLength(1);
+		expect(container.querySelector("img[aria-hidden='true']")).toHaveClass("opacity-100");
 		expect(hero.querySelector(".hero-slide-content")).toHaveAttribute(
 			"data-slide-direction",
 			"next",

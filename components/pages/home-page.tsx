@@ -46,7 +46,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 					/>
 				))}
 			</div>
-			<footer className="mt-2 border-t border-white/5 px-10 py-5">
+			<footer className="mt-2 border-t border-white/5 px-5 py-5 sm:px-10">
 				<div className="flex items-center gap-2">
 					<img
 						src="/icon.png"

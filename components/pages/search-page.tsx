@@ -44,15 +44,15 @@ export function SearchPage({
 
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
 	return (
-		<main className="min-h-screen px-5 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
+		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
 			<div className="mx-auto max-w-[1800px]">
-				<header className="mb-8 flex items-end justify-between gap-5 border-b border-white/[0.07] pb-5">
+				<header className="mb-8 flex flex-col items-start gap-4 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-end sm:justify-between">
 					<div className="min-w-0">
 						<div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-violet-300/65">
 							<Search className="h-3.5 w-3.5" />
 							{t("search")}
 						</div>
-						<h1 className="truncate text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
+						<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
 							{title}
 						</h1>
 					</div>

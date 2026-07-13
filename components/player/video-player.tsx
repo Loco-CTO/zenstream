@@ -1078,7 +1078,7 @@ export function VideoPlayer({
 	return (
 		<div
 			ref={playerRef}
-			className={`fixed inset-0 z-[200] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`}
+			className={`fixed inset-0 z-[200] h-[100dvh] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`}
 			onPointerMove={showControls}
 			onPointerDown={showControls}
 			onClickCapture={(event) => {
@@ -1232,7 +1232,7 @@ export function VideoPlayer({
 				className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`}
 			/>
 			<div
-				className={`absolute left-5 top-5 flex items-start gap-3 transition-opacity duration-300 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+				className={`absolute left-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex max-w-[calc(100%-4.5rem)] items-start gap-2 transition-opacity duration-300 sm:left-5 sm:top-5 sm:gap-3 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<button
 					aria-label="Close player"
@@ -1242,18 +1242,18 @@ export function VideoPlayer({
 					<ArrowLeft />
 				</button>
 				<div>
-					<p className="text-xs uppercase tracking-[.2em] text-white/55">
+					<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
 						{item.Type === "Episode"
 							? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`
 							: item.Name}
 					</p>
 					{item.Type === "Episode" && (
-						<h1 className="mt-1 text-lg font-semibold">{item.Name}</h1>
+						<h1 className="mt-1 line-clamp-2 text-base font-semibold sm:text-lg">{item.Name}</h1>
 					)}
 				</div>
 			</div>
 			<div
-				className={`absolute right-5 top-5 transition-opacity duration-300 md:right-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+				className={`absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] transition-opacity duration-300 sm:right-5 sm:top-5 md:right-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<SyncplayGroupMenu
 					userId={session.userId}
@@ -1299,7 +1299,7 @@ export function VideoPlayer({
 			{nextUpVisible && nextItem && (
 				<div
 					data-testid="next-up"
-					className="absolute bottom-24 right-4 z-30 w-[min(calc(100vw-2rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl md:bottom-28 md:right-10"
+					className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 w-[min(calc(100vw-1.5rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:right-4 md:bottom-28 md:right-10"
 				>
 					<div className="h-1 bg-gradient-to-r from-violet-400 via-fuchsia-300 to-violet-400" />
 					<div className="p-4">
@@ -1313,11 +1313,11 @@ export function VideoPlayer({
 									: ""}
 							</span>
 						</div>
-						<div className="mt-3 flex gap-3.5">
+						<div className="mt-3 flex gap-3 sm:gap-3.5">
 							<img
 								src={landscapeImageUrl(nextItem) ?? undefined}
 								alt=""
-								className="h-[4.5rem] w-36 shrink-0 rounded-xl object-cover shadow-lg shadow-black/30"
+								className="h-16 w-24 shrink-0 rounded-xl object-cover shadow-lg shadow-black/30 sm:h-[4.5rem] sm:w-36"
 							/>
 							<div className="min-w-0 self-center">
 								<p className="text-[11px] font-medium uppercase tracking-wider text-white/50">
@@ -1351,7 +1351,7 @@ export function VideoPlayer({
 				</div>
 			)}
 			<div
-				className={`absolute bottom-5 left-5 right-5 transition-opacity duration-300 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+				className={`absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<div className="relative mb-3 flex h-5 items-center">
 					<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20">
@@ -1429,7 +1429,7 @@ export function VideoPlayer({
 						</div>
 					)}
 				</div>
-				<div className="relative flex items-center gap-3">
+				<div className="relative flex flex-wrap items-center gap-1.5 sm:gap-3">
 					<button aria-label="Skip back 10 seconds" onClick={() => seek(-10)}>
 						<SkipBack />
 					</button>
@@ -1439,10 +1439,10 @@ export function VideoPlayer({
 					<button aria-label="Skip forward 10 seconds" onClick={() => seek(10)}>
 						<SkipForward />
 					</button>
-					<span className="text-sm tabular-nums text-white/80">
+					<span className="min-w-10 text-xs tabular-nums text-white/80 sm:text-sm">
 						-{formatPlayerTime(Math.max(0, duration - currentTime))}
 					</span>
-					<span className="flex-1" />
+					<span className="min-w-2 flex-1" />
 					{(info?.audio.length ?? 0) > 1 && (
 						<button
 							data-player-context-trigger
@@ -1470,7 +1470,7 @@ export function VideoPlayer({
 						</button>
 					)}
 					<div className="group relative flex items-center">
-						<div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+						<div className="pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 max-h-[30vh] -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
 							<input
 								aria-label="Volume"
 								type="range"
@@ -1538,7 +1538,7 @@ export function VideoPlayer({
 							data-player-context
 							onPointerDown={(event) => event.stopPropagation()}
 							onClick={(event) => event.stopPropagation()}
-							className="absolute bottom-full right-0 z-30 mb-2 min-w-64 rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
+							className="absolute bottom-full right-0 z-30 mb-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
 						>
 							{settingsSection === "root" && (
 								<div className="grid gap-1">
@@ -1679,7 +1679,7 @@ function ChoicePanel({
 			data-player-context={floating ? true : undefined}
 			className={
 				floating
-					? "absolute bottom-full right-0 z-20 mb-2 min-w-56 rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
+					? "absolute bottom-full right-0 z-20 mb-2 w-[min(14rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
 					: "text-xs"
 			}
 		>

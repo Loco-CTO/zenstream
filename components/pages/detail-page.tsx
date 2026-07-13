@@ -207,7 +207,7 @@ export function DetailPage({
 	return (
 		<>
 			<main className="min-h-screen pb-24">
-				<section className="relative h-[min(70vh,560px)] overflow-hidden">
+				<section className="relative h-[clamp(24rem,62svh,35rem)] overflow-hidden md:h-[min(70vh,560px)]">
 					{background && (
 						<BlurHashImage
 							image={background}
@@ -221,12 +221,12 @@ export function DetailPage({
 						type="button"
 						onClick={goBack}
 						aria-label={t("back")}
-						className="absolute left-5 top-20 flex items-center gap-1 rounded-md px-3 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white md:left-8"
+						className="absolute left-4 top-[calc(4rem+env(safe-area-inset-top))] flex items-center gap-1 rounded-md px-2 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white sm:left-5 md:left-8 md:top-20"
 					>
 						<ChevronLeft className="h-4 w-4" />
 						{isEpisode ? item.SeriesName : t("back")}
 					</button>
-					<div className="absolute bottom-8 left-6 right-6 flex items-end gap-6 md:left-14 md:right-14">
+					<div className="absolute bottom-6 left-4 right-4 flex items-end gap-3 sm:left-6 sm:right-6 md:bottom-8 md:left-14 md:right-14 md:gap-6">
 						<DetailArtwork item={item} episode={isEpisode} />
 						<div className="min-w-0 flex-1">
 							{isEpisode && (
@@ -256,9 +256,9 @@ export function DetailPage({
 					</div>
 				</section>
 
-				<div className="space-y-9 px-6 pt-6 md:px-14">
+				<div className="space-y-8 px-4 pt-5 sm:px-6 sm:pt-6 md:space-y-9 md:px-14">
 					<div className="space-y-3">
-						<div className="flex flex-wrap items-center gap-3 mb-8">
+						<div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 md:mb-8">
 							<PrimaryActionButton
 								onClick={startPlayback}
 							>
@@ -359,7 +359,7 @@ function InlineTrackChoices({
 				t(kind === "audio" ? "audioTrack" : "subtitleTrack"),
 		}));
 	return (
-		<div className="w-fit min-w-[360px] max-w-full space-y-2">
+		<div className="w-full min-w-0 max-w-md space-y-2 md:w-fit">
 			{tracks.audio.length > 1 && (
 				<TrackSelect
 					label={t("audioTrack")}
@@ -412,7 +412,7 @@ function TrackSelectionDialog({
 		}));
 	return (
 		<div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
-			<div className="w-full max-w-md rounded-2xl border border-white/15 bg-black/25 p-5 shadow-2xl backdrop-blur-xl">
+			<div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-black/25 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
 				<h2 className="text-lg font-semibold text-white">
 					{t("selectTracks")}
 				</h2>
@@ -442,7 +442,7 @@ function TrackSelectionDialog({
 						/>
 					)}
 				</div>
-				<div className="mt-6 flex justify-end gap-2">
+				<div className="mt-6 flex flex-wrap justify-end gap-2">
 					<button
 						type="button"
 						onClick={onCancel}

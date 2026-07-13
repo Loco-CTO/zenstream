@@ -166,7 +166,7 @@ export function Hero({
 
 	if (!item) {
 		return (
-			<section className="relative flex h-[85svh] items-end overflow-hidden bg-neutral-950 px-8 pb-20 md:px-14">
+			<section className="relative flex h-[min(72svh,640px)] items-end overflow-hidden bg-neutral-950 px-5 pb-16 md:h-[85svh] md:px-14 md:pb-20">
 				<div>
 					<p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/35">
 						ZenStream
@@ -199,7 +199,7 @@ export function Hero({
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerEnd}
 			onPointerCancel={handlePointerEnd}
-			className={`group/hero relative h-[85svh] w-full touch-pan-y select-none overflow-hidden ${
+			className={`group/hero relative h-[min(72svh,640px)] w-full touch-pan-y select-none overflow-hidden md:h-[85svh] ${
 				canNavigateSlides
 					? isDragging
 						? "cursor-grabbing"
@@ -305,7 +305,7 @@ export function Hero({
 					</button>
 				</>
 			)}
-			<div className="absolute inset-0 flex flex-col justify-end px-8 pb-20 md:px-14">
+			<div className="absolute inset-0 flex flex-col justify-end px-5 pb-16 md:px-14 md:pb-20">
 				<div
 					key={activeSlideKey}
 					data-slide-direction={slideDirection}
@@ -321,7 +321,7 @@ export function Hero({
 							/>
 						</h1>
 					) : (
-						<h1 className="mb-5 line-clamp-3 max-w-2xl text-4xl font-black leading-[0.95] tracking-normal text-white [overflow-wrap:anywhere] md:text-6xl lg:text-7xl">
+						<h1 className="mb-5 line-clamp-3 max-w-2xl text-[clamp(2rem,9vw,4rem)] font-black leading-[0.95] tracking-normal text-white [overflow-wrap:anywhere] md:text-6xl lg:text-7xl">
 							{item.Name}
 						</h1>
 					)}

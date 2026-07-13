@@ -11,7 +11,7 @@ export type DropdownOption = {
 };
 
 const triggerClassName = "flex min-w-32 items-center justify-between gap-3 rounded-lg border border-[var(--c-glass-border)] bg-[var(--c-glass)] px-3 py-2 text-left text-xs text-white/75 shadow-lg shadow-black/20 outline-none backdrop-blur-xl transition hover:border-white/20 hover:bg-white/[.08] focus-visible:border-white/35 focus-visible:ring-2 focus-visible:ring-white/10";
-const panelClassName = "fixed z-[300] max-h-64 overflow-y-auto rounded-lg border border-[var(--c-glass-border)] bg-black/25 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl";
+const panelClassName = "fixed z-[300] max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-lg border border-[var(--c-glass-border)] bg-black/25 p-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl";
 
 type DropdownProps = {
   "aria-label": string;
@@ -24,6 +24,7 @@ type DropdownProps = {
 export function Dropdown({ value, options, onChange, className = "", ...props }: DropdownProps) {
   const listboxId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(() => selectedIndex(options, value));
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>();
@@ -35,10 +36,17 @@ export function Dropdown({ value, options, onChange, className = "", ...props }:
     const positionMenu = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
+      const edge = 12;
+      const width = Math.min(Math.max(rect.width, 144), Math.max(144, window.innerWidth - edge * 2));
+      const height = Math.min(menuRef.current?.getBoundingClientRect().height ?? 256, window.innerHeight - edge * 2);
+      const left = Math.min(Math.max(rect.left, edge), Math.max(edge, window.innerWidth - width - edge));
+      const opensBelow = rect.bottom + 6 + height <= window.innerHeight - edge || rect.top <= height + 6 + edge;
       setMenuStyle({
-        left: rect.left,
-        top: rect.bottom + 6,
-        minWidth: Math.max(rect.width, 144),
+        left,
+        top: opensBelow ? rect.bottom + 6 : undefined,
+        bottom: opensBelow ? undefined : window.innerHeight - rect.top + 6,
+        width,
+        maxHeight: `calc(100dvh - ${edge * 2}px)`,
       });
     };
     const closeOnOutsideClick = (event: PointerEvent) => {
@@ -123,6 +131,7 @@ export function Dropdown({ value, options, onChange, className = "", ...props }:
       </button>
       {open && menuStyle && createPortal(
         <div
+          ref={menuRef}
           id={listboxId}
           role="listbox"
           aria-label={props["aria-label"]}

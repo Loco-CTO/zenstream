@@ -34,11 +34,11 @@ export function LoginPage({
 	};
 
 	return (
-		<main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10">
+		<main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6 sm:py-10">
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.18),transparent_36%),linear-gradient(180deg,#111,#080808_50%)]" />
 			<form
 				onSubmit={submit}
-				className="relative w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.045] p-7 shadow-2xl shadow-black/40 backdrop-blur-2xl"
+				className="relative w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:p-7"
 			>
 				<img
 					src="/icon.png"

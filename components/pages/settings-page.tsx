@@ -53,14 +53,14 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
 
   return (
     <main className="min-h-screen bg-background pb-12 text-foreground">
-      <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-white/5 bg-[var(--c-nav-from)] px-6 py-4 backdrop-blur-xl md:px-14">
+      <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-white/5 bg-[var(--c-nav-from)] px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] backdrop-blur-xl sm:gap-4 sm:px-6 md:px-14 md:py-4">
         <button type="button" onClick={goBack} aria-label={t("back")} className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition hover:bg-white/8 hover:text-white">
           <ChevronLeft className="h-4 w-4" />
         </button>
         <h1 className="text-lg font-bold tracking-tight text-white">{t("settings")}</h1>
       </header>
 
-      <div className="space-y-8 px-6 py-8 md:px-14">
+      <div className="space-y-7 px-4 py-6 sm:px-6 sm:py-8 md:px-14">
         <SettingsSection title={t("account")}>
           <div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
             <Avatar userId={userId} />
@@ -130,7 +130,7 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 }
 
 function SettingsRow({ label, sub, right, border = true }: { label: string; sub?: string; right: React.ReactNode; border?: boolean }) {
-  return <div className={`flex items-center gap-4 px-4 py-3.5 ${border ? "border-b border-white/5" : ""}`}><div className="min-w-0 flex-1"><p className="text-sm text-white/80">{label}</p>{sub && <p className="mt-0.5 text-xs text-white/30">{sub}</p>}</div>{right}</div>;
+  return <div className={`flex flex-wrap items-start gap-3 px-4 py-4 ${border ? "border-b border-white/5" : ""}`}><div className="min-w-0 flex-1"><p className="text-sm text-white/80">{label}</p>{sub && <p className="mt-0.5 text-xs leading-5 text-white/30">{sub}</p>}</div><div className="shrink-0">{right}</div></div>;
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -138,7 +138,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 function SettingsSelect({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
-  return <Dropdown aria-label={label} value={value} onChange={onChange} options={options.map(([optionValue, optionLabel]) => ({ value: optionValue, label: optionLabel }))} />;
+  return <Dropdown aria-label={label} value={value} onChange={onChange} options={options.map(([optionValue, optionLabel]) => ({ value: optionValue, label: optionLabel }))} className="w-36 max-w-[calc(100vw-3rem)] min-w-0" />;
 }
 
 function RangeControl({ label, min, max, step = 1, value, suffix, onChange }: { label: string; min: number; max: number; step?: number; value: number; suffix: string; onChange: (value: number) => void }) {
@@ -152,7 +152,7 @@ function RangeControl({ label, min, max, step = 1, value, suffix, onChange }: { 
     setDraft(next);
     if (next !== value) onChange(next);
   };
-  return <div className="flex items-center gap-2"><input aria-label={label} type="number" min={min} max={max} step={step} value={draft} onChange={(event) => setDraft(Number(event.target.value))} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } }} className="w-14 rounded border border-white/10 bg-white/5 px-1.5 py-1 text-right text-xs text-white/70 outline-none focus:border-violet-400" /><span className="w-5 text-xs text-white/40">{suffix}</span><input aria-label={`${label} slider`} type="range" min={min} max={max} step={step} value={draft} onChange={(event) => setDraft(Number(event.target.value))} onPointerUp={commit} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commit(); }} className="w-28 accent-violet-400" /></div>;
+  return <div className="flex items-center gap-2"><input aria-label={label} type="number" min={min} max={max} step={step} value={draft} onChange={(event) => setDraft(Number(event.target.value))} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } }} className="w-12 rounded border border-white/10 bg-white/5 px-1.5 py-1 text-right text-xs text-white/70 outline-none focus:border-violet-400 sm:w-14" /><span className="w-5 text-xs text-white/40">{suffix}</span><input aria-label={`${label} slider`} type="range" min={min} max={max} step={step} value={draft} onChange={(event) => setDraft(Number(event.target.value))} onPointerUp={commit} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commit(); }} className="w-20 accent-violet-400 sm:w-28" /></div>;
 }
 
 function ColorControl({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -181,7 +181,7 @@ function ColorControl({ label, value, onChange }: { label: string; value: string
     if (/^#[0-9a-f]{6}$/i.test(next)) onChange(next.toLowerCase());
   };
 
-  return <div ref={controlRef} className="relative shrink-0"><span id={labelId} className="sr-only">{label}</span><button type="button" aria-labelledby={labelId} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-8 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 shadow-sm transition hover:border-violet-300/60 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-400/70"><span aria-hidden="true" className="h-full w-full rounded-[4px] ring-1 ring-inset ring-black/25" style={{ backgroundColor: value }} /></button>{open && <div role="dialog" aria-labelledby={labelId} className="absolute right-0 top-full z-30 mt-2 w-52 rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"><div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-black/20 p-2"><span aria-hidden="true" className="h-7 w-7 shrink-0 rounded-md ring-1 ring-inset ring-white/10" style={{ backgroundColor: value }} /><input aria-labelledby={labelId} value={value.toUpperCase()} onChange={(event) => setColor(event.target.value)} spellCheck={false} maxLength={7} className="min-w-0 flex-1 bg-transparent font-mono text-xs uppercase tracking-wide text-white/80 outline-none placeholder:text-white/25" /></div><div className="grid grid-cols-6 gap-2">{palette.map((color) => <button key={color} type="button" aria-label={color} aria-pressed={value.toLowerCase() === color} onClick={() => setColor(color)} className={`h-5 rounded-md ring-1 ring-inset transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-400 ${value.toLowerCase() === color ? "ring-white ring-offset-2 ring-offset-black" : "ring-white/15"}`} style={{ backgroundColor: color }} />)}</div></div>}</div>;
+  return <div ref={controlRef} className="relative shrink-0"><span id={labelId} className="sr-only">{label}</span><button type="button" aria-labelledby={labelId} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-8 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 shadow-sm transition hover:border-violet-300/60 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-400/70"><span aria-hidden="true" className="h-full w-full rounded-[4px] ring-1 ring-inset ring-black/25" style={{ backgroundColor: value }} /></button>{open && <div role="dialog" aria-labelledby={labelId} className="absolute right-0 top-full z-30 mt-2 w-52 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"><div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-black/20 p-2"><span aria-hidden="true" className="h-7 w-7 shrink-0 rounded-md ring-1 ring-inset ring-white/10" style={{ backgroundColor: value }} /><input aria-labelledby={labelId} value={value.toUpperCase()} onChange={(event) => setColor(event.target.value)} spellCheck={false} maxLength={7} className="min-w-0 flex-1 bg-transparent font-mono text-xs uppercase tracking-wide text-white/80 outline-none placeholder:text-white/25" /></div><div className="grid grid-cols-6 gap-2">{palette.map((color) => <button key={color} type="button" aria-label={color} aria-pressed={value.toLowerCase() === color} onClick={() => setColor(color)} className={`h-5 rounded-md ring-1 ring-inset transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-400 ${value.toLowerCase() === color ? "ring-white ring-offset-2 ring-offset-black" : "ring-white/15"}`} style={{ backgroundColor: color }} />)}</div></div>}</div>;
 }
 
 function hexToRgba(hex: string, opacity: number) {

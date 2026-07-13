@@ -20,8 +20,8 @@ export function PlayerPage({ initialData, session }: { initialData: DetailData; 
 			const parsed = playbackStreams(playback);
 			setStreams(parsed);
 			setSelected({
-				audio: parsed.audio.find((track) => track.IsDefault)?.Index ?? parsed.audio[0]?.Index,
-				subtitle: parsed.subtitles.find((track) => track.IsDefault)?.Index ?? parsed.subtitles[0]?.Index,
+				audio: Number(parsed.audio.find((track) => track.IsDefault)?.Index ?? parsed.audio[0]?.Index),
+				subtitle: Number(parsed.subtitles.find((track) => track.IsDefault)?.Index ?? parsed.subtitles[0]?.Index),
 			});
 		}).catch(() => undefined);
 		return () => { active = false; };

@@ -26,7 +26,7 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 		void fetchDetailData(session, targetItemId)
 			.then(({ item }) => {
 				if (cancelled) return;
-		const target = playbackPath(item.Id ?? targetItemId);
+				const target = playbackPath(item.Id ?? targetItemId);
 				if (target !== pathname) router.push(target);
 			})
 			.catch(() => {

@@ -119,6 +119,31 @@ describe("video player controls", () => {
 		expect(syncplayWaitingForMembers(group, "other")).toBe(false);
 	});
 
+	it("clears the solo-host readiness overlay after playback is released", () => {
+		expect(
+			syncplayWaitingForMembers(
+				{
+					itemId: "movie",
+					resumeWhenReady: false,
+					playing: true,
+					playbackState: "playing",
+					mediaGeneration: 2,
+					members: [
+						{
+							userId: "host",
+							username: "Host",
+							viewing: true,
+							loading: false,
+							readyGeneration: 2,
+							role: "host",
+						},
+					],
+				} as SyncplayGroup,
+				"movie",
+			),
+		).toBe(false);
+	});
+
 	it("recognizes an authoritative playing state for the current item", () => {
 		const state = {
 			itemId: "movie",

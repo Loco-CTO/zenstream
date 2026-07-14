@@ -194,7 +194,9 @@ export function SyncplayProvider({
 	const titleCache = useRef(new Map<string, string>());
 	const announcedMediaItemRef = useRef<string | null>(null);
 	const membershipActionRef = useRef(false);
-	const currentParticipantId = participantId();
+	const participantIdRef = useRef<string | null>(null);
+	if (participantIdRef.current == null) participantIdRef.current = participantId();
+	const currentParticipantId = participantIdRef.current!;
 	const serverNow = useCallback(
 		() => Date.now() / 1000 + clockOffsetRef.current,
 		[],
@@ -364,7 +366,7 @@ export function SyncplayProvider({
 		).replace(/\/+$/, "");
 		const socket = io(`${socketOrigin}/syncplay`, {
 			path: "/api/socket.io",
-			auth: { token: session.token, participantId: participantId() },
+			auth: { token: session.token, participantId: currentParticipantId },
 			autoConnect: false,
 		});
 		socketRef.current = socket;

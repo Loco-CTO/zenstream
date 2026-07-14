@@ -280,6 +280,18 @@ describe("jellyfin api helpers", () => {
 		expect(body.AllowAudioStreamCopy).toBe(false);
 	});
 
+	it("disables transcoding and transcoding profiles for hover-style direct-play requests", async () => {
+		await getPlaybackInfo(session, "movie-1", { directPlayOnly: true });
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+		expect(url.searchParams.get("enableDirectPlay")).toBe("true");
+		expect(url.searchParams.get("enableTranscoding")).toBe("false");
+		expect(body.EnableDirectPlay).toBe(true);
+		expect(body.EnableTranscoding).toBe(false);
+		expect(body.DeviceProfile.TranscodingProfiles).toEqual([]);
+	});
+
 	it("preserves trickplay metadata when a negotiated source omits it", () => {
 		const trickplay = { "320": { Width: 320, Height: 180, Interval: 10_000 } };
 		const source = preserveTrickplay(

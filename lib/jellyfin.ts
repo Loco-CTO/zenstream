@@ -581,10 +581,12 @@ export async function getPlaybackInfo(
 		audioStreamIndex?: number;
 		subtitleStreamIndex?: number;
 		forceTranscoding?: boolean;
+		directPlayOnly?: boolean;
 	} = {},
 ) {
 	const profile = browserDeviceProfile();
 	const directPlayEnabled = !options.forceTranscoding;
+	const transcodingEnabled = !options.directPlayOnly;
 	const response = await jellyfinRequest(
 		session,
 		`/Items/${encodeURIComponent(itemId)}/PlaybackInfo?${queryString({
@@ -598,7 +600,7 @@ export async function getPlaybackInfo(
 			enableDirectStream: directPlayEnabled,
 			allowVideoStreamCopy: directPlayEnabled,
 			allowAudioStreamCopy: directPlayEnabled,
-			enableTranscoding: true,
+			enableTranscoding: transcodingEnabled,
 		})}`,
 		{
 			method: "POST",
@@ -613,13 +615,13 @@ export async function getPlaybackInfo(
 				EnableDirectStream: directPlayEnabled,
 				AllowVideoStreamCopy: directPlayEnabled,
 				AllowAudioStreamCopy: directPlayEnabled,
-				EnableTranscoding: true,
+				EnableTranscoding: transcodingEnabled,
 				DeviceProfile: {
 					Name: "ZenStream Web",
 					MaxStreamingBitrate: options.maxStreamingBitrate,
 					DirectPlayProfiles: profile.directPlayProfiles,
 					SubtitleProfiles: profile.subtitleProfiles,
-					TranscodingProfiles: profile.transcodingProfiles.map((transcoding) => ({
+					TranscodingProfiles: (options.directPlayOnly ? [] : profile.transcodingProfiles).map((transcoding) => ({
 						Type: "Video",
 						Context: "Streaming",
 						Protocol: "hls",

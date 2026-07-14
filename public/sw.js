@@ -1,4 +1,4 @@
-const CACHE_NAME = "zenstream-shell-v1";
+const CACHE_NAME = "zenstream-shell-v0.2.0-main.0";
 const APP_SHELL = ["/", "/icon.png", "/icon-pwa.png"];
 
 self.addEventListener("install", (event) => {
@@ -15,7 +15,9 @@ self.addEventListener("activate", (event) => {
 			.then((keys) =>
 				Promise.all(
 					keys
-						.filter((key) => key !== CACHE_NAME)
+						.filter(
+							(key) => key.startsWith("zenstream-shell-") && key !== CACHE_NAME,
+						)
 						.map((key) => caches.delete(key)),
 				),
 			),

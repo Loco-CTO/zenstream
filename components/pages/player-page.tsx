@@ -11,6 +11,7 @@ export function PlayerPage({ initialData, session }: { initialData: DetailData; 
 	const router = useRouter();
 	const [item, setItem] = useState(initialData.item);
 	const [streams, setStreams] = useState<ReturnType<typeof playbackStreams>>();
+	const [streamsItemId, setStreamsItemId] = useState<string>();
 	const [selected, setSelected] = useState<{ audio?: number; subtitle?: number }>({});
 
 	useEffect(() => {
@@ -19,6 +20,7 @@ export function PlayerPage({ initialData, session }: { initialData: DetailData; 
 			if (!active) return;
 			const parsed = playbackStreams(playback);
 			setStreams(parsed);
+			setStreamsItemId(item.Id);
 			setSelected({
 				audio: Number(parsed.audio.find((track) => track.IsDefault)?.Index ?? parsed.audio[0]?.Index),
 				subtitle: Number(parsed.subtitles.find((track) => track.IsDefault)?.Index ?? parsed.subtitles[0]?.Index),
@@ -32,7 +34,9 @@ export function PlayerPage({ initialData, session }: { initialData: DetailData; 
 		session={session}
 		initialAudioStreamIndex={selected.audio}
 		initialSubtitleStreamIndex={selected.subtitle}
-		initialStreams={streams}
+		// VideoPlayer treats initialStreams as authoritative. Ignore the previous
+		// item's result until playback info for this item has arrived.
+		initialStreams={streamsItemId === item.Id ? streams : undefined}
 		onClose={() => router.back()}
 		onNext={(next) => { setItem(next); router.replace(`/play/${encodeURIComponent(next.Id)}`); }}
 		onPlayedChange={() => undefined}

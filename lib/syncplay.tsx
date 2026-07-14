@@ -608,15 +608,15 @@ export function SyncplayProvider({
 	const command = (value: Command) => {
 		const group = activeRef.current;
 		if (!group) return Promise.resolve();
-		if (
-			(value.action === "media" || value.action === "play") &&
-			(value.itemId ?? group.itemId) &&
-			announcedMediaItemRef.current !== (value.itemId ?? group.itemId)
-		) {
+		const itemId = value.itemId ?? group.itemId;
+		const shouldAnnounce =
+			itemId &&
+			(session.userId === group.hostUserId || value.action === "media") &&
+			(value.action === "media" || value.action === "play");
+		if (shouldAnnounce) {
 			// Announce the host's explicit media/play selection at the button
 			// command boundary. The player may still be loading when the command's
 			// group update arrives.
-			const itemId = value.itemId ?? group.itemId!;
 			announcedMediaItemRef.current = itemId;
 			announcePlayback(itemId);
 		}

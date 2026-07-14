@@ -102,6 +102,10 @@ dataSaverDescription: モバイルでのストリーミング品質を下げま�
 clearWatchHistory: 視聴履歴を消去
 clear: 消去
 dangerZone: 危険な操作
+versions: バージョン
+zenstreamVersion: ZenStream
+orchestratorVersion: ZenStream Orchestrator
+versionUnavailable: 利用不可
 back: 戻る
 episodesLabel: エピソード
 season: シーズン

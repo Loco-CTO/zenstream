@@ -112,6 +112,10 @@ dataSaverDescription: Reduces streaming quality on mobile
 clearWatchHistory: Clear Watch History
 clear: Clear
 dangerZone: Danger Zone
+versions: Versions
+zenstreamVersion: ZenStream
+orchestratorVersion: ZenStream Orchestrator
+versionUnavailable: Unavailable
 back: Back
 episodesLabel: Episodes
 season: Season

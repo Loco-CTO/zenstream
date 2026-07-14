@@ -8,8 +8,16 @@ describe("ServiceWorkerRegistration", () => {
 	it("registers the production service worker", async () => {
 		vi.stubEnv("NODE_ENV", "production");
 		const register = vi.fn().mockResolvedValue(undefined);
-		Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { register } });
+		Object.defineProperty(navigator, "serviceWorker", {
+			configurable: true,
+			value: { register },
+		});
 		render(<ServiceWorkerRegistration />);
-		await vi.waitFor(() => expect(register).toHaveBeenCalledWith("/sw.js", { scope: "/" }));
+		await vi.waitFor(() =>
+			expect(register).toHaveBeenCalledWith("/sw.js", {
+				scope: "/",
+				updateViaCache: "none",
+			}),
+		);
 	});
 });

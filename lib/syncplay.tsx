@@ -192,6 +192,7 @@ export function SyncplayProvider({
 	const bestRttRef = useRef(Infinity);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
+	const announcedMediaItemRef = useRef<string | null>(null);
 	const membershipActionRef = useRef(false);
 	const currentParticipantId = participantId();
 	const serverNow = useCallback(
@@ -227,11 +228,17 @@ export function SyncplayProvider({
 			void getItem(session, itemId)
 				.then((item) => {
 					titleCache.current.set(itemId, item.Name);
-					if (activeRef.current?.itemId === itemId)
+					if (
+						activeRef.current?.itemId === itemId ||
+						announcedMediaItemRef.current === itemId
+					)
 						toast.success(t("syncplayNowPlaying", { title: item.Name }));
 				})
 				.catch(() => {
-					if (activeRef.current?.itemId === itemId)
+					if (
+						activeRef.current?.itemId === itemId ||
+						announcedMediaItemRef.current === itemId
+					)
 						toast.success(t("syncplayNowPlayingFallback"));
 				});
 		},
@@ -271,8 +278,11 @@ export function SyncplayProvider({
 				for (const member of previous.members)
 					if (member.participantId !== currentParticipantId && !after.has(member.participantId))
 						toast.success(t("syncplayMemberLeft", { member: member.username }));
-				if (next.itemId && next.itemId !== previous.itemId)
-					announcePlayback(next.itemId);
+				if (next.itemId && next.itemId !== previous.itemId) {
+					if (announcedMediaItemRef.current === next.itemId)
+						announcedMediaItemRef.current = null;
+					else announcePlayback(next.itemId);
+				}
 			}
 			setCurrent(next);
 		},
@@ -553,6 +563,12 @@ export function SyncplayProvider({
 	const command = (value: Command) => {
 		const group = activeRef.current;
 		if (!group) return Promise.resolve();
+		if (value.action === "media" && value.itemId) {
+			// Announce the host's explicit media selection immediately. The player
+			// may still be loading when the command's group update arrives.
+			announcedMediaItemRef.current = value.itemId;
+			announcePlayback(value.itemId);
+		}
 		const groupId = group.id;
 		const seekVersion =
 			value.action === "seek" ? ++latestSeekRef.current : null;

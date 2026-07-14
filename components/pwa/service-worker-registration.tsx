@@ -10,7 +10,10 @@ export function ServiceWorkerRegistration() {
 		)
 			return;
 
-		void navigator.serviceWorker.register("/sw.js", { scope: "/" });
+		void navigator.serviceWorker.register("/sw.js", {
+			scope: "/",
+			updateViaCache: "none",
+		});
 	}, []);
 
 	return null;

@@ -343,6 +343,7 @@ export function VideoPlayer({
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
+	const [bufferedRanges, setBufferedRanges] = useState<Array<[number, number]>>([]);
 	const [error, setError] = useState("");
 	const [compatibilityAttemptItemId, setCompatibilityAttemptItemId] = useState<
 		string | null
@@ -369,6 +370,16 @@ export function VideoPlayer({
 		duration > 0 &&
 		duration - currentTime <= 10 &&
 		Boolean(nextItem);
+	const updateBufferedRanges = (video: HTMLVideoElement) => {
+		const ranges: Array<[number, number]> = [];
+		for (let index = 0; index < video.buffered.length; index += 1) {
+			const start = video.buffered.start(index);
+			const end = video.buffered.end(index);
+			if (Number.isFinite(start) && Number.isFinite(end) && end > start)
+				ranges.push([start, end]);
+		}
+		setBufferedRanges(ranges);
+	};
 
 	useEffect(() => {
 		syncplayStateRef.current = syncplay.active;
@@ -383,6 +394,7 @@ export function VideoPlayer({
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
 		advancingToNextRef.current = false;
+		setBufferedRanges([]);
 	}, [item.Id]);
 
 	useEffect(() => {
@@ -1208,12 +1220,14 @@ export function VideoPlayer({
 				onClick={handleVideoClick}
 				onDoubleClick={toggleFullscreen}
 				muted={muted}
-				onLoadedMetadata={() => {
+				 onLoadedMetadata={() => {
 					const value = videoRef.current?.duration ?? 0;
 					setDuration(
 						Math.max(knownDuration, Number.isFinite(value) ? value : 0),
 					);
+					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
+				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
 				onWaiting={() => {
 					// `waiting` is also emitted while a browser is seeking to the
 					// synchronized timeline.  That is not a transport stall when the
@@ -1266,6 +1280,7 @@ export function VideoPlayer({
 					setCurrentTime(
 						Number.isFinite(value) ? Math.min(value, duration || value) : 0,
 					);
+					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onEnded={() => {
 					if (nextChecked && nextItem) void playNext();
@@ -1501,7 +1516,18 @@ export function VideoPlayer({
 				className={`zenstream-player-controls absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<div className="relative mb-3 flex h-5 items-center">
-					<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20">
+					<div data-testid="player-timeline" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20">
+						{duration > 0 && bufferedRanges.map(([start, end]) => (
+							<span
+								key={`${start}-${end}`}
+								data-testid="player-buffered-range"
+								className="absolute inset-y-0 bg-white/35"
+								style={{
+									left: `${(start / duration) * 100}%`,
+									width: `${((end - start) / duration) * 100}%`,
+								}}
+							/>
+						))}
 						<span
 							className="absolute inset-y-0 left-0 bg-violet-400"
 							style={{

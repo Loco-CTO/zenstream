@@ -281,9 +281,13 @@ export function SyncplayProvider({
 					if (member.participantId !== currentParticipantId && !after.has(member.participantId))
 						toast.success(t("syncplayMemberLeft", { member: member.username }));
 				if (next.itemId && next.itemId !== previous.itemId) {
-					if (announcedMediaItemRef.current === next.itemId)
-						announcedMediaItemRef.current = null;
-					else announcePlayback(next.itemId);
+					// Keep the marker from the host's click through the command
+					// response. The player will emit a later `play` event once its
+					// media is ready; that event must not announce the same title again.
+					if (announcedMediaItemRef.current !== next.itemId) {
+						announcePlayback(next.itemId);
+						announcedMediaItemRef.current = next.itemId;
+					}
 				}
 			}
 			setCurrent(next);

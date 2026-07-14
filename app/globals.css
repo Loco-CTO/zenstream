@@ -64,13 +64,13 @@ body {
 @media (max-width: 767px) {
   .zenstream-player-panel {
     position: fixed;
-    top: auto;
-    right: 0.75rem;
-    bottom: calc(4.75rem + env(safe-area-inset-bottom));
-    left: 0.75rem;
+    top: max(0.75rem, env(safe-area-inset-top));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    left: max(0.75rem, env(safe-area-inset-left));
     width: auto;
     max-width: none;
-    max-height: calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     margin-bottom: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -94,9 +94,9 @@ body {
   }
 
   .zenstream-player-next-up {
-    right: 0.75rem;
+    right: max(0.75rem, env(safe-area-inset-right));
     bottom: calc(4.75rem + env(safe-area-inset-bottom));
-    left: 0.75rem;
+    left: max(0.75rem, env(safe-area-inset-left));
     width: auto;
     max-width: none;
     max-height: calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));

@@ -1261,6 +1261,17 @@ export function VideoPlayer({
 						currentTime: videoRef.current?.currentTime,
 						readyState: videoRef.current?.readyState,
 					});
+					// Do not rely on reportBuffering's local de-duplication here. The
+					// initial presence request can be in flight when canplay arrives;
+					// explicitly acknowledging readiness guarantees the server clears a
+					// stale loading flag and releases the room barrier.
+					const syncState = syncplayStateRef.current;
+					if (syncState?.itemId === item.Id) {
+						bufferedRef.current = false;
+						void syncplayApiRef.current
+							.presence(true, false, syncState.mediaGeneration ?? 0)
+							.catch(() => undefined);
+					}
 					reportBuffering(false);
 					const video = videoRef.current;
 					if (

@@ -612,11 +612,10 @@ export function SyncplayProvider({
 		const shouldAnnounce =
 			itemId &&
 			(session.userId === group.hostUserId || value.action === "media") &&
-			(value.action === "media" || value.action === "play");
+			value.action === "media";
 		if (shouldAnnounce) {
-			// Announce the host's explicit media/play selection at the button
-			// command boundary. The player may still be loading when the command's
-			// group update arrives.
+			// Announce the host's explicit media selection at the button command
+			// boundary. Play/pause commands must remain silent, including resume.
 			announcedMediaItemRef.current = itemId;
 			announcePlayback(itemId);
 		}

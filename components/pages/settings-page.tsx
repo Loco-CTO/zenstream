@@ -8,6 +8,7 @@ import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import { SUBTITLE_FONT_STACKS, subtitleOuterShadow } from "@/lib/subtitle-preferences";
+import { fetchOrchestratorVersion, zenstreamVersion } from "@/lib/version";
 
 type SettingsPageProps = {
   displayName: string;
@@ -33,6 +34,9 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
   const [watchHistory, setWatchHistory] = useState(true);
   const [dataSaver, setDataSaver] = useState(false);
   const [subtitlePreview, setSubtitlePreview] = useState(false);
+  const [orchestratorVersion, setOrchestratorVersion] = useState<string | null>(null);
+
+  useEffect(() => { void fetchOrchestratorVersion().then(setOrchestratorVersion); }, []);
 
   const changeLocale = async (nextLocale: Locale) => {
     setLocaleError(false);
@@ -119,6 +123,11 @@ export function SettingsPage({ displayName, userId, locale, onLocaleChange, onLo
               <LogOut className="h-3.5 w-3.5" />{t("logout")}
             </button>
           } />
+        </SettingsSection>
+
+        <SettingsSection title={t("versions")}>
+          <SettingsRow label={t("zenstreamVersion")} right={<span className="text-xs text-white/45">{zenstreamVersion}</span>} />
+          <SettingsRow label={t("orchestratorVersion")} border={false} right={<span className="text-xs text-white/45">{orchestratorVersion ?? t("versionUnavailable")}</span>} />
         </SettingsSection>
       </div>
     </main>

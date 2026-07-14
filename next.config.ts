@@ -5,17 +5,30 @@ import { fileURLToPath } from "node:url";
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  output: "standalone",
-  turbopack: {
-    root: appRoot,
-    rules: {
-      "*.yaml": {
-        loaders: ["yaml-loader"],
-        as: "*.js",
-      },
-    },
-  },
+	reactStrictMode: true,
+	output: "standalone",
+	turbopack: {
+		root: appRoot,
+		rules: {
+			"*.yaml": {
+				loaders: ["yaml-loader"],
+				as: "*.js",
+			},
+		},
+	},
+	async headers() {
+		return [
+			{
+				source: "/sw.js",
+				headers: [
+					{
+						key: "Cache-Control",
+						value: "no-cache, no-store, must-revalidate",
+					},
+				],
+			},
+		];
+	},
 };
 
 export default nextConfig;

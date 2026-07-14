@@ -343,7 +343,10 @@ export function VideoPlayer({
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
-	const [bufferedRanges, setBufferedRanges] = useState<Array<[number, number]>>([]);
+	const [bufferedRanges, setBufferedRanges] = useState<{
+		itemId: string;
+		ranges: Array<[number, number]>;
+	}>({ itemId: item.Id, ranges: [] });
 	const [error, setError] = useState("");
 	const [compatibilityAttemptItemId, setCompatibilityAttemptItemId] = useState<
 		string | null
@@ -378,7 +381,7 @@ export function VideoPlayer({
 			if (Number.isFinite(start) && Number.isFinite(end) && end > start)
 				ranges.push([start, end]);
 		}
-		setBufferedRanges(ranges);
+		setBufferedRanges({ itemId: item.Id, ranges });
 	};
 
 	useEffect(() => {
@@ -394,8 +397,9 @@ export function VideoPlayer({
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
 		advancingToNextRef.current = false;
-		setBufferedRanges([]);
 	}, [item.Id]);
+	const currentBufferedRanges =
+		bufferedRanges.itemId === item.Id ? bufferedRanges.ranges : [];
 
 	useEffect(() => {
 		let active = true;
@@ -1528,7 +1532,7 @@ export function VideoPlayer({
 			>
 				<div className="relative mb-3 flex h-5 items-center">
 					<div data-testid="player-timeline" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20">
-						{duration > 0 && bufferedRanges.map(([start, end]) => (
+						{duration > 0 && currentBufferedRanges.map(([start, end]) => (
 							<span
 								key={`${start}-${end}`}
 								data-testid="player-buffered-range"

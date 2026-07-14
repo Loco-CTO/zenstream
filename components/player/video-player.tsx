@@ -157,6 +157,12 @@ export function syncplayMediaIsReady(
 	return video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
 }
 
+export function syncplayWaitingEventIsBuffering(
+	video: Pick<HTMLMediaElement, "readyState">,
+) {
+	return !syncplayMediaIsReady(video);
+}
+
 export function syncplayInitialLoading(
 	video: Pick<HTMLMediaElement, "readyState"> | null,
 ) {
@@ -1209,11 +1215,22 @@ export function VideoPlayer({
 					);
 				}}
 				onWaiting={() => {
+					// `waiting` is also emitted while a browser is seeking to the
+					// synchronized timeline.  That is not a transport stall when the
+					// element already has future data; reporting it to the server makes
+					// the whole room pause, then resume, and seek again in a loop.
+					const video = videoRef.current;
+					if (video && !syncplayWaitingEventIsBuffering(video)) {
+						playerDebug("video waiting ignored; media has future data", {
+							readyState: video.readyState,
+						});
+						return;
+					}
 					setBuffering(true);
 					retryAfterBufferingRef.current = true;
 					playerDebug("video waiting", {
-						currentTime: videoRef.current?.currentTime,
-						readyState: videoRef.current?.readyState,
+						currentTime: video?.currentTime,
+						readyState: video?.readyState,
 					});
 					reportBuffering(true);
 				}}

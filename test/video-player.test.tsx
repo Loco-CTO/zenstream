@@ -12,6 +12,7 @@ import {
 	startSyncedMedia,
 	syncplayInitialLoading,
 	syncplayMediaIsReady,
+	syncplayWaitingEventIsBuffering,
 	syncplayStateWantsPlaying,
 	syncplayTimelineTarget,
 	VideoPlayer,
@@ -167,6 +168,8 @@ describe("video player controls", () => {
 		expect(syncplayMediaIsReady({ readyState: 2 })).toBe(false);
 		expect(syncplayMediaIsReady({ readyState: 3 })).toBe(true);
 		expect(syncplayMediaIsReady({ readyState: 4 })).toBe(true);
+		expect(syncplayWaitingEventIsBuffering({ readyState: 2 })).toBe(true);
+		expect(syncplayWaitingEventIsBuffering({ readyState: 3 })).toBe(false);
 	});
 
 	it("contains player overlays without creating a scrollbar", () => {

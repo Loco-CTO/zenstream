@@ -8,7 +8,6 @@ import type { AuthSession } from "@/lib/session";
 const HOVER_DELAY = 100;
 const PREVIEW_START_MIN = 0.4;
 const PREVIEW_START_MAX = 0.6;
-const TRANSCODE_WIDTH = 320;
 let activePreview: { stop: () => void } | null = null;
 
 export function useHoverPreview(
@@ -48,11 +47,11 @@ export function useHoverPreview(
 			requestRef.current = controller;
 			try {
 				const info = await getPlaybackInfo(session, itemId, {
-					maxStreamingBitrate: 400_000,
+					directPlayOnly: true,
 				});
 				if (controller.signal.aborted) return;
 				const source = info.MediaSources?.[0];
-				if (!source) return;
+				if (!source || source.TranscodingUrl || source.SupportsDirectPlay === false) return;
 				const startFactor =
 					PREVIEW_START_MIN +
 					Math.random() * (PREVIEW_START_MAX - PREVIEW_START_MIN);
@@ -67,23 +66,17 @@ export function useHoverPreview(
 					: 0;
 				const video = videoRef.current;
 				if (!video) return;
-				const startPlayback = async (bitrate?: number) => {
+				const startPlayback = async () => {
 					video.src = playbackUrl(
 						session,
 						itemId,
 						source,
-						bitrate,
 						startTimeTicks,
-						TRANSCODE_WIDTH,
 					);
 					video.load();
 					await video.play();
 				};
-				try {
-					await startPlayback();
-				} catch {
-					await startPlayback(400_000);
-				}
+				await startPlayback();
 				if (!controller.signal.aborted) setActive(true);
 			} catch {
 				stop();

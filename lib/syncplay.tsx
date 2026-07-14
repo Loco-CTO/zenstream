@@ -36,7 +36,7 @@ export type SyncplayGroup = {
 	pauseReason?: string | null;
 	hostDisconnectedAt?: number | null;
 	updatedAt: number;
-	 members: {
+	members: {
 		userId: string;
 		participantId?: string;
 		username: string;
@@ -93,15 +93,27 @@ function participantId() {
 	try {
 		const stored = window.sessionStorage.getItem(SYNCPLAY_PARTICIPANT_KEY);
 		if (stored) return stored;
-	} catch { /* fall through to memory */ }
+	} catch {
+		/* fall through to memory */
+	}
 	if (memoryParticipantId) return memoryParticipantId;
-	const generated = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+	const generated =
+		globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 	memoryParticipantId = generated;
-	try { window.sessionStorage.setItem(SYNCPLAY_PARTICIPANT_KEY, generated); } catch { /* private mode */ }
+	try {
+		window.sessionStorage.setItem(SYNCPLAY_PARTICIPANT_KEY, generated);
+	} catch {
+		/* private mode */
+	}
 	return generated;
 }
-function isCurrentParticipant(member: { participantId?: string }, currentId: string) {
-	return member.participantId == null ? true : member.participantId === currentId;
+function isCurrentParticipant(
+	member: { participantId?: string },
+	currentId: string,
+) {
+	return member.participantId == null
+		? true
+		: member.participantId === currentId;
 }
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
@@ -130,8 +142,12 @@ async function call(path: string, method = "GET", body?: unknown) {
 		response = await fetch(`${base}/api/zenstream/syncplay/${path}`, {
 			method,
 			headers: {
-				...(getAuthSession()?.token ? { "X-Jellyfin-Token": getAuthSession()!.token } : {}),
-				...(getAuthSession()?.username ? { "X-ZenStream-Username": getAuthSession()!.username } : {}),
+				...(getAuthSession()?.token
+					? { "X-Jellyfin-Token": getAuthSession()!.token }
+					: {}),
+				...(getAuthSession()?.username
+					? { "X-ZenStream-Username": getAuthSession()!.username }
+					: {}),
 				"X-ZenStream-Participant": participantId(),
 				...(body ? { "Content-Type": "application/json" } : {}),
 			},
@@ -194,9 +210,7 @@ export function SyncplayProvider({
 	const titleCache = useRef(new Map<string, string>());
 	const announcedMediaItemRef = useRef<string | null>(null);
 	const membershipActionRef = useRef(false);
-	const participantIdRef = useRef<string | null>(null);
-	if (participantIdRef.current == null) participantIdRef.current = participantId();
-	const currentParticipantId = participantIdRef.current!;
+	const [currentParticipantId] = useState(participantId);
 	const serverNow = useCallback(
 		() => Date.now() / 1000 + clockOffsetRef.current,
 		[],
@@ -273,12 +287,18 @@ export function SyncplayProvider({
 					next.members.map((member) => [member.participantId, member]),
 				);
 				for (const member of next.members)
-					if (member.participantId !== currentParticipantId && !before.has(member.participantId))
+					if (
+						member.participantId !== currentParticipantId &&
+						!before.has(member.participantId)
+					)
 						toast.success(
 							t("syncplayMemberJoined", { member: member.username }),
 						);
 				for (const member of previous.members)
-					if (member.participantId !== currentParticipantId && !after.has(member.participantId))
+					if (
+						member.participantId !== currentParticipantId &&
+						!after.has(member.participantId)
+					)
 						toast.success(t("syncplayMemberLeft", { member: member.username }));
 				if (next.itemId && next.itemId !== previous.itemId) {
 					// Keep the marker from the host's click through the command
@@ -309,7 +329,9 @@ export function SyncplayProvider({
 					// Only WebSocket end/membership events are authoritative removals.
 					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
-						group.members.some((member) => isCurrentParticipant(member, currentParticipantId)),
+						group.members.some((member) =>
+							isCurrentParticipant(member, currentParticipantId),
+						),
 					) ?? null),
 		);
 	}, [currentParticipantId, reconcile]);
@@ -342,8 +364,8 @@ export function SyncplayProvider({
 				group.itemId !== activeRef.current?.itemId
 			)
 				announcePlayback(group.itemId);
-			const isMember = group.members.some(
-				(member) => isCurrentParticipant(member, currentParticipantId),
+			const isMember = group.members.some((member) =>
+				isCurrentParticipant(member, currentParticipantId),
 			);
 			if (activeRef.current?.id === group.id)
 				reconcile(isMember ? group : null);
@@ -431,14 +453,18 @@ export function SyncplayProvider({
 				// socket event already applied locally. It must not evict the session.
 				if (candidate && candidate.revision >= current.revision)
 					reconcileRef.current(
-						candidate.members.some((member) => isCurrentParticipant(member, currentParticipantId))
+						candidate.members.some((member) =>
+							isCurrentParticipant(member, currentParticipantId),
+						)
 							? candidate
 							: null,
 					);
 			} else
 				reconcileRef.current(
 					next.find((group) =>
-						group.members.some((member) => isCurrentParticipant(member, currentParticipantId)),
+						group.members.some((member) =>
+							isCurrentParticipant(member, currentParticipantId),
+						),
 					) ?? null,
 				);
 		});
@@ -463,16 +489,13 @@ export function SyncplayProvider({
 				if (activeRef.current?.id === id) reconcileRef.current(null);
 			},
 		);
-		socket.on(
-			"syncplay:participant-replaced",
-			(message: { id?: string }) => {
-				syncplayDebug("participant replaced", message);
-				if (!message.id || activeRef.current?.id !== message.id) return;
-				tombstonesRef.current.set(message.id, Number.MAX_SAFE_INTEGER);
-				setCurrent(null);
-				toast.error(t("syncplayParticipantReplaced"));
-			},
-		);
+		socket.on("syncplay:participant-replaced", (message: { id?: string }) => {
+			syncplayDebug("participant replaced", message);
+			if (!message.id || activeRef.current?.id !== message.id) return;
+			tombstonesRef.current.set(message.id, Number.MAX_SAFE_INTEGER);
+			setCurrent(null);
+			toast.error(t("syncplayParticipantReplaced"));
+		});
 		return () => {
 			window.clearInterval(clockTimer);
 			disposed = true;
@@ -488,12 +511,22 @@ export function SyncplayProvider({
 			adopt(group);
 			toast.success(t("syncplayGroupCreated"));
 		} catch (error) {
-			toast.error(error instanceof SyncplayRequestError && error.status === 409 ? t("syncplayAlreadyInGroup") : t("syncplayCreateFailed"));
+			toast.error(
+				error instanceof SyncplayRequestError && error.status === 409
+					? t("syncplayAlreadyInGroup")
+					: t("syncplayCreateFailed"),
+			);
 			throw error;
-		} finally { membershipActionRef.current = false; }
+		} finally {
+			membershipActionRef.current = false;
+		}
 	};
 	const join = async (id: string) => {
-		if ((activeRef.current && activeRef.current.id !== id) || membershipActionRef.current) return;
+		if (
+			(activeRef.current && activeRef.current.id !== id) ||
+			membershipActionRef.current
+		)
+			return;
 		membershipActionRef.current = true;
 		try {
 			const known = groups.find((entry) => entry.id === id);
@@ -505,9 +538,15 @@ export function SyncplayProvider({
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
 		} catch (error) {
-			toast.error(error instanceof SyncplayRequestError && error.status === 409 ? t("syncplayMustLeaveGroup") : t("syncplayJoinFailed"));
+			toast.error(
+				error instanceof SyncplayRequestError && error.status === 409
+					? t("syncplayMustLeaveGroup")
+					: t("syncplayJoinFailed"),
+			);
 			throw error;
-		} finally { membershipActionRef.current = false; }
+		} finally {
+			membershipActionRef.current = false;
+		}
 	};
 	const leave = async () => {
 		const group = activeRef.current;

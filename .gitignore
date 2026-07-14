@@ -8,3 +8,4 @@ coverage
 design/*
 *.log
 sqlite/
+public/sw.js

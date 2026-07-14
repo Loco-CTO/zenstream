@@ -6,6 +6,7 @@ import { Hero } from "@/components/home/hero";
 import { MediaRow } from "@/components/home/media-row";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
+import { zenstreamVersion } from "@/lib/version";
 
 export function HomePage({ data, session }: { data: Partial<HomeData>; session: AuthSession }) {
 	const { t } = useI18n();
@@ -53,7 +54,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						alt=""
 						className="h-4 w-4 object-contain opacity-50"
 					/>
-					<span className="text-xs text-white/25">ZenStream</span>
+					<span className="text-xs text-white/25">ZenStream {zenstreamVersion}</span>
 				</div>
 			</footer>
 		</main>

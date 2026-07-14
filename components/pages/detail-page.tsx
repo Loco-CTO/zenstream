@@ -189,11 +189,16 @@ export function DetailPage({
 		// command.
 		const mediaCommand = syncplayMediaStartCommand(active, canControl, target.Id);
 		if (mediaCommand) {
-			void command(mediaCommand)
-				.catch(() => setMutationError("Playback could not be loaded."));
+			try {
+				// Complete the host's media transition before leaving this route. The
+				// provider announces immediately, but awaiting the request prevents the
+				// navigation from racing the command transport.
+				await command(mediaCommand);
+			} catch {
+				setMutationError("Playback could not be loaded.");
+				return;
+			}
 		}
-		// Do not wait for the round trip: the player owns stream loading, while
-		// issuing the command first keeps the host's room membership alive.
 		router.push(`/play/${encodeURIComponent(target.Id)}`);
 	}, [active, canControl, command, isSeries, item, router, session, start, t]);
 

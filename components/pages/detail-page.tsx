@@ -183,16 +183,18 @@ export function DetailPage({
 				finish();
 			}
 		}
-		// The player owns stream loading. Opening it must never wait for a remote
-		// media-info request or a Syncplay round trip, otherwise the Play button
-		// feels frozen on higher-latency connections.
-		router.push(`/play/${encodeURIComponent(target.Id)}`);
+		// Send the media transition before navigating away. The route transition can
+		// briefly tear down the current page; if navigation happens first, the host
+		// socket may be treated as disconnected before the room receives the media
+		// command.
 		const mediaCommand = syncplayMediaStartCommand(active, canControl, target.Id);
 		if (mediaCommand) {
-			void command(mediaCommand).catch(() =>
-				setMutationError("Playback could not be loaded."),
-			);
+			void command(mediaCommand)
+				.catch(() => setMutationError("Playback could not be loaded."));
 		}
+		// Do not wait for the round trip: the player owns stream loading, while
+		// issuing the command first keeps the host's room membership alive.
+		router.push(`/play/${encodeURIComponent(target.Id)}`);
 	}, [active, canControl, command, isSeries, item, router, session, start, t]);
 
 	return (

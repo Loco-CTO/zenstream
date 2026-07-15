@@ -125,6 +125,16 @@ export function nextEpisodeSyncplayCommand(item: JellyfinItem) {
 	return { action: "media", itemId: item.Id, position: 0, playing: true };
 }
 
+export function advanceToNextEpisodeWithSyncplay(
+	nextItem: JellyfinItem,
+	command: (value: ReturnType<typeof nextEpisodeSyncplayCommand>) => Promise<unknown>,
+	onNext: Props["onNext"],
+	onClose: Props["onClose"],
+) {
+	advanceToNextEpisode(nextItem, onNext, onClose);
+	void command(nextEpisodeSyncplayCommand(nextItem)).catch(() => undefined);
+}
+
 export function syncplayTimelineTarget(state: SyncplayGroup, now: number) {
 	const playbackState =
 		state.playbackState ?? (state.playing ? "playing" : "paused");
@@ -479,19 +489,20 @@ export function VideoPlayer({
 		if (target && syncplay.active) {
 			if (!syncplay.canControl) return;
 			advancingToNextRef.current = true;
-			try {
-				// Adopt the new media generation before the old player unmounts so its
-				// cleanup presence cannot become readiness for the next episode.
-				await syncplay.command(nextEpisodeSyncplayCommand(target));
-				setNextItem(null);
-				setNextChecked(false);
-				setCurrentTime(0);
-				setDuration(0);
-				setUrl(undefined);
-				advanceToNextEpisode(target, onNext, onClose);
-			} catch {
-				advancingToNextRef.current = false;
-			}
+			// Move the initiating player immediately. Waiting for the command response
+			// leaves the old player mounted while the new readiness barrier is created,
+			// allowing old cleanup/presence events to race with the transition.
+			setNextItem(null);
+			setNextChecked(false);
+			setCurrentTime(0);
+			setDuration(0);
+			setUrl(undefined);
+			advanceToNextEpisodeWithSyncplay(
+				target,
+				syncplay.command,
+				onNext,
+				onClose,
+			);
 			return;
 		}
 		advancingToNextRef.current = true;

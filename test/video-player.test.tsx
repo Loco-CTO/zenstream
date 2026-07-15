@@ -4,6 +4,7 @@ import {
 	CustomSubtitleCue,
 	TrickplayBubble,
 	advanceToNextEpisode,
+	advanceToNextEpisodeWithSyncplay,
 	nextEpisodeSyncplayCommand,
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
@@ -399,6 +400,24 @@ describe("video player controls", () => {
 			position: 0,
 			playing: true,
 		});
+	});
+
+	it("navigates locally before the Syncplay media command resolves", async () => {
+		let resolveCommand!: (value: unknown) => void;
+		const command = vi.fn(
+			() => new Promise<unknown>((resolve) => (resolveCommand = resolve)),
+		);
+		const onNext = vi.fn();
+		const onClose = vi.fn();
+		const next = { Id: "episode-2", Name: "Episode 2", Type: "Episode" } as JellyfinItem;
+
+		advanceToNextEpisodeWithSyncplay(next, command, onNext, onClose);
+
+		expect(onNext).toHaveBeenCalledWith(next);
+		expect(onClose).not.toHaveBeenCalled();
+		expect(command).toHaveBeenCalledWith(nextEpisodeSyncplayCommand(next));
+		resolveCommand({});
+		await Promise.resolve();
 	});
 
 	it("holds a scheduled Syncplay start until its server timestamp", () => {

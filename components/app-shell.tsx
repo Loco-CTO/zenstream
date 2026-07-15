@@ -118,7 +118,13 @@ export function AppShell() {
 					setStatus("ready");
 					return;
 				}
-				setDetailData(await fetchDetailData(nextSession, itemId));
+				setDetailData(
+					await fetchDetailData(
+						nextSession,
+						itemId,
+						new URLSearchParams(window.location.search).get("seasonId") ?? undefined,
+					),
+				);
 				setStatus("ready");
 			} catch (err) {
 				setError(

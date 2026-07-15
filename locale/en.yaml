@@ -158,6 +158,9 @@ createGroup: Create group
 noSyncplayGroups: No active groups yet.
 syncplayWatching: Watching together
 syncplayNoMedia: No media selected
+syncplayViewingTogether: Viewing together
+syncplayBrowsing: Browsing
+syncplayReturnToView: Return to view
 joinView: Join view
 leaveGroup: Leave group
 allowViewerControls: Allow viewer controls

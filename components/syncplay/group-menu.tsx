@@ -21,6 +21,7 @@ export function SyncplayGroupMenu({
 	const {
 		groups,
 		active,
+		currentMember,
 		create,
 		join,
 		leave,
@@ -34,7 +35,7 @@ export function SyncplayGroupMenu({
 
 	async function returnToView(group = active) {
 		if (!group?.itemId) return;
-		if (active?.id !== group.id) {
+		if (active?.id !== group.id || !currentMember) {
 			await join(group.id).catch(() => undefined);
 		}
 		void setWatchingTogether(true).catch(() => undefined);
@@ -105,7 +106,7 @@ export function SyncplayGroupMenu({
 										{active?.id === group.id ? t("leaveGroup") : t("joinView")}
 									</button>
 								</div>
-								{active?.id === group.id && (
+				{group.members.length > 0 && (
 									<div className="mt-2 space-y-1 border-t border-white/10 pt-2">
 										{group.members.map((member) => (
 											<div
@@ -126,7 +127,7 @@ export function SyncplayGroupMenu({
 														? t("syncplayViewingTogether")
 														: t("syncplayBrowsing")}
 												</span>
-												{active.hostUserId === userId &&
+								{active?.id === group.id && active.hostUserId === userId &&
 													member.userId !== userId && (
 														<button
 															onClick={() =>
@@ -145,9 +146,7 @@ export function SyncplayGroupMenu({
 										))}
 									</div>
 								)}
-								{group.itemId &&
-									group.members.some((member) => member.userId === userId) &&
-									active?.id !== group.id && (
+								{group.itemId && active?.id !== group.id && (
 										<button
 											type="button"
 											onClick={() => void returnToView(group)}

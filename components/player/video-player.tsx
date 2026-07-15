@@ -169,6 +169,14 @@ export function syncplayInitialLoading(
 	return !video || !syncplayMediaIsReady(video);
 }
 
+export function syncplayItemIsLoading(
+	readyItemId: string | null,
+	itemId: string,
+	video: Pick<HTMLMediaElement, "readyState"> | null,
+) {
+	return readyItemId !== itemId || syncplayInitialLoading(video);
+}
+
 export function optimisticSeekTimelineTarget(
 	position: number,
 	playing: boolean,
@@ -297,6 +305,7 @@ export function VideoPlayer({
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const retryAfterBufferingRef = useRef(false);
 	const bufferedRef = useRef(false);
+	const readyItemIdRef = useRef<string | null>(null);
 	const appliedTimelineRef = useRef<string | null>(null);
 	const seekPreviewRef = useRef<{ itemId: string; value: number } | null>(null);
 	const optimisticSeekRef = useRef<{
@@ -397,6 +406,8 @@ export function VideoPlayer({
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
 		advancingToNextRef.current = false;
+		readyItemIdRef.current = null;
+		bufferedRef.current = true;
 	}, [item.Id]);
 	const currentBufferedRanges =
 		bufferedRanges.itemId === item.Id ? bufferedRanges.ranges : [];
@@ -560,7 +571,14 @@ export function VideoPlayer({
 		// In that case there may be no future event to clear the loading flag, so
 		// inspect the current readyState when entering the readiness barrier.
 		const video = videoRef.current;
-		const loading = syncplayInitialLoading(video);
+		// A reused <video> can still report the previous episode's readyState while
+		// Next Up is replacing its source. Never count that stale media as readiness
+		// for the new item/generation.
+		const loading = syncplayItemIsLoading(
+			readyItemIdRef.current,
+			item.Id,
+			video,
+		);
 		// Keep this in the same meaning as reportBuffering(): it stores the last
 		// loading state sent to the server, not whether the video is buffered.
 		// Otherwise a later canplay event can be incorrectly deduplicated.
@@ -1262,6 +1280,7 @@ export function VideoPlayer({
 					// error overlay here.
 					setError("");
 					setBuffering(false);
+					readyItemIdRef.current = item.Id;
 					const shouldRetry = retryAfterBufferingRef.current;
 					retryAfterBufferingRef.current = false;
 					playerDebug("video canplay", {

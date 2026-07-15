@@ -12,6 +12,7 @@ import {
 	SkipMarkerActions,
 	startSyncedMedia,
 	syncplayInitialLoading,
+	syncplayItemIsLoading,
 	syncplayMediaIsReady,
 	syncplayWaitingEventIsBuffering,
 	syncplayStateWantsPlaying,
@@ -171,6 +172,11 @@ describe("video player controls", () => {
 		expect(syncplayMediaIsReady({ readyState: 4 })).toBe(true);
 		expect(syncplayWaitingEventIsBuffering({ readyState: 2 })).toBe(true);
 		expect(syncplayWaitingEventIsBuffering({ readyState: 3 })).toBe(false);
+	});
+
+	it("does not reuse the previous episode's readiness for Next Up", () => {
+		expect(syncplayItemIsLoading("episode-1", "episode-2", { readyState: 4 })).toBe(true);
+		expect(syncplayItemIsLoading("episode-2", "episode-2", { readyState: 4 })).toBe(false);
 	});
 
 	it("contains player overlays without creating a scrollbar", () => {

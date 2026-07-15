@@ -7,7 +7,6 @@ import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
 	getPlaybackInfo,
 	getEpisodes,
-	getSeriesEpisodes,
 	getInitialSeason,
 	heroImage,
 	landscapeImage,
@@ -40,6 +39,7 @@ import {
 	useHoverPreview,
 } from "@/components/ui/hover-preview";
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
+import { resolvePlaybackTarget, syncplayMediaStartCommand as mediaStartCommand } from "@/lib/syncplay-playback";
 
 type TrackChoice = { audio?: number | string; subtitle?: number };
 
@@ -48,8 +48,8 @@ export function syncplayMediaStartCommand(
 	canControl: boolean,
 	itemId: string,
 ) {
-	if (!active || !canControl || active.itemId === itemId) return null;
-	return { action: "media", itemId, position: 0, playing: true };
+	if (!active || !canControl) return null;
+	return mediaStartCommand(itemId);
 }
 
 export function DetailPage({
@@ -168,13 +168,9 @@ export function DetailPage({
 		if (isSeries) {
 			const finish = start();
 			try {
-				const allEpisodes = await getSeriesEpisodes(session, item.Id);
-				const ordered = [...allEpisodes].sort((a, b) =>
-					(a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
-					(a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
-				);
-				target = ordered.find((episode) => !episode.UserData?.Played) ?? ordered[0] ?? item;
-				if (!target.Id || target.Id === item.Id) return;
+				const resolved = await resolvePlaybackTarget(session, item);
+				if (!resolved) return;
+				target = resolved;
 				setItem(target);
 			} catch {
 				setMutationError(t("detailLoadFailed"));

@@ -86,6 +86,11 @@ export function SyncplayGroupMenu({
 								key={group.id}
 								className="rounded-lg px-2 py-2 hover:bg-white/5"
 							>
+								{(() => {
+									const isMember = group.members.some((member) => member.userId === userId);
+
+									return (
+										<>
 								<div className="flex items-center gap-2">
 									<div className="min-w-0 flex-1">
 										<p className="truncate text-xs text-white/85">
@@ -110,7 +115,7 @@ export function SyncplayGroupMenu({
 										{active?.id === group.id ? t("leaveGroup") : t("joinView")}
 									</button>
 								</div>
-				{group.members.length > 0 && (
+				{isMember && group.members.length > 0 && (
 									<div className="mt-2 space-y-1 border-t border-white/10 pt-2">
 										{group.members.map((member) => (
 											<div
@@ -150,7 +155,7 @@ export function SyncplayGroupMenu({
 										))}
 									</div>
 								)}
-				{group.itemId && (
+				{isMember && group.itemId && (
 										<button
 											type="button"
 											onClick={() => void returnToView(group)}
@@ -159,6 +164,9 @@ export function SyncplayGroupMenu({
 											{t("syncplayReturnToView")}
 										</button>
 									)}
+										</>
+									);
+								})()}
 							</div>
 						))
 					)}

@@ -13,6 +13,7 @@ import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { HoverPreviewVideo, useHoverPreview } from "@/components/ui/hover-preview";
+import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
 export function WideCard({ item, session }: { item: JellyfinItem; session?: AuthSession }) {
 	const image = landscapeImage(item);
@@ -38,7 +39,7 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 			</div>
 			<CardText item={item} />
 				</Link>
-				<MediaCardOverlay href={detailHref(item)} title={item.Name} className="inset-x-0 top-0 aspect-video" />
+				<MediaCardOverlay href={detailHref(item)} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-video" />
 			</div>
 		</article>
 	);
@@ -66,13 +67,13 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 			</div>
 			<CardText item={item} />
 			</Link>
-			<MediaCardOverlay href={detailHref(item)} title={item.Name} className="inset-x-0 top-0 aspect-[2/3]" />
+			<MediaCardOverlay href={detailHref(item)} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
 	);
 }
 
-export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
+export function StackedPosterCard({ items, session }: { items: JellyfinItem[]; session?: AuthSession }) {
 	const item = items[0];
 	const stacked = items.length > 1;
 	const image = seriesPosterImage(item);
@@ -97,7 +98,7 @@ export function StackedPosterCard({ items }: { items: JellyfinItem[] }) {
 					<p className="mt-0.5 truncate text-xs text-white/30">{stacked ? item.ProductionYear ?? item.Type : subtitle(item)}</p>
 				</div>
 			</Link>
-			<MediaCardOverlay href={detailHref(item)} title={stacked ? item.SeriesName ?? item.Name : item.Name} className="inset-x-0 top-0 aspect-[2/3]" />
+			<MediaCardOverlay href={detailHref(item)} title={stacked ? item.SeriesName ?? item.Name : item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
 	);
@@ -115,21 +116,24 @@ export const MEDIA_CARD_IMAGE_CLASS =
 export const MEDIA_CARD_TAG_CLASS =
 	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-xs font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
-export function MediaCardOverlay({ href, title, className = "inset-0" }: { href: string; title?: string; className?: string }) {
+export function MediaCardOverlay({ href, title, item, session, className = "inset-0" }: { href: string; title?: string; item?: JellyfinItem; session?: AuthSession; className?: string }) {
 	const router = useRouter();
 	const { t } = useI18n();
+	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 
 	return (
 		<div className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 ${className}`}>
 			<button
 				type="button"
 				aria-label={title ? `${t("play")} ${title}` : t("play")}
+				disabled={Boolean(item && session && !canStartPlayback)}
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					router.push(playHref(href));
+					if (item && session) void startPlayback(item).catch(() => undefined);
+					else router.push(playHref(href));
 				}}
-				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
+				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-40"
 			>
 				<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
 			</button>

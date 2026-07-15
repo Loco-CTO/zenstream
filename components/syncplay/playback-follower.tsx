@@ -2,40 +2,39 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { fetchDetailData } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
 
 export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) {
-	const { active } = useSyncplay();
+	const { active, setWatchingTogether } = useSyncplay();
 	const pathname = usePathname() ?? "/";
 	const router = useRouter();
-	const requestedItemRef = useRef<string | null>(null);
+	const requestedGenerationRef = useRef<string | null>(null);
+	const viewedGenerationRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (!active?.playing && !active?.resumeWhenReady) requestedItemRef.current = null;
-	}, [active?.playing, active?.resumeWhenReady]);
-
-	useEffect(() => {
-		const itemId = active?.playing || active?.resumeWhenReady ? active.itemId : null;
-		if (!itemId || isViewingItem(pathname, itemId) || requestedItemRef.current === itemId)
+		const itemId = active?.itemId;
+		const member = active?.members.find((entry) => entry.userId === session.userId);
+		if (!active || !itemId || !member || member.watchingTogether === false) {
+			requestedGenerationRef.current = null;
+			viewedGenerationRef.current = null;
 			return;
-		const targetItemId = itemId;
-		requestedItemRef.current = targetItemId;
-		let cancelled = false;
-		void fetchDetailData(session, targetItemId)
-			.then(({ item }) => {
-				if (cancelled) return;
-				const target = playbackPath(item.Id ?? targetItemId);
-				if (target !== pathname) router.push(target);
-			})
-			.catch(() => {
-				if (!cancelled) requestedItemRef.current = null;
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [active?.itemId, active?.playing, active?.resumeWhenReady, pathname, router, session]);
+		}
+		const generationKey = `${active.id}:${active.mediaGeneration ?? 0}`;
+		if (isViewingItem(pathname, itemId)) {
+			requestedGenerationRef.current = null;
+			viewedGenerationRef.current = generationKey;
+			return;
+		}
+		if (viewedGenerationRef.current === generationKey) {
+			viewedGenerationRef.current = null;
+			void setWatchingTogether(false).catch(() => undefined);
+			return;
+		}
+		if (requestedGenerationRef.current === generationKey) return;
+		requestedGenerationRef.current = generationKey;
+		router.push(playbackPath(itemId));
+	}, [active, pathname, router, session.userId, setWatchingTogether]);
 
 	return null;
 }
@@ -45,5 +44,5 @@ export function playbackPath(itemId: string) {
 }
 
 function isViewingItem(pathname: string, itemId: string) {
-	return pathname === `/play/${encodeURIComponent(itemId)}`;
+	return pathname === playbackPath(itemId);
 }

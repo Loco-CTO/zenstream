@@ -40,6 +40,7 @@ export type SyncplayGroup = {
 		userId: string;
 		participantId?: string;
 		username: string;
+		watchingTogether?: boolean;
 		viewing: boolean;
 		loading: boolean;
 		readyGeneration?: number;
@@ -61,6 +62,7 @@ type Context = {
 	refresh: () => Promise<void>;
 	setControls: (value: boolean) => Promise<void>;
 	removeMember: (userId: string) => Promise<void>;
+	setWatchingTogether: (value: boolean) => Promise<void>;
 	command: (value: Command) => Promise<void>;
 	presence: (
 		viewing: boolean,
@@ -79,6 +81,7 @@ const emptyContext: Context = {
 	refresh: async () => undefined,
 	setControls: async () => undefined,
 	removeMember: async () => undefined,
+	setWatchingTogether: async () => undefined,
 	command: async () => undefined,
 	presence: async () => undefined,
 	canControl: false,
@@ -208,7 +211,8 @@ export function SyncplayProvider({
 	const bestRttRef = useRef(Infinity);
 	const hydratedRef = useRef(false);
 	const titleCache = useRef(new Map<string, string>());
-	const announcedMediaItemRef = useRef<string | null>(null);
+	const announcedMediaGenerationRef = useRef<string | null>(null);
+	const announcementItemRef = useRef<string | null>(null);
 	const membershipActionRef = useRef(false);
 	const [currentParticipantId] = useState(participantId);
 	const serverNow = useCallback(
@@ -236,6 +240,7 @@ export function SyncplayProvider({
 	}, []);
 	const announcePlayback = useCallback(
 		(itemId: string) => {
+			announcementItemRef.current = itemId;
 			const title = titleCache.current.get(itemId);
 			if (title) {
 				toast.success(t("syncplayNowPlaying", { title }));
@@ -244,17 +249,11 @@ export function SyncplayProvider({
 			void getItem(session, itemId)
 				.then((item) => {
 					titleCache.current.set(itemId, item.Name);
-					if (
-						activeRef.current?.itemId === itemId ||
-						announcedMediaItemRef.current === itemId
-					)
+					if (announcementItemRef.current === itemId)
 						toast.success(t("syncplayNowPlaying", { title: item.Name }));
 				})
 				.catch(() => {
-					if (
-						activeRef.current?.itemId === itemId ||
-						announcedMediaItemRef.current === itemId
-					)
+					if (announcementItemRef.current === itemId)
 						toast.success(t("syncplayNowPlayingFallback"));
 				});
 		},
@@ -300,13 +299,17 @@ export function SyncplayProvider({
 						!after.has(member.participantId)
 					)
 						toast.success(t("syncplayMemberLeft", { member: member.username }));
-				if (next.itemId && next.itemId !== previous.itemId) {
+				if (
+					next.itemId &&
+					(next.mediaGeneration ?? 0) !== (previous.mediaGeneration ?? 0)
+				) {
 					// Keep the marker from the host's click through the command
 					// response. The player will emit a later `play` event once its
 					// media is ready; that event must not announce the same title again.
-					if (announcedMediaItemRef.current !== next.itemId) {
+					const generationKey = `${next.id}:${next.mediaGeneration ?? 0}`;
+					if (announcedMediaGenerationRef.current !== generationKey) {
 						announcePlayback(next.itemId);
-						announcedMediaItemRef.current = next.itemId;
+						announcedMediaGenerationRef.current = generationKey;
 					}
 				}
 			}
@@ -605,6 +608,40 @@ export function SyncplayProvider({
 			throw error;
 		}
 	};
+	const setWatchingTogether = async (value: boolean) => {
+		const group = activeRef.current;
+		if (!group) return;
+		const update = (state: SyncplayGroup): SyncplayGroup => ({
+			...state,
+			members: state.members.map((member) =>
+				isCurrentParticipant(member, currentParticipantId)
+					? {
+							...member,
+							watchingTogether: value,
+							viewing: false,
+							loading: false,
+							readyGeneration: -1,
+						}
+					: member,
+			),
+		});
+		setCurrent(update(group));
+		setGroups((old) =>
+			old.map((entry) => (entry.id === group.id ? update(entry) : entry)),
+		);
+		try {
+			adopt(
+				(await call(`groups/${group.id}/participation`, "POST", {
+					watchingTogether: value,
+					operationId: operationId(),
+				})) as SyncplayGroup,
+			);
+		} catch (error) {
+			adopt((await call(`groups/${group.id}`)) as SyncplayGroup);
+			toast.error(t("syncplayPresenceFailed"));
+			throw error;
+		}
+	};
 	const command = (value: Command) => {
 		const group = activeRef.current;
 		if (!group) return Promise.resolve();
@@ -616,7 +653,7 @@ export function SyncplayProvider({
 		if (shouldAnnounce) {
 			// Announce the host's explicit media selection at the button command
 			// boundary. Play/pause commands must remain silent, including resume.
-			announcedMediaItemRef.current = itemId;
+			announcedMediaGenerationRef.current = `${group.id}:${(group.mediaGeneration ?? 0) + 1}`;
 			announcePlayback(itemId);
 		}
 		const groupId = group.id;
@@ -732,6 +769,7 @@ export function SyncplayProvider({
 		refresh,
 		setControls,
 		removeMember,
+		setWatchingTogether,
 		command,
 		presence,
 		canControl: Boolean(

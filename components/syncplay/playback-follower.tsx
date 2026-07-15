@@ -2,11 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
 
-export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) {
-	const { active, setWatchingTogether } = useSyncplay();
+export function SyncplayPlaybackFollower() {
+	const { active, currentMember, setWatchingTogether } = useSyncplay();
 	const pathname = usePathname() ?? "/";
 	const router = useRouter();
 	const requestedGenerationRef = useRef<string | null>(null);
@@ -14,8 +13,7 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 
 	useEffect(() => {
 		const itemId = active?.itemId;
-		const member = active?.members.find((entry) => entry.userId === session.userId);
-		if (!active || !itemId || !member || member.watchingTogether === false) {
+		if (!active || !itemId || !currentMember || currentMember.watchingTogether === false) {
 			requestedGenerationRef.current = null;
 			viewedGenerationRef.current = null;
 			return;
@@ -34,7 +32,7 @@ export function SyncplayPlaybackFollower({ session }: { session: AuthSession }) 
 		if (requestedGenerationRef.current === generationKey) return;
 		requestedGenerationRef.current = generationKey;
 		router.push(playbackPath(itemId));
-	}, [active, pathname, router, session.userId, setWatchingTogether]);
+	}, [active, currentMember, pathname, router, setWatchingTogether]);
 
 	return null;
 }

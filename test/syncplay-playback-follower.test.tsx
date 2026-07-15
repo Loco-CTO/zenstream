@@ -12,7 +12,11 @@ vi.mock("next/navigation", () => ({
 	useRouter: () => router,
 }));
 vi.mock("@/lib/syncplay", () => ({
-	useSyncplay: () => ({ active: state.active, setWatchingTogether }),
+	useSyncplay: () => ({
+		active: state.active,
+		currentMember: state.active?.members.find((entry) => entry.userId === "viewer") ?? null,
+		setWatchingTogether,
+	}),
 }));
 
 const member = (watchingTogether = true) => ({
@@ -39,8 +43,6 @@ const group = (overrides: Partial<SyncplayGroup> = {}): SyncplayGroup => ({
 	members: [member()],
 	...overrides,
 });
-const session = { token: "token", userId: "viewer", username: "Sam" };
-
 describe("SyncplayPlaybackFollower", () => {
 	beforeEach(() => {
 		router.push.mockReset();
@@ -51,22 +53,22 @@ describe("SyncplayPlaybackFollower", () => {
 
 	it("opens the current media for a member who is viewing together", async () => {
 		state.active = group();
-		render(<SyncplayPlaybackFollower session={session} />);
+		render(<SyncplayPlaybackFollower />);
 		await waitFor(() => expect(router.push).toHaveBeenCalledWith("/play/episode-2"));
 	});
 
 	it("does not redirect a member who chose to browse", () => {
 		state.active = group({ members: [member(false)] });
-		render(<SyncplayPlaybackFollower session={session} />);
+		render(<SyncplayPlaybackFollower />);
 		expect(router.push).not.toHaveBeenCalled();
 	});
 
 	it("marks a member as browsing when they leave the same media generation", async () => {
 		state.pathname = "/play/episode-2";
 		state.active = group();
-		const view = render(<SyncplayPlaybackFollower session={session} />);
+		const view = render(<SyncplayPlaybackFollower />);
 		state.pathname = "/library";
-		view.rerender(<SyncplayPlaybackFollower session={session} />);
+		view.rerender(<SyncplayPlaybackFollower />);
 		await waitFor(() => expect(setWatchingTogether).toHaveBeenCalledWith(false));
 		expect(router.push).not.toHaveBeenCalled();
 	});
@@ -74,11 +76,11 @@ describe("SyncplayPlaybackFollower", () => {
 	it("follows a new generation instead of treating it as a player exit", async () => {
 		state.pathname = "/play/episode-1";
 		state.active = group({ itemId: "episode-1", mediaGeneration: 1 });
-		const view = render(<SyncplayPlaybackFollower session={session} />);
+		const view = render(<SyncplayPlaybackFollower />);
 		act(() => {
 			state.active = group({ itemId: "episode-2", mediaGeneration: 2 });
 		});
-		view.rerender(<SyncplayPlaybackFollower session={session} />);
+		view.rerender(<SyncplayPlaybackFollower />);
 		await waitFor(() => expect(router.push).toHaveBeenCalledWith("/play/episode-2"));
 		expect(setWatchingTogether).not.toHaveBeenCalled();
 	});

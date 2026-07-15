@@ -150,7 +150,7 @@ export function SyncplayGroupMenu({
 										))}
 									</div>
 								)}
-								{group.itemId && active?.id !== group.id && (
+				{group.itemId && (
 										<button
 											type="button"
 											onClick={() => void returnToView(group)}
@@ -161,15 +161,6 @@ export function SyncplayGroupMenu({
 									)}
 							</div>
 						))
-					)}
-					{active?.itemId && (
-						<button
-							type="button"
-							onClick={() => void returnToView()}
-							className="mt-2 w-full rounded-lg bg-violet-400 px-3 py-2 text-xs font-semibold text-black"
-						>
-							{t("syncplayReturnToView")}
-						</button>
 					)}
 					{active?.hostUserId === userId && (
 						<label className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/60">

@@ -10,8 +10,7 @@ export function SyncplayGroupMenu({ userId, buttonClassName, playerContext = fal
 	const { t } = useI18n();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
-	const { groups, active, create, join, leave, setControls, removeMember, setWatchingTogether } = useSyncplay();
-	const currentMember = active?.members.find((member) => member.userId === userId);
+	const { groups, active, currentMember, create, join, leave, setControls, removeMember, setWatchingTogether } = useSyncplay();
 	const panelClass = playerContext
 		? "fixed inset-x-3 bottom-3 z-[90] max-h-[calc(100dvh-1.5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-80 md:max-w-[calc(100vw-2rem)] md:overflow-hidden"
 		: "fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-80 md:max-w-[calc(100vw-2rem)] md:overflow-hidden";

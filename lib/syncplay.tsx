@@ -56,6 +56,7 @@ type Command = {
 type Context = {
 	groups: SyncplayGroup[];
 	active: SyncplayGroup | null;
+	currentMember: SyncplayGroup["members"][number] | null;
 	create: () => Promise<void>;
 	join: (id: string) => Promise<void>;
 	leave: () => Promise<void>;
@@ -75,6 +76,7 @@ type Context = {
 const emptyContext: Context = {
 	groups: [],
 	active: null,
+	currentMember: null,
 	create: async () => undefined,
 	join: async () => undefined,
 	leave: async () => undefined,
@@ -763,6 +765,10 @@ export function SyncplayProvider({
 	const value = {
 		groups,
 		active,
+		currentMember:
+			active?.members.find((member) =>
+				isCurrentParticipant(member, currentParticipantId),
+			) ?? null,
 		create,
 		join,
 		leave,

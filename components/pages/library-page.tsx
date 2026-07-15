@@ -258,7 +258,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			) : !loading && items.length === 0 ? (
 				<EmptyState title={t("emptyLibrary")} detail={t("emptyLibraryHint")} />
 			) : (
-				<VirtualMediaGrid items={items} hasMore={loadedCount < total} onLoadMore={loadMore} />
+				<VirtualMediaGrid items={items} hasMore={loadedCount < total} onLoadMore={loadMore} session={session} />
 			)}
 
 			{error && items.length > 0 && (
@@ -275,10 +275,12 @@ function VirtualMediaGrid({
 	items,
 	hasMore,
 	onLoadMore,
+	session,
 }: {
 	items: JellyfinItem[];
 	hasMore: boolean;
 	onLoadMore: () => void;
+	session: AuthSession;
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [width, setWidth] = useState(0);
@@ -345,7 +347,7 @@ function VirtualMediaGrid({
 					gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
 				}}
 			>
-				{rowItems.map((item) => <LibraryCard key={item.Id} item={item} />)}
+				{rowItems.map((item) => <LibraryCard key={item.Id} item={item} session={session} />)}
 			</div>,
 		);
 	}
@@ -362,7 +364,7 @@ function VirtualMediaGrid({
 	);
 }
 
-function LibraryCard({ item }: { item: JellyfinItem }) {
+function LibraryCard({ item, session }: { item: JellyfinItem; session: AuthSession }) {
 	const image = posterImage(item);
 	const href = item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
@@ -392,7 +394,7 @@ function LibraryCard({ item }: { item: JellyfinItem }) {
 				<p className="mt-2 truncate text-xs font-medium text-white/80">{item.Name}</p>
 				<p className="mt-0.5 truncate text-xs text-white/30">{item.ProductionYear ?? item.Type}</p>
 			</Link>
-			<MediaCardOverlay href={href} title={item.Name} className="inset-x-0 top-0 aspect-[2/3]" />
+			<MediaCardOverlay href={href} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
 	);

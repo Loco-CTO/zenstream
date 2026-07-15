@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, LogOut, Search, Settings, User, Users } from "lucide-react";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { userImageUrl } from "@/lib/jellyfin";
@@ -23,10 +23,21 @@ export function Navbar({
 }) {
 	const { t } = useI18n();
 	const pathname = usePathname();
+	const router = useRouter();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
 	const [groupsOpen, setGroupsOpen] = useState(false);
-	const { groups, active, create, join, leave, setControls } = useSyncplay();
+	const { groups, active, create, join, leave, setControls, refresh, setWatchingTogether } = useSyncplay();
+	const returnToView = async (group: (typeof groups)[number]) => {
+		if (!group.itemId) return;
+		try {
+			if (active?.id === group.id) await setWatchingTogether(true);
+			else await join(group.id);
+			router.push(`/play/${encodeURIComponent(group.itemId)}`);
+		} catch {
+			// Syncplay context reports command failures to the user.
+		}
+	};
 
 	return (
 		<>
@@ -64,7 +75,10 @@ export function Navbar({
 						<div className="relative">
 							<button
 								aria-label={t("syncplayGroups")}
-								onClick={() => setGroupsOpen((open) => !open)}
+								onClick={() => {
+									setGroupsOpen((open) => !open);
+									void refresh().catch(() => undefined);
+								}}
 								className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
 							>
 								<Users className="h-[22px] w-[22px]" />
@@ -90,7 +104,7 @@ export function Navbar({
 									groups.map((group) => (
 										<div
 											key={group.id}
-											className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-white/5"
+											className="rounded-lg px-2 py-2 hover:bg-white/5"
 										>
 											<div className="min-w-0 flex-1">
 												<p className="truncate text-xs text-white/85">
@@ -113,10 +127,29 @@ export function Navbar({
 											>
 												{active?.id === group.id
 													? t("leaveGroup")
-													: t("joinView")}
+															: t("joinView")}
 											</button>
-										</div>
-									))
+										{group.members.length > 0 && (
+											<div className="mt-2 w-full space-y-1 border-t border-white/10 pt-2">
+												{group.members.map((member) => (
+													<div key={member.participantId ?? member.userId} className="flex items-center gap-2 text-xs">
+														<span className="min-w-0 flex-1 truncate text-white/65">{member.username}</span>
+														<span className={member.watchingTogether !== false ? "text-emerald-200/75" : "text-white/35"}>{member.watchingTogether !== false ? t("syncplayViewingTogether") : t("syncplayBrowsing")}</span>
+													</div>
+												))}
+											</div>
+										)}
+										{group.itemId && (
+											<button
+												type="button"
+								onClick={() => void returnToView(group)}
+												className="mt-2 w-full rounded-lg bg-violet-400 px-3 py-2 text-xs font-semibold text-black"
+											>
+													{t("syncplayReturnToView")}
+											</button>
+										)}
+									</div>
+								))
 								)}
 								{active?.hostUserId === userId && (
 									<label className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/60">
@@ -180,10 +213,10 @@ export function Navbar({
 								</button>
 							</div>
 							)}
-						</div>
-					</div>
 				</div>
-			</nav>
+			</div>
+		</div>
+		</nav>
 			{searchOpen && session && (
 				<SearchOverlay session={session} onClose={() => setSearchOpen(false)} />
 			)}

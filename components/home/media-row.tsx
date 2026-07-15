@@ -25,7 +25,7 @@ export function MediaRow({ title, items, variant, stackEpisodes = false, session
       </div>
       <HorizontalScroller title={title}>
         {stackEpisodes
-          ? stackNewlyAdded(items).map((stack) => <StackedPosterCard key={stack.key} items={stack.items} />)
+          ? stackNewlyAdded(items).map((stack) => <StackedPosterCard key={stack.key} items={stack.items} session={session} />)
           : items.map((item) =>
               variant === "wide" ? <WideCard key={item.Id} item={item} session={session} /> : <PosterCard key={item.Id} item={item} session={session} />,
             )}

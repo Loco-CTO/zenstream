@@ -22,6 +22,7 @@ export function SyncplayGroupMenu({
 		groups,
 		active,
 		currentMember,
+		refresh,
 		create,
 		join,
 		leave,
@@ -47,7 +48,10 @@ export function SyncplayGroupMenu({
 		<div className="relative" data-player-context={playerContext || undefined}>
 			<button
 				aria-label={t("syncplayGroups")}
-				onClick={() => setOpen((value) => !value)}
+				onClick={() => {
+					setOpen((value) => !value);
+					void refresh().catch(() => undefined);
+				}}
 				className={
 					buttonClassName ??
 					"flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"

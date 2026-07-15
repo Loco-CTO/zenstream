@@ -46,7 +46,7 @@ vi.mock("@/lib/i18n", () => ({
 }));
 vi.mock("@/lib/syncplay", () => ({
 	useSyncplay: () => ({
-		groups: [active], active, currentMember, setWatchingTogether,
+		groups: [active], active, currentMember, refresh: vi.fn().mockResolvedValue(undefined), setWatchingTogether,
 		create: vi.fn(), join: vi.fn(), leave: vi.fn(), setControls: vi.fn(), removeMember: vi.fn(),
 	}),
 }));

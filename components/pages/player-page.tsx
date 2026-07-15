@@ -6,9 +6,11 @@ import { VideoPlayer } from "@/components/player/video-player";
 import { playbackStreams, type DetailData } from "@/lib/jellyfin";
 import { getPlaybackInfo } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
+import { useSyncplay } from "@/lib/syncplay";
 
 export function PlayerPage({ initialData, session }: { initialData: DetailData; session: AuthSession }) {
 	const router = useRouter();
+	const { active, setWatchingTogether } = useSyncplay();
 	const [item, setItem] = useState(initialData.item);
 	const [streams, setStreams] = useState<ReturnType<typeof playbackStreams>>();
 	const [streamsItemId, setStreamsItemId] = useState<string>();
@@ -37,7 +39,10 @@ export function PlayerPage({ initialData, session }: { initialData: DetailData; 
 		// VideoPlayer treats initialStreams as authoritative. Ignore the previous
 		// item's result until playback info for this item has arrived.
 		initialStreams={streamsItemId === item.Id ? streams : undefined}
-		onClose={() => router.back()}
+		onClose={() => {
+			if (active) void setWatchingTogether(false).catch(() => undefined);
+			router.back();
+		}}
 		onNext={(next) => { setItem(next); router.replace(`/play/${encodeURIComponent(next.Id)}`); }}
 		onPlayedChange={() => undefined}
 	/>;

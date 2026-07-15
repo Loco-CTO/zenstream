@@ -223,7 +223,7 @@ export function AppShell() {
 					<LoginPage onLogin={handleLogin} />
 				) : (
 					<SyncplayProvider session={session}>
-						<SyncplayPlaybackFollower session={session} />
+						<SyncplayPlaybackFollower />
 						{pathname === "/settings" ? (
 							<SettingsPage
 								displayName={session.username}

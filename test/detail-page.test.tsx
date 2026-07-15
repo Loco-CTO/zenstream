@@ -8,7 +8,7 @@ import { ProgressProvider } from "@/components/status/progress-indicator";
 import type { DetailData, JellyfinItem } from "@/lib/jellyfin";
 
 const session = { token: "token", userId: "user", username: "Alex" };
-const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => router,
@@ -18,6 +18,7 @@ describe("detail views", () => {
 	beforeEach(() => {
 		router.back.mockClear();
 		router.push.mockClear();
+		router.replace.mockClear();
 		vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
 	});
 	afterEach(() => {
@@ -34,6 +35,35 @@ describe("detail views", () => {
 
 		expect(router.back).toHaveBeenCalledOnce();
 		expect(router.push).not.toHaveBeenCalled();
+	});
+
+	it("returns from an episode to its series and preserves the episode season", () => {
+		renderDetail({
+		item: { ...episode("ep-4-1", 1), SeriesId: "series", SeasonId: "s4", ParentIndexNumber: 4 },
+		seasons: [],
+		episodes: [],
+		similar: [],
+	});
+
+		fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+		expect(router.replace).toHaveBeenCalledWith("/show/series?seasonId=s4");
+		expect(router.back).not.toHaveBeenCalled();
+	});
+
+	it("initializes a series from the requested season", () => {
+		window.history.pushState({}, "", "/show/series?seasonId=s4");
+		renderDetail({
+			item: { ...movie(), Id: "series", Type: "Series" },
+			seasons: [
+				{ Id: "s1", Name: "Season 1", IndexNumber: 1 },
+				{ Id: "s4", Name: "Season 4", IndexNumber: 4 },
+			],
+			episodes: [episode("ep-4-1", 1)],
+			similar: [],
+		});
+
+		expect(screen.getByRole("combobox", { name: "Season" })).toHaveTextContent("S4: Season 4");
 	});
 
   it("renders a movie with live metadata and recommendations", () => {

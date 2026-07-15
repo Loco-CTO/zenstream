@@ -65,7 +65,11 @@ export function DetailPage({
 	const [item, setItem] = useState(initialData.item);
 	const [episodes, setEpisodes] = useState(initialData.episodes);
 	const [seasonId, setSeasonId] = useState(
-		getInitialSeason(initialData.item, initialData.seasons)?.Id ?? "",
+		getInitialSeason(
+			initialData.item,
+			initialData.seasons,
+			getRequestedSeasonId(),
+		)?.Id ?? "",
 	);
 	const [mutationError, setMutationError] = useState("");
 	const [trackChoices, setTrackChoices] = useState<{
@@ -110,6 +114,13 @@ export function DetailPage({
 		};
 	}, [item.Id, session]);
 	function goBack() {
+		if (isEpisode && seriesId) {
+			const season = item.SeasonId ?? "";
+			router.replace(
+				`/show/${encodeURIComponent(seriesId)}${season ? `?seasonId=${encodeURIComponent(season)}` : ""}`,
+			);
+			return;
+		}
 		if (window.history.length > 1) {
 			router.back();
 			return;
@@ -332,6 +343,11 @@ export function DetailPage({
 			</main>
 		</>
 	);
+}
+
+function getRequestedSeasonId() {
+		if (typeof window === "undefined") return undefined;
+		return new URLSearchParams(window.location.search).get("seasonId") ?? undefined;
 }
 
 function InlineTrackChoices({

@@ -534,6 +534,7 @@ function libraryItemTypes(collectionType?: string, newlyAdded = false) {
 export async function fetchDetailData(
 	session: AuthSession,
 	itemId: string,
+	requestedSeasonId?: string,
 ): Promise<DetailData> {
 	const item = await getItem(session, itemId);
 	const seriesId = item.Type === "Episode" ? item.SeriesId : item.Id;
@@ -545,7 +546,7 @@ export async function fetchDetailData(
 		(item.Type === "Series" || item.Type === "Episode") && seriesId
 			? await getSeasons(session, seriesId)
 			: [];
-	const selectedSeason = getInitialSeason(item, seasons);
+	const selectedSeason = getInitialSeason(item, seasons, requestedSeasonId);
 	const episodes =
 		seriesId && selectedSeason
 			? await getEpisodes(session, seriesId, selectedSeason.Id)
@@ -555,7 +556,15 @@ export async function fetchDetailData(
 	return { item, backgroundItem, seasons, episodes, similar };
 }
 
-export function getInitialSeason(item: JellyfinItem, seasons: JellyfinItem[]) {
+export function getInitialSeason(
+	item: JellyfinItem,
+	seasons: JellyfinItem[],
+	requestedSeasonId?: string,
+) {
+	if (requestedSeasonId) {
+		const requested = seasons.find((season) => season.Id === requestedSeasonId);
+		if (requested) return requested;
+	}
 	if (item.SeasonId) {
 		return seasons.find((season) => season.Id === item.SeasonId);
 	}

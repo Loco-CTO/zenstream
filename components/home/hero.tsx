@@ -22,6 +22,7 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
 const SLIDE_INTERVAL_MS = 7000;
 const TRAILER_DELAY_MS = 800;
@@ -37,6 +38,7 @@ export function Hero({
 }) {
 	const { locale, t } = useI18n();
 	const router = useRouter();
+	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 	const slides = useMemo(() => items.filter(hasVisualImage), [items]);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [slideDirection, setSlideDirection] = useState<SlideDirection>("next");
@@ -344,7 +346,8 @@ export function Hero({
 
 					<div className="flex items-center gap-3">
 						<PrimaryActionButton
-							onClick={() => router.push(`/play/${item.Id}`)}
+							onClick={() => void startPlayback(item).catch(() => undefined)}
+							disabled={!canStartPlayback}
 						>
 							<Play className="h-4 w-4 fill-black text-black" />
 							{t("play")}

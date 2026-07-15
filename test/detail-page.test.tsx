@@ -98,7 +98,12 @@ describe("detail views", () => {
       position: 0,
       playing: true,
     });
-    expect(syncplayMediaStartCommand({ id: "group", itemId: "movie" } as never, true, "movie")).toBeNull();
+    expect(syncplayMediaStartCommand({ id: "group", itemId: "movie" } as never, true, "movie")).toEqual({
+      action: "media",
+      itemId: "movie",
+      position: 0,
+      playing: true,
+    });
     expect(syncplayMediaStartCommand({ id: "group", itemId: null } as never, false, "movie")).toBeNull();
   });
 

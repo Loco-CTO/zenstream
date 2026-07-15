@@ -682,7 +682,7 @@ export function EpisodeCard({
 				{horizontal && <WatchProgress progress={progress} />}
 				<WatchedIndicator item={episode} />
 			</Link>
-			{!active && <MediaCardOverlay href={`/play/${episode.Id}`} title={episode.Name} />}
+			{!active && <MediaCardOverlay href={`/play/${episode.Id}`} title={episode.Name} item={episode} session={session} />}
 			</div>
 			<Link href={`/show/${seriesId}/episode/${episode.Id}`} className={horizontal ? "mt-2 block" : "min-w-0 flex-1 pt-0.5"}>
 				<p className="truncate text-sm font-medium text-white/80">

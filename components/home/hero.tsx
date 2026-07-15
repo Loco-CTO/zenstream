@@ -8,7 +8,6 @@ import {
 	Volume2,
 	VolumeX,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	heroImage,
@@ -37,7 +36,6 @@ export function Hero({
 	session: AuthSession;
 }) {
 	const { locale, t } = useI18n();
-	const router = useRouter();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 	const slides = useMemo(() => items.filter(hasVisualImage), [items]);
 	const [activeIndex, setActiveIndex] = useState(0);

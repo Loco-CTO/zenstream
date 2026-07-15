@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { io } from "socket.io-client";
 import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
@@ -47,7 +47,7 @@ const group = (revision: number): SyncplayGroup => ({
 });
 const joinedGroup = (revision: number): SyncplayGroup => ({
 	...group(revision),
-	members: [{ userId: "user", participantId: "test-tab", username: "Alex", viewing: false, loading: false, role: "host" }],
+	members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }],
 });
 
 function Controls() {
@@ -59,6 +59,8 @@ function Controls() {
 		<button onClick={() => void syncplay.leave()}>Leave</button>
 		<button onClick={() => void syncplay.refresh()}>Refresh</button>
 		<button onClick={() => void syncplay.command({ action: "play", itemId: "movie", position: 0, playing: true })}>Play</button>
+		<button onClick={() => void syncplay.command({ action: "media", itemId: "movie", position: 0, playing: true })}>Start media</button>
+		<button onClick={() => void syncplay.setWatchingTogether(false)}>Browse</button>
 		<button onClick={() => void syncplay.command({ action: "seek", itemId: "movie", position: 10, playing: true })}>Seek 10</button>
 		<button onClick={() => void syncplay.command({ action: "seek", itemId: "movie", position: 20, playing: true })}>Seek 20</button>
 		<span data-testid="active-group">{syncplay.active?.id ?? "none"}</span>
@@ -76,6 +78,10 @@ function SyncplayTestProvider({ children }: { children: ReactNode }) {
 }
 
 describe("SyncplayProvider", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		TestSocket.openAutomatically = true;
+	});
 	it("normalizes a trailing slash in the public Socket.IO origin", () => {
 		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
 		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.amai.space/";
@@ -271,14 +277,37 @@ describe("SyncplayProvider", () => {
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) return new Response(JSON.stringify({ groups: [waiting] }));
-			if (url.endsWith("/groups/group/command")) return new Response(JSON.stringify({ ...waiting, itemId: "movie" }));
+			if (url.endsWith("/groups/group/command")) return new Response(JSON.stringify({ ...waiting, itemId: "movie", mediaGeneration: 1, revision: 2 }));
 			if (url.endsWith("/Items/movie")) return new Response(JSON.stringify({ Id: "movie", Name: "Movie Name" }));
 			throw new Error(`Unexpected request: ${url}`);
 		});
 		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
 		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
-		fireEvent.click(screen.getByRole("button", { name: "Play" }));
+		fireEvent.click(screen.getByRole("button", { name: "Start media" }));
 		await waitFor(() => expect(screen.getByText("Now playing Movie Name.")).toBeInTheDocument());
+	});
+
+	it("optimistically leaves playback while remaining in the group", async () => {
+		const browsing = {
+			...joinedGroup(2),
+			members: [{ ...joinedGroup(2).members[0], watchingTogether: false }],
+		};
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+			if (url.endsWith("/groups/group/participation"))
+				return new Response(JSON.stringify(browsing));
+			throw new Error(`Unexpected request: ${url}`);
+		});
+		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		fireEvent.click(screen.getByRole("button", { name: "Browse" }));
+		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+			"/api/zenstream/syncplay/groups/group/participation",
+			expect.objectContaining({ method: "POST" }),
+		));
+		expect(screen.getByTestId("active-group")).toHaveTextContent("group");
 	});
 
 	it("does not let a stale poll overwrite newer playback state", async () => {

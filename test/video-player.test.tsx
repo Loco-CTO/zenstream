@@ -77,7 +77,7 @@ describe("video player controls", () => {
 				},
 				"movie",
 			),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			syncplayWaitingForMembers(
 				{

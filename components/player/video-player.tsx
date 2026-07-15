@@ -1983,7 +1983,7 @@ export function CustomSubtitleCue({
 	);
 }
 
-function TrickplayBubble({
+export function TrickplayBubble({
 	preview,
 	onError,
 }: {
@@ -1998,7 +1998,7 @@ function TrickplayBubble({
 	const previewEdge = previewWidth / 2;
 	return (
 		<div
-			className="zenstream-player-timeline-preview pointer-events-none absolute bottom-8 -translate-x-1/2 overflow-hidden rounded-md border border-white/20 bg-black shadow-2xl"
+			className="zenstream-player-timeline-preview pointer-events-none absolute bottom-8 z-20 -translate-x-1/2 overflow-hidden rounded-md border border-white/20 bg-black shadow-2xl"
 			style={{
 				left: `clamp(${previewEdge}px, ${preview.left * 100}%, calc(100% - ${previewEdge}px))`,
 				width: previewWidth,

@@ -2,6 +2,7 @@ import { act, fireEvent, render } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
 	CustomSubtitleCue,
+	TrickplayBubble,
 	advanceToNextEpisode,
 	nextEpisodeSyncplayCommand,
 	disableNativeSubtitleTracks,
@@ -543,6 +544,29 @@ describe("video player controls", () => {
 			"text-shadow: -2px -2px 0 #112233",
 		);
 		expect(cues[0].getAttribute("style")).toContain("2px 2px 0 #112233");
+	});
+
+	it("renders trickplay previews above subtitles", () => {
+		const { getByAltText } = render(
+			<TrickplayBubble
+				preview={{
+					url: "/trickplay.jpg",
+					width: 320,
+					height: 180,
+					columns: 1,
+					rows: 1,
+					cellX: 0,
+					cellY: 0,
+					time: 70,
+					left: 0.5,
+				}}
+				onError={vi.fn()}
+			/>,
+		);
+
+		expect(getByAltText("Timeline preview").parentElement?.parentElement).toHaveClass(
+			"z-20",
+		);
 	});
 
 	it("parses Jellyfin VTT with a BOM and cue settings", () => {

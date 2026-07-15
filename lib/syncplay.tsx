@@ -321,6 +321,19 @@ export function SyncplayProvider({
 	);
 	const refresh = useCallback(async () => {
 		const data = (await call("groups")) as { groups: SyncplayGroup[] };
+		syncplayDebug(
+			"groups refreshed",
+			JSON.stringify(data.groups.map((group) => ({
+				id: group.id,
+				itemId: group.itemId,
+				memberCount: group.members?.length ?? 0,
+				members: group.members?.map((member) => ({
+					userId: member.userId,
+					participantId: member.participantId,
+					watchingTogether: member.watchingTogether,
+				})) ?? [],
+			}))),
+		);
 		setGroups((old) =>
 			data.groups.map((group) => {
 				const known = old.find((entry) => entry.id === group.id);

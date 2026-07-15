@@ -98,13 +98,13 @@ export function syncplayWaitingForMembers(
 	const playbackState =
 		state.playbackState ?? (state.playing ? "playing" : "paused");
 	if (!state.resumeWhenReady && playbackState === "paused") return false;
-	return (
-		state.resumeWhenReady ||
-		state.members.some(
+	return state.resumeWhenReady && (
+		state.members.length === 0 || state.members.some(
 			(member) =>
+				member.watchingTogether !== false && (
 				!member.viewing ||
 				member.loading ||
-				(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1),
+				(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1)),
 		)
 	);
 }
@@ -468,20 +468,19 @@ export function VideoPlayer({
 		if (target && syncplay.active) {
 			if (!syncplay.canControl) return;
 			advancingToNextRef.current = true;
-			// Move this player immediately. Waiting for the Syncplay round trip here
-			// leaves every member on the old media's readiness barrier while the
-			// command is in flight. The command remains authoritative for the group;
-			// remote members will navigate from the resulting media state.
-			setNextItem(null);
-			setNextChecked(false);
-			setCurrentTime(0);
-			setDuration(0);
-			setUrl(undefined);
-			advanceToNextEpisode(target, onNext, onClose);
-			void syncplay.command(nextEpisodeSyncplayCommand(target)).catch(() => {
-				// The local transition is still useful if the request is delayed or
-				// fails; the next group snapshot will reconcile the other members.
-			});
+			try {
+				// Adopt the new media generation before the old player unmounts so its
+				// cleanup presence cannot become readiness for the next episode.
+				await syncplay.command(nextEpisodeSyncplayCommand(target));
+				setNextItem(null);
+				setNextChecked(false);
+				setCurrentTime(0);
+				setDuration(0);
+				setUrl(undefined);
+				advanceToNextEpisode(target, onNext, onClose);
+			} catch {
+				advancingToNextRef.current = false;
+			}
 			return;
 		}
 		advancingToNextRef.current = true;
@@ -603,6 +602,10 @@ export function VideoPlayer({
 						)
 					: syncplayTimelineTarget(state, now);
 			const error = video.currentTime - timeline.position;
+			if (timeline.shouldPlay && !syncplayMediaIsReady(video)) {
+				video.playbackRate = 1;
+				return;
+			}
 			applyingSyncRef.current = true;
 			if (forceSeek || Math.abs(error) > 2)
 				video.currentTime = timeline.position;

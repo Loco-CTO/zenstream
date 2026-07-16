@@ -367,10 +367,6 @@ export function VideoPlayer({
 		ranges: Array<[number, number]>;
 	}>({ itemId: item.Id, ranges: [] });
 	const [error, setError] = useState("");
-	const [compatibilityAttemptItemId, setCompatibilityAttemptItemId] = useState<
-		string | null
-	>(null);
-	const compatibilityAvailable = compatibilityAttemptItemId !== item.Id;
 	const [qualityLoading, setQualityLoading] = useState(false);
 	const [buffering, setBuffering] = useState(true);
 	const [controlsVisible, setControlsVisible] = useState(true);
@@ -921,7 +917,6 @@ export function VideoPlayer({
 			return false;
 		}
 		transcodeAttemptRef.current = true;
-		setCompatibilityAttemptItemId(item.Id);
 		const video = videoRef.current;
 		if (video && Number.isFinite(video.currentTime))
 			resumeTimeRef.current = video.currentTime;
@@ -1488,15 +1483,6 @@ export function VideoPlayer({
 					className="absolute left-1/2 top-1/2 flex -translate-x-1/2 flex-col items-center gap-3 rounded bg-black/70 px-4 py-3 text-sm text-red-200"
 				>
 					<p>{error}</p>
-					{compatibilityAvailable && (
-						<button
-							type="button"
-							onClick={() => void requestCompatibilityPlayback()}
-							className="rounded bg-violet-300 px-3 py-2 text-xs font-semibold text-black transition hover:bg-violet-200"
-						>
-							{t("playCompatibilityVersion")}
-						</button>
-					)}
 				</div>
 			)}
 			<SkipMarkerActions
@@ -1790,12 +1776,6 @@ export function VideoPlayer({
 										label={t("subtitleOffset")}
 										onClick={() => setSettingsSection("offset")}
 									/>
-									{compatibilityAvailable && (
-										<MenuRow
-											label={t("playCompatibilityVersion")}
-											onClick={() => void requestCompatibilityPlayback()}
-										/>
-									)}
 								</div>
 							)}
 							{settingsSection === "quality" && (

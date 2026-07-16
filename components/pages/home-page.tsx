@@ -45,7 +45,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}
 						session={session}
-						viewAllHref={libraryHref({ libraryId: section.libraryId, sortBy: section.titleKey === "topRated" ? "CommunityRating" : section.titleKey === "newReleases" ? "PremiereDate" : section.titleKey === "movies" ? "DateCreated" : "DateCreated", sortOrder: "Descending" })}
+						viewAllHref={libraryHref({ libraryId: section.libraryId, sortBy: section.titleKey === "topRated" ? "CommunityRating" : "PremiereDate", sortOrder: "Descending" })}
 					/>
 				))}
 			</div>

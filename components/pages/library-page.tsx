@@ -366,7 +366,9 @@ function VirtualMediaGrid({
 
 function LibraryCard({ item, session }: { item: JellyfinItem; session: AuthSession }) {
 	const image = posterImage(item);
-	const href = item.Type === "Episode" && item.SeriesId
+	const href = item.Type === "BoxSet"
+		? `/collection/${item.Id}`
+		: item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
 		: `/show/${item.Id}`;
 	return (

@@ -40,7 +40,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}
-						title={section.titleKey === "newlyAddedOn" ? t("newlyAddedOn", { library: section.libraryName }) : `${section.libraryName} · ${t(section.titleKey)}`}
+						title={section.titleKey === "newlyAddedOn" ? t("newlyAddedOn", { library: section.libraryName }) : `${section.libraryName} ${t(section.titleKey)}`}
 						items={section.items}
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}

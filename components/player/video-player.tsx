@@ -1292,7 +1292,6 @@ export function VideoPlayer({
 					setError("");
 					setBuffering(false);
 					readyItemIdRef.current = item.Id;
-					const shouldRetry = retryAfterBufferingRef.current;
 					retryAfterBufferingRef.current = false;
 					playerDebug("video canplay", {
 						currentTime: videoRef.current?.currentTime,
@@ -1316,11 +1315,6 @@ export function VideoPlayer({
 						syncplayStateWantsPlaying(syncplayStateRef.current, item.Id)
 					)
 						startSyncedPlayback(video);
-					else if (shouldRetry) retryAfterBufferingRef.current = false;
-				}}
-				onPlaying={() => {
-					setBuffering(false);
-					reportBuffering(false);
 				}}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;

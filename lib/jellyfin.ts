@@ -339,7 +339,7 @@ export async function getNewlyAddedItems(session: AuthSession) {
 	);
 	return Promise.all(
 		libraries
-			.filter((library) => isSupportedLibraryType(library.CollectionType))
+			.filter((library) => library.CollectionType === "tvshows" || library.CollectionType === "movies")
 			.map(async (library) => ({
 				libraryId: library.Id,
 				libraryName: library.Name,

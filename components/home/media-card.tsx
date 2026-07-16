@@ -105,6 +105,7 @@ export function StackedPosterCard({ items, session }: { items: JellyfinItem[]; s
 }
 
 function detailHref(item: JellyfinItem) {
+	if (item.Type === "BoxSet") return `/collection/${item.Id}`;
 	return item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
 		: `/show/${item.Id}`;

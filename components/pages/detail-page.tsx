@@ -684,7 +684,10 @@ export function EpisodeCard({
 			}
 		>
 			<div className={`relative shrink-0 ${horizontal ? "aspect-video w-full" : "h-[120px] w-[213px]"}`}>
-			<Link href={`/show/${seriesId}/episode/${episode.Id}`} className="block h-full w-full overflow-hidden rounded bg-white/5">
+			<Link
+				href={`/show/${seriesId}/episode/${episode.Id}`}
+				className="block h-full w-full overflow-hidden rounded bg-white/5"
+			>
 				{horizontal && <HoverPreviewVideo preview={preview} />}
 				{image && (
 					<BlurHashImage
@@ -696,13 +699,6 @@ export function EpisodeCard({
 								: "h-full w-full object-cover brightness-75"
 						}
 					/>
-				)}
-				{active && (
-					<div className="absolute inset-0 flex items-center justify-center">
-						<span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/80">
-							<Play className="h-4 w-4 fill-white" />
-						</span>
-					</div>
 				)}
 				{horizontal && <WatchProgress progress={progress} />}
 				<WatchedIndicator item={currentEpisode} />

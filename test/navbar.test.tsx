@@ -98,7 +98,7 @@ describe("Navbar", () => {
 		renderNavbar();
 		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
 
-		expect(screen.getByTestId("navbar-group-popup")).toHaveClass(
+		expect(screen.getByTestId("syncplay-group-popup")).toHaveClass(
 			"fixed",
 			"inset-x-3",
 			"md:absolute",

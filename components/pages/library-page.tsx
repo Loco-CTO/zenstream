@@ -13,6 +13,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import {
 	MediaCardOverlay,
 	MEDIA_CARD_IMAGE_CLASS,
@@ -56,6 +57,7 @@ const SORTS = [
 
 export function LibraryPage({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
+	const searchParams = useSearchParams();
 	const { start } = useProgress();
 	const [libraries, setLibraries] = useState<LibraryView[]>([]);
 	const [libraryId, setLibraryId] = useState("");
@@ -71,6 +73,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const loadingMoreRef = useRef(false);
 	const loadedQueryRef = useRef("");
 	const requestedOffsetsRef = useRef(new Set<number>());
+	const queryLibraryId = searchParams.get("libraryId") ?? "";
+	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
+	const querySortOrder = searchParams.get("sortOrder");
+	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
 
@@ -86,7 +92,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (controller.signal.aborted) return;
 			setLibraries(nextLibraries);
 			setLibraryId((current) =>
-				nextLibraries.some((library) => library.Id === current)
+				nextLibraries.some((library) => library.Id === queryLibraryId)
+					? queryLibraryId
+					: nextLibraries.some((library) => library.Id === current)
 					? current
 					: nextLibraries[0]?.Id ?? "",
 			);
@@ -99,7 +107,13 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		} finally {
 			finish();
 		}
-	}, [session, start]);
+	}, [queryLibraryId, session, start]);
+
+	useEffect(() => {
+		if (validQuerySort && (querySortOrder === "Ascending" || querySortOrder === "Descending")) {
+			setSort({ sortBy: querySortBy!, sortOrder: querySortOrder });
+		}
+	}, [libraryId, querySortBy, querySortOrder, setSort, validQuerySort]);
 
 	useEffect(() => {
 		// Async hydration is intentionally owned by this route component.

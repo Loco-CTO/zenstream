@@ -58,10 +58,6 @@ export function HorizontalScroller({
 	useEffect(() => {
 		const scroller = scrollRef.current;
 		if (!scroller) return;
-		if (initialScrollIndex != null && initialScrollIndex > 0) {
-			const target = scroller.children[initialScrollIndex] as HTMLElement | undefined;
-			if (target) scroller.scrollLeft = Math.max(0, target.offsetLeft - scroller.offsetLeft);
-		}
 
 		updateScrollBoundaries();
     const resizeObserver =
@@ -78,7 +74,14 @@ export function HorizontalScroller({
       }
       stopDragAnimation();
     };
-	}, [initialScrollIndex, stopDragAnimation, updateScrollBoundaries]);
+	}, [stopDragAnimation, updateScrollBoundaries]);
+
+	useEffect(() => {
+		const scroller = scrollRef.current;
+		if (!scroller || initialScrollIndex == null || initialScrollIndex <= 0) return;
+		const target = scroller.children[initialScrollIndex] as HTMLElement | undefined;
+		if (target) scroller.scrollLeft = Math.max(0, target.offsetLeft - scroller.offsetLeft);
+	}, [initialScrollIndex]);
 
   const animateTowardTarget = useCallback(() => {
     if (animationFrameRef.current !== null) return;

@@ -23,7 +23,7 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 	return (
 		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[min(calc((100vw-2.75rem)/2),180px)] shrink-0 cursor-pointer select-none sm:w-[240px] md:w-[320px]">
 			<div className="relative">
-				<Link href={detailHref(item)} draggable={false} className="block">
+				<Link href={detailHref(item)} aria-label={item.Name} draggable={false} className="block">
 				<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 					{(item.Type === "Movie" || item.Type === "Episode") && <HoverPreviewVideo preview={preview} />}
 				{image && (
@@ -52,7 +52,7 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 	return (
 		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
 			<div className="relative">
-			<Link href={detailHref(item)} draggable={false} className="block">
+			<Link href={detailHref(item)} aria-label={item.Name} draggable={false} className="block">
 			<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 				{item.Type === "Movie" && <HoverPreviewVideo preview={preview} />}
 				{image && (

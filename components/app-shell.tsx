@@ -26,6 +26,7 @@ import { PlayerPage } from "@/components/pages/player-page";
 import { LibraryPage } from "@/components/pages/library-page";
 import { FavoritesPage } from "@/components/pages/favorites-page";
 import { SearchPage } from "@/components/pages/search-page";
+import { CollectionPage } from "@/components/pages/collection-page";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -122,7 +123,8 @@ export function AppShell() {
 					await fetchDetailData(
 						nextSession,
 						itemId,
-						new URLSearchParams(window.location.search).get("seasonId") ?? undefined,
+						new URLSearchParams(window.location.search).get("seasonId") ??
+							undefined,
 					),
 				);
 				setStatus("ready");
@@ -219,73 +221,88 @@ export function AppShell() {
 
 	return (
 		<I18nProvider locale={locale}>
-			<ToastProvider><SubtitlePreferencesProvider
-				key={JSON.stringify(subtitleStyle)}
-				initialStyle={subtitleStyle}
-			>
-				{status === "checking" ? (
-					<div className="min-h-screen bg-background" />
-				) : status === "login" || !session ? (
-					<LoginPage onLogin={handleLogin} />
-				) : (
-					<SyncplayProvider session={session}>
-						<SyncplayPlaybackFollower />
-						{pathname === "/settings" ? (
-							<SettingsPage
-								displayName={session.username}
-								userId={session.userId}
-								locale={locale}
-								onLocaleChange={handleLocaleChange}
-								onLogout={handleLogout}
-							/>
-						) : (
-							<div className="min-h-screen bg-background text-foreground">
-							<Navbar
-								displayName={session.username}
-								userId={session.userId}
-								onLogout={handleLogout}
-								session={session}
-							/>
-							<MobileNav />
-							{status === "error" && (
-								<ErrorPanel
-									titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
-									message={error}
-									onRetry={() =>
-										detailId ? loadDetail(session, detailId) : loadHome(session)
-									}
+			<ToastProvider>
+				<SubtitlePreferencesProvider
+					key={JSON.stringify(subtitleStyle)}
+					initialStyle={subtitleStyle}
+				>
+					{status === "checking" ? (
+						<div className="min-h-screen bg-background" />
+					) : status === "login" || !session ? (
+						<LoginPage onLogin={handleLogin} />
+					) : (
+						<SyncplayProvider session={session}>
+							<SyncplayPlaybackFollower />
+							{pathname === "/settings" ? (
+								<SettingsPage
+									displayName={session.username}
+									userId={session.userId}
+									locale={locale}
+									onLocaleChange={handleLocaleChange}
+									onLogout={handleLogout}
 								/>
+							) : (
+								<div className="min-h-screen bg-background text-foreground">
+									<Navbar
+										displayName={session.username}
+										userId={session.userId}
+										onLogout={handleLogout}
+										session={session}
+									/>
+									<MobileNav />
+									{status === "error" && (
+										<ErrorPanel
+											titleKey={
+												detailId ? "detailLoadFailed" : "libraryLoadFailed"
+											}
+											message={error}
+											onRetry={() =>
+												detailId
+													? loadDetail(session, detailId)
+													: loadHome(session)
+											}
+										/>
+									)}
+									{status === "ready" && detailData && playId && (
+										<PlayerPage initialData={detailData} session={session} />
+									)}
+									{status === "ready" &&
+										detailData &&
+										detailId &&
+										!playId &&
+										(detailData.item.Type === "BoxSet" ? (
+											<CollectionPage
+												initialData={detailData}
+												session={session}
+											/>
+										) : (
+											<DetailPage initialData={detailData} session={session} />
+										))}
+									{status === "ready" && pathname === "/library" && (
+										<LibraryPage session={session} />
+									)}
+									{status === "ready" && pathname === "/favorites" && (
+										<FavoritesPage session={session} />
+									)}
+									{status === "ready" && pathname === "/search" && (
+										<SearchPage
+											session={session}
+											query={searchData ?? searchQuery}
+										/>
+									)}
+									{homeData &&
+										!detailId &&
+										pathname !== "/library" &&
+										pathname !== "/favorites" &&
+										pathname !== "/search" && (
+											<HomePage data={homeData} session={session} />
+										)}
+								</div>
 							)}
-							{status === "ready" && detailData && playId && (
-								<PlayerPage initialData={detailData} session={session} />
-							)}
-							{status === "ready" && detailData && detailId && !playId && (
-								<DetailPage initialData={detailData} session={session} />
-							)}
-							{status === "ready" && pathname === "/library" && (
-								<LibraryPage session={session} />
-							)}
-							{status === "ready" && pathname === "/favorites" && (
-								<FavoritesPage session={session} />
-							)}
-							{status === "ready" && pathname === "/search" && (
-								<SearchPage
-									session={session}
-									query={searchData ?? searchQuery}
-								/>
-							)}
-							{homeData &&
-								!detailId &&
-								pathname !== "/library" &&
-								pathname !== "/favorites" &&
-								pathname !== "/search" && (
-									<HomePage data={homeData} session={session} />
-								)}
-							</div>
-						)}
-					</SyncplayProvider>
-				)}
-			</SubtitlePreferencesProvider></ToastProvider>
+						</SyncplayProvider>
+					)}
+				</SubtitlePreferencesProvider>
+			</ToastProvider>
 		</I18nProvider>
 	);
 }

@@ -155,7 +155,7 @@ export interface HomeData {
 }
 
 export interface HomeLibrarySection extends NewlyAddedSection {
-	titleKey: "topRated" | "newReleases" | "movies" | "myList" | "newlyAddedOn";
+	titleKey: "topRated" | "newReleases" | "movies" | "newlyAddedOn";
 	stackEpisodes?: boolean;
 }
 
@@ -320,7 +320,6 @@ async function getHomeLibraryRows(session: AuthSession): Promise<HomeLibrarySect
 		const queries = [
 			["topRated", { sortBy: "CommunityRating", sortOrder: "Descending" }],
 			["newReleases", { sortBy: "PremiereDate", sortOrder: "Descending" }],
-			["myList", { isFavorite: true, sortBy: "SortName", sortOrder: "Ascending" }],
 		] as const;
 		for (const [titleKey, options] of queries) {
 			const items = await getLibraryItems(session, { ...common, collectionType: library.CollectionType, startIndex: 0, ...options });

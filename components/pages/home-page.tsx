@@ -19,6 +19,10 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 	const hero = pickHeroItem(data);
 	const heroItems =
 		(data.latestItems?.length ?? 0) > 0 ? data.latestItems ?? [] : hero ? [hero] : [];
+	const libraryRows = [
+		...(data.libraryRows ?? []).filter((section) => section.titleKey === "newlyAddedOn"),
+		...(data.libraryRows ?? []).filter((section) => section.titleKey !== "newlyAddedOn"),
+	];
 
 	return (
 		<main className="pb-24 md:pb-0">
@@ -33,7 +37,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						session={session}
 					/>
 				))}
-				{(data.libraryRows ?? []).map((section) => (
+				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}
 						title={section.titleKey === "newlyAddedOn" ? t("newlyAddedOn", { library: section.libraryName }) : `${section.libraryName} · ${t(section.titleKey)}`}
@@ -41,7 +45,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}
 						session={session}
-						viewAllHref={libraryHref({ libraryId: section.libraryId, sortBy: section.titleKey === "topRated" ? "CommunityRating" : section.titleKey === "newReleases" ? "PremiereDate" : section.titleKey === "movies" ? "DateCreated" : "SortName", sortOrder: section.titleKey === "myList" ? "Ascending" : "Descending" })}
+						viewAllHref={libraryHref({ libraryId: section.libraryId, sortBy: section.titleKey === "topRated" ? "CommunityRating" : section.titleKey === "newReleases" ? "PremiereDate" : section.titleKey === "movies" ? "DateCreated" : "DateCreated", sortOrder: "Descending" })}
 					/>
 				))}
 			</div>

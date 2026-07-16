@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stackNewlyAdded } from "@/lib/media";
+import { releaseDateLabel, stackNewlyAdded } from "@/lib/media";
 import type { JellyfinItem } from "@/lib/jellyfin";
 
 describe("newly added grouping", () => {
@@ -21,6 +21,16 @@ describe("newly added grouping", () => {
 			episode("ep-3", "series-1", 3),
 			episode("ep-1", "series-1", 1),
 		])).toHaveLength(2);
+	});
+});
+
+describe("release date labels", () => {
+	it("shows the complete premiere date when available", () => {
+		expect(releaseDateLabel({ Id: "movie", Name: "Film", PremiereDate: "2025-03-09T00:00:00Z" }, "en")).toBe("9 March 2025");
+	});
+
+	it("falls back to the production year", () => {
+		expect(releaseDateLabel({ Id: "movie", Name: "Film", ProductionYear: 2025 }, "en")).toBe("2025");
 	});
 });
 

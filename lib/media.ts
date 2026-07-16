@@ -58,6 +58,26 @@ export function runtimeLabel(item: JellyfinItem, locale: Locale = "en") {
 	return undefined;
 }
 
+/** Formats Jellyfin's most precise known release/premiere date for detail views. */
+export function releaseDateLabel(item: JellyfinItem, locale: Locale = "en") {
+	if (item.PremiereDate) {
+		// Jellyfin commonly returns a date-only value; parse it as local midnight
+		// so users west of UTC do not see the previous calendar day.
+		const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(item.PremiereDate);
+		const date = dateOnly
+			? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+			: new Date(item.PremiereDate);
+		if (!Number.isNaN(date.getTime())) {
+			return new Intl.DateTimeFormat(locale === "ja" ? "ja-JP" : "en-GB", {
+				day: "numeric",
+				month: "long",
+				year: "numeric",
+			}).format(date);
+		}
+	}
+	return item.ProductionYear?.toString();
+}
+
 export function subtitle(item: JellyfinItem) {
 	if (
 		item.Type === "Episode" &&

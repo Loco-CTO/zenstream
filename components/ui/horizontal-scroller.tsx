@@ -9,13 +9,15 @@ const EDGE_TOLERANCE = 4;
 const DRAG_EASING = 0.28;
 
 export function HorizontalScroller({
-  title,
-  children,
-  className = "",
+	title,
+	children,
+	className = "",
+	initialScrollIndex,
 }: {
-  title: string;
-  children: ReactNode;
-  className?: string;
+	title: string;
+	children: ReactNode;
+	className?: string;
+	initialScrollIndex?: number;
 }) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,11 +55,15 @@ export function HorizontalScroller({
     });
   }, []);
 
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
+	useEffect(() => {
+		const scroller = scrollRef.current;
+		if (!scroller) return;
+		if (initialScrollIndex != null && initialScrollIndex > 0) {
+			const target = scroller.children[initialScrollIndex] as HTMLElement | undefined;
+			if (target) scroller.scrollLeft = Math.max(0, target.offsetLeft - scroller.offsetLeft);
+		}
 
-    updateScrollBoundaries();
+		updateScrollBoundaries();
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateScrollBoundaries);
     resizeObserver?.observe(scroller);
@@ -72,7 +78,7 @@ export function HorizontalScroller({
       }
       stopDragAnimation();
     };
-  }, [stopDragAnimation, updateScrollBoundaries]);
+	}, [initialScrollIndex, stopDragAnimation, updateScrollBoundaries]);
 
   const animateTowardTarget = useCallback(() => {
     if (animationFrameRef.current !== null) return;

@@ -8,6 +8,19 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { zenstreamVersion } from "@/lib/version";
 
+const HOME_ROW_SORTS = {
+	topRated: ["CommunityRating", "Descending"],
+	newReleases: ["PremiereDate", "Descending"],
+	movies: ["DateCreated", "Descending"],
+	myList: ["SortName", "Ascending"],
+} as const;
+
+function libraryHref(options: { libraryId?: string; sortBy: string; sortOrder: string }) {
+	const params = new URLSearchParams({ sortBy: options.sortBy, sortOrder: options.sortOrder });
+	if (options.libraryId) params.set("libraryId", options.libraryId);
+	return `/library?${params.toString()}`;
+}
+
 export function HomePage({ data, session }: { data: Partial<HomeData>; session: AuthSession }) {
 	const { t } = useI18n();
 	const hero = pickHeroItem(data);
@@ -25,6 +38,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						items={data[row.key] ?? []}
 						variant={row.variant}
 						session={session}
+						viewAllHref={row.key in HOME_ROW_SORTS ? libraryHref({ sortBy: HOME_ROW_SORTS[row.key as keyof typeof HOME_ROW_SORTS][0], sortOrder: HOME_ROW_SORTS[row.key as keyof typeof HOME_ROW_SORTS][1] }) : undefined}
 					/>
 				))}
 				{(data.newlyAdded ?? []).map((section) => (
@@ -35,6 +49,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						variant="poster"
 						stackEpisodes
 						session={session}
+						viewAllHref={libraryHref({ libraryId: section.libraryId, sortBy: "DateLastContentAdded", sortOrder: "Descending" })}
 					/>
 				))}
 				{HOME_ROWS.slice(2).map((row) => (
@@ -44,6 +59,7 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						items={data[row.key] ?? []}
 						variant={row.variant}
 						session={session}
+						viewAllHref={row.key in HOME_ROW_SORTS ? libraryHref({ sortBy: HOME_ROW_SORTS[row.key as keyof typeof HOME_ROW_SORTS][0], sortOrder: HOME_ROW_SORTS[row.key as keyof typeof HOME_ROW_SORTS][1] }) : undefined}
 					/>
 				))}
 			</div>

@@ -558,7 +558,7 @@ function ActionButton({
 }: {
 	active: boolean;
 	label: string;
-	onClick: () => void;
+	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 	icon: React.ReactNode;
 }) {
 	return (
@@ -589,6 +589,17 @@ function EpisodeSection({
 	onSeasonChange: (id: string) => void;
 }) {
 	const { t } = useI18n();
+	const [seasonItems, setSeasonItems] = useState(seasons);
+	const selectedSeason = seasonItems.find((season) => season.Id === seasonId) ?? seasonItems[0];
+	async function toggleSeason(season: JellyfinItem, field: "Played" | "IsFavorite") {
+		const previous = Boolean(season.UserData?.[field]);
+		setSeasonItems((items) => items.map((item) => item.Id === season.Id ? updateUserData(item, { [field]: !previous }) : item));
+		try {
+			if (field === "Played") await setPlayed(session, season.Id, !previous);
+			else await setFavorite(session, season.Id, !previous);
+		}
+		catch { setSeasonItems((items) => items.map((item) => item.Id === season.Id ? updateUserData(item, { [field]: previous }) : item)); }
+	}
 	return (
 		<section aria-labelledby="episodes-heading">
 			<div className="mb-5 flex items-center justify-between">
@@ -598,17 +609,10 @@ function EpisodeSection({
 				>
 					{t("episodesLabel")}
 				</h2>
-				{seasons.length > 1 && (
-					<Dropdown
-						aria-label={t("season")}
-						value={seasonId}
-						onChange={onSeasonChange}
-						options={seasons.map((season) => ({
-							value: season.Id,
-							label: seasonLabel(season),
-						}))}
-					/>
-				)}
+				<div className="flex items-center gap-2">
+					{seasonItems.length > 1 && <Dropdown aria-label={t("season")} value={seasonId} onChange={onSeasonChange} options={seasonItems.map((season) => ({ value: season.Id, label: seasonLabel(season) }))} />}
+					{selectedSeason && <ItemActionButtons item={selectedSeason} onToggle={(field) => void toggleSeason(selectedSeason, field)} />}
+				</div>
 			</div>
 			{item.Type === "Episode" ? (
 				<HorizontalScroller
@@ -665,6 +669,7 @@ export function EpisodeCard({
 	active: boolean;
 	session?: AuthSession;
 }) {
+	const [currentEpisode, setCurrentEpisode] = useState(episode);
 	const image = landscapeImage(episode);
 	const progress = progressPercent(episode);
 	const preview = useHoverPreview(episode.Id, episode.RunTimeTicks, session);
@@ -700,7 +705,7 @@ export function EpisodeCard({
 					</div>
 				)}
 				{horizontal && <WatchProgress progress={progress} />}
-				<WatchedIndicator item={episode} />
+				<WatchedIndicator item={currentEpisode} />
 			</Link>
 			{!active && <MediaCardOverlay href={`/play/${episode.Id}`} title={episode.Name} item={episode} session={session} />}
 			</div>
@@ -714,8 +719,30 @@ export function EpisodeCard({
 					{episode.Overview}
 				</p>
 			</Link>
+			{!horizontal && <ItemActionButtons item={currentEpisode} onToggle={async (field) => {
+				const previous = Boolean(currentEpisode.UserData?.[field]);
+				setCurrentEpisode(updateUserData(currentEpisode, { [field]: !previous }));
+				try {
+					if (field === "Played") await setPlayed(session!, episode.Id, !previous);
+					else await setFavorite(session!, episode.Id, !previous);
+				}
+				catch { setCurrentEpisode(updateUserData(currentEpisode, { [field]: previous })); }
+			}} />}
 		</div>
 	);
+}
+
+function ItemActionButtons({ item, onToggle }: { item: JellyfinItem; onToggle: (field: "Played" | "IsFavorite") => void }) {
+	const { t } = useI18n();
+	const buttonClass = "flex h-8 w-8 items-center justify-center rounded-md text-white/35 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/50";
+	return <div className="flex shrink-0 items-center gap-0.5">
+		<button type="button" aria-label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")} title={t(item.UserData?.Played ? "markUnwatched" : "markWatched")} className={`${buttonClass} ${item.UserData?.Played ? "text-violet-300" : ""}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggle("Played"); }}>
+			<Check className="h-4 w-4" />
+		</button>
+		<button type="button" aria-label={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")} title={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")} className={`${buttonClass} ${item.UserData?.IsFavorite ? "text-violet-300" : ""}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggle("IsFavorite"); }}>
+			<Heart className={`h-4 w-4 ${item.UserData?.IsFavorite ? "fill-violet-300" : ""}`} />
+		</button>
+	</div>;
 }
 
 function PeopleSection({

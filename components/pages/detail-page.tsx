@@ -20,7 +20,7 @@ import {
 	type JellyfinItem,
 } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
-import { runtimeLabel, progressPercent } from "@/lib/media";
+import { releaseDateLabel, runtimeLabel, progressPercent } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
 import { useProgress } from "@/components/status/progress-indicator";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
@@ -536,7 +536,7 @@ function Metadata({
 					{item.CommunityRating.toFixed(1)}
 				</span>
 			)}
-			{item.ProductionYear && <span>{item.ProductionYear}</span>}
+			{releaseDateLabel(item, locale) && <span>{releaseDateLabel(item, locale)}</span>}
 			{item.OfficialRating && (
 				<span className="rounded border border-white/15 px-2 py-0.5 text-xs">
 					{item.OfficialRating}

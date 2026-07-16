@@ -1,4 +1,6 @@
 home: ホーム
+collectionItems: "{count} 件"
+collectionEmpty: コレクションは空です。
 library: ライブラリ
 favorites: お気に入り
 list: マイリスト

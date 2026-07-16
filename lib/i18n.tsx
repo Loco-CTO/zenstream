@@ -153,6 +153,8 @@ export const TRANSLATION_KEYS = [
 	"sortPlayCount",
 	"libraryItems",
 	"libraryLoadPageFailed",
+	"collectionItems",
+	"collectionEmpty",
 	"libraryLoadMoreFailed",
 	"loadingMore",
 	"noLibraries",

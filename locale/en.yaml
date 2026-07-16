@@ -143,6 +143,8 @@ sortLastPlayed: Last played
 sortPlayCount: Play count
 libraryItems: "{count} items"
 libraryLoadPageFailed: Could not load Library
+collectionItems: "{count} items"
+collectionEmpty: This collection is empty.
 libraryLoadMoreFailed: Could not load more titles
 loadingMore: Loading more titles
 noLibraries: No libraries found

@@ -1312,11 +1312,15 @@ export function VideoPlayer({
 					reportBuffering(false);
 					const video = videoRef.current;
 					if (
-						shouldRetry &&
 						video?.paused &&
 						syncplayStateWantsPlaying(syncplayStateRef.current, item.Id)
 					)
 						startSyncedPlayback(video);
+					else if (shouldRetry) retryAfterBufferingRef.current = false;
+				}}
+				onPlaying={() => {
+					setBuffering(false);
+					reportBuffering(false);
 				}}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;

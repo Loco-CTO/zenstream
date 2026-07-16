@@ -157,7 +157,7 @@ export function Navbar({
 									<label className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/60">
 										<input
 											type="checkbox"
-											checked={active.allowViewerControls}
+											checked={active?.allowViewerControls ?? false}
 										onChange={(e) => void setControls(e.target.checked).catch(() => undefined)}
 										/>
 										{t("allowViewerControls")}

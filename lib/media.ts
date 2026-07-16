@@ -2,16 +2,12 @@ import type { HomeData, JellyfinItem } from "@/lib/jellyfin";
 import { translate, type Locale, type TranslationKey } from "@/lib/i18n";
 
 export const HOME_ROWS: Array<{
-	key: Exclude<keyof HomeData, "newlyAdded">;
+	key: "continueWatching" | "nextUp";
 	titleKey: TranslationKey;
 	variant: "wide" | "poster";
 }> = [
 	{ key: "continueWatching", titleKey: "continueWatching", variant: "wide" },
 	{ key: "nextUp", titleKey: "nextUp", variant: "wide" },
-	{ key: "topRated", titleKey: "topRated", variant: "poster" },
-	{ key: "newReleases", titleKey: "newReleases", variant: "poster" },
-	{ key: "movies", titleKey: "movies", variant: "poster" },
-	{ key: "myList", titleKey: "myList", variant: "poster" },
 ];
 
 export interface MediaStack {

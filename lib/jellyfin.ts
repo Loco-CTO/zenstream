@@ -144,13 +144,19 @@ export interface DetailData {
 
 export interface HomeData {
 	latestItems: JellyfinItem[];
-	newlyAdded: NewlyAddedSection[];
+	newlyAdded?: NewlyAddedSection[];
 	continueWatching: JellyfinItem[];
 	nextUp: JellyfinItem[];
-	topRated: JellyfinItem[];
-	newReleases: JellyfinItem[];
-	movies: JellyfinItem[];
-	myList: JellyfinItem[];
+	libraryRows: HomeLibrarySection[];
+	topRated?: JellyfinItem[];
+	newReleases?: JellyfinItem[];
+	movies?: JellyfinItem[];
+	myList?: JellyfinItem[];
+}
+
+export interface HomeLibrarySection extends NewlyAddedSection {
+	titleKey: "topRated" | "newReleases" | "movies" | "myList" | "newlyAddedOn";
+	stackEpisodes?: boolean;
 }
 
 export type LibrarySortBy =
@@ -286,38 +292,12 @@ export async function fetchHomeData(
 			onSection?.({ [key]: value } as Pick<HomeData, K>);
 			return value;
 		});
-	const [
-		latestItems,
-		newlyAdded,
-		continueWatching,
-		nextUp,
-		topRated,
-		newReleases,
-		movies,
-		myList,
-	] = await Promise.all([
+	const [latestItems, newlyAdded, continueWatching, nextUp, libraryRows] = await Promise.all([
 		publish("latestItems", getLatestItems(session)),
 		publish("newlyAdded", getNewlyAddedItems(session)),
 		publish("continueWatching", getResumeItems(session)),
 		publish("nextUp", getNextUpItems(session)),
-		publish("topRated", getItems(session, {
-			sortBy: "CommunityRating",
-			sortOrder: "Descending",
-		})),
-		publish("newReleases", getItems(session, {
-			sortBy: "PremiereDate",
-			sortOrder: "Descending",
-		})),
-		publish("movies", getItems(session, {
-			includeItemTypes: "Movie",
-			sortBy: "DateCreated",
-			sortOrder: "Descending",
-		})),
-		publish("myList", getItems(session, {
-			isFavorite: true,
-			sortBy: "SortName",
-			sortOrder: "Ascending",
-		})),
+		getHomeLibraryRows(session),
 	]);
 
 	return {
@@ -325,11 +305,33 @@ export async function fetchHomeData(
 		newlyAdded,
 		continueWatching,
 		nextUp,
-		topRated,
-		newReleases,
-		movies,
-		myList,
+		libraryRows: [
+			...libraryRows.flat(),
+			...(newlyAdded ?? []).map((section) => ({ ...section, titleKey: "newlyAddedOn" as const, stackEpisodes: true })),
+		],
 	};
+}
+
+async function getHomeLibraryRows(session: AuthSession): Promise<HomeLibrarySection[][]> {
+	const libraries = await getLibraryViews(session);
+	return Promise.all(libraries.filter((library) => library.CollectionType === "tvshows" || library.CollectionType === "movies").map(async (library) => {
+		const common = { parentId: library.Id, limit: 18, fields: `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage`, enableImages: true, imageTypeLimit: 1, enableImageTypes: ITEM_IMAGE_TYPES, enableUserData: true };
+		const rows: HomeLibrarySection[] = [];
+		const queries = [
+			["topRated", { sortBy: "CommunityRating", sortOrder: "Descending" }],
+			["newReleases", { sortBy: "PremiereDate", sortOrder: "Descending" }],
+			["myList", { isFavorite: true, sortBy: "SortName", sortOrder: "Ascending" }],
+		] as const;
+		for (const [titleKey, options] of queries) {
+			const items = await getLibraryItems(session, { ...common, collectionType: library.CollectionType, startIndex: 0, ...options });
+			if (items.items.length) rows.push({ libraryId: library.Id, libraryName: library.Name, titleKey, items: items.items });
+		}
+		if (library.CollectionType === "movies") {
+			const items = await getLibraryItems(session, { ...common, collectionType: library.CollectionType, startIndex: 0, sortBy: "DateCreated", sortOrder: "Descending" });
+			if (items.items.length) rows.push({ libraryId: library.Id, libraryName: library.Name, titleKey: "movies", items: items.items });
+		}
+		return rows;
+	}));
 }
 
 export async function getNewlyAddedItems(session: AuthSession) {

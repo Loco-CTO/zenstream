@@ -155,7 +155,7 @@ export interface HomeData {
 }
 
 export interface HomeLibrarySection extends NewlyAddedSection {
-	titleKey: "topRated" | "newReleases" | "movies" | "newlyAddedOn";
+	titleKey: "topRated" | "newReleases" | "newlyAddedOn";
 	stackEpisodes?: boolean;
 }
 
@@ -324,10 +324,6 @@ async function getHomeLibraryRows(session: AuthSession): Promise<HomeLibrarySect
 		for (const [titleKey, options] of queries) {
 			const items = await getLibraryItems(session, { ...common, collectionType: library.CollectionType, startIndex: 0, ...options });
 			if (items.items.length) rows.push({ libraryId: library.Id, libraryName: library.Name, titleKey, items: items.items });
-		}
-		if (library.CollectionType === "movies") {
-			const items = await getLibraryItems(session, { ...common, collectionType: library.CollectionType, startIndex: 0, sortBy: "DateCreated", sortOrder: "Descending" });
-			if (items.items.length) rows.push({ libraryId: library.Id, libraryName: library.Name, titleKey: "movies", items: items.items });
 		}
 		return rows;
 	}));

@@ -611,7 +611,11 @@ function EpisodeSection({
 				)}
 			</div>
 			{item.Type === "Episode" ? (
-				<HorizontalScroller title={t("episodesLabel")} className="pb-2">
+				<HorizontalScroller
+					title={t("episodesLabel")}
+					className="pb-2"
+					initialScrollIndex={Math.max(0, episodes.findIndex((episode) => episode.Id === item.Id))}
+				>
 					{episodes.map((episode) => (
 						<EpisodeCard
 							key={episode.Id}

@@ -1367,6 +1367,8 @@ export function VideoPlayer({
 				onPlaying={(event) => {
 					disableNativeSubtitleTracks(event.currentTarget);
 					setQualityLoading(false);
+					setBuffering(false);
+					reportBuffering(false);
 				}}
 				onPause={(e) => {
 					const syncState = syncplayStateRef.current;

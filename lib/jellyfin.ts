@@ -18,6 +18,7 @@ export interface JellyfinItem {
 	IndexNumber?: number;
 	Overview?: string;
 	ProductionYear?: number;
+	PremiereDate?: string;
 	OfficialRating?: string;
 	RunTimeTicks?: number;
 	ChildCount?: number;
@@ -202,7 +203,7 @@ export interface NewlyAddedSection {
 }
 
 export const ITEM_FIELDS =
-	"Overview,Genres,PrimaryImageAspectRatio,CommunityRating,ProductionYear,RecursiveItemCount,ParentId,ImageTags,BackdropImageTags,ImageBlurHashes,RemoteTrailers,UserData";
+	"Overview,Genres,PrimaryImageAspectRatio,CommunityRating,ProductionYear,PremiereDate,RecursiveItemCount,ParentId,ImageTags,BackdropImageTags,ImageBlurHashes,RemoteTrailers,UserData";
 export const ITEM_IMAGE_TYPES = "Primary,Backdrop,Logo,Thumb";
 
 export function jellyfinBaseUrl() {

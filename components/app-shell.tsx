@@ -322,6 +322,8 @@ function sectionHasContent(section: Partial<HomeData>) {
 }
 
 function detailIdFromPath(pathname: string) {
+	const collection = pathname.match(/^\/collection\/([^/]+)$/);
+	if (collection) return decodeURIComponent(collection[1]);
 	const episode = pathname.match(/^\/show\/[^/]+\/episode\/([^/]+)$/);
 	if (episode) return decodeURIComponent(episode[1]);
 	const show = pathname.match(/^\/show\/([^/]+)$/);

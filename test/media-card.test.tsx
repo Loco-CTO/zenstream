@@ -30,6 +30,14 @@ describe("media card sizing", () => {
     expect(container.firstElementChild).toHaveClass("w-[min(calc((100vw-2.75rem)/2),180px)]", "md:w-[320px]");
   });
 
+  it("shows episode cards with a linked series name and formatted episode label", () => {
+    render(<WideCard item={{ ...item, Type: "Episode", SeriesId: "series-1", SeriesName: "Example Series", ParentIndexNumber: 1, IndexNumber: 2 }} />);
+
+    expect(screen.getByRole("link", { name: "Example Series" })).toHaveAttribute("href", "/show/series-1");
+    expect(screen.getByRole("link", { name: "S01E02・Test title" })).toHaveAttribute("href", "/show/series-1/episode/item-1");
+    expect(screen.getByRole("link", { name: "Example Series" })).toHaveClass("hover:text-violet-200", "focus-visible:underline");
+  });
+
 	it("routes the play button to the native player URL", () => {
     render(<WideCard item={item} />);
 

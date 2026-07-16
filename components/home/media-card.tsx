@@ -37,8 +37,8 @@ export function WideCard({ item, session }: { item: JellyfinItem; session?: Auth
 				<WatchProgress progress={progress} />
 				<WatchedIndicator item={item} />
 			</div>
-			<CardText item={item} />
 				</Link>
+				<CardText item={item} />
 				<MediaCardOverlay href={detailHref(item)} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-video" />
 			</div>
 		</article>
@@ -65,8 +65,8 @@ export function PosterCard({ item, session }: { item: JellyfinItem; session?: Au
 				)}
 				<WatchedIndicator item={item} />
 			</div>
-			<CardText item={item} />
 			</Link>
+			<CardText item={item} />
 			<MediaCardOverlay href={detailHref(item)} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
 			</div>
 		</article>
@@ -175,10 +175,29 @@ export function WatchProgress({ progress }: { progress: number | undefined }) {
 }
 
 function CardText({ item }: { item: JellyfinItem }) {
+	if (item.Type === "Episode" && item.SeriesId) {
+		return (
+			<div className="mt-2 min-w-0">
+				<Link href={`/show/${item.SeriesId}`} className="block truncate text-xs font-medium text-white/80 transition-colors hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline">
+					{item.SeriesName ?? "Series"}
+				</Link>
+				<Link href={detailHref(item)} className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline">
+					{episodeLabel(item)}
+				</Link>
+			</div>
+		);
+	}
+
 	return (
 		<div className="mt-2">
 			<p className="truncate text-xs font-medium text-white/80">{item.Name}</p>
 			<p className="mt-0.5 truncate text-xs text-white/30">{subtitle(item)}</p>
 		</div>
 	);
+}
+
+function episodeLabel(item: JellyfinItem) {
+	const season = item.ParentIndexNumber == null ? "??" : String(item.ParentIndexNumber).padStart(2, "0");
+	const episode = item.IndexNumber == null ? "??" : String(item.IndexNumber).padStart(2, "0");
+	return `S${season}E${episode}・${item.Name}`;
 }

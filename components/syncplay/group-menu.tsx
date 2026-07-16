@@ -61,6 +61,7 @@ export function SyncplayGroupMenu({
 			</button>
 			{open && (
 				<div
+					data-testid="syncplay-group-popup"
 					data-player-context={playerContext || undefined}
 					className={panelClass}
 				>

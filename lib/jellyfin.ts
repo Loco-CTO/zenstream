@@ -138,6 +138,7 @@ export interface DetailData {
 	seasons: JellyfinItem[];
 	episodes: JellyfinItem[];
 	similar: JellyfinItem[];
+	collectionItems?: JellyfinItem[];
 }
 
 export interface HomeData {
@@ -553,7 +554,10 @@ export async function fetchDetailData(
 			: [];
 	const similar =
 		item.Type === "Episode" ? [] : await getSimilarItems(session, item.Id);
-	return { item, backgroundItem, seasons, episodes, similar };
+	const collectionItems = item.Type === "BoxSet"
+		? (await getItemList(session, "/Items", { userId: session.userId, parentId: item.Id, recursive: true, includeItemTypes: "Series,Movie", fields: ITEM_FIELDS, enableImages: true, imageTypeLimit: 1, enableImageTypes: ITEM_IMAGE_TYPES, enableUserData: true })).filter((child) => child.Type === "Series" || child.Type === "Movie")
+		: undefined;
+	return { item, backgroundItem, seasons, episodes, similar, collectionItems };
 }
 
 export function getInitialSeason(

@@ -178,10 +178,10 @@ function CardText({ item }: { item: JellyfinItem }) {
 	if (item.Type === "Episode" && item.SeriesId) {
 		return (
 			<div className="mt-2 min-w-0">
-				<Link href={`/show/${item.SeriesId}`} className="block truncate text-xs font-medium text-white/80 transition-colors hover:text-violet-200 focus:outline-none focus-visible:text-violet-200 focus-visible:underline">
+				<Link href={`/show/${item.SeriesId}`} className="block truncate text-xs font-medium text-white/80 hover:underline focus:outline-none focus-visible:underline">
 					{item.SeriesName ?? "Series"}
 				</Link>
-				<Link href={detailHref(item)} className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline">
+				<Link aria-label="Episode details" href={detailHref(item)} className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline">
 					{episodeLabel(item)}
 				</Link>
 			</div>

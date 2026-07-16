@@ -34,8 +34,8 @@ describe("media card sizing", () => {
     render(<WideCard item={{ ...item, Type: "Episode", SeriesId: "series-1", SeriesName: "Example Series", ParentIndexNumber: 1, IndexNumber: 2 }} />);
 
     expect(screen.getByRole("link", { name: "Example Series" })).toHaveAttribute("href", "/show/series-1");
-    expect(screen.getByRole("link", { name: "S01E02・Test title" })).toHaveAttribute("href", "/show/series-1/episode/item-1");
-    expect(screen.getByRole("link", { name: "Example Series" })).toHaveClass("hover:text-violet-200", "focus-visible:underline");
+    expect(screen.getByText("S01E02・Test title")).toHaveAttribute("href", "/show/series-1/episode/item-1");
+    expect(screen.getByRole("link", { name: "Example Series" })).toHaveClass("hover:underline", "focus-visible:underline");
   });
 
 	it("routes the play button to the native player URL", () => {

@@ -98,14 +98,16 @@ export function syncplayWaitingForMembers(
 	const playbackState =
 		state.playbackState ?? (state.playing ? "playing" : "paused");
 	if (!state.resumeWhenReady && playbackState === "paused") return false;
-	return state.resumeWhenReady && (
-		state.members.length === 0 || state.members.some(
-			(member) =>
-				member.watchingTogether !== false && (
-				!member.viewing ||
-				member.loading ||
-				(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1)),
-		)
+	return (
+		state.resumeWhenReady &&
+		(state.members.length === 0 ||
+			state.members.some(
+				(member) =>
+					member.watchingTogether !== false &&
+					(!member.viewing ||
+						member.loading ||
+						(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1)),
+			))
 	);
 }
 
@@ -127,7 +129,9 @@ export function nextEpisodeSyncplayCommand(item: JellyfinItem) {
 
 export function advanceToNextEpisodeWithSyncplay(
 	nextItem: JellyfinItem,
-	command: (value: ReturnType<typeof nextEpisodeSyncplayCommand>) => Promise<unknown>,
+	command: (
+		value: ReturnType<typeof nextEpisodeSyncplayCommand>,
+	) => Promise<unknown>,
 	onNext: Props["onNext"],
 	onClose: Props["onClose"],
 ) {
@@ -1251,7 +1255,7 @@ export function VideoPlayer({
 				onClick={handleVideoClick}
 				onDoubleClick={toggleFullscreen}
 				muted={muted}
-				 onLoadedMetadata={() => {
+				onLoadedMetadata={() => {
 					const value = videoRef.current?.duration ?? 0;
 					setDuration(
 						Math.max(knownDuration, Number.isFinite(value) ? value : 0),
@@ -1550,18 +1554,22 @@ export function VideoPlayer({
 				className={`zenstream-player-controls absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<div className="relative mb-3 flex h-5 items-center">
-					<div data-testid="player-timeline" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20">
-						{duration > 0 && currentBufferedRanges.map(([start, end]) => (
-							<span
-								key={`${start}-${end}`}
-								data-testid="player-buffered-range"
-								className="absolute inset-y-0 bg-white/35"
-								style={{
-									left: `${(start / duration) * 100}%`,
-									width: `${((end - start) / duration) * 100}%`,
-								}}
-							/>
-						))}
+					<div
+						data-testid="player-timeline"
+						className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20"
+					>
+						{duration > 0 &&
+							currentBufferedRanges.map(([start, end]) => (
+								<span
+									key={`${start}-${end}`}
+									data-testid="player-buffered-range"
+									className="absolute inset-y-0 bg-white/35"
+									style={{
+										left: `${(start / duration) * 100}%`,
+										width: `${((end - start) / duration) * 100}%`,
+									}}
+								/>
+							))}
 						<span
 							className="absolute inset-y-0 left-0 bg-violet-400"
 							style={{

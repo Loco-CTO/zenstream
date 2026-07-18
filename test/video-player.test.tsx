@@ -201,6 +201,23 @@ describe("video player controls", () => {
 		expect(container.firstElementChild).toHaveClass("overflow-hidden");
 	});
 
+	it("renders movie names as the prominent player title", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		expect(container.querySelector("h1")).toHaveTextContent("Movie");
+		expect(container.querySelector("h1")).toHaveClass("font-semibold");
+	});
+
 	it("keeps the mobile toolbar controls touch-sized and responsive", () => {
 		const { container } = render(
 			<I18nProvider locale="en">

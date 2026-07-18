@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { userImageUrl } from "@/lib/jellyfin";
 import { useRouter } from "next/navigation";
 import {
 	Check,
@@ -56,7 +57,7 @@ export function SyncplayGroupMenu({
 
 	return (
 		<div className="relative" data-player-context={playerContext || undefined}>
-			<button
+											<button
 				aria-label={t("syncplayGroups")}
 				onClick={() => {
 					setOpen((value) => !value);
@@ -151,13 +152,18 @@ export function SyncplayGroupMenu({
 															{group.itemId
 																? t("syncplayWatching")
 																: t("syncplayNoMedia")}{" "}
-															<span className="px-1 text-white/20">·</span>
+															<span className="px-1 text-white/20">ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</span>
 															{group.members.length}{" "}
 															{group.members.length === 1
 																? "member"
 																: "members"}
 														</p>
 													</div>
+													{isActive && (
+														<button type="button" aria-label={t("syncplayGroups")} onClick={() => setShowGroupList(false)} className="rounded-md p-1.5 text-white/45 transition hover:bg-white/10 hover:text-white">
+															<ChevronRight className="h-4 w-4" />
+														</button>
+													)}
 													<button
 														disabled={Boolean(active && !isActive)}
 														onClick={() =>
@@ -188,9 +194,7 @@ export function SyncplayGroupMenu({
 																	key={member.participantId ?? member.userId}
 																	className="flex items-center gap-2 text-[11px]"
 																>
-																	<span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-[9px] font-semibold text-white/60">
-																		{member.username.slice(0, 1).toUpperCase()}
-																	</span>
+							<MemberAvatar userId={member.userId} username={member.username} size="sm" />
 																	<span className="min-w-0 flex-1 truncate text-white/60">
 																		{member.username}
 																	</span>
@@ -246,6 +250,36 @@ export function SyncplayGroupMenu({
 	);
 }
 
+function MemberAvatar({
+	userId,
+	username,
+	size,
+}: {
+	userId: string;
+	username: string;
+	size: "sm" | "md";
+}) {
+	const [failed, setFailed] = useState(false);
+	const dimensions = size === "md" ? "h-6 w-6" : "h-5 w-5";
+	return failed ? (
+		<span
+			className={
+				dimensions +
+				" flex items-center justify-center rounded-full bg-white/10 text-[9px] font-semibold text-white/60"
+			}
+		>
+			{username.slice(0, 1).toUpperCase()}
+		</span>
+	) : (
+		<img
+			src={userImageUrl(userId)}
+			alt=""
+			onError={() => setFailed(true)}
+			className={dimensions + " rounded-full bg-white/10 object-cover"}
+		/>
+	);
+}
+
 function ActiveGroupView({
 	group,
 	userId,
@@ -295,9 +329,7 @@ function ActiveGroupView({
 							key={member.participantId ?? member.userId}
 							className="flex items-center gap-2 text-[11px]"
 						>
-							<span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[9px] font-semibold text-white/60">
-								{member.username.slice(0, 1).toUpperCase()}
-							</span>
+						<MemberAvatar userId={member.userId} username={member.username} size="md" />
 							<span className="min-w-0 flex-1 truncate text-white/70">
 								{member.username}
 							</span>

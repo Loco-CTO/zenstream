@@ -455,6 +455,17 @@ export function SyncplayProvider({
 				group.revision < activeRef.current.revision
 			)
 				return;
+			if (
+				activeRef.current?.id === group.id &&
+				activeRef.current.allowViewerControls !== group.allowViewerControls
+			)
+				toast.success(
+					t(
+						group.allowViewerControls
+							? "syncplayViewerControlsEnabled"
+							: "syncplayViewerControlsDisabled",
+					),
+				);
 			hydratedRef.current = true;
 			revisionRef.current.set(group.id, group.revision);
 			if (
@@ -479,7 +490,7 @@ export function SyncplayProvider({
 				return [group, ...old.filter((entry) => entry.id !== group.id)];
 			});
 		},
-		[announcePlayback, currentParticipantId, reconcile, setCurrent],
+		[announcePlayback, currentParticipantId, reconcile, setCurrent, t, toast],
 	);
 	useEffect(() => {
 		let disposed = false;

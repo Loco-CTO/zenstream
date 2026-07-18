@@ -99,7 +99,7 @@ export function SyncplayGroupMenu({
 									<p className="text-sm font-semibold tracking-tight text-white">
 										{t("syncplayGroups")}
 									</p>
-									<p className="mt-0.5 text-xs text-white/40">
+									<p className="mt-0.5 text-[10px] text-white/40">
 										{groups.length} {t(groups.length === 1 ? "syncplayRoom" : "syncplayRooms")}
 									</p>
 								</div>
@@ -153,7 +153,7 @@ export function SyncplayGroupMenu({
 											? t("syncplayMember")
 											: t("syncplayMembers")}
 														</p>
-									<p className="mt-1 truncate text-xs text-white/40">
+					<p className="mt-1 truncate text-[10px] text-white/40">
 															{group.members.length}{" "}
 															{group.members.length === 1
 											? t("syncplayMember")

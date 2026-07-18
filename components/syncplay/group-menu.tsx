@@ -100,7 +100,7 @@ export function SyncplayGroupMenu({
 										{t("syncplayGroups")}
 									</p>
 									<p className="mt-0.5 text-[11px] text-white/40">
-										{groups.length} {groups.length === 1 ? "room" : "rooms"}
+										{groups.length} {t(groups.length === 1 ? "syncplayRoom" : "syncplayRooms")}
 									</p>
 								</div>
 								<button
@@ -150,14 +150,14 @@ export function SyncplayGroupMenu({
 															<span className="px-1 text-white/20">·</span>
 															{group.members.length}{" "}
 															{group.members.length === 1
-																? "member"
-																: "members"}
+											? t("syncplayMember")
+											: t("syncplayMembers")}
 														</p>
 														<p className="mt-1 truncate text-[11px] text-white/40">
 															{group.members.length}{" "}
 															{group.members.length === 1
-																? "member"
-																: "members"}
+											? t("syncplayMember")
+											: t("syncplayMembers")}
 														</p>
 													</div>
 													{isActive && (
@@ -314,7 +314,7 @@ function ActiveGroupView({
 			<div className="flex items-center gap-2 border-b border-white/[0.08] px-1 pb-3 pt-1">
 				<button
 					onClick={onBack}
-					aria-label="Back to groups"
+					aria-label={t("syncplayBackToGroups")}
 					className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
 				>
 					<ChevronLeft className="h-4 w-4" />
@@ -325,13 +325,13 @@ function ActiveGroupView({
 					</p>
 					<p className="mt-0.5 text-[11px] text-white/40">
 						{group.members.length}{" "}
-						{group.members.length === 1 ? "member" : "members"}
+						{t(group.members.length === 1 ? "syncplayMember" : "syncplayMembers")}
 					</p>
 				</div>
 			</div>
 			<div className="px-1 py-3">
 				<p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">
-					Members
+					{t("syncplayMembersHeading")}
 				</p>
 				<div className="space-y-2">
 					{group.members.map((member) => (

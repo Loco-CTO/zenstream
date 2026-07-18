@@ -304,7 +304,7 @@ describe("SyncplayProvider", () => {
 		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
 		fireEvent.click(screen.getByRole("button", { name: "Browse" }));
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
-			"/api/zenstream/syncplay/groups/group/participation",
+			"/api/syncplay/groups/group/participation",
 			expect.objectContaining({ method: "POST" }),
 		));
 		expect(screen.getByTestId("active-group")).toHaveTextContent("group");

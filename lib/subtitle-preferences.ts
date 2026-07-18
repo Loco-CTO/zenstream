@@ -14,7 +14,7 @@ export type SubtitleStyle = {
 
 export type SubtitleCue = { start: number; end: number; text: string };
 import { getAuthSession } from "@/lib/session";
-const preferenceUrl = `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/zenstream/preferences/subtitles`;
+const preferenceUrl = `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/preferences/subtitles`;
 const preferenceHeaders = (): Record<string, string> => { const token = getAuthSession()?.token; return token ? { "X-Jellyfin-Token": token } : {}; };
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = { fontFamily: "sans", bold: false, textScale: 100, fontColor: "#ffffff", borderSize: 0, borderColor: "#000000", backgroundColor: "#000000", backgroundOpacity: 0 };

@@ -101,7 +101,7 @@ describe("SettingsPage", () => {
 
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenCalledWith(
-				"/api/zenstream/preferences/subtitles",
+				"/api/preferences/subtitles",
 				expect.objectContaining({
 					method: "PATCH",
 					body: JSON.stringify(style),
@@ -111,7 +111,7 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("switch", { name: "Bold subtitles" }));
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenLastCalledWith(
-				"/api/zenstream/preferences/subtitles",
+				"/api/preferences/subtitles",
 				expect.objectContaining({
 					method: "PATCH",
 					body: JSON.stringify({ ...style, bold: true }),
@@ -161,7 +161,7 @@ describe("SettingsPage", () => {
 
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenCalledWith(
-				"/api/zenstream/preferences/subtitles",
+				"/api/preferences/subtitles",
 				expect.objectContaining({
 					method: "PATCH",
 					body: JSON.stringify({ ...style, fontColor: "#818cf8" }),

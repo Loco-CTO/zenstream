@@ -8,7 +8,75 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-import { io, type Socket } from "socket.io-client";
+type Socket = NativeSocket;
+type NativeEvent = unknown;
+class NativeSocket {
+	private ws: WebSocket | null = null;
+	private listeners = new Map<string, ((value?: NativeEvent) => void)[]>();
+	id = "native-syncplay";
+	constructor(
+		private readonly url: string,
+		private readonly auth: { token: string; participantId: string },
+	) {}
+	on<T = NativeEvent>(event: string, listener: (value: T) => void) {
+		this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener as unknown as (value?: NativeEvent) => void]);
+		return this;
+	}
+	private fire(event: string, value?: NativeEvent) {
+		for (const listener of this.listeners.get(event) ?? []) listener(value);
+	}
+	connect() {
+		this.ws = new WebSocket(
+			`${this.url}?token=${encodeURIComponent(this.auth.token)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
+		);
+		this.ws.onopen = () => this.fire("connect");
+		this.ws.onclose = (event) => this.fire("disconnect", event.reason);
+		this.ws.onerror = () =>
+			this.fire("connect_error", new Error("WebSocket connection failed"));
+		this.ws.onmessage = (event) => {
+			const message = JSON.parse(event.data);
+			if (message.type === "groups") this.fire("syncplay:groups", message);
+			else if (message.type === "group") this.fire("syncplay:group", message);
+			else if (message.type === "group-ended")
+				this.fire("syncplay:group-ended", message);
+			else if (message.type === "participant-replaced")
+				this.fire("syncplay:participant-replaced", message);
+			else if (message.type === "clock") this.fire("clock", message);
+		};
+	}
+	emit<T = NativeEvent>(event: string, payload: Record<string, unknown>, callback?: (value: T) => void) {
+		if (event === "syncplay:clock") {
+			this.once("clock", callback);
+			this.ws?.send(JSON.stringify({ type: "clock", ...payload }));
+		}
+	}
+	once<T = NativeEvent>(event: string, callback?: (value: T) => void) {
+		if (callback) {
+			const listener = (value: T) => {
+				callback(value);
+				this.listeners.set(
+					event,
+					(this.listeners.get(event) ?? []).filter(
+						(entry) => entry !== listener,
+					),
+				);
+			};
+			this.on(event, listener);
+		}
+	}
+	disconnect() {
+		this.ws?.close();
+		this.ws = null;
+	}
+}
+const io = (
+	origin: string,
+	options: { auth: { token: string; participantId: string }; path?: string; autoConnect?: boolean },
+) =>
+	new NativeSocket(
+		`${origin.replace(/^https?:/, location.protocol === "https:" ? "wss:" : "ws:")}/api/ws/syncplay`,
+		options.auth,
+	);
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { getItem } from "@/lib/jellyfin";
@@ -144,7 +212,7 @@ async function call(path: string, method = "GET", body?: unknown) {
 	let response: Response;
 	try {
 		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
-		response = await fetch(`${base}/api/zenstream/syncplay/${path}`, {
+		response = await fetch(`${base}/api/syncplay/${path}`, {
 			method,
 			headers: {
 				...(getAuthSession()?.token
@@ -323,16 +391,19 @@ export function SyncplayProvider({
 		const data = (await call("groups")) as { groups: SyncplayGroup[] };
 		syncplayDebug(
 			"groups refreshed",
-			JSON.stringify(data.groups.map((group) => ({
-				id: group.id,
-				itemId: group.itemId,
-				memberCount: group.members?.length ?? 0,
-				members: group.members?.map((member) => ({
-					userId: member.userId,
-					participantId: member.participantId,
-					watchingTogether: member.watchingTogether,
-				})) ?? [],
-			}))),
+			JSON.stringify(
+				data.groups.map((group) => ({
+					id: group.id,
+					itemId: group.itemId,
+					memberCount: group.members?.length ?? 0,
+					members:
+						group.members?.map((member) => ({
+							userId: member.userId,
+							participantId: member.participantId,
+							watchingTogether: member.watchingTogether,
+						})) ?? [],
+				})),
+			),
 		);
 		setGroups((old) =>
 			data.groups.map((group) => {
@@ -451,12 +522,12 @@ export function SyncplayProvider({
 				.catch((error) => syncplayDebug("socket refresh failed", error));
 			syncClock();
 		});
-		socket.on("connect_error", (error) =>
+		socket.on<Error>("connect_error", (error) =>
 			syncplayDebug("socket connect error", {
 				message: error.message,
 			}),
 		);
-		socket.on("disconnect", (reason) =>
+		socket.on<string>("disconnect", (reason) =>
 			syncplayDebug("socket disconnected", { reason }),
 		);
 		const clockTimer = window.setInterval(syncClock, 30_000);

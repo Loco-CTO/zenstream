@@ -2,7 +2,7 @@ import { isLocale, type Locale } from "@/lib/i18n";
 import { getAuthSession } from "@/lib/session";
 
 function preferencesUrl(path: string) {
-  return `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/zenstream/preferences/${path}`;
+  return `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/preferences/${path}`;
 }
 function preferenceHeaders(): Record<string, string> {
   const token = getAuthSession()?.token;

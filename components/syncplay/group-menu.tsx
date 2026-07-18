@@ -144,16 +144,6 @@ export function SyncplayGroupMenu({
 																{group.name}
 															</p>
 														</div>
-														<p className="mt-1 hidden truncate text-xs text-white/40">
-															{group.itemId
-																? t("syncplayWatching")
-																: t("syncplayNoMedia")}{" "}
-															<span className="px-1 text-white/20">·</span>
-															{group.members.length}{" "}
-															{group.members.length === 1
-																? t("syncplayMember")
-																: t("syncplayMembers")}
-														</p>
 														<p className="mt-1 truncate text-[10px] text-white/40">
 															{group.members.length}{" "}
 															{group.members.length === 1

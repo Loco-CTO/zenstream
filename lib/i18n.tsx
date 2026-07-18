@@ -165,8 +165,6 @@ export const TRANSLATION_KEYS = [
 	"noFavorites",
 	"favoritesLoadFailed",
 	"syncplayGroups",
-	"syncplayWatching",
-	"syncplayNoMedia",
 	"syncplayRoom",
 	"syncplayRooms",
 	"syncplayMember",

@@ -155,8 +155,6 @@ favoriteSeries: Favorite Series
 noFavorites: You have no favorites yet.
 favoritesLoadFailed: Could not load your favorites
 syncplayGroups: Groups
-syncplayWatching: Watching together
-syncplayNoMedia: No media selected
 syncplayRoom: room
 syncplayRooms: rooms
 syncplayMember: member

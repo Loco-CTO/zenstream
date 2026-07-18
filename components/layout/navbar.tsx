@@ -1,15 +1,15 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Bell, LogOut, Search, Settings, User, Users } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Bell, LogOut, Search, Settings, User } from "lucide-react";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import { userImageUrl } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
-import { useSyncplay } from "@/lib/syncplay";
+
 
 export function Navbar({
 	displayName,
@@ -24,30 +24,8 @@ export function Navbar({
 }) {
 	const { t } = useI18n();
 	const pathname = usePathname();
-	const router = useRouter();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
-	const [groupsOpen, setGroupsOpen] = useState(false);
-	const {
-		groups,
-		active,
-		create,
-		join,
-		leave,
-		setControls,
-		refresh,
-		setWatchingTogether,
-	} = useSyncplay();
-	const returnToView = async (group: (typeof groups)[number]) => {
-		if (!group.itemId) return;
-		try {
-			if (active?.id === group.id) await setWatchingTogether(true);
-			else await join(group.id);
-			router.push(`/play/${encodeURIComponent(group.itemId)}`);
-		} catch {
-			// Syncplay context reports command failures to the user.
-		}
-	};
 
 	return (
 		<>
@@ -86,120 +64,6 @@ export function Navbar({
 						className="flex items-center gap-2 sm:gap-3"
 					>
 						<SyncplayGroupMenu userId={userId} />
-						<div className="relative hidden">
-							<button
-								aria-label="Legacy groups"
-								onClick={() => {
-									setGroupsOpen((open) => !open);
-									void refresh().catch(() => undefined);
-								}}
-								className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
-							>
-								<Users className="h-[22px] w-[22px]" />
-							</button>
-							{false && groupsOpen && (
-								<div
-									data-testid="navbar-group-popup"
-									className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-80 md:max-w-[calc(100vw-2rem)] md:overflow-hidden"
-								>
-									<div className="mb-2 flex items-center justify-between">
-										<p className="text-xs font-semibold text-white">
-											{t("syncplayGroups")}
-										</p>
-										<button
-											onClick={() => void create().catch(() => undefined)}
-											className="rounded-lg bg-violet-400 px-3 py-1.5 text-xs font-semibold text-black"
-										>
-											{t("createGroup")}
-										</button>
-									</div>
-									{groups.length === 0 ? (
-										<p className="px-2 py-4 text-xs text-white/45">
-											{t("noSyncplayGroups")}
-										</p>
-									) : (
-										groups.map((group) => (
-											<div
-												key={group.id}
-												className="rounded-lg px-2 py-2 hover:bg-white/5"
-											>
-												<div className="min-w-0 flex-1">
-													<p className="truncate text-xs text-white/85">
-														{group.name}
-													</p>
-													<p className="truncate text-xs text-white/45">
-														{group.itemId
-															? t("syncplayWatching")
-															: t("syncplayNoMedia")}{" "}
-														· {group.members.length}
-													</p>
-												</div>
-												<button
-													onClick={() =>
-														void (
-															active?.id === group.id ? leave() : join(group.id)
-														).catch(() => undefined)
-													}
-													className="rounded-lg px-2 py-1.5 text-xs text-violet-200 hover:bg-white/10"
-												>
-													{active?.id === group.id
-														? t("leaveGroup")
-														: t("joinView")}
-												</button>
-												{group.members.length > 0 && (
-													<div className="mt-2 w-full space-y-1 border-t border-white/10 pt-2">
-														{group.members.map((member) => (
-															<div
-																key={member.participantId ?? member.userId}
-																className="flex items-center gap-2 text-xs"
-															>
-																<span className="min-w-0 flex-1 truncate text-white/65">
-																	{member.username}
-																</span>
-																<span
-																	className={
-																		member.watchingTogether !== false
-																			? "text-emerald-200/75"
-																			: "text-white/35"
-																	}
-																>
-																	{member.watchingTogether !== false
-																		? t("syncplayViewingTogether")
-																		: t("syncplayBrowsing")}
-																</span>
-															</div>
-														))}
-													</div>
-												)}
-												{group.itemId && (
-													<button
-														type="button"
-														onClick={() => void returnToView(group)}
-														className="mt-2 w-full rounded-lg bg-violet-400 px-3 py-2 text-xs font-semibold text-black"
-													>
-														{t("syncplayReturnToView")}
-													</button>
-												)}
-											</div>
-										))
-									)}
-									{active?.hostUserId === userId && (
-										<label className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/60">
-											<input
-												type="checkbox"
-												checked={active?.allowViewerControls ?? false}
-												onChange={(e) =>
-													void setControls(e.target.checked).catch(
-														() => undefined,
-													)
-												}
-											/>
-											{t("allowViewerControls")}
-										</label>
-									)}
-								</div>
-							)}
-						</div>
 						<button
 							aria-label={t("search")}
 							onClick={() => setSearchOpen(true)}

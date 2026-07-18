@@ -182,6 +182,8 @@ syncplayCreateFailed: Syncplay グループを作成できませんでした。
 syncplayJoinFailed: Syncplay グループに参加できませんでした。
 syncplayLeaveFailed: Syncplay グループから退出できませんでした。
 syncplaySettingsFailed: Syncplay の設定を更新できませんでした。
+syncplayViewerControlsEnabled: 視聴者の操作を全員に許可しました。
+syncplayViewerControlsDisabled: 視聴者の操作を全員に禁止しました。
 syncplayPlaybackFailed: Syncplay の再生状態を更新できませんでした。
 syncplayPresenceFailed: Syncplay の準備状態を更新できませんでした。
 syncplayRemoveMember: "{member} を削除"

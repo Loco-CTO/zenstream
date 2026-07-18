@@ -192,6 +192,8 @@ export const TRANSLATION_KEYS = [
 	"syncplayJoinFailed",
 	"syncplayLeaveFailed",
 	"syncplaySettingsFailed",
+	"syncplayViewerControlsEnabled",
+	"syncplayViewerControlsDisabled",
 	"syncplayPlaybackFailed",
 	"syncplayPresenceFailed",
 	"syncplayRemoveMember",

@@ -182,6 +182,8 @@ syncplayCreateFailed: Could not create the Syncplay group.
 syncplayJoinFailed: Could not join the Syncplay group.
 syncplayLeaveFailed: Could not leave the Syncplay group.
 syncplaySettingsFailed: Could not update Syncplay settings.
+syncplayViewerControlsEnabled: Viewer controls were enabled for everyone.
+syncplayViewerControlsDisabled: Viewer controls were disabled for everyone.
 syncplayPlaybackFailed: Could not update Syncplay playback.
 syncplayPresenceFailed: Could not update Syncplay readiness.
 syncplayRemoveMember: Remove {member}

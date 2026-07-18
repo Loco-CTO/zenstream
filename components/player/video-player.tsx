@@ -177,6 +177,13 @@ export function syncplayWaitingEventIsBuffering(
 	return !syncplayMediaIsReady(video);
 }
 
+export function syncplayWaitingIsSeekTransition(
+	seekSettlingUntil: number,
+	now: number,
+) {
+	return seekSettlingUntil > now;
+}
+
 export function syncplayInitialLoading(
 	video: Pick<HTMLMediaElement, "readyState"> | null,
 ) {
@@ -329,6 +336,9 @@ export function VideoPlayer({
 		startedAt: number;
 		expiresAt: number;
 	} | null>(null);
+	// Browsers briefly emit waiting/pause while a seek switches decoder
+	// timestamps. Do not publish that transient state to the Syncplay room.
+	const seekSettlingUntilRef = useRef(0);
 	const [url, setUrl] = useState<string | undefined>(() =>
 		initialStreams?.source
 			? playbackUrl(session, item.Id, initialStreams.source, 0)
@@ -1084,6 +1094,12 @@ export function VideoPlayer({
 			startedAt: syncplay.serverNow(),
 			expiresAt: Date.now() + 8_000,
 		};
+		seekSettlingUntilRef.current = performance.now() + 1500;
+		applyingSyncRef.current = true;
+		window.setTimeout(() => {
+			if (performance.now() >= seekSettlingUntilRef.current)
+				applyingSyncRef.current = false;
+		}, 1600);
 		optimisticSeekRef.current = optimistic;
 		video.currentTime = target;
 		setCurrentTime(target);
@@ -1263,12 +1279,24 @@ export function VideoPlayer({
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
-				onWaiting={() => {
+				 onWaiting={() => {
 					// `waiting` is also emitted while a browser is seeking to the
 					// synchronized timeline.  That is not a transport stall when the
 					// element already has future data; reporting it to the server makes
 					// the whole room pause, then resume, and seek again in a loop.
 					const video = videoRef.current;
+					if (
+						syncplayWaitingIsSeekTransition(
+							seekSettlingUntilRef.current,
+							performance.now(),
+						)
+					) {
+						playerDebug("video waiting ignored during seek transition", {
+							currentTime: video?.currentTime,
+							readyState: video?.readyState,
+						});
+						return;
+					}
 					if (video && !syncplayWaitingEventIsBuffering(video)) {
 						playerDebug("video waiting ignored; media has future data", {
 							readyState: video.readyState,
@@ -1283,13 +1311,15 @@ export function VideoPlayer({
 					});
 					reportBuffering(true);
 				}}
-				onCanPlay={() => {
+				 onCanPlay={() => {
 					// A media error can be emitted while the browser is still
 					// recovering the source. `canplay` is the authoritative signal
 					// that the current element can be played, so clear any stale
 					// error overlay here.
 					setError("");
 					setBuffering(false);
+					seekSettlingUntilRef.current = 0;
+					applyingSyncRef.current = false;
 					readyItemIdRef.current = item.Id;
 					retryAfterBufferingRef.current = false;
 					playerDebug("video canplay", {
@@ -1363,13 +1393,15 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				onPlaying={(event) => {
+				 onPlaying={(event) => {
 					disableNativeSubtitleTracks(event.currentTarget);
 					setQualityLoading(false);
 					setBuffering(false);
+					seekSettlingUntilRef.current = 0;
+					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}
-				onPause={(e) => {
+				 onPause={(e) => {
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",
@@ -1381,6 +1413,10 @@ export function VideoPlayer({
 						authoritativePlaying: syncWantsPlaying,
 						canControl: syncplay.canControl,
 					});
+					if (syncplayWaitingIsSeekTransition(seekSettlingUntilRef.current, performance.now())) {
+						playerDebug("video pause ignored during seek transition");
+						return;
+					}
 					setPlaying(false);
 					if (suppressSyncPauseRef.current) {
 						suppressSyncPauseRef.current = false;

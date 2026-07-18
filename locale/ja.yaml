@@ -155,10 +155,14 @@ close: 閉じる
 playNext: 次のエピソードを再生
 stopPlaying: 再生を停止
 syncplayGroups: グループ
+syncplayRoom: ルーム
+syncplayRooms: ルーム
+syncplayMember: メンバー
+syncplayMembers: メンバー
+syncplayBackToGroups: グループ一覧に戻る
+syncplayMembersHeading: メンバー
 createGroup: グループを作成
 noSyncplayGroups: アクティブなグループはありません。
-syncplayWatching: 一緒に視聴中
-syncplayNoMedia: メディアが選択されていません
 syncplayViewingTogether: 一緒に視聴中
 syncplayBrowsing: 閲覧中
 syncplayReturnToView: 視聴に戻る

@@ -155,10 +155,14 @@ favoriteSeries: Favorite Series
 noFavorites: You have no favorites yet.
 favoritesLoadFailed: Could not load your favorites
 syncplayGroups: Groups
+syncplayRoom: room
+syncplayRooms: rooms
+syncplayMember: member
+syncplayMembers: members
+syncplayBackToGroups: Back to groups
+syncplayMembersHeading: Members
 createGroup: Create group
 noSyncplayGroups: No active groups yet.
-syncplayWatching: Watching together
-syncplayNoMedia: No media selected
 syncplayViewingTogether: Viewing together
 syncplayBrowsing: Browsing
 syncplayReturnToView: Return to view

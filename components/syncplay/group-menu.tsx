@@ -142,17 +142,18 @@ export function SyncplayGroupMenu({
 															<p className="truncate text-xs font-medium text-white/90">
 																{group.name}
 															</p>
-															{isActive && (
-																<span className="rounded-full bg-emerald-300/15 px-1.5 py-0.5 text-[9px] font-medium text-emerald-200">
-																	LIVE
-																</span>
-															)}
 														</div>
 														<p className="mt-1 hidden truncate text-[11px] text-white/40">
 															{group.itemId
 																? t("syncplayWatching")
 																: t("syncplayNoMedia")}{" "}
 															<span className="px-1 text-white/20">·</span>
+															{group.members.length}{" "}
+															{group.members.length === 1
+																? "member"
+																: "members"}
+														</p>
+														<p className="mt-1 truncate text-[11px] text-white/40">
 															{group.members.length}{" "}
 															{group.members.length === 1
 																? "member"

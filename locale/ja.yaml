@@ -155,6 +155,8 @@ close: 閉じる
 playNext: 次のエピソードを再生
 stopPlaying: 再生を停止
 syncplayGroups: グループ
+syncplayWatching: 一緒に視聴中
+syncplayNoMedia: メディアが選択されていません
 syncplayRoom: ルーム
 syncplayRooms: ルーム
 syncplayMember: メンバー

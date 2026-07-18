@@ -152,7 +152,7 @@ export function SyncplayGroupMenu({
 															{group.itemId
 																? t("syncplayWatching")
 																: t("syncplayNoMedia")}{" "}
-															<span className="px-1 text-white/20">ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</span>
+																	<span className="px-1 text-white/20">·</span>
 															{group.members.length}{" "}
 															{group.members.length === 1
 																? "member"

@@ -4,14 +4,14 @@ import { useState } from "react";
 import { userImageUrl } from "@/lib/jellyfin";
 import { useRouter } from "next/navigation";
 import {
-	Check,
 	ChevronLeft,
 	ChevronRight,
-	Circle,
 	Crown,
 	Plus,
 	Users,
 	X,
+	Trash2,
+	Eye,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSyncplay } from "@/lib/syncplay";
@@ -198,24 +198,24 @@ export function SyncplayGroupMenu({
 															{group.members.map((member) => (
 																<div
 																	key={member.participantId ?? member.userId}
-																	className="flex items-center gap-2 text-xs"
+															className="relative flex items-center gap-2 pr-10 text-xs"
 																>
-																	<MemberAvatar
-																		userId={member.userId}
-																		username={member.username}
-																		size="sm"
-																	/>
-																	<span className="min-w-0 flex-1 truncate text-white/60">
-																		{member.username}
-																	</span>
-																	{member.userId === group.hostUserId && (
-																		<Crown className="h-3 w-3 text-amber-200/70" />
-																	)}
-																	{member.watchingTogether !== false ? (
-																		<Check className="h-3 w-3 text-emerald-300/80" />
-																	) : (
-																		<Circle className="h-2.5 w-2.5 text-white/25" />
-																	)}
+													<div className="relative shrink-0">
+														<MemberAvatar
+															userId={member.userId}
+															username={member.username}
+															size="sm"
+														/>
+														{member.watchingTogether !== false && (
+															<Eye className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-violet-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[2.5]" />
+														)}
+													</div>
+													<span className="min-w-0 flex-1 truncate text-white/60">
+														{member.username}
+														{member.userId === group.hostUserId && (
+															<Crown className="ml-1 inline-block h-3 w-3 align-[-1px] text-amber-200/70" />
+														)}
+													</span>
 																	{isActive &&
 																		active.hostUserId === userId &&
 																		member.userId !== userId && (
@@ -225,11 +225,11 @@ export function SyncplayGroupMenu({
 																						member.userId,
 																					).catch(() => undefined)
 																				}
-																	className="text-xs text-red-200/60 hover:text-red-200"
-																			>
-																				{t("syncplayRemoveMember", {
-																					member: member.username,
-																				})}
+															aria-label={t("syncplayRemoveMember", { member: member.username })}
+															title={t("syncplayRemoveMember", { member: member.username })}
+															className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
+															>
+																<Trash2 className="h-3.5 w-3.5" />
 																			</button>
 																		)}
 																</div>
@@ -337,30 +337,32 @@ function ActiveGroupView({
 					{group.members.map((member) => (
 						<div
 							key={member.participantId ?? member.userId}
-											className="flex items-center gap-2 text-xs"
+											className="relative flex items-center gap-2 pr-10 text-xs"
 						>
-							<MemberAvatar
-								userId={member.userId}
-								username={member.username}
-								size="md"
-							/>
+							<div className="relative shrink-0">
+								<MemberAvatar
+									userId={member.userId}
+									username={member.username}
+									size="md"
+								/>
+								{member.watchingTogether !== false && (
+									<Eye className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-violet-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[2.5]" />
+								)}
+							</div>
 							<span className="min-w-0 flex-1 truncate text-white/70">
 								{member.username}
+								{member.userId === group.hostUserId && (
+									<Crown className="ml-1 inline-block h-3 w-3 align-[-1px] text-amber-200/70" />
+								)}
 							</span>
-							{member.userId === group.hostUserId && (
-								<Crown className="h-3 w-3 text-amber-200/70" />
-							)}
-							{member.watchingTogether !== false ? (
-								<Check className="h-3 w-3 text-emerald-300/80" />
-							) : (
-								<Circle className="h-2.5 w-2.5 text-white/25" />
-							)}
 							{group.hostUserId === userId && member.userId !== userId && (
 								<button
 									onClick={() => onRemoveMember(member.userId)}
-											className="text-xs text-red-200/60 hover:text-red-200"
-								>
-									{t("syncplayRemoveMember", { member: member.username })}
+											aria-label={t("syncplayRemoveMember", { member: member.username })}
+											title={t("syncplayRemoveMember", { member: member.username })}
+										className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
+										>
+											<Trash2 className="h-3.5 w-3.5" />
 								</button>
 							)}
 						</div>

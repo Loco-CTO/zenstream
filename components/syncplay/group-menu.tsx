@@ -99,20 +99,20 @@ export function SyncplayGroupMenu({
 									<p className="text-sm font-semibold tracking-tight text-white">
 										{t("syncplayGroups")}
 									</p>
-									<p className="mt-0.5 text-[11px] text-white/40">
+									<p className="mt-0.5 text-xs text-white/40">
 										{groups.length} {t(groups.length === 1 ? "syncplayRoom" : "syncplayRooms")}
 									</p>
 								</div>
 								<button
 									disabled={Boolean(active)}
 									onClick={() => void create().catch(() => undefined)}
-									className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-black transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+									className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
 								>
 									<Plus className="h-3.5 w-3.5" />
 									{t("createGroup")}
 								</button>
 							</div>
-							<div className="space-y-1 py-2">
+							<div className="space-y-2 pb-0 pt-2">
 								{groups.length === 0 ? (
 									<div className="px-3 py-8 text-center">
 										<Users className="mx-auto mb-2 h-6 w-6 text-white/20" />
@@ -143,7 +143,7 @@ export function SyncplayGroupMenu({
 																{group.name}
 															</p>
 														</div>
-														<p className="mt-1 hidden truncate text-[11px] text-white/40">
+									<p className="mt-1 hidden truncate text-xs text-white/40">
 															{group.itemId
 																? t("syncplayWatching")
 																: t("syncplayNoMedia")}{" "}
@@ -153,7 +153,7 @@ export function SyncplayGroupMenu({
 											? t("syncplayMember")
 											: t("syncplayMembers")}
 														</p>
-														<p className="mt-1 truncate text-[11px] text-white/40">
+									<p className="mt-1 truncate text-xs text-white/40">
 															{group.members.length}{" "}
 															{group.members.length === 1
 											? t("syncplayMember")
@@ -177,7 +177,7 @@ export function SyncplayGroupMenu({
 																() => undefined,
 															)
 														}
-														className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${isActive ? "text-white/50 hover:bg-white/10 hover:text-red-200" : "bg-white text-black hover:bg-violet-100"}`}
+									className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${isActive ? "text-white/50 hover:bg-white/10 hover:text-red-200" : "bg-white text-black hover:bg-violet-100"}`}
 													>
 														{isActive ? (
 															<>
@@ -198,7 +198,7 @@ export function SyncplayGroupMenu({
 															{group.members.map((member) => (
 																<div
 																	key={member.participantId ?? member.userId}
-																	className="flex items-center gap-2 text-[11px]"
+																	className="flex items-center gap-2 text-xs"
 																>
 																	<MemberAvatar
 																		userId={member.userId}
@@ -225,7 +225,7 @@ export function SyncplayGroupMenu({
 																						member.userId,
 																					).catch(() => undefined)
 																				}
-																				className="text-[10px] text-red-200/60 hover:text-red-200"
+																	className="text-xs text-red-200/60 hover:text-red-200"
 																			>
 																				{t("syncplayRemoveMember", {
 																					member: member.username,
@@ -241,7 +241,7 @@ export function SyncplayGroupMenu({
 													<button
 														type="button"
 														onClick={() => void returnToView(group)}
-														className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-violet-300 px-3 py-2 text-[11px] font-semibold text-black transition hover:bg-violet-200"
+															className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-violet-300 px-3 py-2.5 text-xs font-semibold text-black transition hover:bg-violet-200"
 													>
 														{t("syncplayReturnToView")}
 														<ChevronRight className="h-3 w-3" />
@@ -275,7 +275,7 @@ function MemberAvatar({
 		<span
 			className={
 				dimensions +
-				" flex items-center justify-center rounded-full bg-white/10 text-[9px] font-semibold text-white/60"
+				" flex items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/60"
 			}
 		>
 			{username.slice(0, 1).toUpperCase()}
@@ -323,21 +323,21 @@ function ActiveGroupView({
 					<p className="truncate text-sm font-semibold text-white">
 						{group.name}
 					</p>
-					<p className="mt-0.5 text-[11px] text-white/40">
+					<p className="mt-0.5 text-xs text-white/40">
 						{group.members.length}{" "}
 						{t(group.members.length === 1 ? "syncplayMember" : "syncplayMembers")}
 					</p>
 				</div>
 			</div>
 			<div className="px-1 py-3">
-				<p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">
+				<p className="mb-2 text-xs font-medium uppercase tracking-wider text-white/35">
 					{t("syncplayMembersHeading")}
 				</p>
 				<div className="space-y-2">
 					{group.members.map((member) => (
 						<div
 							key={member.participantId ?? member.userId}
-							className="flex items-center gap-2 text-[11px]"
+											className="flex items-center gap-2 text-xs"
 						>
 							<MemberAvatar
 								userId={member.userId}
@@ -358,7 +358,7 @@ function ActiveGroupView({
 							{group.hostUserId === userId && member.userId !== userId && (
 								<button
 									onClick={() => onRemoveMember(member.userId)}
-									className="text-[10px] text-red-200/60 hover:text-red-200"
+											className="text-xs text-red-200/60 hover:text-red-200"
 								>
 									{t("syncplayRemoveMember", { member: member.username })}
 								</button>
@@ -371,7 +371,7 @@ function ActiveGroupView({
 				<button
 					type="button"
 					onClick={onReturn}
-					className="mb-3 flex w-full items-center justify-center gap-1 rounded-lg bg-violet-300 px-3 py-2 text-[11px] font-semibold text-black transition hover:bg-violet-200"
+					className="mb-3 flex w-full items-center justify-center gap-1 rounded-lg bg-violet-300 px-3 py-2.5 text-xs font-semibold text-black transition hover:bg-violet-200"
 				>
 					{t("syncplayReturnToView")}
 					<ChevronRight className="h-3 w-3" />
@@ -388,7 +388,7 @@ function ActiveGroupView({
 			)}
 			<button
 				onClick={onLeave}
-				className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-300/15 px-3 py-2 text-[11px] text-red-200/65 transition hover:bg-red-400/10 hover:text-red-200"
+				className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-300/15 px-3 py-2.5 text-xs text-red-200/65 transition hover:bg-red-400/10 hover:text-red-200"
 			>
 				<X className="h-3 w-3" />
 				{t("leaveGroup")}

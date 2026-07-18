@@ -78,11 +78,7 @@ class NativeSocket {
 }
 function normalizeSyncplayOrigin(origin: string) {
 	const websocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-	return `${origin
-		.replace(/^https?:/, websocketProtocol)
-		.replace(/\/(?:syncplay\/)?api\/ws\/syncplay\/?$/i, "")
-		.replace(/\/syncplay\/?$/i, "")
-		.replace(/\/+$/, "")}/api/ws/syncplay`;
+	return `${origin.replace(/^https?:/, websocketProtocol).replace(/\/+$/, "")}/api/ws/syncplay`;
 }
 const io = (
 	origin: string,
@@ -494,7 +490,7 @@ export function SyncplayProvider({
 		const socketOrigin = (
 			process.env.NEXT_PUBLIC_ZSO_URL ?? window.location.origin
 		).replace(/\/+$/, "");
-		const socket = io(`${socketOrigin}/syncplay`, {
+		const socket = io(socketOrigin, {
 			path: "/api/socket.io",
 			auth: { token: session.token, participantId: currentParticipantId },
 			autoConnect: false,

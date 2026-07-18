@@ -16,6 +16,7 @@ import {
 	syncplayItemIsLoading,
 	syncplayMediaIsReady,
 	syncplayWaitingEventIsBuffering,
+	syncplayWaitingIsSeekTransition,
 	syncplayStateWantsPlaying,
 	syncplayTimelineTarget,
 	VideoPlayer,
@@ -48,6 +49,10 @@ vi.mock("@/lib/jellyfin", async () => {
 });
 
 describe("video player controls", () => {
+	it("recognizes the transient decoder window after a seek", () => {
+		expect(syncplayWaitingIsSeekTransition(1500, 1000)).toBe(true);
+		expect(syncplayWaitingIsSeekTransition(1000, 1000)).toBe(false);
+	});
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());
 

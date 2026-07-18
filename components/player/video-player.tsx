@@ -1279,7 +1279,7 @@ export function VideoPlayer({
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
-				 onWaiting={() => {
+				onWaiting={() => {
 					// `waiting` is also emitted while a browser is seeking to the
 					// synchronized timeline.  That is not a transport stall when the
 					// element already has future data; reporting it to the server makes
@@ -1311,7 +1311,7 @@ export function VideoPlayer({
 					});
 					reportBuffering(true);
 				}}
-				 onCanPlay={() => {
+				onCanPlay={() => {
 					// A media error can be emitted while the browser is still
 					// recovering the source. `canplay` is the authoritative signal
 					// that the current element can be played, so clear any stale
@@ -1393,7 +1393,7 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				 onPlaying={(event) => {
+				onPlaying={(event) => {
 					disableNativeSubtitleTracks(event.currentTarget);
 					setQualityLoading(false);
 					setBuffering(false);
@@ -1401,7 +1401,7 @@ export function VideoPlayer({
 					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}
-				 onPause={(e) => {
+				onPause={(e) => {
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",
@@ -1413,7 +1413,12 @@ export function VideoPlayer({
 						authoritativePlaying: syncWantsPlaying,
 						canControl: syncplay.canControl,
 					});
-					if (syncplayWaitingIsSeekTransition(seekSettlingUntilRef.current, performance.now())) {
+					if (
+						syncplayWaitingIsSeekTransition(
+							seekSettlingUntilRef.current,
+							performance.now(),
+						)
+					) {
 						playerDebug("video pause ignored during seek transition");
 						return;
 					}
@@ -1476,12 +1481,12 @@ export function VideoPlayer({
 					<ArrowLeft />
 				</button>
 				<div className="min-w-0">
-					<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
-						{item.Type === "Episode"
-							? `${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`
-							: item.Name}
-					</p>
 					{item.Type === "Episode" && (
+						<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
+							{`${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
+						</p>
+					)}
+					{item.Name && (
 						<h1 className="mt-1 line-clamp-2 text-base font-semibold sm:text-lg">
 							{item.Name}
 						</h1>

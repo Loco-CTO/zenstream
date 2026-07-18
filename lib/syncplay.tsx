@@ -26,14 +26,19 @@ class NativeSocket {
 		for (const listener of this.listeners.get(event) ?? []) listener(value);
 	}
 	connect() {
-		this.ws = new WebSocket(
+		if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+		const ws = new WebSocket(
 			`${this.url}?token=${encodeURIComponent(this.auth.token)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
 		);
-		this.ws.onopen = () => this.fire("connect");
-		this.ws.onclose = (event) => this.fire("disconnect", event.reason);
-		this.ws.onerror = () =>
+		this.ws = ws;
+		ws.onopen = () => this.fire("connect");
+		ws.onclose = (event) => {
+			if (this.ws === ws) this.ws = null;
+			this.fire("disconnect", event.reason);
+		};
+		ws.onerror = () =>
 			this.fire("connect_error", new Error("WebSocket connection failed"));
-		this.ws.onmessage = (event) => {
+		ws.onmessage = (event) => {
 			const message = JSON.parse(event.data);
 			if (message.type === "groups") this.fire("syncplay:groups", message);
 			else if (message.type === "group") this.fire("syncplay:group", message);
@@ -46,8 +51,9 @@ class NativeSocket {
 	}
 	emit<T = NativeEvent>(event: string, payload: Record<string, unknown>, callback?: (value: T) => void) {
 		if (event === "syncplay:clock") {
+			if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 			this.once("clock", callback);
-			this.ws?.send(JSON.stringify({ type: "clock", ...payload }));
+			this.ws.send(JSON.stringify({ type: "clock", ...payload }));
 		}
 	}
 	once<T = NativeEvent>(event: string, callback?: (value: T) => void) {
@@ -65,16 +71,25 @@ class NativeSocket {
 		}
 	}
 	disconnect() {
-		this.ws?.close();
+		const ws = this.ws;
 		this.ws = null;
+		ws?.close();
 	}
+}
+function normalizeSyncplayOrigin(origin: string) {
+	const websocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+	return `${origin
+		.replace(/^https?:/, websocketProtocol)
+		.replace(/\/(?:syncplay\/)?api\/ws\/syncplay\/?$/i, "")
+		.replace(/\/syncplay\/?$/i, "")
+		.replace(/\/+$/, "")}/api/ws/syncplay`;
 }
 const io = (
 	origin: string,
 	options: { auth: { token: string; participantId: string }; path?: string; autoConnect?: boolean },
 ) =>
 	new NativeSocket(
-		`${origin.replace(/^https?:/, location.protocol === "https:" ? "wss:" : "ws:")}/api/ws/syncplay`,
+		normalizeSyncplayOrigin(origin),
 		options.auth,
 	);
 import { useToast } from "@/components/ui/toast";

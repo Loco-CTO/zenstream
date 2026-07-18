@@ -100,7 +100,8 @@ export function SyncplayGroupMenu({
 										{t("syncplayGroups")}
 									</p>
 									<p className="mt-0.5 text-[10px] text-white/40">
-										{groups.length} {t(groups.length === 1 ? "syncplayRoom" : "syncplayRooms")}
+										{groups.length}{" "}
+										{t(groups.length === 1 ? "syncplayRoom" : "syncplayRooms")}
 									</p>
 								</div>
 								<button
@@ -143,21 +144,21 @@ export function SyncplayGroupMenu({
 																{group.name}
 															</p>
 														</div>
-									<p className="mt-1 hidden truncate text-xs text-white/40">
+														<p className="mt-1 hidden truncate text-xs text-white/40">
 															{group.itemId
 																? t("syncplayWatching")
 																: t("syncplayNoMedia")}{" "}
 															<span className="px-1 text-white/20">·</span>
 															{group.members.length}{" "}
 															{group.members.length === 1
-											? t("syncplayMember")
-											: t("syncplayMembers")}
+																? t("syncplayMember")
+																: t("syncplayMembers")}
 														</p>
-					<p className="mt-1 truncate text-[10px] text-white/40">
+														<p className="mt-1 truncate text-[10px] text-white/40">
 															{group.members.length}{" "}
 															{group.members.length === 1
-											? t("syncplayMember")
-											: t("syncplayMembers")}
+																? t("syncplayMember")
+																: t("syncplayMembers")}
 														</p>
 													</div>
 													{isActive && (
@@ -177,7 +178,7 @@ export function SyncplayGroupMenu({
 																() => undefined,
 															)
 														}
-									className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${isActive ? "text-white/50 hover:bg-white/10 hover:text-red-200" : "bg-white text-black hover:bg-violet-100"}`}
+														className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${isActive ? "text-white/50 hover:bg-white/10 hover:text-red-200" : "bg-white text-black hover:bg-violet-100"}`}
 													>
 														{isActive ? (
 															<>
@@ -198,24 +199,24 @@ export function SyncplayGroupMenu({
 															{group.members.map((member) => (
 																<div
 																	key={member.participantId ?? member.userId}
-															className="relative flex items-center gap-2 pr-10 text-xs"
+																	className="relative flex items-center gap-2 pr-10 text-xs"
 																>
-													<div className="relative shrink-0">
-														<MemberAvatar
-															userId={member.userId}
-															username={member.username}
-															size="sm"
-														/>
-														{member.watchingTogether !== false && (
-															<Eye className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-violet-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[2.5]" />
-														)}
-													</div>
-													<span className="min-w-0 flex-1 truncate text-white/60">
-														{member.username}
-														{member.userId === group.hostUserId && (
-															<Crown className="ml-1 inline-block h-3 w-3 align-[-1px] text-amber-200/70" />
-														)}
-													</span>
+																	<div className="relative shrink-0">
+																		<MemberAvatar
+																			userId={member.userId}
+																			username={member.username}
+																			size="sm"
+																		/>
+																		{member.watchingTogether !== false && (
+																			<Eye className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-violet-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[2.5]" />
+																		)}
+																	</div>
+																	<span className="min-w-0 flex-1 truncate text-white/60">
+																		{member.username}
+																		{member.userId === group.hostUserId && (
+																			<Crown className="ml-1 inline-block h-3 w-3 align-[-1px] text-amber-200/70" />
+																		)}
+																	</span>
 																	{isActive &&
 																		active.hostUserId === userId &&
 																		member.userId !== userId && (
@@ -225,11 +226,15 @@ export function SyncplayGroupMenu({
 																						member.userId,
 																					).catch(() => undefined)
 																				}
-															aria-label={t("syncplayRemoveMember", { member: member.username })}
-															title={t("syncplayRemoveMember", { member: member.username })}
-															className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
-															>
-																<Trash2 className="h-3.5 w-3.5" />
+																				aria-label={t("syncplayRemoveMember", {
+																					member: member.username,
+																				})}
+																				title={t("syncplayRemoveMember", {
+																					member: member.username,
+																				})}
+																				className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
+																			>
+																				<Trash2 className="h-3.5 w-3.5" />
 																			</button>
 																		)}
 																</div>
@@ -241,7 +246,7 @@ export function SyncplayGroupMenu({
 													<button
 														type="button"
 														onClick={() => void returnToView(group)}
-															className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-violet-300 px-3 py-2.5 text-xs font-semibold text-black transition hover:bg-violet-200"
+														className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-violet-300 px-3 py-2.5 text-xs font-semibold text-black transition hover:bg-violet-200"
 													>
 														{t("syncplayReturnToView")}
 														<ChevronRight className="h-3 w-3" />
@@ -325,7 +330,9 @@ function ActiveGroupView({
 					</p>
 					<p className="mt-0.5 text-xs text-white/40">
 						{group.members.length}{" "}
-						{t(group.members.length === 1 ? "syncplayMember" : "syncplayMembers")}
+						{t(
+							group.members.length === 1 ? "syncplayMember" : "syncplayMembers",
+						)}
 					</p>
 				</div>
 			</div>
@@ -337,7 +344,7 @@ function ActiveGroupView({
 					{group.members.map((member) => (
 						<div
 							key={member.participantId ?? member.userId}
-											className="relative flex items-center gap-2 pr-10 text-xs"
+							className="relative flex items-center gap-2 pr-10 text-xs"
 						>
 							<div className="relative shrink-0">
 								<MemberAvatar
@@ -358,11 +365,13 @@ function ActiveGroupView({
 							{group.hostUserId === userId && member.userId !== userId && (
 								<button
 									onClick={() => onRemoveMember(member.userId)}
-											aria-label={t("syncplayRemoveMember", { member: member.username })}
-											title={t("syncplayRemoveMember", { member: member.username })}
-										className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
-										>
-											<Trash2 className="h-3.5 w-3.5" />
+									aria-label={t("syncplayRemoveMember", {
+										member: member.username,
+									})}
+									title={t("syncplayRemoveMember", { member: member.username })}
+									className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
+								>
+									<Trash2 className="h-3.5 w-3.5" />
 								</button>
 							)}
 						</div>

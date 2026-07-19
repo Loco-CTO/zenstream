@@ -35,9 +35,11 @@ import {
 	preserveTrickplay,
 	trickplayPreview,
 	youtubeVideoId,
+	authorizationHeader,
 	type JellyfinItem,
 } from "@/lib/jellyfin";
 import { browserDeviceProfile } from "@/lib/browser-device-profile";
+import { zenstreamVersion } from "@/lib/version";
 
 const session = { token: "abc", userId: "user-1", username: "Alex" };
 
@@ -102,6 +104,11 @@ describe("jellyfin api helpers", () => {
 				body: JSON.stringify({ Username: "alex", Pw: "secret" }),
 			}),
 		);
+	});
+
+	it("sends the current frontend version in the Jellyfin device info", () => {
+		const header = authorizationHeader();
+		expect(header).toContain(`Version="${zenstreamVersion}"`);
 	});
 
 	it("keeps a unique device identity across authenticated requests", async () => {

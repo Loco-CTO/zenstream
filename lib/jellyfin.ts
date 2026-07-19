@@ -1,5 +1,6 @@
 import type { AuthSession } from "@/lib/session";
 import { browserDeviceProfile } from "@/lib/browser-device-profile";
+import { zenstreamVersion } from "@/lib/version";
 
 export interface AuthResponse {
 	AccessToken?: string;
@@ -224,7 +225,7 @@ export function authorizationHeader(token?: string) {
 		'Client="Web"',
 		'Device="ZenStream"',
 		`DeviceId="${deviceId()}"`,
-		'Version="0.0.1b"',
+		`Version="${zenstreamVersion}"`,
 	].filter(Boolean);
 
 	return `MediaBrowser ${parts.join(", ")}`;

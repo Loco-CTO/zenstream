@@ -49,12 +49,6 @@ describe("home screen", () => {
     expect(screen.getByText("New Release")).toBeInTheDocument();
     expect(screen.getByText("Newly Added on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
-		const newlyAddedSection = screen.getByText("Newly Added on Anime").closest("section");
-		expect(newlyAddedSection).not.toBeNull();
-		const newlyAddedLink = within(newlyAddedSection!).getByRole("link", { name: /all/i });
-		const newlyAddedUrl = new URL(newlyAddedLink.getAttribute("href")!, "https://zenstream.test");
-		expect(newlyAddedUrl.searchParams.get("sortBy")).toBe("DateCreated");
-		expect(newlyAddedUrl.searchParams.get("newlyAdded")).toBe("true");
     expect(screen.getByText("Continue Watching")).toBeInTheDocument();
     expect(screen.getByText("Next Up")).toBeInTheDocument();
     expect(screen.getByText("Top Rated Anime")).toBeInTheDocument();

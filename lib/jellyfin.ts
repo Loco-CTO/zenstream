@@ -496,7 +496,7 @@ export async function getLibraryItems(
 			includeItemTypes,
 			sortBy: options.sortBy,
 			sortOrder: options.sortOrder,
-			fields: ITEM_FIELDS,
+			fields: options.newlyAdded ? `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage` : ITEM_FIELDS,
 			enableImages: true,
 			imageTypeLimit: 1,
 			enableImageTypes: ITEM_IMAGE_TYPES,

@@ -76,6 +76,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const queryLibraryId = searchParams.get("libraryId") ?? "";
 	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
 	const querySortOrder = searchParams.get("sortOrder");
+	const queryNewlyAdded = searchParams.get("newlyAdded") === "true";
 	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
@@ -124,7 +125,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	const loadFirstPage = useCallback(async (force = false) => {
 		if (!activeLibrary) return;
-		const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
+		const queryKey = `${activeLibrary.Id}:${queryNewlyAdded}:${sortBy}:${sortOrder}`;
 		if (!force && loadedQueryRef.current === queryKey) return;
 		requestRef.current?.abort();
 		const controller = new AbortController();
@@ -143,6 +144,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				collectionType: activeLibrary.CollectionType,
 				startIndex: 0,
 				limit: PAGE_SIZE,
+				newlyAdded: queryNewlyAdded,
 				sortBy,
 				sortOrder,
 				signal: controller.signal,
@@ -160,7 +162,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (!controller.signal.aborted) setLoading(false);
 			finish();
 		}
-	}, [activeLibrary, session, sortBy, sortOrder, start]);
+	}, [activeLibrary, queryNewlyAdded, session, sortBy, sortOrder, start]);
 
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
@@ -189,6 +191,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				collectionType: activeLibrary.CollectionType,
 				startIndex,
 				limit: PAGE_SIZE,
+				newlyAdded: queryNewlyAdded,
 				sortBy,
 				sortOrder,
 				signal: controller.signal,
@@ -208,7 +211,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (!controller.signal.aborted) setLoadingMore(false);
 			finish();
 		}
-	}, [activeLibrary, loadedCount, loading, session, sortBy, sortOrder, start, total]);
+	}, [activeLibrary, loadedCount, loading, queryNewlyAdded, session, sortBy, sortOrder, start, total]);
 
 	const sortOptions = useMemo<DropdownOption[]>(
 		() => SORTS.map((sort) => ({ value: sort.value, label: t(sort.labelKey) })),

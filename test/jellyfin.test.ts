@@ -452,6 +452,28 @@ describe("jellyfin api helpers", () => {
 		expect(url.searchParams.get("includeItemTypes")).toBe("BoxSet");
 	});
 
+	it("requests episodes for a newly added TV library", async () => {
+		vi.mocked(fetch).mockResolvedValueOnce(
+			new Response(JSON.stringify({ Items: [], TotalRecordCount: 0 }), {
+				status: 200,
+			}),
+		);
+
+		await getLibraryItems(session, {
+			parentId: "shows",
+			collectionType: "tvshows",
+			startIndex: 0,
+			newlyAdded: true,
+			sortBy: "DateCreated",
+			sortOrder: "Descending",
+		});
+
+		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
+		expect(url.searchParams.get("includeItemTypes")).toBe("Episode");
+		expect(url.searchParams.get("sortBy")).toBe("DateCreated");
+		expect(url.searchParams.get("sortOrder")).toBe("Descending");
+	});
+
 	it("loads newly added episodes, movies, and collections only", async () => {
 		vi.mocked(fetch)
 			.mockResolvedValueOnce(

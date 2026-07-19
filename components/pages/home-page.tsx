@@ -8,9 +8,10 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { zenstreamVersion } from "@/lib/version";
 
-function libraryHref(options: { libraryId?: string; sortBy: string; sortOrder: string }) {
+function libraryHref(options: { libraryId?: string; sortBy: string; sortOrder: string; newlyAdded?: boolean }) {
 	const params = new URLSearchParams({ sortBy: options.sortBy, sortOrder: options.sortOrder });
 	if (options.libraryId) params.set("libraryId", options.libraryId);
+	if (options.newlyAdded) params.set("newlyAdded", "true");
 	return `/library?${params.toString()}`;
 }
 
@@ -45,7 +46,12 @@ export function HomePage({ data, session }: { data: Partial<HomeData>; session: 
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}
 						session={session}
-						viewAllHref={libraryHref({ libraryId: section.libraryId, sortBy: section.titleKey === "topRated" ? "CommunityRating" : "PremiereDate", sortOrder: "Descending" })}
+						viewAllHref={libraryHref({
+							libraryId: section.libraryId,
+							sortBy: section.titleKey === "topRated" ? "CommunityRating" : section.titleKey === "newlyAddedOn" ? "DateCreated" : "PremiereDate",
+							sortOrder: "Descending",
+							newlyAdded: section.titleKey === "newlyAddedOn",
+						})}
 					/>
 				))}
 			</div>

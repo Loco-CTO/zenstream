@@ -478,12 +478,13 @@ export async function getLibraryItems(
 		collectionType?: string;
 		startIndex: number;
 		limit?: number;
+		newlyAdded?: boolean;
 		sortBy: LibrarySortBy;
 		sortOrder: "Ascending" | "Descending";
 		signal?: AbortSignal;
 	},
 ): Promise<LibraryPage> {
-	const includeItemTypes = libraryItemTypes(options.collectionType);
+	const includeItemTypes = libraryItemTypes(options.collectionType, options.newlyAdded);
 	const data = await jellyfinRequest(
 		session,
 		`/Items?${queryString({

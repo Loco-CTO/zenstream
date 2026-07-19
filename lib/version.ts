@@ -1,7 +1,11 @@
 import packageJson from "../package.json";
 import mainVersion from "../.main-version.json";
 
-export const zenstreamVersion = `v${packageJson.version}-main.${mainVersion.main}`;
+export function formatVersion(version: string, main: number): string {
+	return main === 0 ? `v${version}` : `v${version}-main.${main}`;
+}
+
+export const zenstreamVersion = formatVersion(packageJson.version, mainVersion.main);
 
 export async function fetchOrchestratorVersion(): Promise<string | null> {
 	try {
@@ -12,9 +16,14 @@ export async function fetchOrchestratorVersion(): Promise<string | null> {
 			version?: unknown;
 			main?: unknown;
 		};
-		if (typeof payload.version !== "string" || typeof payload.main !== "number")
+		if (
+			typeof payload.version !== "string" ||
+			typeof payload.main !== "number" ||
+			!Number.isInteger(payload.main) ||
+			payload.main < 0
+		)
 			return null;
-		return `v${payload.version}-main.${payload.main}`;
+		return formatVersion(payload.version, payload.main);
 	} catch {
 		return null;
 	}

@@ -24,4 +24,25 @@ describe("service worker generator", () => {
 			readFile(join(root, "public/sw.js"), "utf8"),
 		).resolves.toContain("zenstream-shell-v9.8.7-main.42");
 	});
+
+	it("omits the main suffix from the cache name when the counter is zero", async () => {
+		const root = await mkdtemp(join(tmpdir(), "zenstream-sw-"));
+		await mkdir(join(root, "public"));
+		await writeFile(join(root, "package.json"), JSON.stringify({ version: "9.8.7" }));
+		await writeFile(join(root, ".main-version.json"), JSON.stringify({ main: 0 }));
+		await writeFile(
+			join(root, "public/sw.template.js"),
+			'const CACHE_NAME = \\"__CACHE_NAME__\\";',
+		);
+
+		const { buildVersion } = await generateServiceWorker({ rootDir: root });
+
+		expect(buildVersion).toBe("v9.8.7");
+		expect(await readFile(join(root, "public/sw.js"), "utf8")).toContain(
+			"zenstream-shell-v9.8.7",
+		);
+		expect(await readFile(join(root, "public/sw.js"), "utf8")).not.toContain(
+			"-main.0",
+		);
+	});
 });

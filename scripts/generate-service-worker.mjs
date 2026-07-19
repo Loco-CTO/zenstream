@@ -10,7 +10,9 @@ export async function generateServiceWorker({ rootDir = root } = {}) {
 		readFile(resolve(rootDir, ".main-version.json"), "utf8").then(JSON.parse),
 		readFile(resolve(rootDir, "public/sw.template.js"), "utf8"),
 	]);
-	const buildVersion = `v${packageJson.version}-main.${mainVersion.main}`;
+	const buildVersion = mainVersion.main === 0
+		? `v${packageJson.version}`
+		: `v${packageJson.version}-main.${mainVersion.main}`;
 	const output = template.replace(
 		"__CACHE_NAME__",
 		`zenstream-shell-${buildVersion}`,

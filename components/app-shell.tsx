@@ -45,6 +45,7 @@ import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-p
 import { SyncplayProvider } from "@/lib/syncplay";
 import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
 import { ToastProvider } from "@/components/ui/toast";
+import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 
 type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
 
@@ -107,6 +108,8 @@ export function AppShell() {
 		typeof window !== "undefined"
 			? (new URLSearchParams(window.location.search).get("q") ?? "")
 			: "";
+	const currentSearch =
+		typeof window !== "undefined" ? window.location.search : "";
 	const loadDetail = useCallback(
 		async (nextSession: AuthSession, itemId: string) => {
 			const finishProgress = start();
@@ -139,6 +142,10 @@ export function AppShell() {
 		},
 		[start, pathname, searchQuery],
 	);
+
+	useEffect(() => {
+		rememberLastNonPlayerPath(`${pathname}${currentSearch}`);
+	}, [currentSearch, pathname]);
 
 	useEffect(() => {
 		const finishProgress = start();

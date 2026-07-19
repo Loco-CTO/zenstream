@@ -7,6 +7,7 @@ import { playbackStreams, type DetailData } from "@/lib/jellyfin";
 import { getPlaybackInfo } from "@/lib/jellyfin";
 import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
+import { getLastNonPlayerPath } from "@/lib/player-navigation";
 
 export function PlayerPage({ initialData, session }: { initialData: DetailData; session: AuthSession }) {
 	const router = useRouter();
@@ -39,9 +40,9 @@ export function PlayerPage({ initialData, session }: { initialData: DetailData; 
 		// VideoPlayer treats initialStreams as authoritative. Ignore the previous
 		// item's result until playback info for this item has arrived.
 		initialStreams={streamsItemId === item.Id ? streams : undefined}
-		onClose={() => {
+		 onClose={() => {
 			if (active) void setWatchingTogether(false).catch(() => undefined);
-			router.back();
+			router.replace(getLastNonPlayerPath());
 		}}
 		onNext={(next) => { setItem(next); router.replace(`/play/${encodeURIComponent(next.Id)}`); }}
 		onPlayedChange={() => undefined}

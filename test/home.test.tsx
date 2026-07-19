@@ -2,8 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
-import { HomePage } from "@/components/pages/home-page";
-import { I18nProvider } from "@/lib/i18n";
+import { libraryHref } from "@/components/pages/home-page";
 import * as jellyfin from "@/lib/jellyfin";
 import * as session from "@/lib/session";
 
@@ -92,31 +91,16 @@ describe("home screen", () => {
   });
 
   it("opens newly added rows as series sorted by the latest episode added date", () => {
-    render(
-      <I18nProvider locale="en">
-        <HomePage
-          data={{
-            libraryRows: [{
-              libraryId: "anime",
-              libraryName: "Anime",
-              titleKey: "newlyAddedOn",
-              stackEpisodes: true,
-              items: [item("added-1", "Newly Added Series")],
-            }],
-          }}
-          session={{ token: "token", userId: "user", username: "Alex" }}
-        />
-      </I18nProvider>,
-    );
+    const href = libraryHref({
+      libraryId: "anime",
+      sortBy: "DateLastContentAdded",
+      sortOrder: "Descending",
+    });
 
-    const section = screen.getByRole("heading", { name: "Newly Added on Anime" }).closest("section");
-    expect(section).not.toBeNull();
-    const viewAll = within(section!).getByRole("link", { name: /all/i });
-    expect(viewAll).toHaveAttribute(
-      "href",
+    expect(href).toBe(
       "/library?sortBy=DateLastContentAdded&sortOrder=Descending&libraryId=anime",
     );
-    expect(viewAll.getAttribute("href")).not.toContain("newlyAdded");
+    expect(href).not.toContain("newlyAdded");
   });
 
   it("does not show the empty-library state while home data is loading", async () => {

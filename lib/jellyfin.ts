@@ -349,7 +349,7 @@ export async function getNewlyAddedItems(session: AuthSession) {
 					parentId: library.Id,
 					recursive: true,
 					limit: 18,
-					includeItemTypes: libraryItemTypes(library.CollectionType, true),
+					includeItemTypes: library.CollectionType === "tvshows" ? "Episode" : libraryItemTypes(library.CollectionType),
 					sortBy: "DateCreated",
 					sortOrder: "Descending",
 					fields: `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage`,
@@ -478,13 +478,12 @@ export async function getLibraryItems(
 		collectionType?: string;
 		startIndex: number;
 		limit?: number;
-		newlyAdded?: boolean;
 		sortBy: LibrarySortBy;
 		sortOrder: "Ascending" | "Descending";
 		signal?: AbortSignal;
 	},
 ): Promise<LibraryPage> {
-	const includeItemTypes = libraryItemTypes(options.collectionType, options.newlyAdded);
+	const includeItemTypes = libraryItemTypes(options.collectionType);
 	const data = await jellyfinRequest(
 		session,
 		`/Items?${queryString({
@@ -496,7 +495,7 @@ export async function getLibraryItems(
 			includeItemTypes,
 			sortBy: options.sortBy,
 			sortOrder: options.sortOrder,
-			fields: options.newlyAdded ? `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage` : ITEM_FIELDS,
+			fields: ITEM_FIELDS,
 			enableImages: true,
 			imageTypeLimit: 1,
 			enableImageTypes: ITEM_IMAGE_TYPES,
@@ -525,8 +524,8 @@ function isSupportedLibraryType(collectionType?: string) {
 	);
 }
 
-function libraryItemTypes(collectionType?: string, newlyAdded = false) {
-	if (collectionType === "tvshows") return newlyAdded ? "Episode" : "Series";
+function libraryItemTypes(collectionType?: string) {
+	if (collectionType === "tvshows") return "Series";
 	if (collectionType === "movies") return "Movie";
 	if (collectionType === "boxsets") return "BoxSet";
 	return "Series,Movie";

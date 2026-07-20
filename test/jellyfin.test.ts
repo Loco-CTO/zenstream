@@ -52,7 +52,7 @@ describe("jellyfin api helpers", () => {
 		await getSearchItems(session, "  dune  ");
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
-		expect(url.pathname).toBe("/Items");
+		expect(url.pathname).toBe("/api/content/items");
 		expect(url.searchParams.get("searchTerm")).toBe("dune");
 		expect(url.searchParams.has("sortBy")).toBe(false);
 		expect(url.searchParams.has("sortOrder")).toBe(false);
@@ -93,7 +93,7 @@ describe("jellyfin api helpers", () => {
 		await authenticateByName(" alex ", " secret ");
 
 		expect(fetch).toHaveBeenCalledWith(
-			"https://demo.jellyfin.org/stable/Users/AuthenticateByName",
+			"http://localhost:3000/api/auth/login",
 			expect.objectContaining({
 				method: "POST",
 				headers: expect.objectContaining({
@@ -101,7 +101,7 @@ describe("jellyfin api helpers", () => {
 						/MediaBrowser Client="Web".*DeviceId="[^"]+"/,
 					),
 				}),
-				body: JSON.stringify({ Username: "alex", Pw: "secret" }),
+				body: JSON.stringify({ username: "alex", password: "secret" }),
 			}),
 		);
 	});
@@ -156,28 +156,41 @@ describe("jellyfin api helpers", () => {
 			"episode-1",
 			{
 				Id: "source-1",
-				TranscodingUrl:
-					"/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
+			TranscodingUrl:
+					"/api/video/episode-1/stream?lease=lease-1",
 			},
 			4_000_000,
 		);
 
 		expect(url).toBe(
-			"https://miru.amai.space/Videos/episode-guid/master.m3u8?PlaySessionId=session-1&ApiKey=abc",
+			"http://localhost:3000/api/video/episode-1/stream?lease=lease-1",
 		);
 	});
 
 	it("uses Jellyfin's negotiated direct stream URL without rebuilding it", () => {
 		const url = playbackUrl(session, "episode-1", {
 			Id: "source-1",
-			DirectStreamUrl: "/Videos/episode-guid/stream?MediaSourceId=source-1",
+			DirectStreamUrl: "/api/video/episode-1/stream?lease=lease-1",
 		});
 
 		const parsed = new URL(url);
-		expect(parsed.pathname).toBe("/Videos/episode-guid/stream");
-		expect(parsed.searchParams.get("MediaSourceId")).toBe("source-1");
-		expect(parsed.searchParams.get("api_key")).toBe("abc");
+		expect(parsed.pathname).toBe("/api/video/episode-1/stream");
+		expect(parsed.searchParams.has("MediaSourceId")).toBe(false);
+		expect(parsed.searchParams.get("lease")).toBe("lease-1");
 		expect(parsed.searchParams.has("VideoCodec")).toBe(false);
+	});
+
+	it("falls back to the gateway when an upstream URL escapes the gateway origin", () => {
+		const url = new URL(
+			playbackUrl(session, "episode-1", {
+				Id: "source-1",
+				DirectStreamUrl: "https://jellyfin.example/Videos/episode-1/stream",
+			}),
+		);
+
+		expect(url.origin).toBe("http://localhost:3000");
+		expect(url.pathname).toBe("/api/video/episode-1/stream");
+		expect(url.searchParams.get("MediaSourceId")).toBe("source-1");
 	});
 
 	it("does not add transcoding codec constraints to direct-play URLs", () => {
@@ -207,7 +220,7 @@ describe("jellyfin api helpers", () => {
 			"https://app.test",
 		);
 		expect(url.pathname).toBe(
-			"/api/jellyfin/video/movie-1/source-1/Subtitles/3/Stream.vtt",
+			"/api/video/movie-1/subtitles/source-1/3",
 		);
 		expect(url.searchParams.get("MediaSourceId")).toBe("source-1");
 		expect(url.searchParams.get("format")).toBe("vtt");
@@ -335,7 +348,7 @@ describe("jellyfin api helpers", () => {
 		await getResumeItems(session);
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
-		expect(url.pathname).toBe("/UserItems/Resume");
+		expect(url.pathname).toBe("/api/content/resume");
 		expect(url.searchParams.get("userId")).toBe("user-1");
 		expect(url.searchParams.get("includeItemTypes")).toBe("Episode,Movie");
 		expect(url.searchParams.get("enableImageTypes")).toBe(ITEM_IMAGE_TYPES);
@@ -346,7 +359,7 @@ describe("jellyfin api helpers", () => {
 		await getNextUpItems(session);
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
-		expect(url.pathname).toBe("/Shows/NextUp");
+		expect(url.pathname).toBe("/api/content/next-up");
 		expect(url.searchParams.get("disableFirstEpisode")).toBe("true");
 		expect(url.searchParams.get("enableRewatching")).toBe("false");
 	});
@@ -360,7 +373,7 @@ describe("jellyfin api helpers", () => {
 		});
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
-		expect(url.pathname).toBe("/Items");
+		expect(url.pathname).toBe("/api/content/items");
 		expect(url.searchParams.get("recursive")).toBe("true");
 		expect(url.searchParams.get("includeItemTypes")).toBe("Movie");
 		expect(url.searchParams.get("sortBy")).toBe("DateCreated");
@@ -371,7 +384,7 @@ describe("jellyfin api helpers", () => {
 		await getLatestItems(session);
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
-		expect(url.pathname).toBe("/Items");
+		expect(url.pathname).toBe("/api/content/items");
 		expect(url.searchParams.get("limit")).toBe("25");
 		expect(url.searchParams.get("includeItemTypes")).toBe("Series,Movie");
 		expect(url.searchParams.get("sortBy")).toBe("DateCreated");
@@ -401,7 +414,7 @@ describe("jellyfin api helpers", () => {
 		const libraries = await getLibraryViews(session);
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
 
-		expect(url.pathname).toBe("/Users/user-1/Views");
+		expect(url.pathname).toBe("/api/content/views");
 		expect(libraries.map((library) => library.Id)).toEqual([
 			"shows",
 			"movies",
@@ -430,7 +443,7 @@ describe("jellyfin api helpers", () => {
 		});
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
 
-		expect(url.pathname).toBe("/Items");
+		expect(url.pathname).toBe("/api/content/items");
 		expect(url.searchParams.get("parentId")).toBe("shows");
 		expect(url.searchParams.get("startIndex")).toBe("40");
 		expect(url.searchParams.get("limit")).toBe("40");
@@ -494,19 +507,16 @@ describe("jellyfin api helpers", () => {
 		const urls = vi
 			.mocked(fetch)
 			.mock.calls.map(([input]) => new URL(input as string));
-		expect(urls[0].pathname).toBe("/Users/user-1/Views");
+		expect(urls[0].pathname).toBe("/api/content/views");
 		expect(urls[1].searchParams.get("parentId")).toBe("shows");
 		expect(urls[1].searchParams.get("includeItemTypes")).toBe("Episode");
 		expect(urls[2].searchParams.get("parentId")).toBe("movies");
 		expect(urls[2].searchParams.get("includeItemTypes")).toBe("Movie");
-		expect(urls[3].searchParams.get("parentId")).toBe("collections");
-		expect(urls[3].searchParams.get("includeItemTypes")).toBe("BoxSet");
 		expect(sections.map((section) => section.libraryName)).toEqual([
 			"Shows",
 			"Movies",
-			"Collections",
 		]);
-		expect(urls).toHaveLength(4);
+		expect(urls).toHaveLength(3);
 		expect(
 			urls.some((url) => url.searchParams.get("parentId") === "playlists"),
 		).toBe(false);
@@ -523,7 +533,7 @@ describe("jellyfin api helpers", () => {
 			ImageTags: { Primary: "episode-thumbnail" },
 		});
 
-		expect(url).toContain("/Items/series-1/Images/Primary?");
+		expect(url).toContain("/api/assets/items/series-1/images/Primary?");
 		expect(url).toContain("tag=series-poster");
 		expect(url).not.toContain("episode-1");
 	});
@@ -536,8 +546,8 @@ describe("jellyfin api helpers", () => {
 			BackdropImageTags: ["backdrop-tag"],
 		};
 
-		expect(landscapeImageUrl(item)).toContain("/Images/Thumb?");
-		expect(heroImageUrl(item)).toContain("/Images/Backdrop/0?");
+		expect(landscapeImageUrl(item)).toContain("/images/Thumb?");
+		expect(heroImageUrl(item)).toContain("/images/Backdrop?");
 	});
 
 	it("returns the blurhash for the selected item image type and tag", () => {
@@ -555,21 +565,21 @@ describe("jellyfin api helpers", () => {
 		};
 
 		expect(landscapeImage(item)).toMatchObject({
-			src: expect.stringContaining("/Images/Thumb?"),
+			src: expect.stringContaining("/images/Thumb?"),
 			blurHash: "thumb-hash",
 		});
 		expect(heroImage(item)).toMatchObject({
-			src: expect.stringContaining("/Images/Backdrop/0?"),
+			src: expect.stringContaining("/images/Backdrop?"),
 			blurHash: "backdrop-hash",
 		});
 		expect(posterImage(item)).toMatchObject({
-			src: expect.stringContaining("/Images/Primary?"),
+			src: expect.stringContaining("/images/Primary?"),
 			blurHash: "primary-hash",
 		});
 		expect(
 			titleLogoImage({ ...item, ImageTags: { Logo: "logo-tag" } }),
 		).toEqual({
-			src: expect.stringContaining("/Images/Logo?"),
+			src: expect.stringContaining("/images/Logo?"),
 			blurHash: undefined,
 		});
 	});
@@ -587,7 +597,7 @@ describe("jellyfin api helpers", () => {
 				},
 			}),
 		).toMatchObject({
-			src: expect.stringContaining("/Items/series-1/Images/Primary?"),
+		src: expect.stringContaining("/api/assets/items/series-1/images/Primary?"),
 			blurHash: "series-poster-hash",
 		});
 
@@ -600,7 +610,7 @@ describe("jellyfin api helpers", () => {
 				},
 			}),
 		).toMatchObject({
-			src: expect.stringContaining("/Persons/Actor%20One/Images/Primary?"),
+			src: expect.stringContaining("/api/assets/people/Actor%20One/image?"),
 			blurHash: "person-hash",
 		});
 	});
@@ -624,7 +634,7 @@ describe("jellyfin api helpers", () => {
 
 		const url = titleLogoImageUrl(item);
 
-		expect(url).toContain("/Items/item-1/Images/Logo?");
+		expect(url).toContain("/api/assets/items/item-1/images/Logo?");
 		expect(url).toContain("tag=logo-tag");
 	});
 
@@ -665,13 +675,13 @@ describe("jellyfin api helpers", () => {
 		});
 
 		expect(new URL(vi.mocked(fetch).mock.calls[0][0] as string).pathname).toBe(
-			"/Items/local-trailer-item/LocalTrailers",
+			"/api/content/items/local-trailer-item/local-trailers",
 		);
 		expect(trailer?.kind).toBe("local");
 		if (trailer?.kind === "local") {
 			const streamUrl = new URL(trailer.url);
-			expect(streamUrl.pathname).toBe("/Videos/local%20trailer/stream");
-			expect(streamUrl.searchParams.get("api_key")).toBe("abc");
+			expect(streamUrl.pathname).toBe("/api/video/local%20trailer/stream");
+			expect(streamUrl.searchParams.has("api_key")).toBe(false);
 			expect(streamUrl.searchParams.get("Static")).toBe("true");
 		}
 	});
@@ -704,12 +714,12 @@ describe("jellyfin api helpers", () => {
 		const urls = vi
 			.mocked(fetch)
 			.mock.calls.map(([input]) => new URL(input as string));
-		expect(urls[0].pathname).toBe("/Items/item%201");
-		expect(urls[1].pathname).toBe("/Shows/series-1/Seasons");
+		expect(urls[0].pathname).toBe("/api/content/items/item%201");
+		expect(urls[1].pathname).toBe("/api/content/shows/series-1/seasons");
 		expect(urls[1].searchParams.get("userId")).toBe("user-1");
-		expect(urls[2].pathname).toBe("/Shows/series-1/Episodes");
+		expect(urls[2].pathname).toBe("/api/content/shows/series-1/episodes");
 		expect(urls[2].searchParams.get("seasonId")).toBe("season-2");
-		expect(urls[3].pathname).toBe("/Items/series-1/Similar");
+		expect(urls[3].pathname).toBe("/api/content/items/series-1/similar");
 		expect(urls[3].searchParams.get("limit")).toBe("8");
 	});
 
@@ -721,7 +731,7 @@ describe("jellyfin api helpers", () => {
 		await getSeriesEpisodes(session, "series 1");
 
 		const url = new URL(vi.mocked(fetch).mock.calls[0][0] as string);
-		expect(url.pathname).toBe("/Shows/series%201/Episodes");
+		expect(url.pathname).toBe("/api/content/shows/series%201/episodes");
 		expect(url.searchParams.get("userId")).toBe("user-1");
 		expect(url.searchParams.has("seasonId")).toBe(false);
 		expect(url.searchParams.get("enableUserData")).toBe("true");
@@ -743,10 +753,10 @@ describe("jellyfin api helpers", () => {
 					init?.method,
 				]),
 		).toEqual([
-			["/UserFavoriteItems/item-1", "POST"],
-			["/UserFavoriteItems/item-1", "DELETE"],
-			["/UserPlayedItems/item-1", "POST"],
-			["/UserPlayedItems/item-1", "DELETE"],
+			["/api/user/items/item-1/favorite", "POST"],
+			["/api/user/items/item-1/favorite", "DELETE"],
+			["/api/user/items/item-1/played", "POST"],
+			["/api/user/items/item-1/played", "DELETE"],
 		]);
 	});
 });

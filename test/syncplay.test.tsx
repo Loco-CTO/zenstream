@@ -672,7 +672,7 @@ describe("SyncplayProvider", () => {
 						revision: 2,
 					}),
 				);
-			if (url.endsWith("/Items/movie"))
+			if (url.endsWith("/api/content/items/movie"))
 				return new Response(
 					JSON.stringify({ Id: "movie", Name: "Movie Name" }),
 				);

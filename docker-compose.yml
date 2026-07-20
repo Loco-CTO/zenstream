@@ -9,6 +9,5 @@ services:
       - "${ZENSTREAM_PORT:-9086}:9086"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_JELLYFIN_URL: ${NEXT_PUBLIC_JELLYFIN_URL:?Set NEXT_PUBLIC_JELLYFIN_URL}
       NEXT_PUBLIC_ZSO_URL: ${NEXT_PUBLIC_ZSO_URL:?Set NEXT_PUBLIC_ZSO_URL}
     restart: unless-stopped

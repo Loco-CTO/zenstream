@@ -47,9 +47,9 @@ describe("Navbar", () => {
 			screen.getByRole("button", { name: "Profile" }).querySelector("img"),
 		).toHaveAttribute(
 			"src",
-			expect.stringContaining(
-				"/Users/user-123/Images/Primary?maxWidth=80&quality=90",
-			),
+				expect.stringContaining(
+					"/api/assets/users/user-123/image?maxWidth=80&quality=90",
+				),
 		);
 		expect(screen.queryByTestId("default-user-icon")).not.toBeInTheDocument();
 	});

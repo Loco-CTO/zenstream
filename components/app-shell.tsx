@@ -7,6 +7,7 @@ import {
 	authenticateByName,
 	fetchDetailData,
 	fetchHomeData,
+	primeResourceTicket,
 	type DetailData,
 	type HomeData,
 } from "@/lib/jellyfin";
@@ -82,6 +83,7 @@ export function AppShell() {
 			setHomeData(null);
 			setError(null);
 			try {
+				await primeResourceTicket(nextSession);
 				const data = await fetchHomeData(nextSession, (section) => {
 					setHomeData(
 						(current) => ({ ...(current ?? {}), ...section }) as HomeData,
@@ -117,6 +119,7 @@ export function AppShell() {
 			setError(null);
 			setDetailData(null);
 			try {
+				await primeResourceTicket(nextSession);
 				if (pathname === "/search") {
 					setSearchData(searchQuery);
 					setStatus("ready");

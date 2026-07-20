@@ -4,6 +4,8 @@ import { zenstreamVersion } from "@/lib/version";
 
 export interface AuthResponse {
 	AccessToken?: string;
+	ResourceTicket?: string;
+	ResourceTicketExpiresAt?: number;
 	User?: {
 		Id?: string;
 		Name?: string;
@@ -219,9 +221,64 @@ export const ITEM_FIELDS =
 export const ITEM_IMAGE_TYPES = "Primary,Backdrop,Logo,Thumb";
 
 export function jellyfinBaseUrl() {
-	return (
-		process.env.NEXT_PUBLIC_JELLYFIN_URL || "https://miru.amai.space"
-	).replace(/\/+$/, "");
+	if (process.env.NEXT_PUBLIC_ZSO_URL)
+		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
+	if (typeof window !== "undefined") return window.location.origin;
+	return "http://127.0.0.1:9090";
+}
+
+let resourceTicket: { value: string; expiresAt: number; token: string } | null = null;
+
+export async function primeResourceTicket(session: AuthSession): Promise<string | null> {
+	if (resourceTicket && resourceTicket.token === session.token && resourceTicket.expiresAt > Date.now() + 30_000)
+		return resourceTicket.value;
+	try {
+		const response = await fetch(`${jellyfinBaseUrl()}/api/auth/resource-ticket`, {
+			headers: { "X-Jellyfin-Token": session.token },
+			cache: "no-store",
+		});
+		if (!response.ok) return null;
+		const payload = (await response.json()) as { ticket?: unknown; expiresAt?: unknown };
+		if (typeof payload.ticket !== "string") return null;
+		const expiresAt = typeof payload.expiresAt === "number" ? payload.expiresAt * 1000 : Date.now() + 10 * 60_000;
+		resourceTicket = { value: payload.ticket, expiresAt, token: session.token };
+		return payload.ticket;
+	} catch {
+		return null;
+	}
+}
+
+function addResourceTicket(params: URLSearchParams) {
+	if (resourceTicket && resourceTicket.expiresAt > Date.now()) params.set("access", resourceTicket.value);
+}
+
+function gatewayPath(path: string) {
+	const parsed = new URL(path, "https://zenstream.invalid");
+	const pathname = parsed.pathname;
+	const itemMatch = pathname.match(/^\/Items\/([^/]+)$/);
+	const similarMatch = pathname.match(/^\/Items\/([^/]+)\/Similar$/);
+	const playbackMatch = pathname.match(/^\/Items\/([^/]+)\/PlaybackInfo$/);
+	const trickplayMatch = pathname.match(/^\/Items\/([^/]+)$/);
+	const trailersMatch = pathname.match(/^\/Items\/([^/]+)\/LocalTrailers$/);
+	const seasonsMatch = pathname.match(/^\/Shows\/([^/]+)\/Seasons$/);
+	const episodesMatch = pathname.match(/^\/Shows\/([^/]+)\/Episodes$/);
+	const favoriteMatch = pathname.match(/^\/UserFavoriteItems\/([^/]+)$/);
+	const playedMatch = pathname.match(/^\/UserPlayedItems\/([^/]+)$/);
+	if (playbackMatch) parsed.pathname = `/api/content/items/${playbackMatch[1]}/playback`;
+	else if (similarMatch) parsed.pathname = `/api/content/items/${similarMatch[1]}/similar`;
+	else if (trailersMatch) parsed.pathname = `/api/content/items/${trailersMatch[1]}/local-trailers`;
+	else if (seasonsMatch) parsed.pathname = `/api/content/shows/${seasonsMatch[1]}/seasons`;
+	else if (episodesMatch) parsed.pathname = `/api/content/shows/${episodesMatch[1]}/episodes`;
+	else if (favoriteMatch) parsed.pathname = `/api/user/items/${favoriteMatch[1]}/favorite`;
+	else if (playedMatch) parsed.pathname = `/api/user/items/${playedMatch[1]}/played`;
+	else if (pathname === "/Items") parsed.pathname = "/api/content/items";
+	else if (pathname === "/UserItems/Resume") parsed.pathname = "/api/content/resume";
+	else if (pathname === "/Shows/NextUp") parsed.pathname = "/api/content/next-up";
+	else if (pathname.match(/^\/Users\/[^/]+\/Views$/)) parsed.pathname = "/api/content/views";
+	else if (pathname === "/Sessions/Playing/Progress") parsed.pathname = "/api/playback/progress";
+	else if (itemMatch && parsed.searchParams.get("fields") === "Trickplay") parsed.pathname = `/api/content/items/${trickplayMatch![1]}/trickplay`;
+	else if (itemMatch) parsed.pathname = `/api/content/items/${itemMatch[1]}`;
+	return `${parsed.pathname}${parsed.search}`;
 }
 
 export function authorizationHeader(token?: string) {
@@ -268,7 +325,7 @@ export async function authenticateByName(
 	password: string,
 ): Promise<AuthResponse> {
 	const response = await fetch(
-		`${jellyfinBaseUrl()}/Users/AuthenticateByName`,
+		`${jellyfinBaseUrl()}/api/auth/login`,
 		{
 			method: "POST",
 			headers: {
@@ -276,10 +333,7 @@ export async function authenticateByName(
 				"Content-Type": "application/json",
 				Authorization: authorizationHeader(),
 			},
-			body: JSON.stringify({
-				Username: username.trim(),
-				Pw: password.trim(),
-			}),
+			body: JSON.stringify({ username: username.trim(), password: password.trim() }),
 		},
 	);
 
@@ -287,7 +341,10 @@ export async function authenticateByName(
 		throw new Error(`Login failed with ${response.status}.`);
 	}
 
-	return response.json() as Promise<AuthResponse>;
+	const payload = (await response.json()) as AuthResponse;
+	if (payload.ResourceTicket && payload.ResourceTicketExpiresAt && payload.User?.Id && payload.AccessToken)
+		resourceTicket = { value: payload.ResourceTicket, expiresAt: payload.ResourceTicketExpiresAt * 1000, token: payload.AccessToken };
+	return payload;
 }
 
 export async function fetchHomeData(
@@ -775,16 +832,11 @@ export function playbackUrl(
 ) {
 	const negotiatedUrl = source?.TranscodingUrl ?? source?.DirectStreamUrl;
 	if (negotiatedUrl) {
-		const remote = new URL(negotiatedUrl, jellyfinBaseUrl());
-		const hasApiKey = [...remote.searchParams.keys()].some(
-			(key) =>
-				key.toLowerCase() === "api_key" || key.toLowerCase() === "apikey",
-		);
-		if (!hasApiKey) remote.searchParams.set("api_key", session.token);
-		return remote.toString();
+		const gatewayUrl = new URL(jellyfinBaseUrl());
+		const resolved = new URL(negotiatedUrl, gatewayUrl);
+		if (resolved.origin === gatewayUrl.origin) return resolved.toString();
 	}
 	const params = new URLSearchParams({
-		api_key: session.token,
 		Static: bitrate ? "false" : "true",
 		MediaSourceId: source?.Id ?? itemId,
 		...(startTimeTicks
@@ -799,7 +851,8 @@ export function playbackUrl(
 		TranscodingMaxAudioChannels: "2",
 		...(bitrate ? { TranscodingMaxBitrate: String(bitrate) } : {}),
 	});
-	return `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/${bitrate ? "stream.mp4" : "stream"}?${params}`;
+	addResourceTicket(params);
+	return `${jellyfinBaseUrl()}/api/video/${encodeURIComponent(itemId)}/stream?${params}`;
 }
 
 export function subtitleUrl(
@@ -809,7 +862,6 @@ export function subtitleUrl(
 	streamIndex: number,
 ) {
 	const params = new URLSearchParams({
-		api_key: session.token,
 		MediaSourceId: source?.Id ?? itemId,
 		// Ask Jellyfin for a browser-compatible WebVTT stream and preserve the
 		// media timeline when the source is being remuxed/transcoded.
@@ -817,7 +869,8 @@ export function subtitleUrl(
 		addVttTimeMap: "true",
 		copyTimestamps: "true",
 	});
-	return `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/${encodeURIComponent(source?.Id ?? itemId)}/Subtitles/${streamIndex}/Stream.vtt?${params}`;
+	addResourceTicket(params);
+	return `${jellyfinBaseUrl()}/api/video/${encodeURIComponent(itemId)}/subtitles/${encodeURIComponent(source?.Id ?? itemId)}/${streamIndex}?${params}`;
 }
 
 export interface TrickplayPreview {
@@ -867,11 +920,11 @@ export function trickplayPreview(
 	const tileIndex = Math.floor(thumbnail / tileSize);
 	const tileOffset = thumbnail % tileSize;
 	const params = new URLSearchParams({
-		api_key: session.token,
 		MediaSourceId: source?.Id ?? itemId,
 	});
+	addResourceTicket(params);
 	return {
-		url: `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(itemId)}/Trickplay/${width}/${tileIndex}.jpg?${params}`,
+		url: `${jellyfinBaseUrl()}/api/video/${encodeURIComponent(itemId)}/trickplay/${width}/${tileIndex}?${params}`,
 		width: thumbnailWidth,
 		height: thumbnailHeight,
 		tileIndex,
@@ -904,24 +957,12 @@ export async function getPlaybackMarkers(
 	session: AuthSession,
 	itemId: string,
 ): Promise<{ intro?: PlaybackMarker; outro?: PlaybackMarker } | null> {
-	const configuredEndpoint = process.env.NEXT_PUBLIC_INTRO_ENDPOINT;
 	const itemPath = encodeURIComponent(itemId);
-	const endpoints = [
-		`${jellyfinBaseUrl()}/Episode/${itemPath}/IntroSkipperSegments`,
-		`${jellyfinBaseUrl()}/Episode/${itemPath}/Timestamps`,
-		`${jellyfinBaseUrl()}/MediaSegments/${itemPath}`,
-		...(configuredEndpoint
-			? [
-					configuredEndpoint.includes("{itemId}")
-						? configuredEndpoint.replace("{itemId}", itemPath)
-						: `${configuredEndpoint.replace(/\/$/, "")}/${itemPath}`,
-				]
-			: []),
-	];
+	const endpoints = [`${jellyfinBaseUrl()}/api/playback/markers/${itemPath}`];
 	for (const endpoint of endpoints) {
 		try {
 			const response = await fetch(endpoint, {
-				headers: { Authorization: authorizationHeader(session.token) },
+				headers: { "X-Jellyfin-Token": session.token },
 			});
 			if (!response.ok) continue;
 			const markers = normalizePlaybackMarkers(await response.json());
@@ -1077,11 +1118,11 @@ async function resolveHeroTrailer(
 	const params = new URLSearchParams({
 		Static: "true",
 		MediaSourceId: trailer.Id,
-		api_key: session.token,
 	});
+	addResourceTicket(params);
 	return {
 		kind: "local",
-		url: `${jellyfinBaseUrl()}/Videos/${encodeURIComponent(trailer.Id)}/stream?${params}`,
+		url: `${jellyfinBaseUrl()}/api/video/${encodeURIComponent(trailer.Id)}/stream?${params}`,
 	};
 }
 
@@ -1258,8 +1299,9 @@ export function userImageUrl(userId: string) {
 		maxWidth: "80",
 		quality: "90",
 	});
+	addResourceTicket(params);
 
-	return `${jellyfinBaseUrl()}/Users/${encodeURIComponent(userId)}/Images/Primary?${params.toString()}`;
+	return `${jellyfinBaseUrl()}/api/assets/users/${encodeURIComponent(userId)}/image?${params.toString()}`;
 }
 
 export function personImageUrl(person: JellyfinPerson) {
@@ -1273,8 +1315,9 @@ export function personImage(person: JellyfinPerson) {
 		quality: "90",
 		tag: person.PrimaryImageTag,
 	});
+	addResourceTicket(params);
 	return {
-		src: `${jellyfinBaseUrl()}/Persons/${encodeURIComponent(person.Name)}/Images/Primary?${params}`,
+		src: `${jellyfinBaseUrl()}/api/assets/people/${encodeURIComponent(person.Name)}/image?${params}`,
 		blurHash: person.ImageBlurHashes?.Primary?.[person.PrimaryImageTag],
 	};
 }
@@ -1298,9 +1341,10 @@ function imageData(
 		quality: "90",
 		tag,
 	});
+	addResourceTicket(params);
 
 	return {
-		src: `${jellyfinBaseUrl()}/Items/${item.Id}/Images/${imageType}${index}?${params.toString()}`,
+		src: `${jellyfinBaseUrl()}/api/assets/items/${item.Id}/images/${imageType}?${params.toString()}${index ? `&index=${index.slice(1)}` : ""}`,
 		blurHash:
 			imageType === "Logo"
 				? undefined
@@ -1331,12 +1375,13 @@ async function jellyfinRequest(
 	path: string,
 	init: RequestInit = {},
 ) {
-	const response = await fetch(`${jellyfinBaseUrl()}${path}`, {
+	const response = await fetch(`${jellyfinBaseUrl()}${gatewayPath(path)}`, {
 		...init,
 		headers: {
 			Accept: "application/json",
 			"Content-Type": "application/json",
 			Authorization: authorizationHeader(session.token),
+			"X-Jellyfin-Token": session.token,
 			...init.headers,
 		},
 	});

@@ -203,7 +203,7 @@ describe("detail views", () => {
 		expect(heading).toContainElement(logo);
 		expect(logo).toHaveAttribute(
 			"src",
-			expect.stringContaining("/Items/movie/Images/Logo?"),
+			expect.stringContaining("/api/assets/items/movie/images/Logo?"),
 		);
 		expect(logo).toHaveAttribute(
 			"src",
@@ -287,7 +287,7 @@ describe("detail views", () => {
 
 		expect(container.querySelector("section > img")).toHaveAttribute(
 			"src",
-			expect.stringContaining("/Items/series/Images/Backdrop/0?"),
+			expect.stringContaining("/api/assets/items/series/images/Backdrop?"),
 		);
 	});
 

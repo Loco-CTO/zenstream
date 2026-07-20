@@ -184,6 +184,30 @@ export function syncplayWaitingIsSeekTransition(
 	return seekSettlingUntil > now;
 }
 
+export type SyncplayBufferingReport = {
+	groupId: string;
+	itemId: string;
+	mediaGeneration: number;
+	timelineRevision: number;
+	epoch: number;
+};
+
+export function syncplayBufferingReportIsCurrent(
+	report: SyncplayBufferingReport,
+	current: SyncplayGroup | null,
+	currentEpoch: number,
+) {
+	return Boolean(
+		current &&
+		report.epoch === currentEpoch &&
+		report.groupId === current.id &&
+		report.itemId === current.itemId &&
+		report.mediaGeneration === (current.mediaGeneration ?? 0) &&
+		report.timelineRevision ===
+			(current.timelineRevision ?? current.revision),
+	);
+}
+
 export function syncplayInitialLoading(
 	video: Pick<HTMLMediaElement, "readyState"> | null,
 ) {
@@ -324,6 +348,7 @@ export function VideoPlayer({
 	const touchVideoInteractionRef = useRef(false);
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
+	const bufferingEpochRef = useRef(0);
 	const retryAfterBufferingRef = useRef(false);
 	const bufferedRef = useRef(false);
 	const readyItemIdRef = useRef<string | null>(null);
@@ -423,12 +448,13 @@ export function VideoPlayer({
 		};
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
+		cancelPendingBufferingReport("item changed");
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
 		advancingToNextRef.current = false;
 		readyItemIdRef.current = null;
 		bufferedRef.current = true;
-	}, [item.Id]);
+	}, [cancelPendingBufferingReport, item.Id]);
 	const currentBufferedRanges =
 		bufferedRanges.itemId === item.Id ? bufferedRanges.ranges : [];
 
@@ -622,6 +648,7 @@ export function VideoPlayer({
 		const state = syncplay.active;
 		const video = videoRef.current;
 		if (!state || !video || state.itemId !== item.Id) return;
+		cancelPendingBufferingReport("authoritative timeline changed");
 		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
 		let forceSeek = appliedTimelineRef.current !== timelineKey;
 		appliedTimelineRef.current = timelineKey;
@@ -677,6 +704,7 @@ export function VideoPlayer({
 		syncplay.active?.itemId,
 		item.Id,
 		syncplay.serverNow,
+		cancelPendingBufferingReport,
 	]);
 
 	useEffect(() => {
@@ -839,8 +867,10 @@ export function VideoPlayer({
 		() => () => {
 			if (controlsTimerRef.current)
 				window.clearTimeout(controlsTimerRef.current);
-			if (bufferingTimerRef.current)
+			if (bufferingTimerRef.current !== undefined)
 				window.clearTimeout(bufferingTimerRef.current);
+			bufferingTimerRef.current = undefined;
+			bufferingEpochRef.current += 1;
 			if (videoClickTimerRef.current)
 				window.clearTimeout(videoClickTimerRef.current);
 		},
@@ -879,25 +909,67 @@ export function VideoPlayer({
 			if (!settingsOpen && !trackMenu) setControlsVisible(false);
 		}, 2500);
 	}
+	const cancelPendingBufferingReport = useCallback((reason: string) => {
+		if (bufferingTimerRef.current !== undefined) {
+			window.clearTimeout(bufferingTimerRef.current);
+			bufferingTimerRef.current = undefined;
+		}
+		bufferingEpochRef.current += 1;
+		playerDebug("buffering report canceled", {
+			itemId: item.Id,
+			reason,
+			epoch: bufferingEpochRef.current,
+		});
+	}, [item.Id]);
 	function reportBuffering(loading: boolean) {
+		cancelPendingBufferingReport(loading ? "new loading signal" : "new ready signal");
 		const state = syncplayStateRef.current;
 		if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
 			return;
+		const itemId = item.Id;
+		const generation = state.mediaGeneration ?? 0;
+		const timelineRevision = state.timelineRevision ?? state.revision;
+		const epoch = bufferingEpochRef.current;
+		const report = {
+			groupId: state.id,
+			itemId,
+			mediaGeneration: generation,
+			timelineRevision,
+			epoch,
+		};
 		playerDebug("buffering changed", {
 			loading,
 			groupId: state.id,
-			itemId: item.Id,
-			generation: state.mediaGeneration,
+			itemId,
+			generation,
+			timelineRevision,
+			epoch,
 		});
-		if (bufferingTimerRef.current)
-			window.clearTimeout(bufferingTimerRef.current);
 		bufferingTimerRef.current = window.setTimeout(
 			() => {
+				bufferingTimerRef.current = undefined;
 				const current = syncplayStateRef.current;
-				if (!current || current.itemId !== item.Id) return;
+				if (!syncplayBufferingReportIsCurrent(report, current, bufferingEpochRef.current)) {
+					playerDebug("buffering report discarded", {
+						loading,
+						...report,
+						currentGeneration: current?.mediaGeneration,
+						currentTimelineRevision:
+							current?.timelineRevision ?? current?.revision,
+					});
+					return;
+				}
 				bufferedRef.current = loading;
+				playerDebug("buffering report sent", {
+					loading,
+					groupId: state.id,
+					itemId,
+					generation,
+					timelineRevision,
+					epoch,
+				});
 				void syncplayApiRef.current
-					.presence(true, loading, current.mediaGeneration ?? 0)
+					.presence(true, loading, generation)
 					.catch(() => undefined);
 			},
 			loading ? 750 : 300,
@@ -1081,6 +1153,7 @@ export function VideoPlayer({
 		)
 			return;
 		const target = pending.value;
+		cancelPendingBufferingReport("local seek committed");
 		seekPreviewRef.current = null;
 		setSeekPreview(null);
 		// Let the person who moved the slider see the seek immediately. The group
@@ -1318,6 +1391,7 @@ export function VideoPlayer({
 					// error overlay here.
 					setError("");
 					setBuffering(false);
+					cancelPendingBufferingReport("canplay");
 					seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
 					readyItemIdRef.current = item.Id;
@@ -1397,6 +1471,7 @@ export function VideoPlayer({
 					disableNativeSubtitleTracks(event.currentTarget);
 					setQualityLoading(false);
 					setBuffering(false);
+					cancelPendingBufferingReport("playing");
 					seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
 					reportBuffering(false);

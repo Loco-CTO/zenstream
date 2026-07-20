@@ -12,6 +12,7 @@ import {
 	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
+	syncplayBufferingReportIsCurrent,
 	syncplayInitialLoading,
 	syncplayItemIsLoading,
 	syncplayMediaIsReady,
@@ -52,6 +53,33 @@ describe("video player controls", () => {
 	it("recognizes the transient decoder window after a seek", () => {
 		expect(syncplayWaitingIsSeekTransition(1500, 1000)).toBe(true);
 		expect(syncplayWaitingIsSeekTransition(1000, 1000)).toBe(false);
+	});
+
+	it("rejects a delayed buffering report from an older seek timeline", () => {
+		const report = {
+			groupId: "group",
+			itemId: "movie",
+			mediaGeneration: 3,
+			timelineRevision: 8,
+			epoch: 4,
+		};
+		const current = {
+			id: "group",
+			itemId: "movie",
+			mediaGeneration: 3,
+			timelineRevision: 9,
+			revision: 12,
+		} as SyncplayGroup;
+
+		expect(syncplayBufferingReportIsCurrent(report, current, 4)).toBe(false);
+		expect(
+			syncplayBufferingReportIsCurrent(
+				{ ...report, timelineRevision: 9 },
+				current,
+				4,
+			),
+		).toBe(true);
+		expect(syncplayBufferingReportIsCurrent(report, current, 5)).toBe(false);
 	});
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());

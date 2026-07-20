@@ -831,6 +831,8 @@ export function SyncplayProvider({
 		if (!group) return;
 		const groupId = group.id;
 		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
+		const timelineRevision =
+			group.timelineRevision ?? group.revision;
 		const sequence = ++presenceSequenceRef.current;
 		const send = async () => {
 			if (activeRef.current?.id !== groupId) return;
@@ -840,6 +842,7 @@ export function SyncplayProvider({
 					viewing,
 					loading,
 					generation,
+					timelineRevision,
 					sequence,
 				});
 				adopt(
@@ -847,6 +850,7 @@ export function SyncplayProvider({
 						viewing,
 						loading,
 						mediaGeneration: generation,
+						timelineRevision,
 						presenceSequence: sequence,
 						operationId: operationId(),
 					})) as SyncplayGroup,
@@ -857,6 +861,7 @@ export function SyncplayProvider({
 					viewing,
 					loading,
 					generation,
+					timelineRevision,
 					sequence,
 					error,
 				});

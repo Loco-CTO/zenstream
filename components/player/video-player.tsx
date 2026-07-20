@@ -203,8 +203,7 @@ export function syncplayBufferingReportIsCurrent(
 		report.groupId === current.id &&
 		report.itemId === current.itemId &&
 		report.mediaGeneration === (current.mediaGeneration ?? 0) &&
-		report.timelineRevision ===
-			(current.timelineRevision ?? current.revision),
+		report.timelineRevision === (current.timelineRevision ?? current.revision),
 	);
 }
 
@@ -437,18 +436,21 @@ export function VideoPlayer({
 		}
 		setBufferedRanges({ itemId: item.Id, ranges });
 	};
-	const cancelPendingBufferingReport = useCallback((reason: string) => {
-		if (bufferingTimerRef.current !== undefined) {
-			window.clearTimeout(bufferingTimerRef.current);
-			bufferingTimerRef.current = undefined;
-		}
-		bufferingEpochRef.current += 1;
-		playerDebug("buffering report canceled", {
-			itemId: item.Id,
-			reason,
-			epoch: bufferingEpochRef.current,
-		});
-	}, [item.Id]);
+	const cancelPendingBufferingReport = useCallback(
+		(reason: string) => {
+			if (bufferingTimerRef.current !== undefined) {
+				window.clearTimeout(bufferingTimerRef.current);
+				bufferingTimerRef.current = undefined;
+			}
+			bufferingEpochRef.current += 1;
+			playerDebug("buffering report canceled", {
+				itemId: item.Id,
+				reason,
+				epoch: bufferingEpochRef.current,
+			});
+		},
+		[item.Id],
+	);
 
 	useEffect(() => {
 		syncplayStateRef.current = syncplay.active;

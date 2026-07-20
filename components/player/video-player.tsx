@@ -666,6 +666,17 @@ export function VideoPlayer({
 			return;
 		}
 		cancelPendingBufferingReport("authoritative timeline changed");
+		if (readyItemIdRef.current === item.Id && syncplayMediaIsReady(video)) {
+			playerDebug("reasserting readiness for new timeline", {
+				groupId: state.id,
+				itemId: item.Id,
+				generation: state.mediaGeneration,
+				timelineRevision: state.timelineRevision,
+			});
+			void syncplayApiRef.current
+				.presence(true, false, state.mediaGeneration ?? 0)
+				.catch(() => undefined);
+		}
 		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
 		let forceSeek = appliedTimelineRef.current !== timelineKey;
 		appliedTimelineRef.current = timelineKey;

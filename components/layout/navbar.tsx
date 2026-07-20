@@ -10,7 +10,6 @@ import { userImageUrl } from "@/lib/jellyfin";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
-
 export function Navbar({
 	displayName,
 	userId,

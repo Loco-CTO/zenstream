@@ -21,7 +21,9 @@ export async function resolvePlaybackTarget(
 			(a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
 			(a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
 	);
-	return ordered.find((episode) => !episode.UserData?.Played) ?? ordered[0] ?? null;
+	return (
+		ordered.find((episode) => !episode.UserData?.Played) ?? ordered[0] ?? null
+	);
 }
 
 export function useSyncplayPlayback(session?: AuthSession) {

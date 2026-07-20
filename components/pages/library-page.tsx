@@ -1,18 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import {
-	ArrowDown,
-	ArrowUp,
-	Star,
-} from "lucide-react";
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { ArrowDown, ArrowUp, Star } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
 	MediaCardOverlay,
@@ -64,7 +54,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [items, setItems] = useState<JellyfinItem[]>([]);
 	const [loadedCount, setLoadedCount] = useState(0);
 	const [total, setTotal] = useState(0);
-	const [sort, setSort] = useSortPreference(`zenstream:sort:library:${libraryId}`, { sortBy: "CommunityRating" as LibrarySortBy, sortOrder: "Descending" }, SORTS.map((item) => item.value));
+	const [sort, setSort] = useSortPreference(
+		`zenstream:sort:library:${libraryId}`,
+		{ sortBy: "CommunityRating" as LibrarySortBy, sortOrder: "Descending" },
+		SORTS.map((item) => item.value),
+	);
 	const { sortBy, sortOrder } = sort;
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
@@ -95,13 +89,17 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				nextLibraries.some((library) => library.Id === queryLibraryId)
 					? queryLibraryId
 					: nextLibraries.some((library) => library.Id === current)
-					? current
-					: nextLibraries[0]?.Id ?? "",
+						? current
+						: (nextLibraries[0]?.Id ?? ""),
 			);
 			if (nextLibraries.length === 0) setLoading(false);
 		} catch (nextError) {
 			if (!controller.signal.aborted) {
-				setError(nextError instanceof Error ? nextError.message : "Library request failed.");
+				setError(
+					nextError instanceof Error
+						? nextError.message
+						: "Library request failed.",
+				);
 				setLoading(false);
 			}
 		} finally {
@@ -110,7 +108,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	}, [queryLibraryId, session, start]);
 
 	useEffect(() => {
-		if (validQuerySort && (querySortOrder === "Ascending" || querySortOrder === "Descending")) {
+		if (
+			validQuerySort &&
+			(querySortOrder === "Ascending" || querySortOrder === "Descending")
+		) {
 			setSort({ sortBy: querySortBy!, sortOrder: querySortOrder });
 		}
 	}, [libraryId, querySortBy, querySortOrder, setSort, validQuerySort]);
@@ -122,45 +123,52 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		return () => requestRef.current?.abort();
 	}, [loadLibraries]);
 
-	const loadFirstPage = useCallback(async (force = false) => {
-		if (!activeLibrary) return;
-		const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
-		if (!force && loadedQueryRef.current === queryKey) return;
-		requestRef.current?.abort();
-		const controller = new AbortController();
-		requestRef.current = controller;
-		loadingMoreRef.current = false;
-		requestedOffsetsRef.current = new Set([0]);
-		const finish = start();
-		setLoading(true);
-		setItems([]);
-		setLoadedCount(0);
-		setTotal(0);
-		setError(null);
-		try {
-			const page = await getLibraryItems(session, {
-				parentId: activeLibrary.Id,
-				collectionType: activeLibrary.CollectionType,
-				startIndex: 0,
-				limit: PAGE_SIZE,
-				sortBy,
-				sortOrder,
-				signal: controller.signal,
-			});
-			if (controller.signal.aborted) return;
-			setItems(uniqueItems(page.items));
-			setLoadedCount(page.items.length);
-			setTotal(page.totalRecordCount);
-			loadedQueryRef.current = queryKey;
-		} catch (nextError) {
-			if (!controller.signal.aborted) {
-				setError(nextError instanceof Error ? nextError.message : "Library request failed.");
+	const loadFirstPage = useCallback(
+		async (force = false) => {
+			if (!activeLibrary) return;
+			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
+			if (!force && loadedQueryRef.current === queryKey) return;
+			requestRef.current?.abort();
+			const controller = new AbortController();
+			requestRef.current = controller;
+			loadingMoreRef.current = false;
+			requestedOffsetsRef.current = new Set([0]);
+			const finish = start();
+			setLoading(true);
+			setItems([]);
+			setLoadedCount(0);
+			setTotal(0);
+			setError(null);
+			try {
+				const page = await getLibraryItems(session, {
+					parentId: activeLibrary.Id,
+					collectionType: activeLibrary.CollectionType,
+					startIndex: 0,
+					limit: PAGE_SIZE,
+					sortBy,
+					sortOrder,
+					signal: controller.signal,
+				});
+				if (controller.signal.aborted) return;
+				setItems(uniqueItems(page.items));
+				setLoadedCount(page.items.length);
+				setTotal(page.totalRecordCount);
+				loadedQueryRef.current = queryKey;
+			} catch (nextError) {
+				if (!controller.signal.aborted) {
+					setError(
+						nextError instanceof Error
+							? nextError.message
+							: "Library request failed.",
+					);
+				}
+			} finally {
+				if (!controller.signal.aborted) setLoading(false);
+				finish();
 			}
-		} finally {
-			if (!controller.signal.aborted) setLoading(false);
-			finish();
-		}
-	}, [activeLibrary, session, sortBy, sortOrder, start]);
+		},
+		[activeLibrary, session, sortBy, sortOrder, start],
+	);
 
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
@@ -174,7 +182,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			loading ||
 			loadingMoreRef.current ||
 			loadedCount >= total
-		) return;
+		)
+			return;
 		const startIndex = loadedCount;
 		if (requestedOffsetsRef.current.has(startIndex)) return;
 		requestedOffsetsRef.current.add(startIndex);
@@ -201,14 +210,27 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		} catch (nextError) {
 			requestedOffsetsRef.current.delete(startIndex);
 			if (!controller.signal.aborted) {
-				setError(nextError instanceof Error ? nextError.message : "Library request failed.");
+				setError(
+					nextError instanceof Error
+						? nextError.message
+						: "Library request failed.",
+				);
 			}
 		} finally {
 			loadingMoreRef.current = false;
 			if (!controller.signal.aborted) setLoadingMore(false);
 			finish();
 		}
-	}, [activeLibrary, loadedCount, loading, session, sortBy, sortOrder, start, total]);
+	}, [
+		activeLibrary,
+		loadedCount,
+		loading,
+		session,
+		sortBy,
+		sortOrder,
+		start,
+		total,
+	]);
 
 	const sortOptions = useMemo<DropdownOption[]>(
 		() => SORTS.map((sort) => ({ value: sort.value, label: t(sort.labelKey) })),
@@ -246,17 +268,36 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
 					<button
 						type="button"
-						aria-label={sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")}
-						onClick={() => setSort((value) => ({ ...value, sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending" }))}
+						aria-label={
+							sortOrder === "Ascending"
+								? t("sortAscending")
+								: t("sortDescending")
+						}
+						onClick={() =>
+							setSort((value) => ({
+								...value,
+								sortOrder:
+									value.sortOrder === "Ascending" ? "Descending" : "Ascending",
+							}))
+						}
 						className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition hover:border-white/20 hover:text-white"
 					>
-						{sortOrder === "Ascending" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+						{sortOrder === "Ascending" ? (
+							<ArrowUp className="h-3.5 w-3.5" />
+						) : (
+							<ArrowDown className="h-3.5 w-3.5" />
+						)}
 					</button>
 					<Dropdown
 						aria-label={t("sortBy")}
 						value={sortBy}
 						options={sortOptions}
-						onChange={(value) => setSort((current) => ({ ...current, sortBy: value as LibrarySortBy }))}
+						onChange={(value) =>
+							setSort((current) => ({
+								...current,
+								sortBy: value as LibrarySortBy,
+							}))
+						}
 						className="w-full min-w-0 rounded-full py-1.5 uppercase tracking-wider sm:w-auto sm:min-w-36"
 					/>
 				</div>
@@ -272,7 +313,12 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			) : !loading && items.length === 0 ? (
 				<EmptyState title={t("emptyLibrary")} detail={t("emptyLibraryHint")} />
 			) : (
-				<VirtualMediaGrid items={items} hasMore={loadedCount < total} onLoadMore={loadMore} session={session} />
+				<VirtualMediaGrid
+					items={items}
+					hasMore={loadedCount < total}
+					onLoadMore={loadMore}
+					session={session}
+				/>
 			)}
 
 			{error && items.length > 0 && (
@@ -280,7 +326,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					<ErrorPanel message={t("libraryLoadMoreFailed")} onRetry={loadMore} />
 				</div>
 			)}
-			{loadingMore && <p className="sr-only" aria-live="polite">{t("loadingMore")}</p>}
+			{loadingMore && (
+				<p className="sr-only" aria-live="polite">
+					{t("loadingMore")}
+				</p>
+			)}
 		</main>
 	);
 }
@@ -332,13 +382,21 @@ function VirtualMediaGrid({
 		};
 	}, []);
 
-	const minCardWidth = width > 0 && width < 640 ? MOBILE_CARD_MIN_WIDTH : CARD_MIN_WIDTH;
-	const columns = Math.max(1, Math.floor((width + GRID_GAP) / (minCardWidth + GRID_GAP)));
-	const cardWidth = width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : minCardWidth;
+	const minCardWidth =
+		width > 0 && width < 640 ? MOBILE_CARD_MIN_WIDTH : CARD_MIN_WIDTH;
+	const columns = Math.max(
+		1,
+		Math.floor((width + GRID_GAP) / (minCardWidth + GRID_GAP)),
+	);
+	const cardWidth =
+		width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : minCardWidth;
 	const rowHeight = cardWidth * 1.5 + CARD_TEXT_HEIGHT + GRID_GAP;
 	const rowCount = Math.ceil(items.length / columns);
 	const relativeTop = Math.max(0, viewport.scrollY - containerTop);
-	const startRow = Math.max(0, Math.floor(relativeTop / rowHeight) - OVERSCAN_ROWS);
+	const startRow = Math.max(
+		0,
+		Math.floor(relativeTop / rowHeight) - OVERSCAN_ROWS,
+	);
 	const endRow = Math.min(
 		rowCount,
 		Math.ceil((relativeTop + viewport.height) / rowHeight) + OVERSCAN_ROWS,
@@ -361,7 +419,9 @@ function VirtualMediaGrid({
 					gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
 				}}
 			>
-				{rowItems.map((item) => <LibraryCard key={item.Id} item={item} session={session} />)}
+				{rowItems.map((item) => (
+					<LibraryCard key={item.Id} item={item} session={session} />
+				))}
 			</div>,
 		);
 	}
@@ -378,39 +438,58 @@ function VirtualMediaGrid({
 	);
 }
 
-function LibraryCard({ item, session }: { item: JellyfinItem; session: AuthSession }) {
+function LibraryCard({
+	item,
+	session,
+}: {
+	item: JellyfinItem;
+	session: AuthSession;
+}) {
 	const image = posterImage(item);
-	const href = item.Type === "BoxSet"
-		? `/collection/${item.Id}`
-		: item.Type === "Episode" && item.SeriesId
-		? `/show/${item.SeriesId}/episode/${item.Id}`
-		: `/show/${item.Id}`;
+	const href =
+		item.Type === "BoxSet"
+			? `/collection/${item.Id}`
+			: item.Type === "Episode" && item.SeriesId
+				? `/show/${item.SeriesId}/episode/${item.Id}`
+				: `/show/${item.Id}`;
 	return (
 		<article className="group/card min-w-0 cursor-pointer select-none">
 			<div className="relative">
-			<Link href={href} className="block">
-				<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
-					{image && (
-						<BlurHashImage
-							image={image}
-							alt={item.Name}
-							loading="lazy"
-							decoding="async"
-							className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
-						/>
-					)}
-					{item.CommunityRating != null && (
-						<div className="absolute bottom-2 left-2 flex items-center gap-1">
-							<Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-							<span className="text-xs font-semibold text-white/80">{item.CommunityRating.toFixed(1)}</span>
-						</div>
-					)}
-					<WatchedIndicator item={item} />
-				</div>
-				<p className="mt-2 truncate text-xs font-medium text-white/80">{item.Name}</p>
-				<p className="mt-0.5 truncate text-xs text-white/30">{item.ProductionYear ?? item.Type}</p>
-			</Link>
-			<MediaCardOverlay href={href} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
+				<Link href={href} className="block">
+					<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+						{image && (
+							<BlurHashImage
+								image={image}
+								alt={item.Name}
+								loading="lazy"
+								decoding="async"
+								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+							/>
+						)}
+						{item.CommunityRating != null && (
+							<div className="absolute bottom-2 left-2 flex items-center gap-1">
+								<Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+								<span className="text-xs font-semibold text-white/80">
+									{item.CommunityRating.toFixed(1)}
+								</span>
+							</div>
+						)}
+						<WatchedIndicator item={item} />
+					</div>
+					<p className="mt-2 truncate text-xs font-medium text-white/80">
+						{item.Name}
+					</p>
+					<p className="mt-0.5 truncate text-xs text-white/30">
+						{item.ProductionYear ?? item.Type}
+					</p>
+				</Link>
+				<MediaCardOverlay
+					href={href}
+					title={item.Name}
+					item={item}
+					session={session}
+					className="inset-x-0 top-0 aspect-[2/3]"
+				/>
 			</div>
 		</article>
 	);

@@ -1,4 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryPage } from "@/components/pages/library-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
@@ -19,10 +26,13 @@ describe("LibraryPage", () => {
 			configurable: true,
 			get: () => 800,
 		});
-		vi.stubGlobal("ResizeObserver", class {
-			observe() {}
-			disconnect() {}
-		});
+		vi.stubGlobal(
+			"ResizeObserver",
+			class {
+				observe() {}
+				disconnect() {}
+			},
+		);
 		vi.spyOn(jellyfin, "getLibraryViews").mockResolvedValue([
 			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
 			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
@@ -33,7 +43,11 @@ describe("LibraryPage", () => {
 	afterEach(() => {
 		cleanup();
 		if (clientWidthDescriptor) {
-			Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidthDescriptor);
+			Object.defineProperty(
+				HTMLElement.prototype,
+				"clientWidth",
+				clientWidthDescriptor,
+			);
 		} else {
 			delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
 		}
@@ -42,14 +56,20 @@ describe("LibraryPage", () => {
 	});
 
 	it("loads libraries and sends sorting changes back to Jellyfin", async () => {
-		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
-			items: makeItems(4),
-			totalRecordCount: 4,
-		});
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValue({
+				items: makeItems(4),
+				totalRecordCount: 4,
+			});
 		renderLibrary();
 
-		expect(await screen.findByRole("heading", { name: "Shows" })).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Collections" })).toBeInTheDocument();
+		expect(
+			await screen.findByRole("heading", { name: "Shows" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Collections" }),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
 		fireEvent.click(screen.getByRole("option", { name: "Date added" }));
 		fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));
@@ -68,21 +88,31 @@ describe("LibraryPage", () => {
 		await waitFor(() =>
 			expect(getLibraryItems).toHaveBeenLastCalledWith(
 				session,
-				expect.objectContaining({ parentId: "movies", collectionType: "movies" }),
+				expect.objectContaining({
+					parentId: "movies",
+					collectionType: "movies",
+				}),
 			),
 		);
 	});
 
 	it("keeps rendered cards bounded and appends the next page near the end", async () => {
-		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems")
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
 			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
-			.mockResolvedValueOnce({ items: makeItems(40, 40), totalRecordCount: 80 });
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 80,
+			});
 		renderLibrary();
 
 		await screen.findByText("Title 0");
 		expect(screen.getAllByRole("article").length).toBeLessThan(40);
 
-		Object.defineProperty(window, "scrollY", { configurable: true, value: 13000 });
+		Object.defineProperty(window, "scrollY", {
+			configurable: true,
+			value: 13000,
+		});
 		await act(async () => {
 			fireEvent.scroll(window);
 			await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -95,7 +125,9 @@ describe("LibraryPage", () => {
 			),
 		);
 		expect(
-			getLibraryItems.mock.calls.filter(([, options]) => options.startIndex === 40),
+			getLibraryItems.mock.calls.filter(
+				([, options]) => options.startIndex === 40,
+			),
 		).toHaveLength(1);
 		expect(await screen.findByText("Title 79")).toBeInTheDocument();
 		expect(screen.getAllByRole("article").length).toBeLessThan(40);
@@ -122,13 +154,17 @@ describe("LibraryPage", () => {
 	});
 
 	it("supports sorting series by the date their latest episode was added", async () => {
-		const getLibraryItems = vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
-			items: makeItems(1),
-			totalRecordCount: 1,
-		});
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValue({
+				items: makeItems(1),
+				totalRecordCount: 1,
+			});
 		renderLibrary();
 
-		expect(await screen.findByRole("heading", { name: "Shows" })).toBeInTheDocument();
+		expect(
+			await screen.findByRole("heading", { name: "Shows" }),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
 		fireEvent.click(screen.getByRole("option", { name: "Last added" }));
 
@@ -144,8 +180,18 @@ describe("LibraryPage", () => {
 		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
 			items: [
 				{ ...makeItems(1)[0], UserData: { UnplayedItemCount: 3 } },
-				{ Id: "watched", Name: "Watched series", Type: "Series", UserData: { UnplayedItemCount: 0 } },
-				{ Id: "movie", Name: "Movie", Type: "Movie", UserData: { UnplayedItemCount: 3 } },
+				{
+					Id: "watched",
+					Name: "Watched series",
+					Type: "Series",
+					UserData: { UnplayedItemCount: 0 },
+				},
+				{
+					Id: "movie",
+					Name: "Movie",
+					Type: "Movie",
+					UserData: { UnplayedItemCount: 3 },
+				},
 			],
 			totalRecordCount: 3,
 		});

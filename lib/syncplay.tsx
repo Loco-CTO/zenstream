@@ -19,14 +19,22 @@ class NativeSocket {
 		private readonly auth: { token: string; participantId: string },
 	) {}
 	on<T = NativeEvent>(event: string, listener: (value: T) => void) {
-		this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener as unknown as (value?: NativeEvent) => void]);
+		this.listeners.set(event, [
+			...(this.listeners.get(event) ?? []),
+			listener as unknown as (value?: NativeEvent) => void,
+		]);
 		return this;
 	}
 	private fire(event: string, value?: NativeEvent) {
 		for (const listener of this.listeners.get(event) ?? []) listener(value);
 	}
 	connect() {
-		if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+		if (
+			this.ws &&
+			(this.ws.readyState === WebSocket.OPEN ||
+				this.ws.readyState === WebSocket.CONNECTING)
+		)
+			return;
 		const ws = new WebSocket(
 			`${this.url}?token=${encodeURIComponent(this.auth.token)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
 		);
@@ -49,7 +57,11 @@ class NativeSocket {
 			else if (message.type === "clock") this.fire("clock", message);
 		};
 	}
-	emit<T = NativeEvent>(event: string, payload: Record<string, unknown>, callback?: (value: T) => void) {
+	emit<T = NativeEvent>(
+		event: string,
+		payload: Record<string, unknown>,
+		callback?: (value: T) => void,
+	) {
 		if (event === "syncplay:clock") {
 			if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 			this.once("clock", callback);
@@ -82,12 +94,12 @@ function normalizeSyncplayOrigin(origin: string) {
 }
 const io = (
 	origin: string,
-	options: { auth: { token: string; participantId: string }; path?: string; autoConnect?: boolean },
-) =>
-	new NativeSocket(
-		normalizeSyncplayOrigin(origin),
-		options.auth,
-	);
+	options: {
+		auth: { token: string; participantId: string };
+		path?: string;
+		autoConnect?: boolean;
+	},
+) => new NativeSocket(normalizeSyncplayOrigin(origin), options.auth);
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { getItem } from "@/lib/jellyfin";

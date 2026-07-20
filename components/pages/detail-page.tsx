@@ -39,7 +39,10 @@ import {
 	useHoverPreview,
 } from "@/components/ui/hover-preview";
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
-import { resolvePlaybackTarget, syncplayMediaStartCommand as mediaStartCommand } from "@/lib/syncplay-playback";
+import {
+	resolvePlaybackTarget,
+	syncplayMediaStartCommand as mediaStartCommand,
+} from "@/lib/syncplay-playback";
 
 type TrackChoice = { audio?: number | string; subtitle?: number };
 
@@ -194,7 +197,11 @@ export function DetailPage({
 		// briefly tear down the current page; if navigation happens first, the host
 		// socket may be treated as disconnected before the room receives the media
 		// command.
-		const mediaCommand = syncplayMediaStartCommand(active, canControl, target.Id);
+		const mediaCommand = syncplayMediaStartCommand(
+			active,
+			canControl,
+			target.Id,
+		);
 		if (mediaCommand) {
 			try {
 				// Complete the host's media transition before leaving this route. The
@@ -264,9 +271,7 @@ export function DetailPage({
 				<div className="space-y-8 px-4 pt-5 sm:px-6 sm:pt-6 md:space-y-9 md:px-14">
 					<div className="space-y-3">
 						<div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3 md:mb-8">
-							<PrimaryActionButton
-								onClick={startPlayback}
-							>
+							<PrimaryActionButton onClick={startPlayback}>
 								<Play className="h-4 w-4 fill-black text-black" />
 								{t("play")}
 							</PrimaryActionButton>
@@ -346,8 +351,10 @@ export function DetailPage({
 }
 
 function getRequestedSeasonId() {
-		if (typeof window === "undefined") return undefined;
-		return new URLSearchParams(window.location.search).get("seasonId") ?? undefined;
+	if (typeof window === "undefined") return undefined;
+	return (
+		new URLSearchParams(window.location.search).get("seasonId") ?? undefined
+	);
 }
 
 function InlineTrackChoices({
@@ -536,7 +543,9 @@ function Metadata({
 					{item.CommunityRating.toFixed(1)}
 				</span>
 			)}
-			{releaseDateLabel(item, locale) && <span>{releaseDateLabel(item, locale)}</span>}
+			{releaseDateLabel(item, locale) && (
+				<span>{releaseDateLabel(item, locale)}</span>
+			)}
 			{item.OfficialRating && (
 				<span className="rounded border border-white/15 px-2 py-0.5 text-xs">
 					{item.OfficialRating}
@@ -590,15 +599,32 @@ function EpisodeSection({
 }) {
 	const { t } = useI18n();
 	const [seasonItems, setSeasonItems] = useState(seasons);
-	const selectedSeason = seasonItems.find((season) => season.Id === seasonId) ?? seasonItems[0];
-	async function toggleSeason(season: JellyfinItem, field: "Played" | "IsFavorite") {
+	const selectedSeason =
+		seasonItems.find((season) => season.Id === seasonId) ?? seasonItems[0];
+	async function toggleSeason(
+		season: JellyfinItem,
+		field: "Played" | "IsFavorite",
+	) {
 		const previous = Boolean(season.UserData?.[field]);
-		setSeasonItems((items) => items.map((item) => item.Id === season.Id ? updateUserData(item, { [field]: !previous }) : item));
+		setSeasonItems((items) =>
+			items.map((item) =>
+				item.Id === season.Id
+					? updateUserData(item, { [field]: !previous })
+					: item,
+			),
+		);
 		try {
 			if (field === "Played") await setPlayed(session, season.Id, !previous);
 			else await setFavorite(session, season.Id, !previous);
+		} catch {
+			setSeasonItems((items) =>
+				items.map((item) =>
+					item.Id === season.Id
+						? updateUserData(item, { [field]: previous })
+						: item,
+				),
+			);
 		}
-		catch { setSeasonItems((items) => items.map((item) => item.Id === season.Id ? updateUserData(item, { [field]: previous }) : item)); }
 	}
 	return (
 		<section aria-labelledby="episodes-heading">
@@ -610,15 +636,33 @@ function EpisodeSection({
 					{t("episodesLabel")}
 				</h2>
 				<div className="flex items-center gap-2">
-					{seasonItems.length > 1 && <Dropdown aria-label={t("season")} value={seasonId} onChange={onSeasonChange} options={seasonItems.map((season) => ({ value: season.Id, label: seasonLabel(season) }))} />}
-					{selectedSeason && <ItemActionButtons item={selectedSeason} onToggle={(field) => void toggleSeason(selectedSeason, field)} />}
+					{seasonItems.length > 1 && (
+						<Dropdown
+							aria-label={t("season")}
+							value={seasonId}
+							onChange={onSeasonChange}
+							options={seasonItems.map((season) => ({
+								value: season.Id,
+								label: seasonLabel(season),
+							}))}
+						/>
+					)}
+					{selectedSeason && (
+						<ItemActionButtons
+							item={selectedSeason}
+							onToggle={(field) => void toggleSeason(selectedSeason, field)}
+						/>
+					)}
 				</div>
 			</div>
 			{item.Type === "Episode" ? (
 				<HorizontalScroller
 					title={t("episodesLabel")}
 					className="pb-2"
-					initialScrollIndex={Math.max(0, episodes.findIndex((episode) => episode.Id === item.Id))}
+					initialScrollIndex={Math.max(
+						0,
+						episodes.findIndex((episode) => episode.Id === item.Id),
+					)}
 				>
 					{episodes.map((episode) => (
 						<EpisodeCard
@@ -683,29 +727,41 @@ export function EpisodeCard({
 					: "group/card flex items-start gap-4 rounded-lg p-2 hover:bg-white/[.04]"
 			}
 		>
-			<div className={`relative shrink-0 ${horizontal ? "aspect-video w-full" : "h-[120px] w-[213px]"}`}>
-			<Link
-				href={`/show/${seriesId}/episode/${episode.Id}`}
-				className="block h-full w-full overflow-hidden rounded bg-white/5"
+			<div
+				className={`relative shrink-0 ${horizontal ? "aspect-video w-full" : "h-[120px] w-[213px]"}`}
 			>
-				{horizontal && <HoverPreviewVideo preview={preview} />}
-				{image && (
-					<BlurHashImage
-						image={image}
-						alt={episode.Name}
-						className={
-							horizontal
-								? `brightness-75 ${MEDIA_CARD_IMAGE_CLASS}`
-								: "h-full w-full object-cover brightness-75"
-						}
+				<Link
+					href={`/show/${seriesId}/episode/${episode.Id}`}
+					className="block h-full w-full overflow-hidden rounded bg-white/5"
+				>
+					{horizontal && <HoverPreviewVideo preview={preview} />}
+					{image && (
+						<BlurHashImage
+							image={image}
+							alt={episode.Name}
+							className={
+								horizontal
+									? `brightness-75 ${MEDIA_CARD_IMAGE_CLASS}`
+									: "h-full w-full object-cover brightness-75"
+							}
+						/>
+					)}
+					{horizontal && <WatchProgress progress={progress} />}
+					<WatchedIndicator item={currentEpisode} />
+				</Link>
+				{!active && (
+					<MediaCardOverlay
+						href={`/play/${episode.Id}`}
+						title={episode.Name}
+						item={episode}
+						session={session}
 					/>
 				)}
-				{horizontal && <WatchProgress progress={progress} />}
-				<WatchedIndicator item={currentEpisode} />
-			</Link>
-			{!active && <MediaCardOverlay href={`/play/${episode.Id}`} title={episode.Name} item={episode} session={session} />}
 			</div>
-			<Link href={`/show/${seriesId}/episode/${episode.Id}`} className={horizontal ? "mt-2 block" : "min-w-0 flex-1 pt-0.5"}>
+			<Link
+				href={`/show/${seriesId}/episode/${episode.Id}`}
+				className={horizontal ? "mt-2 block" : "min-w-0 flex-1 pt-0.5"}
+			>
 				<p className="truncate text-sm font-medium text-white/80">
 					{episode.IndexNumber}. {episode.Name}
 				</p>
@@ -715,30 +771,74 @@ export function EpisodeCard({
 					{episode.Overview}
 				</p>
 			</Link>
-			{!horizontal && <ItemActionButtons item={currentEpisode} onToggle={async (field) => {
-				const previous = Boolean(currentEpisode.UserData?.[field]);
-				setCurrentEpisode(updateUserData(currentEpisode, { [field]: !previous }));
-				try {
-					if (field === "Played") await setPlayed(session!, episode.Id, !previous);
-					else await setFavorite(session!, episode.Id, !previous);
-				}
-				catch { setCurrentEpisode(updateUserData(currentEpisode, { [field]: previous })); }
-			}} />}
+			{!horizontal && (
+				<ItemActionButtons
+					item={currentEpisode}
+					onToggle={async (field) => {
+						const previous = Boolean(currentEpisode.UserData?.[field]);
+						setCurrentEpisode(
+							updateUserData(currentEpisode, { [field]: !previous }),
+						);
+						try {
+							if (field === "Played")
+								await setPlayed(session!, episode.Id, !previous);
+							else await setFavorite(session!, episode.Id, !previous);
+						} catch {
+							setCurrentEpisode(
+								updateUserData(currentEpisode, { [field]: previous }),
+							);
+						}
+					}}
+				/>
+			)}
 		</div>
 	);
 }
 
-function ItemActionButtons({ item, onToggle }: { item: JellyfinItem; onToggle: (field: "Played" | "IsFavorite") => void }) {
+function ItemActionButtons({
+	item,
+	onToggle,
+}: {
+	item: JellyfinItem;
+	onToggle: (field: "Played" | "IsFavorite") => void;
+}) {
 	const { t } = useI18n();
-	const buttonClass = "flex h-8 w-8 items-center justify-center rounded-md text-white/35 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/50";
-	return <div className="flex shrink-0 items-center gap-0.5">
-		<button type="button" aria-label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")} title={t(item.UserData?.Played ? "markUnwatched" : "markWatched")} className={`${buttonClass} ${item.UserData?.Played ? "text-violet-300" : ""}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggle("Played"); }}>
-			<Check className="h-4 w-4" />
-		</button>
-		<button type="button" aria-label={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")} title={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")} className={`${buttonClass} ${item.UserData?.IsFavorite ? "text-violet-300" : ""}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggle("IsFavorite"); }}>
-			<Heart className={`h-4 w-4 ${item.UserData?.IsFavorite ? "fill-violet-300" : ""}`} />
-		</button>
-	</div>;
+	const buttonClass =
+		"flex h-8 w-8 items-center justify-center rounded-md text-white/35 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/50";
+	return (
+		<div className="flex shrink-0 items-center gap-0.5">
+			<button
+				type="button"
+				aria-label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
+				title={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
+				className={`${buttonClass} ${item.UserData?.Played ? "text-violet-300" : ""}`}
+				onClick={(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					onToggle("Played");
+				}}
+			>
+				<Check className="h-4 w-4" />
+			</button>
+			<button
+				type="button"
+				aria-label={t(
+					item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite",
+				)}
+				title={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
+				className={`${buttonClass} ${item.UserData?.IsFavorite ? "text-violet-300" : ""}`}
+				onClick={(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					onToggle("IsFavorite");
+				}}
+			>
+				<Heart
+					className={`h-4 w-4 ${item.UserData?.IsFavorite ? "fill-violet-300" : ""}`}
+				/>
+			</button>
+		</div>
+	);
 }
 
 function PeopleSection({

@@ -3,8 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 
 const push = vi.hoisted(() => vi.fn());
-const setWatchingTogether = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const syncplayState = vi.hoisted(() => ({ groups: [] as typeof active[], active: null as typeof active | null }));
+const setWatchingTogether = vi.hoisted(() =>
+	vi.fn().mockResolvedValue(undefined),
+);
+const syncplayState = vi.hoisted(() => ({
+	groups: [] as (typeof active)[],
+	active: null as typeof active | null,
+}));
 const currentMember = {
 	userId: "viewer",
 	participantId: "this-tab",
@@ -29,27 +34,41 @@ const active = {
 	updatedAt: 0,
 	members: [currentMember],
 };
-const publicGroup = { ...active, id: "public-group", name: "Public group", members: [{ ...currentMember, userId: "host" }] };
+const publicGroup = {
+	...active,
+	id: "public-group",
+	name: "Public group",
+	members: [{ ...currentMember, userId: "host" }],
+};
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/lib/i18n", () => ({
 	useI18n: () => ({
-		t: (key: string) => ({
-			syncplayGroups: "Groups",
-			syncplayReturnToView: "Return to view",
-			syncplayWatching: "Watching",
-			syncplayViewingTogether: "Viewing together",
-			syncplayBrowsing: "Browsing",
-			leaveGroup: "Leave group",
-			createGroup: "Create group",
-			allowViewerControls: "Allow viewer controls",
-		}[key] ?? key),
+		t: (key: string) =>
+			({
+				syncplayGroups: "Groups",
+				syncplayReturnToView: "Return to view",
+				syncplayWatching: "Watching",
+				syncplayViewingTogether: "Viewing together",
+				syncplayBrowsing: "Browsing",
+				leaveGroup: "Leave group",
+				createGroup: "Create group",
+				allowViewerControls: "Allow viewer controls",
+			})[key] ?? key,
 	}),
 }));
 vi.mock("@/lib/syncplay", () => ({
 	useSyncplay: () => ({
-		groups: syncplayState.groups, active: syncplayState.active, currentMember: syncplayState.active ? currentMember : null, refresh: vi.fn().mockResolvedValue(undefined), setWatchingTogether,
-		create: vi.fn(), join: vi.fn(), leave: vi.fn(), setControls: vi.fn(), removeMember: vi.fn(),
+		groups: syncplayState.groups,
+		active: syncplayState.active,
+		currentMember: syncplayState.active ? currentMember : null,
+		refresh: vi.fn().mockResolvedValue(undefined),
+		setWatchingTogether,
+		create: vi.fn(),
+		join: vi.fn(),
+		leave: vi.fn(),
+		setControls: vi.fn(),
+		removeMember: vi.fn(),
 	}),
 }));
 
@@ -72,9 +91,13 @@ describe("SyncplayGroupMenu", () => {
 		render(<SyncplayGroupMenu userId="viewer" />);
 		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
 		expect(screen.getByText("Public group")).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Join view" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Join view" }),
+		).toBeInTheDocument();
 		expect(screen.queryByText("Viewer")).not.toBeInTheDocument();
 		expect(screen.queryByText("Viewing together")).not.toBeInTheDocument();
-		expect(screen.queryByRole("button", { name: "Return to view" })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "Return to view" }),
+		).not.toBeInTheDocument();
 	});
 });

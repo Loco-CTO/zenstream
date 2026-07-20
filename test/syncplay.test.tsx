@@ -1,8 +1,18 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { io } from "socket.io-client";
-import { SyncplayProvider, useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
+import {
+	SyncplayProvider,
+	useSyncplay,
+	type SyncplayGroup,
+} from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
 
@@ -17,13 +27,15 @@ class TestSocket {
 	}
 	on(event: string, handler: (message?: unknown) => void) {
 		this.handlers.set(event, handler);
-		if (event === "connect" && TestSocket.openAutomatically) queueMicrotask(() => handler());
+		if (event === "connect" && TestSocket.openAutomatically)
+			queueMicrotask(() => handler());
 		return this;
 	}
-	receive(event: string, message?: unknown) { this.handlers.get(event)?.(message); }
+	receive(event: string, message?: unknown) {
+		this.handlers.get(event)?.(message);
+	}
 }
 vi.mock("socket.io-client", () => ({ io: vi.fn(() => new TestSocket()) }));
-
 
 vi.mock("next/navigation", () => ({
 	usePathname: () => "/show/movie",
@@ -47,25 +59,85 @@ const group = (revision: number): SyncplayGroup => ({
 });
 const joinedGroup = (revision: number): SyncplayGroup => ({
 	...group(revision),
-	members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }],
+	members: [
+		{
+			userId: "user",
+			username: "Alex",
+			viewing: false,
+			loading: false,
+			role: "host",
+		},
+	],
 });
 
 function Controls() {
 	const syncplay = useSyncplay();
-	return <>
-		<button onClick={() => void syncplay.join("group")}>Join</button>
-		<button onClick={() => void syncplay.create()}>Create</button>
-		<button onClick={() => void syncplay.join("other-group")}>Join other</button>
-		<button onClick={() => void syncplay.leave()}>Leave</button>
-		<button onClick={() => void syncplay.refresh()}>Refresh</button>
-		<button onClick={() => void syncplay.command({ action: "play", itemId: "movie", position: 0, playing: true })}>Play</button>
-		<button onClick={() => void syncplay.command({ action: "media", itemId: "movie", position: 0, playing: true })}>Start media</button>
-		<button onClick={() => void syncplay.setWatchingTogether(false)}>Browse</button>
-		<button onClick={() => void syncplay.command({ action: "seek", itemId: "movie", position: 10, playing: true })}>Seek 10</button>
-		<button onClick={() => void syncplay.command({ action: "seek", itemId: "movie", position: 20, playing: true })}>Seek 20</button>
-		<span data-testid="active-group">{syncplay.active?.id ?? "none"}</span>
-		<span data-testid="active-revision">{syncplay.active?.revision ?? "none"}</span>
-	</>;
+	return (
+		<>
+			<button onClick={() => void syncplay.join("group")}>Join</button>
+			<button onClick={() => void syncplay.create()}>Create</button>
+			<button onClick={() => void syncplay.join("other-group")}>
+				Join other
+			</button>
+			<button onClick={() => void syncplay.leave()}>Leave</button>
+			<button onClick={() => void syncplay.refresh()}>Refresh</button>
+			<button
+				onClick={() =>
+					void syncplay.command({
+						action: "play",
+						itemId: "movie",
+						position: 0,
+						playing: true,
+					})
+				}
+			>
+				Play
+			</button>
+			<button
+				onClick={() =>
+					void syncplay.command({
+						action: "media",
+						itemId: "movie",
+						position: 0,
+						playing: true,
+					})
+				}
+			>
+				Start media
+			</button>
+			<button onClick={() => void syncplay.setWatchingTogether(false)}>
+				Browse
+			</button>
+			<button
+				onClick={() =>
+					void syncplay.command({
+						action: "seek",
+						itemId: "movie",
+						position: 10,
+						playing: true,
+					})
+				}
+			>
+				Seek 10
+			</button>
+			<button
+				onClick={() =>
+					void syncplay.command({
+						action: "seek",
+						itemId: "movie",
+						position: 20,
+						playing: true,
+					})
+				}
+			>
+				Seek 20
+			</button>
+			<span data-testid="active-group">{syncplay.active?.id ?? "none"}</span>
+			<span data-testid="active-revision">
+				{syncplay.active?.revision ?? "none"}
+			</span>
+		</>
+	);
 }
 
 function GroupCount() {
@@ -74,12 +146,22 @@ function GroupCount() {
 
 function PresenceControl() {
 	const syncplay = useSyncplay();
-	return <button onClick={() => void syncplay.presence(true, false)}>Presence</button>;
+	return (
+		<button onClick={() => void syncplay.presence(true, false)}>
+			Presence
+		</button>
+	);
 }
 
 const session = { token: "token", userId: "user", username: "Alex" };
 function SyncplayTestProvider({ children }: { children: ReactNode }) {
-	return <I18nProvider locale="en"><ToastProvider><SyncplayProvider session={session}>{children}</SyncplayProvider></ToastProvider></I18nProvider>;
+	return (
+		<I18nProvider locale="en">
+			<ToastProvider>
+				<SyncplayProvider session={session}>{children}</SyncplayProvider>
+			</ToastProvider>
+		</I18nProvider>
+	);
 }
 
 describe("SyncplayProvider", () => {
@@ -92,8 +174,14 @@ describe("SyncplayProvider", () => {
 		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.amai.space/";
 		const socketFactory = vi.mocked(io);
 		const initialCalls = socketFactory.mock.calls.length;
-		const view = render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
-		expect(socketFactory.mock.calls[initialCalls]?.[0]).toBe("https://zso.amai.space/syncplay");
+		const view = render(
+			<SyncplayTestProvider>
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		expect(socketFactory.mock.calls[initialCalls]?.[0]).toBe(
+			"https://zso.amai.space/syncplay",
+		);
 		view.unmount();
 		if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_ZSO_URL;
 		else process.env.NEXT_PUBLIC_ZSO_URL = originalOrigin;
@@ -101,7 +189,11 @@ describe("SyncplayProvider", () => {
 
 	it("disconnects the Socket.IO client when the provider unmounts", () => {
 		TestSocket.openAutomatically = false;
-		const view = render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
+		const view = render(
+			<SyncplayTestProvider>
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
 		const socket = TestSocket.latest;
 		view.unmount();
 		expect(socket?.disconnect).toHaveBeenCalled();
@@ -111,36 +203,95 @@ describe("SyncplayProvider", () => {
 	it("loads visible groups even when the WebSocket never opens", async () => {
 		TestSocket.openAutomatically = false;
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ groups: [{ ...group(1), hostUserId: "alex", members: [{ userId: "alex", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
+			new Response(
+				JSON.stringify({
+					groups: [
+						{
+							...group(1),
+							hostUserId: "alex",
+							members: [
+								{
+									userId: "alex",
+									username: "Alex",
+									viewing: false,
+									loading: false,
+									role: "host",
+								},
+							],
+						},
+					],
+				}),
+			),
 		);
-		render(<SyncplayTestProvider><GroupCount /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("group-count")).toHaveTextContent("1"));
+		render(
+			<SyncplayTestProvider>
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
+		);
 		TestSocket.openAutomatically = true;
 	});
 
 	it("refreshes the revision and retries a stale playback command once", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-				return new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] }));
-			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(joinedGroup(1)));
-			if (url.endsWith("/groups/group/command")) {
-				const revision = JSON.parse(String(init?.body)).expectedRevision;
-				return revision === 1
-					? new Response(JSON.stringify({ message: "Playback state is out of date." }), { status: 409 })
-					: new Response(JSON.stringify(joinedGroup(3)));
-			}
-			if (url.endsWith("/groups/group")) return new Response(JSON.stringify(joinedGroup(2)));
-			throw new Error(`Unexpected request: ${url}`);
-		});
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(
+						JSON.stringify({
+							groups: [
+								{
+									...group(1),
+									members: [
+										{
+											userId: "user",
+											username: "Alex",
+											viewing: false,
+											loading: false,
+											role: "host",
+										},
+									],
+								},
+							],
+						}),
+					);
+				if (url.endsWith("/groups/group/join"))
+					return new Response(JSON.stringify(joinedGroup(1)));
+				if (url.endsWith("/groups/group/command")) {
+					const revision = JSON.parse(String(init?.body)).expectedRevision;
+					return revision === 1
+						? new Response(
+								JSON.stringify({ message: "Playback state is out of date." }),
+								{ status: 409 },
+							)
+						: new Response(JSON.stringify(joinedGroup(3)));
+				}
+				if (url.endsWith("/groups/group"))
+					return new Response(JSON.stringify(joinedGroup(2)));
+				throw new Error(`Unexpected request: ${url}`);
+			});
 
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
-		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups/group/join", expect.any(Object)));
+		await waitFor(() =>
+			expect(fetchMock).toHaveBeenCalledWith(
+				"/api/syncplay/groups/group/join",
+				expect.any(Object),
+			),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
 		await waitFor(() => {
-			const commands = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"));
+			const commands = fetchMock.mock.calls.filter(([url]) =>
+				String(url).endsWith("/groups/group/command"),
+			);
 			expect(commands).toHaveLength(2);
 			expect(JSON.parse(String(commands[0][1]?.body)).expectedRevision).toBe(1);
 			expect(JSON.parse(String(commands[1][1]?.body)).expectedRevision).toBe(2);
@@ -149,46 +300,93 @@ describe("SyncplayProvider", () => {
 
 	it("restores a group the user already belongs to after the provider remounts", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
+			new Response(
+				JSON.stringify({
+					groups: [
+						{
+							...group(1),
+							members: [
+								{
+									userId: "user",
+									username: "Alex",
+									viewing: false,
+									loading: false,
+									role: "host",
+								},
+							],
+						},
+					],
+				}),
+			),
 		);
 		function ActiveGroup() {
 			const syncplay = useSyncplay();
 			return <span>{syncplay.active?.id ?? "none"}</span>;
 		}
-		render(<SyncplayTestProvider><ActiveGroup /></SyncplayTestProvider>);
+		render(
+			<SyncplayTestProvider>
+				<ActiveGroup />
+			</SyncplayTestProvider>,
+		);
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
-		expect(fetchMock).toHaveBeenCalledWith("/api/syncplay/groups", expect.any(Object));
+		expect(fetchMock).toHaveBeenCalledWith(
+			"/api/syncplay/groups",
+			expect.any(Object),
+		);
 	});
 
 	it("blocks creating or joining another group while already active", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ groups: [{ ...joinedGroup(1) }] })),
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(JSON.stringify({ groups: [{ ...joinedGroup(1) }] })),
+			);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
 		);
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Create" }));
 		fireEvent.click(screen.getByRole("button", { name: "Join other" }));
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(fetchMock.mock.calls.filter(([url, init]) => String(url).includes("/groups") && init?.method === "POST")).toHaveLength(0);
+		expect(
+			fetchMock.mock.calls.filter(
+				([url, init]) =>
+					String(url).includes("/groups") && init?.method === "POST",
+			),
+		).toHaveLength(0);
 	});
 
 	it("keeps only the latest queued seek", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
-			if (url.endsWith("/groups/group/command"))
-				return new Response(JSON.stringify(joinedGroup(2)));
-			throw new Error(`Unexpected request: ${url}`);
-		});
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+				if (url.endsWith("/groups/group/command"))
+					return new Response(JSON.stringify(joinedGroup(2)));
+				throw new Error(`Unexpected request: ${url}`);
+			});
 
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Seek 10" }));
 		fireEvent.click(screen.getByRole("button", { name: "Seek 20" }));
 
 		await waitFor(() => {
-			const commands = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"));
+			const commands = fetchMock.mock.calls.filter(([url]) =>
+				String(url).endsWith("/groups/group/command"),
+			);
 			expect(commands).toHaveLength(1);
 			expect(JSON.parse(String(commands[0][1]?.body)).position).toBe(20);
 		});
@@ -199,22 +397,32 @@ describe("SyncplayProvider", () => {
 			...joinedGroup(4),
 			timelineRevision: 7,
 		};
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-				return new Response(JSON.stringify({ groups: [active] }));
-			if (url.endsWith("/groups/group/presence"))
-				return new Response(JSON.stringify(active));
-			throw new Error(`Unexpected request: ${url}`);
-		});
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [active] }));
+				if (url.endsWith("/groups/group/presence"))
+					return new Response(JSON.stringify(active));
+				throw new Error(`Unexpected request: ${url}`);
+			});
 
-		render(<SyncplayTestProvider><PresenceControl /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByText("Presence")).toBeInTheDocument());
+		render(
+			<SyncplayTestProvider>
+				<PresenceControl />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByText("Presence")).toBeInTheDocument(),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
 
 		await waitFor(() => {
-			const request = fetchMock.mock.calls.find(([url, init]) =>
-				String(url).endsWith("/groups/group/presence") && init?.method === "POST",
+			const request = fetchMock.mock.calls.find(
+				([url, init]) =>
+					String(url).endsWith("/groups/group/presence") &&
+					init?.method === "POST",
 			);
 			expect(request).toBeDefined();
 			expect(JSON.parse(String(request?.[1]?.body)).timelineRevision).toBe(7);
@@ -223,28 +431,87 @@ describe("SyncplayProvider", () => {
 
 	it("applies a newer group state sent by the WebSocket", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ groups: [{ ...group(1), members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }] }] })),
+			new Response(
+				JSON.stringify({
+					groups: [
+						{
+							...group(1),
+							members: [
+								{
+									userId: "user",
+									username: "Alex",
+									viewing: false,
+									loading: false,
+									role: "host",
+								},
+							],
+						},
+					],
+				}),
+			),
 		);
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("1"));
-		act(() => TestSocket.latest?.receive("syncplay:group", { group: { ...group(2), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" }] } }));
-		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("2"));
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-revision")).toHaveTextContent("1"),
+		);
+		act(() =>
+			TestSocket.latest?.receive("syncplay:group", {
+				group: {
+					...group(2),
+					members: [
+						{
+							userId: "user",
+							username: "Alex",
+							viewing: true,
+							loading: false,
+							role: "host",
+						},
+					],
+				},
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-revision")).toHaveTextContent("2"),
+		);
 	});
 
 	it("keeps another user's broadcast discoverable without joining it", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(JSON.stringify({ groups: [] })),
 		);
-		render(<SyncplayTestProvider><Controls /><GroupCount /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("none"));
-		act(() => TestSocket.latest?.receive("syncplay:group", {
-			group: {
-				...group(1),
-				hostUserId: "alex",
-				members: [{ userId: "alex", username: "Alex", viewing: false, loading: false, role: "host" }],
-			},
-		}));
-		await waitFor(() => expect(screen.getByTestId("group-count")).toHaveTextContent("1"));
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("none"),
+		);
+		act(() =>
+			TestSocket.latest?.receive("syncplay:group", {
+				group: {
+					...group(1),
+					hostUserId: "alex",
+					members: [
+						{
+							userId: "alex",
+							username: "Alex",
+							viewing: false,
+							loading: false,
+							role: "host",
+						},
+					],
+				},
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
+		);
 		expect(screen.getByTestId("active-group")).toHaveTextContent("none");
 	});
 
@@ -253,70 +520,176 @@ describe("SyncplayProvider", () => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 				return new Response(JSON.stringify({ groups: [] }));
-			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(joinedGroup(1)));
+			if (url.endsWith("/groups/group/join"))
+				return new Response(JSON.stringify(joinedGroup(1)));
 			if (url.endsWith("/groups/group") && init?.method === "DELETE")
-				return new Response(JSON.stringify({ message: "Join this group first." }), { status: 403 });
+				return new Response(
+					JSON.stringify({ message: "Join this group first." }),
+					{ status: 403 },
+				);
 			throw new Error(`Unexpected request: ${url}`);
 		});
 
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Leave" }));
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("none"));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("none"),
+		);
 	});
 
 	it("keeps the latest state when readiness changes make the retry stale too", async () => {
-		const latest = { ...group(3), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" as const }] };
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-				return new Response(JSON.stringify({ groups: [latest] }));
-			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(latest));
-			if (url.endsWith("/groups/group/command"))
-				return new Response(JSON.stringify({ message: "Playback state is out of date." }), { status: 409 });
-			if (url.endsWith("/groups/group")) return new Response(JSON.stringify(latest));
-			throw new Error(`Unexpected request: ${url}`);
-		});
+		const latest = {
+			...group(3),
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: true,
+					loading: false,
+					role: "host" as const,
+				},
+			],
+		};
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [latest] }));
+				if (url.endsWith("/groups/group/join"))
+					return new Response(JSON.stringify(latest));
+				if (url.endsWith("/groups/group/command"))
+					return new Response(
+						JSON.stringify({ message: "Playback state is out of date." }),
+						{ status: 409 },
+					);
+				if (url.endsWith("/groups/group"))
+					return new Response(JSON.stringify(latest));
+				throw new Error(`Unexpected request: ${url}`);
+			});
 
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
-		await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"))).toHaveLength(2));
+		await waitFor(() =>
+			expect(
+				fetchMock.mock.calls.filter(([url]) =>
+					String(url).endsWith("/groups/group/command"),
+				),
+			).toHaveLength(2),
+		);
 	});
 
 	it("announces remote member changes after the initial group state", async () => {
-		let members: SyncplayGroup["members"] = [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" }];
+		let members: SyncplayGroup["members"] = [
+			{
+				userId: "user",
+				username: "Alex",
+				viewing: false,
+				loading: false,
+				role: "host",
+			},
+		];
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-			if (String(input).endsWith("/groups") && (!init?.method || init.method === "GET"))
-				return new Response(JSON.stringify({ groups: [{ ...group(1), members }] }));
+			if (
+				String(input).endsWith("/groups") &&
+				(!init?.method || init.method === "GET")
+			)
+				return new Response(
+					JSON.stringify({ groups: [{ ...group(1), members }] }),
+				);
 			throw new Error(`Unexpected request: ${String(input)}`);
 		});
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
-		members = [...members, { userId: "sam", username: "Sam", viewing: false, loading: false, role: "viewer" }];
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
+		members = [
+			...members,
+			{
+				userId: "sam",
+				username: "Sam",
+				viewing: false,
+				loading: false,
+				role: "viewer",
+			},
+		];
 		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-		await waitFor(() => expect(screen.getByText("Sam joined the group.")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByText("Sam joined the group.")).toBeInTheDocument(),
+		);
 		members = members.filter((member) => member.userId !== "sam");
 		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-		await waitFor(() => expect(screen.getByText("Sam left the group.")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByText("Sam left the group.")).toBeInTheDocument(),
+		);
 	});
 
 	it("announces the resolved media title when Syncplay switches titles", async () => {
-		const waiting = { ...group(1), itemId: null, members: [{ userId: "user", username: "Alex", viewing: false, loading: false, role: "host" as const }] };
+		const waiting = {
+			...group(1),
+			itemId: null,
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: false,
+					loading: false,
+					role: "host" as const,
+				},
+			],
+		};
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
 			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) return new Response(JSON.stringify({ groups: [waiting] }));
-			if (url.endsWith("/groups/group/command")) return new Response(JSON.stringify({ ...waiting, itemId: "movie", mediaGeneration: 1, revision: 2 }));
-			if (url.endsWith("/Items/movie")) return new Response(JSON.stringify({ Id: "movie", Name: "Movie Name" }));
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [waiting] }));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(
+					JSON.stringify({
+						...waiting,
+						itemId: "movie",
+						mediaGeneration: 1,
+						revision: 2,
+					}),
+				);
+			if (url.endsWith("/Items/movie"))
+				return new Response(
+					JSON.stringify({ Id: "movie", Name: "Movie Name" }),
+				);
 			throw new Error(`Unexpected request: ${url}`);
 		});
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Start media" }));
-		await waitFor(() => expect(screen.getByText("Now playing Movie Name.")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByText("Now playing Movie Name.")).toBeInTheDocument(),
+		);
 	});
 
 	it("optimistically leaves playback while remaining in the group", async () => {
@@ -324,37 +697,73 @@ describe("SyncplayProvider", () => {
 			...joinedGroup(2),
 			members: [{ ...joinedGroup(2).members[0], watchingTogether: false }],
 		};
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
-			if (url.endsWith("/groups/group/participation"))
-				return new Response(JSON.stringify(browsing));
-			throw new Error(`Unexpected request: ${url}`);
-		});
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
-		await waitFor(() => expect(screen.getByTestId("active-group")).toHaveTextContent("group"));
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+				if (url.endsWith("/groups/group/participation"))
+					return new Response(JSON.stringify(browsing));
+				throw new Error(`Unexpected request: ${url}`);
+			});
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Browse" }));
-		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
-			"/api/syncplay/groups/group/participation",
-			expect.objectContaining({ method: "POST" }),
-		));
+		await waitFor(() =>
+			expect(fetchMock).toHaveBeenCalledWith(
+				"/api/syncplay/groups/group/participation",
+				expect.objectContaining({ method: "POST" }),
+			),
+		);
 		expect(screen.getByTestId("active-group")).toHaveTextContent("group");
 	});
 
 	it("does not let a stale poll overwrite newer playback state", async () => {
-		const newer = { ...group(3), members: [{ userId: "user", username: "Alex", viewing: true, loading: false, role: "host" as const }] };
-		const stale = { ...newer, revision: 1, playing: false, resumeWhenReady: true };
+		const newer = {
+			...group(3),
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: true,
+					loading: false,
+					role: "host" as const,
+				},
+			],
+		};
+		const stale = {
+			...newer,
+			revision: 1,
+			playing: false,
+			resumeWhenReady: true,
+		};
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
 			const url = String(input);
-			if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) return new Response(JSON.stringify({ groups: [stale] }));
-			if (url.endsWith("/groups/group/join")) return new Response(JSON.stringify(newer));
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [stale] }));
+			if (url.endsWith("/groups/group/join"))
+				return new Response(JSON.stringify(newer));
 			throw new Error(`Unexpected request: ${url}`);
 		});
-		render(<SyncplayTestProvider><Controls /></SyncplayTestProvider>);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
-		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("3"));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-revision")).toHaveTextContent("3"),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-		await waitFor(() => expect(screen.getByTestId("active-revision")).toHaveTextContent("3"));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-revision")).toHaveTextContent("3"),
+		);
 	});
 });

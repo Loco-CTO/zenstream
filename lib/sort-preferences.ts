@@ -31,19 +31,36 @@ export function useSortPreference<T extends string>(
 		}
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setPreference({
-			sortBy: validSortBy.includes(stored.sortBy as T) ? stored.sortBy as T : defaults.sortBy,
-			sortOrder: stored.sortOrder === "Ascending" || stored.sortOrder === "Descending" ? stored.sortOrder : defaults.sortOrder,
+			sortBy: validSortBy.includes(stored.sortBy as T)
+				? (stored.sortBy as T)
+				: defaults.sortBy,
+			sortOrder:
+				stored.sortOrder === "Ascending" || stored.sortOrder === "Descending"
+					? stored.sortOrder
+					: defaults.sortOrder,
 		});
 		hydratedRef.current = true;
 	}, [defaults.sortBy, defaults.sortOrder, key, validSortBy]);
 
-	const updatePreference = useCallback((value: SortPreference<T> | ((current: SortPreference<T>) => SortPreference<T>)) => {
-		setPreference((current) => {
-			const next = typeof value === "function" ? value(current) : value;
-			if (key && hydratedRef.current && typeof localStorage.setItem === "function") localStorage.setItem(key, JSON.stringify(next));
-			return next;
-		});
-	}, [key]);
+	const updatePreference = useCallback(
+		(
+			value:
+				| SortPreference<T>
+				| ((current: SortPreference<T>) => SortPreference<T>),
+		) => {
+			setPreference((current) => {
+				const next = typeof value === "function" ? value(current) : value;
+				if (
+					key &&
+					hydratedRef.current &&
+					typeof localStorage.setItem === "function"
+				)
+					localStorage.setItem(key, JSON.stringify(next));
+				return next;
+			});
+		},
+		[key],
+	);
 
 	return [preference, updatePreference] as const;
 }

@@ -4,8 +4,13 @@ import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-followe
 import type { SyncplayGroup } from "@/lib/syncplay";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
-const state = vi.hoisted(() => ({ pathname: "/library", active: null as SyncplayGroup | null }));
-const setWatchingTogether = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const state = vi.hoisted(() => ({
+	pathname: "/library",
+	active: null as SyncplayGroup | null,
+}));
+const setWatchingTogether = vi.hoisted(() =>
+	vi.fn().mockResolvedValue(undefined),
+);
 
 vi.mock("next/navigation", () => ({
 	usePathname: () => state.pathname,
@@ -14,7 +19,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/syncplay", () => ({
 	useSyncplay: () => ({
 		active: state.active,
-		currentMember: state.active?.members.find((entry) => entry.userId === "viewer") ?? null,
+		currentMember:
+			state.active?.members.find((entry) => entry.userId === "viewer") ?? null,
 		setWatchingTogether,
 	}),
 }));
@@ -54,7 +60,9 @@ describe("SyncplayPlaybackFollower", () => {
 	it("opens the current media for a member who is viewing together", async () => {
 		state.active = group();
 		render(<SyncplayPlaybackFollower />);
-		await waitFor(() => expect(router.push).toHaveBeenCalledWith("/play/episode-2"));
+		await waitFor(() =>
+			expect(router.push).toHaveBeenCalledWith("/play/episode-2"),
+		);
 	});
 
 	it("does not redirect a member who chose to browse", () => {
@@ -69,7 +77,9 @@ describe("SyncplayPlaybackFollower", () => {
 		const view = render(<SyncplayPlaybackFollower />);
 		state.pathname = "/library";
 		view.rerender(<SyncplayPlaybackFollower />);
-		await waitFor(() => expect(setWatchingTogether).toHaveBeenCalledWith(false));
+		await waitFor(() =>
+			expect(setWatchingTogether).toHaveBeenCalledWith(false),
+		);
 		expect(router.push).not.toHaveBeenCalled();
 	});
 
@@ -81,7 +91,9 @@ describe("SyncplayPlaybackFollower", () => {
 			state.active = group({ itemId: "episode-2", mediaGeneration: 2 });
 		});
 		view.rerender(<SyncplayPlaybackFollower />);
-		await waitFor(() => expect(router.push).toHaveBeenCalledWith("/play/episode-2"));
+		await waitFor(() =>
+			expect(router.push).toHaveBeenCalledWith("/play/episode-2"),
+		);
 		expect(setWatchingTogether).not.toHaveBeenCalled();
 	});
 });

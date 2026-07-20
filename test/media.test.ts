@@ -10,27 +10,38 @@ describe("newly added grouping", () => {
 			episode("other", "series-2", 4),
 		];
 
-		expect(stackNewlyAdded(items).map((stack) => stack.items.map((item) => item.Id))).toEqual([
-			["ep-2", "ep-1"],
-			["other"],
-		]);
+		expect(
+			stackNewlyAdded(items).map((stack) => stack.items.map((item) => item.Id)),
+		).toEqual([["ep-2", "ep-1"], ["other"]]);
 	});
 
 	it("does not stack non-sequential releases", () => {
-		expect(stackNewlyAdded([
-			episode("ep-3", "series-1", 3),
-			episode("ep-1", "series-1", 1),
-		])).toHaveLength(2);
+		expect(
+			stackNewlyAdded([
+				episode("ep-3", "series-1", 3),
+				episode("ep-1", "series-1", 1),
+			]),
+		).toHaveLength(2);
 	});
 });
 
 describe("release date labels", () => {
 	it("shows the complete premiere date when available", () => {
-		expect(releaseDateLabel({ Id: "movie", Name: "Film", PremiereDate: "2025-03-09T00:00:00Z" }, "en")).toBe("9 March 2025");
+		expect(
+			releaseDateLabel(
+				{ Id: "movie", Name: "Film", PremiereDate: "2025-03-09T00:00:00Z" },
+				"en",
+			),
+		).toBe("9 March 2025");
 	});
 
 	it("falls back to the production year", () => {
-		expect(releaseDateLabel({ Id: "movie", Name: "Film", ProductionYear: 2025 }, "en")).toBe("2025");
+		expect(
+			releaseDateLabel(
+				{ Id: "movie", Name: "Film", ProductionYear: 2025 },
+				"en",
+			),
+		).toBe("2025");
 	});
 });
 

@@ -7,7 +7,10 @@ describe("BlurHashImage", () => {
 		const { container } = render(
 			<div className="relative">
 				<BlurHashImage
-					image={{ src: "/poster.jpg", blurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj" }}
+					image={{
+						src: "/poster.jpg",
+						blurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+					}}
 					alt="Poster"
 					className="h-full w-full object-cover"
 				/>

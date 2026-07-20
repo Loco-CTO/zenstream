@@ -29,7 +29,7 @@ describe("Navbar", () => {
 			"h-11",
 			"w-11",
 		);
-		 expect(screen.getByRole("button", { name: "Profile" })).toHaveClass(
+		expect(screen.getByRole("button", { name: "Profile" })).toHaveClass(
 			"h-10",
 			"w-10",
 		);
@@ -47,7 +47,9 @@ describe("Navbar", () => {
 			screen.getByRole("button", { name: "Profile" }).querySelector("img"),
 		).toHaveAttribute(
 			"src",
-			expect.stringContaining("/Users/user-123/Images/Primary?maxWidth=80&quality=90"),
+			expect.stringContaining(
+				"/Users/user-123/Images/Primary?maxWidth=80&quality=90",
+			),
 		);
 		expect(screen.queryByTestId("default-user-icon")).not.toBeInTheDocument();
 	});

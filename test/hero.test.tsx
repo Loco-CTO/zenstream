@@ -43,7 +43,7 @@ describe("Hero", () => {
 		expect(
 			screen
 				.getByRole("heading", { level: 1, name: item.Name })
-			.closest("section"),
+				.closest("section"),
 		).toHaveClass("h-[min(72svh,640px)]", "md:h-[85svh]");
 	});
 
@@ -97,7 +97,10 @@ describe("Hero", () => {
 		const titleImage = screen.getByRole("img", { name: item.Name });
 
 		expect(heading).not.toHaveClass("text-4xl");
-		expect(titleImage).toHaveAttribute("src", expect.stringContaining("/Images/Logo?"));
+		expect(titleImage).toHaveAttribute(
+			"src",
+			expect.stringContaining("/Images/Logo?"),
+		);
 		expect(titleImage).toHaveClass("max-h-28");
 	});
 
@@ -107,18 +110,28 @@ describe("Hero", () => {
 
 		render(<Hero items={[first, second]} session={session} />);
 
-		fireEvent.click(screen.getByRole("button", { name: /show next featured slide/i }));
-		expect(screen.getByRole("heading", { level: 1, name: second.Name })).toBeInTheDocument();
+		fireEvent.click(
+			screen.getByRole("button", { name: /show next featured slide/i }),
+		);
+		expect(
+			screen.getByRole("heading", { level: 1, name: second.Name }),
+		).toBeInTheDocument();
 
-		fireEvent.click(screen.getByRole("button", { name: /show previous featured slide/i }));
-		expect(screen.getByRole("heading", { level: 1, name: first.Name })).toBeInTheDocument();
+		fireEvent.click(
+			screen.getByRole("button", { name: /show previous featured slide/i }),
+		);
+		expect(
+			screen.getByRole("heading", { level: 1, name: first.Name }),
+		).toBeInTheDocument();
 	});
 
 	it("mounts only the active slideshow layer for mobile rendering stability", () => {
 		const first = heroItem("first", "First Feature");
 		const second = heroItem("second", "Second Feature");
 
-		const { container } = render(<Hero items={[first, second]} session={session} />);
+		const { container } = render(
+			<Hero items={[first, second]} session={session} />,
+		);
 
 		const hero = screen.getByRole("region", { name: /featured title/i });
 		const backgrounds = container.querySelectorAll("img[aria-hidden='true']");
@@ -130,10 +143,16 @@ describe("Hero", () => {
 			"next",
 		);
 
-		fireEvent.click(screen.getByRole("button", { name: /show next featured slide/i }));
+		fireEvent.click(
+			screen.getByRole("button", { name: /show next featured slide/i }),
+		);
 
-		expect(container.querySelectorAll("img[aria-hidden='true']")).toHaveLength(1);
-		expect(container.querySelector("img[aria-hidden='true']")).toHaveClass("opacity-100");
+		expect(container.querySelectorAll("img[aria-hidden='true']")).toHaveLength(
+			1,
+		);
+		expect(container.querySelector("img[aria-hidden='true']")).toHaveClass(
+			"opacity-100",
+		);
 		expect(hero.querySelector(".hero-slide-content")).toHaveAttribute(
 			"data-slide-direction",
 			"next",
@@ -151,20 +170,26 @@ describe("Hero", () => {
 		fireEvent.pointerMove(hero, { clientX: 80, pointerId: 1 });
 		fireEvent.pointerUp(hero, { pointerId: 1 });
 
-		expect(screen.getByRole("heading", { level: 1, name: second.Name })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { level: 1, name: second.Name }),
+		).toBeInTheDocument();
 
 		fireEvent.pointerDown(hero, { clientX: 80, pointerId: 2 });
 		fireEvent.pointerMove(hero, { clientX: 180, pointerId: 2 });
 		fireEvent.pointerUp(hero, { pointerId: 2 });
 
-		expect(screen.getByRole("heading", { level: 1, name: first.Name })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { level: 1, name: first.Name }),
+		).toBeInTheDocument();
 	});
 
 	it("uses drag cursor states and prevents selecting featured content", () => {
 		const first = heroItem("first", "First Feature");
 		const second = heroItem("second", "Second Feature");
 
-		const { container } = render(<Hero items={[first, second]} session={session} />);
+		const { container } = render(
+			<Hero items={[first, second]} session={session} />,
+		);
 
 		const hero = screen.getByRole("region", { name: /featured title/i });
 		expect(hero).toHaveClass("select-none");
@@ -189,9 +214,13 @@ describe("Hero", () => {
 		render(<Hero items={[first, second]} session={session} />);
 
 		act(() => vi.advanceTimersByTime(6999));
-		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: first.Name }),
+		).toBeInTheDocument();
 		act(() => vi.advanceTimersByTime(1));
-		expect(screen.getByRole("heading", { name: second.Name })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
 		vi.useRealTimers();
 	});
 
@@ -210,13 +239,20 @@ describe("Hero", () => {
 			await Promise.resolve();
 		});
 
-		const iframe = screen.getByTitle("Trailer First trailer") as HTMLIFrameElement;
+		const iframe = screen.getByTitle(
+			"Trailer First trailer",
+		) as HTMLIFrameElement;
 		expect(iframe).toHaveAttribute("src", expect.stringContaining("mute=1"));
-		expect(iframe).toHaveAttribute("src", expect.stringContaining("cc_load_policy=0"));
-  expect(iframe).toHaveClass("scale-[1.45]");
+		expect(iframe).toHaveAttribute(
+			"src",
+			expect.stringContaining("cc_load_policy=0"),
+		);
+		expect(iframe).toHaveClass("scale-[1.45]");
 		const audioButton = screen.getByRole("button", { name: /unmute trailer/i });
 		fireEvent.click(audioButton);
-		expect(screen.getByRole("button", { name: /mute trailer/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /mute trailer/i }),
+		).toBeInTheDocument();
 
 		const postMessage = vi.spyOn(iframe.contentWindow!, "postMessage");
 		fireEvent.load(iframe);
@@ -230,16 +266,20 @@ describe("Hero", () => {
 		);
 
 		act(() => {
-			window.dispatchEvent(new MessageEvent("message", {
-				origin: "https://www.youtube.com",
-				source: iframe.contentWindow,
-				data: JSON.stringify({
-					event: "infoDelivery",
-					info: { playerState: 0 },
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({
+						event: "infoDelivery",
+						info: { playerState: 0 },
+					}),
 				}),
-			}));
+			);
 		});
-		expect(screen.getByRole("heading", { name: second.Name })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
 		vi.useRealTimers();
 	});
 });

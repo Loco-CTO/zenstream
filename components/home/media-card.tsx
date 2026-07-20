@@ -12,68 +12,121 @@ import { progressPercent, subtitle } from "@/lib/media";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
-import { HoverPreviewVideo, useHoverPreview } from "@/components/ui/hover-preview";
+import {
+	HoverPreviewVideo,
+	useHoverPreview,
+} from "@/components/ui/hover-preview";
 import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
-export function WideCard({ item, session }: { item: JellyfinItem; session?: AuthSession }) {
+export function WideCard({
+	item,
+	session,
+}: {
+	item: JellyfinItem;
+	session?: AuthSession;
+}) {
 	const image = landscapeImage(item);
 	const progress = progressPercent(item);
 	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
-		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[min(calc((100vw-2.75rem)/2),180px)] shrink-0 cursor-pointer select-none sm:w-[240px] md:w-[320px]">
+		<article
+			onPointerEnter={preview.start}
+			onPointerLeave={preview.stop}
+			className="group/card w-[min(calc((100vw-2.75rem)/2),180px)] shrink-0 cursor-pointer select-none sm:w-[240px] md:w-[320px]"
+		>
 			<div className="relative">
-				<Link href={detailHref(item)} aria-label={item.Name} draggable={false} className="block">
-				<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
-					{(item.Type === "Movie" || item.Type === "Episode") && <HoverPreviewVideo preview={preview} />}
-				{image && (
-					<BlurHashImage
-						image={image}
-						alt={item.Name}
-						draggable={false}
-						className={`brightness-[0.82] ${MEDIA_CARD_IMAGE_CLASS}`}
-					/>
-				)}
-				<WatchProgress progress={progress} />
-				<WatchedIndicator item={item} />
-			</div>
+				<Link
+					href={detailHref(item)}
+					aria-label={item.Name}
+					draggable={false}
+					className="block"
+				>
+					<div className="relative aspect-video overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+						{(item.Type === "Movie" || item.Type === "Episode") && (
+							<HoverPreviewVideo preview={preview} />
+						)}
+						{image && (
+							<BlurHashImage
+								image={image}
+								alt={item.Name}
+								draggable={false}
+								className={`brightness-[0.82] ${MEDIA_CARD_IMAGE_CLASS}`}
+							/>
+						)}
+						<WatchProgress progress={progress} />
+						<WatchedIndicator item={item} />
+					</div>
 				</Link>
 				<CardText item={item} />
-				<MediaCardOverlay href={detailHref(item)} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-video" />
+				<MediaCardOverlay
+					href={detailHref(item)}
+					title={item.Name}
+					item={item}
+					session={session}
+					className="inset-x-0 top-0 aspect-video"
+				/>
 			</div>
 		</article>
 	);
 }
 
-export function PosterCard({ item, session }: { item: JellyfinItem; session?: AuthSession }) {
+export function PosterCard({
+	item,
+	session,
+}: {
+	item: JellyfinItem;
+	session?: AuthSession;
+}) {
 	const image = seriesPosterImage(item);
 	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
-		<article onPointerEnter={preview.start} onPointerLeave={preview.stop} className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
+		<article
+			onPointerEnter={preview.start}
+			onPointerLeave={preview.stop}
+			className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]"
+		>
 			<div className="relative">
-			<Link href={detailHref(item)} aria-label={item.Name} draggable={false} className="block">
-			<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
-				{item.Type === "Movie" && <HoverPreviewVideo preview={preview} />}
-				{image && (
-					<BlurHashImage
-						image={image}
-						alt={item.Name}
-						draggable={false}
-						className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
-					/>
-				)}
-				<WatchedIndicator item={item} />
-			</div>
-			</Link>
-			<CardText item={item} />
-			<MediaCardOverlay href={detailHref(item)} title={item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
+				<Link
+					href={detailHref(item)}
+					aria-label={item.Name}
+					draggable={false}
+					className="block"
+				>
+					<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+						{item.Type === "Movie" && <HoverPreviewVideo preview={preview} />}
+						{image && (
+							<BlurHashImage
+								image={image}
+								alt={item.Name}
+								draggable={false}
+								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+							/>
+						)}
+						<WatchedIndicator item={item} />
+					</div>
+				</Link>
+				<CardText item={item} />
+				<MediaCardOverlay
+					href={detailHref(item)}
+					title={item.Name}
+					item={item}
+					session={session}
+					className="inset-x-0 top-0 aspect-[2/3]"
+				/>
 			</div>
 		</article>
 	);
 }
 
-export function StackedPosterCard({ items, session }: { items: JellyfinItem[]; session?: AuthSession }) {
+export function StackedPosterCard({
+	items,
+	session,
+}: {
+	items: JellyfinItem[];
+	session?: AuthSession;
+}) {
 	const item = items[0];
 	const stacked = items.length > 1;
 	const image = seriesPosterImage(item);
@@ -81,24 +134,54 @@ export function StackedPosterCard({ items, session }: { items: JellyfinItem[]; s
 	return (
 		<article className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
 			<div className="relative">
-			<Link href={detailHref(item)} draggable={false} className="block">
-				<div className="relative">
-					{stacked && <>
-						<div className="absolute inset-x-3 -top-2 bottom-2 rounded-sm bg-white/10" />
-						<div className="absolute inset-x-1.5 -top-1 bottom-1 rounded-sm bg-white/15" />
-					</>}
-					<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
-						{image && <BlurHashImage image={image} alt={stacked ? item.SeriesName ?? item.Name : item.Name} draggable={false} className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`} />}
-						{stacked && <span className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}>{items.length} EP</span>}
-						<WatchedIndicator item={item} unwatchedCount={items.filter((episode) => !episode.UserData?.Played).length} />
+				<Link href={detailHref(item)} draggable={false} className="block">
+					<div className="relative">
+						{stacked && (
+							<>
+								<div className="absolute inset-x-3 -top-2 bottom-2 rounded-sm bg-white/10" />
+								<div className="absolute inset-x-1.5 -top-1 bottom-1 rounded-sm bg-white/15" />
+							</>
+						)}
+						<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+							{image && (
+								<BlurHashImage
+									image={image}
+									alt={stacked ? (item.SeriesName ?? item.Name) : item.Name}
+									draggable={false}
+									className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+								/>
+							)}
+							{stacked && (
+								<span
+									className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}
+								>
+									{items.length} EP
+								</span>
+							)}
+							<WatchedIndicator
+								item={item}
+								unwatchedCount={
+									items.filter((episode) => !episode.UserData?.Played).length
+								}
+							/>
+						</div>
 					</div>
-				</div>
-				<div className="mt-2">
-					<p className="truncate text-xs font-medium text-white/80">{stacked ? item.SeriesName ?? item.Name : item.Name}</p>
-					<p className="mt-0.5 truncate text-xs text-white/30">{stacked ? item.ProductionYear ?? item.Type : subtitle(item)}</p>
-				</div>
-			</Link>
-			<MediaCardOverlay href={detailHref(item)} title={stacked ? item.SeriesName ?? item.Name : item.Name} item={item} session={session} className="inset-x-0 top-0 aspect-[2/3]" />
+					<div className="mt-2">
+						<p className="truncate text-xs font-medium text-white/80">
+							{stacked ? (item.SeriesName ?? item.Name) : item.Name}
+						</p>
+						<p className="mt-0.5 truncate text-xs text-white/30">
+							{stacked ? (item.ProductionYear ?? item.Type) : subtitle(item)}
+						</p>
+					</div>
+				</Link>
+				<MediaCardOverlay
+					href={detailHref(item)}
+					title={stacked ? (item.SeriesName ?? item.Name) : item.Name}
+					item={item}
+					session={session}
+					className="inset-x-0 top-0 aspect-[2/3]"
+				/>
 			</div>
 		</article>
 	);
@@ -117,13 +200,27 @@ export const MEDIA_CARD_IMAGE_CLASS =
 export const MEDIA_CARD_TAG_CLASS =
 	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-xs font-medium tracking-wide text-white/75 backdrop-blur-sm";
 
-export function MediaCardOverlay({ href, title, item, session, className = "inset-0" }: { href: string; title?: string; item?: JellyfinItem; session?: AuthSession; className?: string }) {
+export function MediaCardOverlay({
+	href,
+	title,
+	item,
+	session,
+	className = "inset-0",
+}: {
+	href: string;
+	title?: string;
+	item?: JellyfinItem;
+	session?: AuthSession;
+	className?: string;
+}) {
 	const router = useRouter();
 	const { t } = useI18n();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 
 	return (
-		<div className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 ${className}`}>
+		<div
+			className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 ${className}`}
+		>
 			<button
 				type="button"
 				aria-label={title ? `${t("play")} ${title}` : t("play")}
@@ -149,15 +246,39 @@ function playHref(href: string) {
 	return itemId ? `/play/${itemId}` : href;
 }
 
-export function WatchedIndicator({ item, unwatchedCount }: { item: JellyfinItem; unwatchedCount?: number }) {
+export function WatchedIndicator({
+	item,
+	unwatchedCount,
+}: {
+	item: JellyfinItem;
+	unwatchedCount?: number;
+}) {
 	const { t } = useI18n();
-	const count = item.Type === "Series" ? (unwatchedCount ?? item.UserData?.UnplayedItemCount) : undefined;
+	const count =
+		item.Type === "Series"
+			? (unwatchedCount ?? item.UserData?.UnplayedItemCount)
+			: undefined;
 	const watched = item.Type !== "Series" && item.UserData?.Played === true;
 	if (!watched && count == null) return null;
 	const allWatched = item.Type === "Series" ? count === 0 : watched;
-	return <div aria-label={allWatched ? t("allEpisodesWatched") : `${count} ${t("unwatchedEpisodes")}`} className={`absolute right-2 top-2 flex items-center gap-1 ${MEDIA_CARD_TAG_CLASS}`}>
-		{allWatched ? <Check aria-hidden="true" className="h-3 w-3 text-emerald-300/80" /> : <>{count} {t("unwatchedEpisodes")}</>}
-	</div>;
+	return (
+		<div
+			aria-label={
+				allWatched
+					? t("allEpisodesWatched")
+					: `${count} ${t("unwatchedEpisodes")}`
+			}
+			className={`absolute right-2 top-2 flex items-center gap-1 ${MEDIA_CARD_TAG_CLASS}`}
+		>
+			{allWatched ? (
+				<Check aria-hidden="true" className="h-3 w-3 text-emerald-300/80" />
+			) : (
+				<>
+					{count} {t("unwatchedEpisodes")}
+				</>
+			)}
+		</div>
+	);
 }
 
 export function WatchProgress({ progress }: { progress: number | undefined }) {
@@ -179,10 +300,17 @@ function CardText({ item }: { item: JellyfinItem }) {
 	if (item.Type === "Episode" && item.SeriesId) {
 		return (
 			<div className="mt-2 min-w-0">
-				<Link href={`/show/${item.SeriesId}`} className="block truncate text-xs font-medium text-white/80 hover:underline focus:outline-none focus-visible:underline">
+				<Link
+					href={`/show/${item.SeriesId}`}
+					className="block truncate text-xs font-medium text-white/80 hover:underline focus:outline-none focus-visible:underline"
+				>
 					{item.SeriesName ?? "Series"}
 				</Link>
-				<Link aria-label="Episode details" href={detailHref(item)} className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline">
+				<Link
+					aria-label="Episode details"
+					href={detailHref(item)}
+					className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline"
+				>
 					{episodeLabel(item)}
 				</Link>
 			</div>
@@ -198,7 +326,11 @@ function CardText({ item }: { item: JellyfinItem }) {
 }
 
 function episodeLabel(item: JellyfinItem) {
-	const season = item.ParentIndexNumber == null ? "??" : String(item.ParentIndexNumber).padStart(2, "0");
-	const episode = item.IndexNumber == null ? "??" : String(item.IndexNumber).padStart(2, "0");
+	const season =
+		item.ParentIndexNumber == null
+			? "??"
+			: String(item.ParentIndexNumber).padStart(2, "0");
+	const episode =
+		item.IndexNumber == null ? "??" : String(item.IndexNumber).padStart(2, "0");
 	return `S${season}E${episode}・${item.Name}`;
 }

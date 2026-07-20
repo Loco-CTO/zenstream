@@ -242,7 +242,8 @@ export function Hero({
 					className="absolute inset-0 h-full w-full object-cover object-center brightness-[0.55]"
 				/>
 			) : null}
-			{canPlayTrailers && trailer &&
+			{canPlayTrailers &&
+				trailer &&
 				(trailer.kind === "youtube" ? (
 					<YouTubeTrailer
 						key={`${item.Id}-youtube`}

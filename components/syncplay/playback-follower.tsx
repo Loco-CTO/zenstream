@@ -13,7 +13,12 @@ export function SyncplayPlaybackFollower() {
 
 	useEffect(() => {
 		const itemId = active?.itemId;
-		if (!active || !itemId || !currentMember || currentMember.watchingTogether === false) {
+		if (
+			!active ||
+			!itemId ||
+			!currentMember ||
+			currentMember.watchingTogether === false
+		) {
 			requestedGenerationRef.current = null;
 			viewedGenerationRef.current = null;
 			return;

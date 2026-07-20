@@ -248,12 +248,20 @@ describe("jellyfin api helpers", () => {
 					: "",
 		});
 
-		expect(profile.directPlayProfiles).toContainEqual(expect.objectContaining({
-			Container: "mp4,m4v", VideoCodec: "hevc,h264", AudioCodec: "aac",
-		}));
-		expect(profile.transcodingProfiles).toEqual([expect.objectContaining({
-			Container: "ts", VideoCodec: "h264", AudioCodec: "aac",
-		})]);
+		expect(profile.directPlayProfiles).toContainEqual(
+			expect.objectContaining({
+				Container: "mp4,m4v",
+				VideoCodec: "hevc,h264",
+				AudioCodec: "aac",
+			}),
+		);
+		expect(profile.transcodingProfiles).toEqual([
+			expect.objectContaining({
+				Container: "ts",
+				VideoCodec: "h264",
+				AudioCodec: "aac",
+			}),
+		]);
 	});
 
 	it("builds the device profile synchronously before PlaybackInfo", async () => {

@@ -5,7 +5,10 @@ export function formatVersion(version: string, main: number): string {
 	return main === 0 ? `v${version}` : `v${version}-main.${main}`;
 }
 
-export const zenstreamVersion = formatVersion(packageJson.version, mainVersion.main);
+export const zenstreamVersion = formatVersion(
+	packageJson.version,
+	mainVersion.main,
+);
 
 export async function fetchOrchestratorVersion(): Promise<string | null> {
 	try {

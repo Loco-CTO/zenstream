@@ -19,11 +19,15 @@ const notoSans = Noto_Sans({
 export const metadata: Metadata = {
 	title: "ZenStream",
 	description: "ZenStream home",
-		icons: {
-			icon: "/icon.png",
-			apple: "/icon.png",
-		},
-		appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "ZenStream" },
+	icons: {
+		icon: "/icon.png",
+		apple: "/icon.png",
+	},
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: "black-translucent",
+		title: "ZenStream",
+	},
 };
 
 export default function RootLayout({
@@ -33,9 +37,9 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" className={`dark ${notoSans.variable}`}>
-		<body>
-			<ServiceWorkerRegistration />
-			<ProgressProvider>{children}</ProgressProvider>
+			<body>
+				<ServiceWorkerRegistration />
+				<ProgressProvider>{children}</ProgressProvider>
 			</body>
 		</html>
 	);

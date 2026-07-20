@@ -26,7 +26,9 @@ describe("error pages", () => {
 			/>,
 		);
 
-		expect(await screen.findByRole("link", { name: "Home" })).toBeInTheDocument();
+		expect(
+			await screen.findByRole("link", { name: "Home" }),
+		).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: "Return home" })).toHaveAttribute(
@@ -51,10 +53,18 @@ describe("error pages", () => {
 			"href",
 			"/",
 		);
-		expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
-		expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
-		expect(screen.queryByRole("button", { name: "Profile" })).not.toBeInTheDocument();
-		expect(screen.queryByRole("link", { name: "Return home" })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("link", { name: "Home" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "Search" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "Profile" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("link", { name: "Return home" }),
+		).not.toBeInTheDocument();
 	});
 
 	it("renders the custom not-found copy", async () => {
@@ -62,7 +72,9 @@ describe("error pages", () => {
 
 		render(<NotFound />);
 
-		expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
+		expect(
+			await screen.findByRole("heading", { name: "Page not found" }),
+		).toBeInTheDocument();
 		expect(screen.getByText("404")).toBeInTheDocument();
 		expect(
 			screen.getByText("This screen is not available or may have moved."),
@@ -80,7 +92,9 @@ describe("error pages", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-		expect(screen.getByRole("heading", { name: "Could not load your library" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Could not load your library" }),
+		).toBeInTheDocument();
 		expect(screen.getByText("Nope")).toBeInTheDocument();
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});

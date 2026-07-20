@@ -28,8 +28,14 @@ describe("service worker generator", () => {
 	it("omits the main suffix from the cache name when the counter is zero", async () => {
 		const root = await mkdtemp(join(tmpdir(), "zenstream-sw-"));
 		await mkdir(join(root, "public"));
-		await writeFile(join(root, "package.json"), JSON.stringify({ version: "9.8.7" }));
-		await writeFile(join(root, ".main-version.json"), JSON.stringify({ main: 0 }));
+		await writeFile(
+			join(root, "package.json"),
+			JSON.stringify({ version: "9.8.7" }),
+		);
+		await writeFile(
+			join(root, ".main-version.json"),
+			JSON.stringify({ main: 0 }),
+		);
 		await writeFile(
 			join(root, "public/sw.template.js"),
 			'const CACHE_NAME = \\"__CACHE_NAME__\\";',

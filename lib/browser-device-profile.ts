@@ -27,8 +27,10 @@ function supports(video: VideoElementLike, mime: string) {
 
 function isIos() {
 	if (typeof navigator === "undefined") return false;
-	return /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
-		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+	return (
+		/iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+	);
 }
 
 export function shouldUseHlsJs() {
@@ -45,8 +47,12 @@ export function browserDeviceProfile(
 ): BrowserDeviceProfile {
 	const mp4Video = [
 		...(supports(video, 'video/mp4; codecs="hvc1.1.L120"') ||
-			supports(video, 'video/mp4; codecs="hev1.1.L120"') ? ["hevc"] : []),
-		...(supports(video, 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"') ? ["h264"] : []),
+		supports(video, 'video/mp4; codecs="hev1.1.L120"')
+			? ["hevc"]
+			: []),
+		...(supports(video, 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"')
+			? ["h264"]
+			: []),
 		...(supports(video, 'video/mp4; codecs="av01.0.08M.08"') ? ["av1"] : []),
 	];
 	const webmVideo = [
@@ -58,34 +64,57 @@ export function browserDeviceProfile(
 		...(supports(video, 'audio/webm; codecs="opus"') ? ["opus"] : []),
 		...(supports(video, 'audio/webm; codecs="vorbis"') ? ["vorbis"] : []),
 	];
-	const hls = supports(video, "application/x-mpegURL") ||
-		supports(video, "application/vnd.apple.mpegURL") || shouldUseHlsJs();
+	const hls =
+		supports(video, "application/x-mpegURL") ||
+		supports(video, "application/vnd.apple.mpegURL") ||
+		shouldUseHlsJs();
 	const directPlayProfiles: BrowserPlaybackProfile[] = [];
-	if (mp4Video.length && aac) directPlayProfiles.push({
-		Type: "Video", Container: "mp4,m4v", VideoCodec: mp4Video.join(","), AudioCodec: "aac",
-	});
-	if (webmVideo.length && webmAudio.length) directPlayProfiles.push({
-		Type: "Video", Container: "webm", VideoCodec: webmVideo.join(","), AudioCodec: webmAudio.join(","),
-	});
-	const hlsVideo = mp4Video.filter((codec) => codec === "h264" || codec === "hevc");
-	if (hls && aac && hlsVideo.length) directPlayProfiles.push({
-		Type: "Video", Container: "ts", VideoCodec: hlsVideo.join(","), AudioCodec: "aac",
-	});
+	if (mp4Video.length && aac)
+		directPlayProfiles.push({
+			Type: "Video",
+			Container: "mp4,m4v",
+			VideoCodec: mp4Video.join(","),
+			AudioCodec: "aac",
+		});
+	if (webmVideo.length && webmAudio.length)
+		directPlayProfiles.push({
+			Type: "Video",
+			Container: "webm",
+			VideoCodec: webmVideo.join(","),
+			AudioCodec: webmAudio.join(","),
+		});
+	const hlsVideo = mp4Video.filter(
+		(codec) => codec === "h264" || codec === "hevc",
+	);
+	if (hls && aac && hlsVideo.length)
+		directPlayProfiles.push({
+			Type: "Video",
+			Container: "ts",
+			VideoCodec: hlsVideo.join(","),
+			AudioCodec: "aac",
+		});
 
 	return {
 		directPlayProfiles,
 		// Subtitles are fetched as VTT by the custom overlay. Explicitly telling
 		// Jellyfin to deliver them externally prevents a transcoded HLS source
 		// from burning the same cue into the video as well.
-		subtitleProfiles: [{
-			Format: "vtt",
-			Method: "External",
-			DeliveryMethod: "External",
-		}],
+		subtitleProfiles: [
+			{
+				Format: "vtt",
+				Method: "External",
+				DeliveryMethod: "External",
+			},
+		],
 		// Always keep this conservative profile. It is the one used after a real
 		// native-media or hls.js failure, independent of any direct-play result.
-		transcodingProfiles: [{
-			Type: "Video", Container: "ts", VideoCodec: "h264", AudioCodec: "aac",
-		}],
+		transcodingProfiles: [
+			{
+				Type: "Video",
+				Container: "ts",
+				VideoCodec: "h264",
+				AudioCodec: "aac",
+			},
+		],
 	};
 }

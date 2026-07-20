@@ -209,8 +209,12 @@ describe("video player controls", () => {
 	});
 
 	it("does not reuse the previous episode's readiness for Next Up", () => {
-		expect(syncplayItemIsLoading("episode-1", "episode-2", { readyState: 4 })).toBe(true);
-		expect(syncplayItemIsLoading("episode-2", "episode-2", { readyState: 4 })).toBe(false);
+		expect(
+			syncplayItemIsLoading("episode-1", "episode-2", { readyState: 4 }),
+		).toBe(true);
+		expect(
+			syncplayItemIsLoading("episode-2", "episode-2", { readyState: 4 }),
+		).toBe(false);
 	});
 
 	it("contains player overlays without creating a scrollbar", () => {
@@ -395,7 +399,9 @@ describe("video player controls", () => {
 
 		expect(getByTestId("player-loading")).toBeVisible();
 		fireEvent.canPlay(container.querySelector("video")!);
-		expect(container.querySelector('[data-testid="player-loading"]')).toBeNull();
+		expect(
+			container.querySelector('[data-testid="player-loading"]'),
+		).toBeNull();
 	});
 
 	it("keeps the active skip intro action interactive independently of controls", () => {
@@ -459,7 +465,11 @@ describe("video player controls", () => {
 		);
 		const onNext = vi.fn();
 		const onClose = vi.fn();
-		const next = { Id: "episode-2", Name: "Episode 2", Type: "Episode" } as JellyfinItem;
+		const next = {
+			Id: "episode-2",
+			Name: "Episode 2",
+			Type: "Episode",
+		} as JellyfinItem;
 
 		advanceToNextEpisodeWithSyncplay(next, command, onNext, onClose);
 
@@ -519,7 +529,8 @@ describe("video player controls", () => {
 	it("retries a rejected Syncplay start muted before blocking the group", async () => {
 		const video = {
 			muted: false,
-			play: vi.fn()
+			play: vi
+				.fn()
 				.mockRejectedValueOnce(new Error("Autoplay blocked"))
 				.mockResolvedValueOnce(undefined),
 		};
@@ -534,7 +545,10 @@ describe("video player controls", () => {
 	});
 
 	it("blocks Syncplay readiness when playback still cannot start", async () => {
-		const video = { muted: false, play: vi.fn().mockRejectedValue(new Error("No buffer")) };
+		const video = {
+			muted: false,
+			play: vi.fn().mockRejectedValue(new Error("No buffer")),
+		};
 		const muted = vi.fn();
 		const blocked = vi.fn();
 
@@ -639,14 +653,17 @@ describe("video player controls", () => {
 			/>,
 		);
 
-		expect(getByAltText("Timeline preview").parentElement?.parentElement).toHaveClass(
-			"z-20",
-		);
+		expect(
+			getByAltText("Timeline preview").parentElement?.parentElement,
+		).toHaveClass("z-20");
 	});
 
 	it("parses Jellyfin VTT with a BOM and cue settings", () => {
-		expect(parseWebVttCues("\uFEFFWEBVTT\n\n1\n00:00.000 --> 00:02.000 align:start\nHello"))
-			.toEqual([{ start: 0, end: 2, text: "Hello" }]);
+		expect(
+			parseWebVttCues(
+				"\uFEFFWEBVTT\n\n1\n00:00.000 --> 00:02.000 align:start\nHello",
+			),
+		).toEqual([{ start: 0, end: 2, text: "Hello" }]);
 	});
 
 	it("does not show an ending cue at the next cue boundary", () => {

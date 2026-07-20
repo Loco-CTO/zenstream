@@ -51,7 +51,12 @@ export function useHoverPreview(
 				});
 				if (controller.signal.aborted) return;
 				const source = info.MediaSources?.[0];
-				if (!source || source.TranscodingUrl || source.SupportsDirectPlay === false) return;
+				if (
+					!source ||
+					source.TranscodingUrl ||
+					source.SupportsDirectPlay === false
+				)
+					return;
 				const startFactor =
 					PREVIEW_START_MIN +
 					Math.random() * (PREVIEW_START_MAX - PREVIEW_START_MIN);
@@ -67,12 +72,7 @@ export function useHoverPreview(
 				const video = videoRef.current;
 				if (!video) return;
 				const startPlayback = async () => {
-					video.src = playbackUrl(
-						session,
-						itemId,
-						source,
-						startTimeTicks,
-					);
+					video.src = playbackUrl(session, itemId, source, startTimeTicks);
 					video.load();
 					await video.play();
 				};

@@ -5,8 +5,8 @@ const config = [
   {
     ignores: [".next/**", "node_modules/**", "coverage/**", "design/**"],
   },
-  ...nextVitals,
-  ...nextTypescript,
+  nextVitals,
+  nextTypescript,
   {
     rules: {
       "@next/next/no-img-element": "off",

@@ -15,7 +15,7 @@
     "blurhash": "^2.0.5",
     "hls.js": "^1.6.16",
     "lucide-react": "^1.25.0",
-    "next": "latest",
+    "next": "15.5.20",
     "react": "latest",
     "react-dom": "latest",
     "socket.io-client": "^4.8.3"
@@ -29,7 +29,7 @@
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^10.7.0",
-    "eslint-config-next": "latest",
+    "eslint-config-next": "15.5.20",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",

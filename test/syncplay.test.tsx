@@ -72,6 +72,11 @@ function GroupCount() {
 	return <span data-testid="group-count">{useSyncplay().groups.length}</span>;
 }
 
+function PresenceControl() {
+	const syncplay = useSyncplay();
+	return <button onClick={() => void syncplay.presence(true, false)}>Presence</button>;
+}
+
 const session = { token: "token", userId: "user", username: "Alex" };
 function SyncplayTestProvider({ children }: { children: ReactNode }) {
 	return <I18nProvider locale="en"><ToastProvider><SyncplayProvider session={session}>{children}</SyncplayProvider></ToastProvider></I18nProvider>;
@@ -186,6 +191,33 @@ describe("SyncplayProvider", () => {
 			const commands = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups/group/command"));
 			expect(commands).toHaveLength(1);
 			expect(JSON.parse(String(commands[0][1]?.body)).position).toBe(20);
+		});
+	});
+
+	it("includes the active timeline revision in presence reports", async () => {
+		const active = {
+			...joinedGroup(4),
+			timelineRevision: 7,
+		};
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [active] }));
+			if (url.endsWith("/groups/group/presence"))
+				return new Response(JSON.stringify(active));
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		render(<SyncplayTestProvider><PresenceControl /></SyncplayTestProvider>);
+		await waitFor(() => expect(screen.getByText("Presence")).toBeInTheDocument());
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+
+		await waitFor(() => {
+			const request = fetchMock.mock.calls.find(([url, init]) =>
+				String(url).endsWith("/groups/group/presence") && init?.method === "POST",
+			);
+			expect(request).toBeDefined();
+			expect(JSON.parse(String(request?.[1]?.body)).timelineRevision).toBe(7);
 		});
 	});
 

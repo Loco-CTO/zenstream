@@ -14,7 +14,7 @@
   "dependencies": {
     "blurhash": "^2.0.5",
     "hls.js": "^1.6.16",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.25.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -24,16 +24,16 @@
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
-    "@types/node": "^22.10.2",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
-    "eslint": "^9.17.0",
+    "eslint": "^10.7.0",
     "eslint-config-next": "latest",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
+    "vitest": "^3.2.6",
     "yaml": "^2.9.0",
     "yaml-loader": "^0.9.0"
   }

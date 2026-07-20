@@ -1,6 +1,7 @@
 import { FlatCompat } from "@eslint/eslintrc";
 import nextVitals from "eslint-config-next/core-web-vitals.js";
 import nextTypescript from "eslint-config-next/typescript.js";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const compat = new FlatCompat();
 
@@ -10,6 +11,11 @@ const config = [
   },
   ...compat.config(nextVitals),
   ...compat.config(nextTypescript),
+  {
+    plugins: {
+      "react-hooks": reactHooks,
+    },
+  },
   {
     rules: {
       "@next/next/no-img-element": "off",

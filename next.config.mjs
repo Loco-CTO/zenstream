@@ -1,10 +1,10 @@
-import type { NextConfig } from "next";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
 	reactStrictMode: true,
 	output: "standalone",
 	turbopack: {
@@ -15,6 +15,17 @@ const nextConfig: NextConfig = {
 				as: "*.js",
 			},
 		},
+	},
+	webpack(config) {
+		config.resolve.alias = {
+			...(config.resolve.alias ?? {}),
+			"@": appRoot,
+		};
+		config.module.rules.push({
+			test: /\.ya?ml$/i,
+			use: "yaml-loader",
+		});
+		return config;
 	},
 	async headers() {
 		return [

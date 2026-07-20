@@ -576,8 +576,8 @@ function RangeControl({
 }) {
 	const [draft, setDraft] = useState(value);
 	// The remote value can change after an optimistic save or rollback.
-	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setDraft(value);
 	}, [value]);
 	const clamp = (next: number) =>

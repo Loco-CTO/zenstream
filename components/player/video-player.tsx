@@ -437,6 +437,18 @@ export function VideoPlayer({
 		}
 		setBufferedRanges({ itemId: item.Id, ranges });
 	};
+	const cancelPendingBufferingReport = useCallback((reason: string) => {
+		if (bufferingTimerRef.current !== undefined) {
+			window.clearTimeout(bufferingTimerRef.current);
+			bufferingTimerRef.current = undefined;
+		}
+		bufferingEpochRef.current += 1;
+		playerDebug("buffering report canceled", {
+			itemId: item.Id,
+			reason,
+			epoch: bufferingEpochRef.current,
+		});
+	}, [item.Id]);
 
 	useEffect(() => {
 		syncplayStateRef.current = syncplay.active;
@@ -647,7 +659,10 @@ export function VideoPlayer({
 	useEffect(() => {
 		const state = syncplay.active;
 		const video = videoRef.current;
-		if (!state || !video || state.itemId !== item.Id) return;
+		if (!state || !video || state.itemId !== item.Id) {
+			cancelPendingBufferingReport("timeline no longer applies");
+			return;
+		}
 		cancelPendingBufferingReport("authoritative timeline changed");
 		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
 		let forceSeek = appliedTimelineRef.current !== timelineKey;
@@ -909,20 +924,10 @@ export function VideoPlayer({
 			if (!settingsOpen && !trackMenu) setControlsVisible(false);
 		}, 2500);
 	}
-	const cancelPendingBufferingReport = useCallback((reason: string) => {
-		if (bufferingTimerRef.current !== undefined) {
-			window.clearTimeout(bufferingTimerRef.current);
-			bufferingTimerRef.current = undefined;
-		}
-		bufferingEpochRef.current += 1;
-		playerDebug("buffering report canceled", {
-			itemId: item.Id,
-			reason,
-			epoch: bufferingEpochRef.current,
-		});
-	}, [item.Id]);
 	function reportBuffering(loading: boolean) {
-		cancelPendingBufferingReport(loading ? "new loading signal" : "new ready signal");
+		cancelPendingBufferingReport(
+			loading ? "new loading signal" : "new ready signal",
+		);
 		const state = syncplayStateRef.current;
 		if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
 			return;
@@ -949,7 +954,13 @@ export function VideoPlayer({
 			() => {
 				bufferingTimerRef.current = undefined;
 				const current = syncplayStateRef.current;
-				if (!syncplayBufferingReportIsCurrent(report, current, bufferingEpochRef.current)) {
+				if (
+					!syncplayBufferingReportIsCurrent(
+						report,
+						current,
+						bufferingEpochRef.current,
+					)
+				) {
 					playerDebug("buffering report discarded", {
 						loading,
 						...report,

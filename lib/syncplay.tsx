@@ -831,8 +831,7 @@ export function SyncplayProvider({
 		if (!group) return;
 		const groupId = group.id;
 		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
-		const timelineRevision =
-			group.timelineRevision ?? group.revision;
+		const timelineRevision = group.timelineRevision ?? group.revision;
 		const sequence = ++presenceSequenceRef.current;
 		const send = async () => {
 			if (activeRef.current?.id !== groupId) return;

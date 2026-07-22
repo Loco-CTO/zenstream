@@ -173,11 +173,14 @@ export function AppShell() {
 		}
 		setSession(stored);
 		loadPreferences();
-		finishProgress();
-		if (detailId || playId) void loadDetail(stored, detailId ?? playId!);
-		else if (pathname === "/library" || pathname === "/favorites")
-			setStatus("ready");
-		else void loadHome(stored);
+		void (async () => {
+			if (detailId || playId) await loadDetail(stored, detailId ?? playId!);
+			else if (pathname === "/library" || pathname === "/favorites") {
+				await primeResourceTicket(stored);
+				setStatus("ready");
+			} else await loadHome(stored);
+			finishProgress();
+		})();
 	}, [
 		detailId,
 		playId,
@@ -195,6 +198,7 @@ export function AppShell() {
 		setAuthCookies(nextSession);
 		setSession(nextSession);
 		loadPreferences();
+		await primeResourceTicket(nextSession);
 		if (detailId || playId) await loadDetail(nextSession, detailId ?? playId!);
 		else if (pathname === "/search") {
 			setSearchData(searchQuery);

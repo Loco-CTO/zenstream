@@ -35,6 +35,31 @@ describe("catalog client", () => {
 		expect(item.UserData?.PlaybackPositionTicks).toBe(420_000_000);
 	});
 
+	it("maps URL-based TVDB trailers into remote trailers", () => {
+		const item = toMediaItem({
+			id: "series-1",
+			libraryId: "shows",
+			type: "series",
+			name: "Fallback",
+			metadata: {
+				title: "Example Show",
+				trailers: [
+					{
+						id: 123,
+						language: "eng",
+						name: "Official trailer",
+						url: "https://www.youtube.com/watch?v=tvdb-trailer",
+						runtime: 120,
+					},
+				],
+			},
+		} satisfies CatalogItem);
+
+		expect(item.RemoteTrailers).toEqual([
+			{ Url: "https://www.youtube.com/watch?v=tvdb-trailer" },
+		]);
+	});
+
 	it("uses a Bearer token for catalog requests", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(JSON.stringify({ libraries: [] }), { status: 200 }),

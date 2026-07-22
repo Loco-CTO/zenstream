@@ -72,8 +72,12 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		Type: typeof person.department === "string" ? person.department : undefined,
 	}));
 	const trailers = (item.metadata.trailers ?? []).flatMap((trailer) => {
-		if (String(trailer.site ?? "").toLowerCase() !== "youtube" || !trailer.key) return [];
-		return [{ Url: `https://www.youtube.com/watch?v=${trailer.key}` }];
+		const site = String(trailer.site ?? "").toLowerCase();
+		if (site === "youtube" && trailer.key) {
+			return [{ Url: `https://www.youtube.com/watch?v=${trailer.key}` }];
+		}
+		const url = typeof trailer.url === "string" ? trailer.url.trim() : "";
+		return /^https?:\/\//i.test(url) ? [{ Url: url }] : [];
 	});
 	return {
 		Id: item.id,
@@ -124,5 +128,4 @@ export function toMediaStreams(streams: Array<Record<string, unknown>>): MediaSt
 		FileId: typeof stream.fileId === "string" ? stream.fileId : undefined,
 	}));
 }
-
 

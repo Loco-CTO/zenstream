@@ -11,7 +11,7 @@ import {
 	syncplayMediaStartCommand,
 } from "@/components/pages/detail-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
-import type { DetailData, JellyfinItem } from "@/lib/jellyfin";
+import type { DetailData, MediaItem } from "@/lib/media-api";
 
 const session = { token: "token", userId: "user", username: "Alex" };
 const router = vi.hoisted(() => ({
@@ -438,7 +438,7 @@ function renderDetail(data: DetailData) {
 	);
 }
 
-function movie(): JellyfinItem {
+function movie(): MediaItem {
 	return {
 		Id: "movie",
 		Name: "Film",
@@ -455,7 +455,7 @@ function movie(): JellyfinItem {
 	};
 }
 
-function episode(id: string, number: number): JellyfinItem {
+function episode(id: string, number: number): MediaItem {
 	return {
 		Id: id,
 		Name: `Episode ${number}`,
@@ -467,3 +467,4 @@ function episode(id: string, number: number): JellyfinItem {
 		ImageTags: { Thumb: "thumb" },
 	};
 }
+

@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { getSearchItems, posterImage, type JellyfinItem } from "@/lib/jellyfin";
+import { getSearchItems, posterImage, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
 export function SearchOverlay({
@@ -18,7 +18,7 @@ export function SearchOverlay({
 	const { t } = useI18n();
 	const router = useRouter();
 	const [query, setQuery] = useState("");
-	const [suggestions, setSuggestions] = useState<JellyfinItem[]>([]);
+	const [suggestions, setSuggestions] = useState<MediaItem[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +59,7 @@ export function SearchOverlay({
 		onClose();
 		router.push(`/search?q=${encodeURIComponent(query.trim())}`);
 	};
-	const select = (item: JellyfinItem) => {
+	const select = (item: MediaItem) => {
 		onClose();
 		router.push(`/show/${item.Id}`);
 	};
@@ -139,7 +139,7 @@ export function SearchOverlay({
 											</span>
 											<span className="block text-xs text-white/35">
 												{item.Type === "Series" ? t("series") : t("movie")}
-												{item.ProductionYear ? ` · ${item.ProductionYear}` : ""}
+												{item.ProductionYear ? ` Â· ${item.ProductionYear}` : ""}
 											</span>
 										</span>
 									</button>
@@ -151,3 +151,4 @@ export function SearchOverlay({
 		</div>
 	);
 }
+

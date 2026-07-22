@@ -17,7 +17,7 @@ import { getAuthSession } from "@/lib/session";
 const preferenceUrl = `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/preferences/subtitles`;
 const preferenceHeaders = (): Record<string, string> => {
 	const token = getAuthSession()?.token;
-	return token ? { "X-Jellyfin-Token": token } : {};
+	return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {

@@ -6,14 +6,14 @@ import { WideCard, PosterCard } from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
-import { getFavoriteItems, type JellyfinItem } from "@/lib/jellyfin";
+import { getFavoriteItems, type MediaItem } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useSortPreference } from "@/lib/sort-preferences";
 
 export function FavoritesPage({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
-	const [items, setItems] = useState<JellyfinItem[]>([]);
+	const [items, setItems] = useState<MediaItem[]>([]);
 	const [sort, setSort] = useSortPreference(
 		"zenstream:sort:favorites",
 		{ sortBy: "SortName", sortOrder: "Ascending" },
@@ -139,3 +139,4 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		</main>
 	);
 }
+

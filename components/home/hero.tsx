@@ -14,8 +14,8 @@ import {
 	getHeroTrailer,
 	titleLogoImage,
 	type HeroTrailer,
-	type JellyfinItem,
-} from "@/lib/jellyfin";
+	type MediaItem,
+} from "@/lib/media-api";
 import { runtimeLabel } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
@@ -32,7 +32,7 @@ export function Hero({
 	items,
 	session,
 }: {
-	items: JellyfinItem[];
+	items: MediaItem[];
 	session: AuthSession;
 }) {
 	const { locale, t } = useI18n();
@@ -332,7 +332,7 @@ export function Hero({
 								key={`${value}-${index}`}
 								className={`whitespace-nowrap text-xs ${index === 0 ? "font-semibold text-white/80" : "text-white/35"}`}
 							>
-								{index > 0 && <span className="mr-2 text-white/15">・</span>}
+								{index > 0 && <span className="mr-2 text-white/15">ãƒ»</span>}
 								{value}
 							</span>
 						))}
@@ -494,10 +494,6 @@ function isInteractiveTarget(target: EventTarget) {
 	return target instanceof Element && Boolean(target.closest("a, button"));
 }
 
-function hasVisualImage(item: JellyfinItem) {
-	return Boolean(
-		item.BackdropImageTags?.length ||
-		item.ImageTags?.Thumb ||
-		item.ImageTags?.Primary,
-	);
+function hasVisualImage(item: MediaItem) {
+	return Boolean(item.BackdropImageTags?.length);
 }

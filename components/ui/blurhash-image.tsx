@@ -3,10 +3,10 @@
 import { decode } from "blurhash";
 import { useMemo, useState } from "react";
 import type { ComponentPropsWithoutRef } from "react";
-import type { JellyfinImage } from "@/lib/jellyfin";
+import type { MediaImage } from "@/lib/media-api";
 
 type BlurHashImageProps = Omit<ComponentPropsWithoutRef<"img">, "src"> & {
-	image: JellyfinImage;
+	image: MediaImage;
 };
 
 const PLACEHOLDER_SIZE = 16;
@@ -76,3 +76,4 @@ function blurHashToDataUrl(blurHash?: string | null) {
 		return null;
 	}
 }
+

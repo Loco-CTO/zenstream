@@ -1,6 +1,6 @@
 "use client";
 
-import type { HomeData } from "@/lib/jellyfin";
+import type { HomeData } from "@/lib/media-api";
 import { HOME_ROWS, pickHeroItem } from "@/lib/media";
 import { Hero } from "@/components/home/hero";
 import { MediaRow } from "@/components/home/media-row";
@@ -98,3 +98,4 @@ export function HomePage({
 		</main>
 	);
 }
+

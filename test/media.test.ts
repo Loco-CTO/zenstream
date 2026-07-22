@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { releaseDateLabel, stackNewlyAdded } from "@/lib/media";
-import type { JellyfinItem } from "@/lib/jellyfin";
+import type { MediaItem } from "@/lib/media-api";
 
 describe("newly added grouping", () => {
 	it("stacks adjacent sequential episodes from the same series", () => {
-		const items: JellyfinItem[] = [
+		const items: MediaItem[] = [
 			episode("ep-2", "series-1", 2),
 			episode("ep-1", "series-1", 1),
 			episode("other", "series-2", 4),
@@ -45,7 +45,7 @@ describe("release date labels", () => {
 	});
 });
 
-function episode(id: string, seriesId: string, index: number): JellyfinItem {
+function episode(id: string, seriesId: string, index: number): MediaItem {
 	return {
 		Id: id,
 		Name: id,
@@ -55,3 +55,4 @@ function episode(id: string, seriesId: string, index: number): JellyfinItem {
 		IndexNumber: index,
 	};
 }
+

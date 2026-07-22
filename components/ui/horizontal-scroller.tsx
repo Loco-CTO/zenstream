@@ -144,7 +144,11 @@ export function HorizontalScroller({
 					(direction === "right" ? SCROLL_STEP : -SCROLL_STEP),
 			),
 		);
-		scroller.scrollTo({ left: target, behavior: "smooth" });
+		if (typeof scroller.scrollTo === "function") {
+			scroller.scrollTo({ left: target, behavior: "smooth" });
+		} else {
+			scroller.scrollLeft = target;
+		}
 	};
 
 	return (

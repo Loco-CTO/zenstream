@@ -59,6 +59,10 @@ edit: 編集
 changePassword: パスワードを変更
 appearance: 外観
 languageDescription: ZenStream全体で使用する言語を選択します
+preferredMetadataLanguage: 優先メタデータ言語
+preferredMetadataLanguageDescription: タイトル、説明、アートワークに使用する言語を選択します
+metadataLanguageAutomatic: 自動（インターフェース言語）
+metadataLanguageSaveFailed: メタデータ言語設定を保存できませんでした。
 playback: 再生
 mediaPlaybackFailed: このメディアを再生できませんでした。
 audioLanguage: 音声言語
@@ -138,7 +142,7 @@ libraryLoadPageFailed: ライブラリページを読み込めませんでした
 libraryLoadMoreFailed: さらに作品を読み込めませんでした
 loadingMore: さらに作品を読み込んでいます
 noLibraries: ライブラリが見つかりません
-noLibrariesHint: Jellyfinにメディアライブラリを追加して、このページを更新してください。
+noLibrariesHint: Orchestratorでメディアライブラリへのアクセスを許可して、このページを更新してください。
 favoriteEpisodes: お気に入りのエピソード
 favoriteMovies: お気に入りの映画
 favoriteSeries: お気に入りのシリーズ

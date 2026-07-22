@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Bell, LogOut, Search, Settings, User } from "lucide-react";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
-import { userImageUrl } from "@/lib/jellyfin";
+import { userImageUrl } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
@@ -139,3 +139,4 @@ function UserAvatar({ userId }: { userId: string }) {
 		/>
 	);
 }
+

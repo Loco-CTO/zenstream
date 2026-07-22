@@ -6,8 +6,8 @@ import { Check, Play } from "lucide-react";
 import {
 	landscapeImage,
 	seriesPosterImage,
-	type JellyfinItem,
-} from "@/lib/jellyfin";
+	type MediaItem,
+} from "@/lib/media-api";
 import { progressPercent, subtitle } from "@/lib/media";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
@@ -22,7 +22,7 @@ export function WideCard({
 	item,
 	session,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	session?: AuthSession;
 }) {
 	const image = landscapeImage(item);
@@ -75,7 +75,7 @@ export function PosterCard({
 	item,
 	session,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	session?: AuthSession;
 }) {
 	const image = seriesPosterImage(item);
@@ -124,7 +124,7 @@ export function StackedPosterCard({
 	items,
 	session,
 }: {
-	items: JellyfinItem[];
+	items: MediaItem[];
 	session?: AuthSession;
 }) {
 	const item = items[0];
@@ -187,7 +187,7 @@ export function StackedPosterCard({
 	);
 }
 
-function detailHref(item: JellyfinItem) {
+function detailHref(item: MediaItem) {
 	if (item.Type === "BoxSet") return `/collection/${item.Id}`;
 	return item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
@@ -209,7 +209,7 @@ export function MediaCardOverlay({
 }: {
 	href: string;
 	title?: string;
-	item?: JellyfinItem;
+	item?: MediaItem;
 	session?: AuthSession;
 	className?: string;
 }) {
@@ -250,7 +250,7 @@ export function WatchedIndicator({
 	item,
 	unwatchedCount,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	unwatchedCount?: number;
 }) {
 	const { t } = useI18n();
@@ -296,7 +296,7 @@ export function WatchProgress({ progress }: { progress: number | undefined }) {
 	);
 }
 
-function CardText({ item }: { item: JellyfinItem }) {
+function CardText({ item }: { item: MediaItem }) {
 	if (item.Type === "Episode" && item.SeriesId) {
 		return (
 			<div className="mt-2 min-w-0">
@@ -325,12 +325,13 @@ function CardText({ item }: { item: JellyfinItem }) {
 	);
 }
 
-function episodeLabel(item: JellyfinItem) {
+function episodeLabel(item: MediaItem) {
 	const season =
 		item.ParentIndexNumber == null
 			? "??"
 			: String(item.ParentIndexNumber).padStart(2, "0");
 	const episode =
 		item.IndexNumber == null ? "??" : String(item.IndexNumber).padStart(2, "0");
-	return `S${season}E${episode}・${item.Name}`;
+	return `S${season}E${episode}ãƒ»${item.Name}`;
 }
+

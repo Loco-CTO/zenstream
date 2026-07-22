@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/refs */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getPlaybackInfo, playbackUrl } from "@/lib/jellyfin";
+import { getPlaybackInfo, playbackUrl } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
 const HOVER_DELAY = 100;
@@ -105,3 +105,4 @@ export function HoverPreviewVideo({
 		/>
 	);
 }
+

@@ -35,7 +35,7 @@ function isIos() {
 
 export function shouldUseHlsJs() {
 	if (typeof window === "undefined") return false;
-	// This follows Jellyfin Web's default: use native HLS on iOS, and MSE/hls.js
+	// Use platform HLS on iOS and MSE/hls.js where the browser supports it.
 	// on capable Chromium and Android paths.
 	return !isIos() && window.MediaSource != null;
 }
@@ -97,7 +97,7 @@ export function browserDeviceProfile(
 	return {
 		directPlayProfiles,
 		// Subtitles are fetched as VTT by the custom overlay. Explicitly telling
-		// Jellyfin to deliver them externally prevents a transcoded HLS source
+		// Delivering them externally prevents a transcoded HLS source
 		// from burning the same cue into the video as well.
 		subtitleProfiles: [
 			{

@@ -28,12 +28,12 @@ import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
-import type { JellyfinItem } from "@/lib/jellyfin";
+import type { MediaItem } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
 
-vi.mock("@/lib/jellyfin", async () => {
+vi.mock("@/lib/media-api", async () => {
 	const actual =
-		await vi.importActual<typeof import("@/lib/jellyfin")>("@/lib/jellyfin");
+		await vi.importActual<typeof import("@/lib/media-api")>("@/lib/media-api");
 	return {
 		...actual,
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
@@ -222,7 +222,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -238,7 +238,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -255,7 +255,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -286,7 +286,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -314,7 +314,7 @@ describe("video player controls", () => {
 						<SubtitlePreferencesProvider>
 							<VideoPlayer
 								item={
-									{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem
+									{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem
 								}
 								session={{ token: "token", userId: "user", username: "Alex" }}
 								onClose={vi.fn()}
@@ -344,7 +344,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -366,7 +366,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -386,7 +386,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -426,7 +426,7 @@ describe("video player controls", () => {
 		const onClose = vi.fn();
 
 		advanceToNextEpisode(
-			{ Id: "episode-2", Name: "Episode 2", Type: "Episode" } as JellyfinItem,
+			{ Id: "episode-2", Name: "Episode 2", Type: "Episode" } as MediaItem,
 			onNext,
 			onClose,
 		);
@@ -449,7 +449,7 @@ describe("video player controls", () => {
 
 	it("starts the next episode at the beginning for Syncplay", () => {
 		expect(
-			nextEpisodeSyncplayCommand({ Id: "episode-2" } as JellyfinItem),
+			nextEpisodeSyncplayCommand({ Id: "episode-2" } as MediaItem),
 		).toEqual({
 			action: "media",
 			itemId: "episode-2",
@@ -469,7 +469,7 @@ describe("video player controls", () => {
 			Id: "episode-2",
 			Name: "Episode 2",
 			Type: "Episode",
-		} as JellyfinItem;
+		} as MediaItem;
 
 		advanceToNextEpisodeWithSyncplay(next, command, onNext, onClose);
 
@@ -576,7 +576,7 @@ describe("video player controls", () => {
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as JellyfinItem}
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -715,3 +715,4 @@ describe("video player controls", () => {
 			.exitFullscreen;
 	});
 });
+

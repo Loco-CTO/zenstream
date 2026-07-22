@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import type { JellyfinItem } from "@/lib/jellyfin";
+import type { MediaItem } from "@/lib/media-api";
 import {
 	PosterCard,
 	StackedPosterCard,
@@ -22,7 +22,7 @@ export function MediaRow({
 	viewAllHref,
 }: {
 	title: string;
-	items: JellyfinItem[];
+	items: MediaItem[];
 	variant: "wide" | "poster";
 	stackEpisodes?: boolean;
 	session?: AuthSession;
@@ -69,3 +69,4 @@ export function MediaRow({
 		</section>
 	);
 }
+

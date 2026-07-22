@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { PosterCard } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
-import { getSearchItems, type JellyfinItem } from "@/lib/jellyfin";
+import { getSearchItems, type MediaItem } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
@@ -16,7 +16,7 @@ export function SearchPage({
 	query: string;
 }) {
 	const { t } = useI18n();
-	const [items, setItems] = useState<JellyfinItem[]>([]);
+	const [items, setItems] = useState<MediaItem[]>([]);
 	const [loadedKey, setLoadedKey] = useState<string | null>(null);
 	const [errorKey, setErrorKey] = useState<string | null>(null);
 	const [retryKey, setRetryKey] = useState(0);
@@ -42,7 +42,7 @@ export function SearchPage({
 		return () => controller.abort();
 	}, [query, requestKey, session]);
 
-	const title = query ? `${t("searchResults")} · ${query}` : t("search");
+	const title = query ? `${t("searchResults")} Â· ${query}` : t("search");
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
 			<div className="mx-auto max-w-[1800px]">
@@ -92,7 +92,7 @@ export function SearchPage({
 	);
 }
 
-function rankSearchResults(items: JellyfinItem[], query: string) {
+function rankSearchResults(items: MediaItem[], query: string) {
 	const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
 	const normalizedQuery = terms.join(" ");
 	return items
@@ -131,3 +131,4 @@ function SearchGridSkeleton() {
 		</div>
 	);
 }
+

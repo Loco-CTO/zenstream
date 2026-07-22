@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryPage } from "@/components/pages/library-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { I18nProvider } from "@/lib/i18n";
-import * as jellyfin from "@/lib/jellyfin";
+import * as jellyfin from "@/lib/media-api";
 
 const session = { token: "token", userId: "user", username: "Alex" };
 const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
@@ -213,7 +213,7 @@ function renderLibrary() {
 	);
 }
 
-function makeItems(count: number, offset = 0): jellyfin.JellyfinItem[] {
+function makeItems(count: number, offset = 0): jellyfin.MediaItem[] {
 	return Array.from({ length: count }, (_, index) => ({
 		Id: `item-${offset + index}`,
 		Name: `Title ${offset + index}`,
@@ -222,3 +222,4 @@ function makeItems(count: number, offset = 0): jellyfin.JellyfinItem[] {
 		ImageTags: { Primary: "poster" },
 	}));
 }
+

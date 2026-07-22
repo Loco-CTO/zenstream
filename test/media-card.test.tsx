@@ -6,7 +6,7 @@ import {
 	WideCard,
 } from "@/components/home/media-card";
 import { EpisodeCard } from "@/components/pages/detail-page";
-import type { JellyfinItem } from "@/lib/jellyfin";
+import type { MediaItem } from "@/lib/media-api";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -15,7 +15,7 @@ const item = {
 	Id: "item-1",
 	Name: "Test title",
 	Type: "Movie",
-} as JellyfinItem;
+} as MediaItem;
 
 describe("media card sizing", () => {
 	it.each([
@@ -61,7 +61,7 @@ describe("media card sizing", () => {
 		expect(
 			screen.getByRole("link", { name: "Example Series" }),
 		).toHaveAttribute("href", "/show/series-1");
-		expect(screen.getByText("S01E02・Test title")).toHaveAttribute(
+		expect(screen.getByText("S01E02ãƒ»Test title")).toHaveAttribute(
 			"href",
 			"/show/series-1/episode/item-1",
 		);
@@ -238,3 +238,4 @@ describe("media card sizing", () => {
 		},
 	);
 });
+

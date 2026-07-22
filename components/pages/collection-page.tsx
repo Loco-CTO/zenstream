@@ -4,8 +4,8 @@ import { BlurHashImage } from "@/components/ui/blurhash-image";
 import {
 	posterImage,
 	type DetailData,
-	type JellyfinItem,
-} from "@/lib/jellyfin";
+	type MediaItem,
+} from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 
@@ -41,7 +41,7 @@ export function CollectionPage({
 		</main>
 	);
 }
-function CollectionCard({ item }: { item: JellyfinItem }) {
+function CollectionCard({ item }: { item: MediaItem }) {
 	const image = posterImage(item);
 	return (
 		<article className="min-w-0">
@@ -67,3 +67,4 @@ function CollectionCard({ item }: { item: JellyfinItem }) {
 		</article>
 	);
 }
+

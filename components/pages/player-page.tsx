@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/player/video-player";
-import { playbackStreams, type DetailData } from "@/lib/jellyfin";
-import { getPlaybackInfo } from "@/lib/jellyfin";
+import { playbackStreams, type DetailData } from "@/lib/media-api";
+import { getPlaybackInfo } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
 import { getLastNonPlayerPath } from "@/lib/player-navigation";
@@ -72,3 +72,4 @@ export function PlayerPage({
 		/>
 	);
 }
+

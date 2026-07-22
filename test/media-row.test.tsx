@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MediaRow } from "@/components/home/media-row";
-import type { JellyfinItem } from "@/lib/jellyfin";
+import type { MediaItem } from "@/lib/media-api";
 
 const items = [
 	{ Id: "item-1", Name: "First title", Type: "Movie" },
 	{ Id: "item-2", Name: "Second title", Type: "Movie" },
-] as JellyfinItem[];
+] as MediaItem[];
 
 function renderRow() {
 	render(<MediaRow title="Popular" items={items} variant="wide" />);
@@ -264,3 +264,4 @@ describe("MediaRow scrolling", () => {
 		expect(dragStart.defaultPrevented).toBe(true);
 	});
 });
+

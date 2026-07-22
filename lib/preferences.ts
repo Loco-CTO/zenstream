@@ -6,7 +6,47 @@ function preferencesUrl(path: string) {
 }
 function preferenceHeaders(): Record<string, string> {
 	const token = getAuthSession()?.token;
-	return token ? { "X-Jellyfin-Token": token } : {};
+	return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export type MetadataLanguagePreference = {
+	mode: "auto" | "explicit";
+	language: string;
+};
+
+export async function getMetadataLanguages(): Promise<string[]> {
+	const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
+	const response = await fetch(`${base}/api/metadata/languages`, {
+		cache: "no-store",
+		headers: preferenceHeaders(),
+	});
+	if (!response.ok) throw new Error("Could not load metadata languages.");
+	const data = (await response.json()) as { languages?: unknown };
+	if (!Array.isArray(data.languages) || !data.languages.every((value) => typeof value === "string"))
+		throw new Error("Invalid metadata language response.");
+	return data.languages;
+}
+
+export async function getMetadataLanguagePreference(): Promise<MetadataLanguagePreference> {
+	const response = await fetch(preferencesUrl("metadata-language"), { cache: "no-store", headers: preferenceHeaders() });
+	if (!response.ok) throw new Error("Could not load metadata language preference.");
+	const data = (await response.json()) as Partial<MetadataLanguagePreference>;
+	if ((data.mode !== "auto" && data.mode !== "explicit") || typeof data.language !== "string")
+		throw new Error("Invalid metadata language preference response.");
+	return data as MetadataLanguagePreference;
+}
+
+export async function setMetadataLanguagePreference(language: string | null): Promise<MetadataLanguagePreference> {
+	const response = await fetch(preferencesUrl("metadata-language"), {
+		method: "PATCH",
+		headers: { ...preferenceHeaders(), "Content-Type": "application/json" },
+		body: JSON.stringify({ language }),
+	});
+	if (!response.ok) throw new Error("Could not save metadata language preference.");
+	const data = (await response.json()) as Partial<MetadataLanguagePreference>;
+	if ((data.mode !== "auto" && data.mode !== "explicit") || typeof data.language !== "string")
+		throw new Error("Invalid metadata language preference response.");
+	return data as MetadataLanguagePreference;
 }
 
 export const LOCALE_STORAGE_KEY = "zenstream.locale";

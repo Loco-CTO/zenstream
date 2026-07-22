@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getSeriesEpisodes, type JellyfinItem } from "@/lib/jellyfin";
+import { getSeriesEpisodes, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
 
@@ -12,7 +12,7 @@ export function syncplayMediaStartCommand(itemId: string) {
 
 export async function resolvePlaybackTarget(
 	session: AuthSession,
-	item: JellyfinItem,
+	item: MediaItem,
 ) {
 	if (item.Type !== "Series") return item;
 	const episodes = await getSeriesEpisodes(session, item.Id);
@@ -32,7 +32,7 @@ export function useSyncplayPlayback(session?: AuthSession) {
 	const canStartPlayback = !active || canControl;
 
 	const startPlayback = useCallback(
-		async (item: JellyfinItem) => {
+		async (item: MediaItem) => {
 			if (!session || !canStartPlayback) return false;
 			const target = await resolvePlaybackTarget(session, item);
 			if (!target?.Id) return false;
@@ -45,3 +45,4 @@ export function useSyncplayPlayback(session?: AuthSession) {
 
 	return { active, canStartPlayback, startPlayback };
 }
+

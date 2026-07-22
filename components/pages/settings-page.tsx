@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, LogOut, User } from "lucide-react";
-import { userImageUrl } from "@/lib/jellyfin";
+import { userImageUrl } from "@/lib/media-api";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
@@ -12,12 +12,16 @@ import {
 	subtitleOuterShadow,
 } from "@/lib/subtitle-preferences";
 import { fetchOrchestratorVersion, zenstreamVersion } from "@/lib/version";
+import type { MetadataLanguagePreference } from "@/lib/preferences";
 
 type SettingsPageProps = {
 	displayName: string;
 	userId: string;
 	locale: Locale;
 	onLocaleChange: (locale: Locale) => Promise<void>;
+	metadataLanguages?: string[];
+	metadataLanguage?: MetadataLanguagePreference;
+	onMetadataLanguageChange?: (language: string | null) => Promise<void>;
 	onLogout: () => void;
 };
 
@@ -26,6 +30,9 @@ export function SettingsPage({
 	userId,
 	locale,
 	onLocaleChange,
+	metadataLanguages = ["en"],
+	metadataLanguage = { mode: "auto", language: "en" },
+	onMetadataLanguageChange = async () => undefined,
 	onLogout,
 }: SettingsPageProps) {
 	const router = useRouter();
@@ -36,6 +43,7 @@ export function SettingsPage({
 		error: subtitleError,
 	} = useSubtitlePreferences();
 	const [localeError, setLocaleError] = useState(false);
+	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
 	const [audioLanguage, setAudioLanguage] = useState("ja");
 	const [subtitleLanguage, setSubtitleLanguage] = useState("en");
 	const [autoplayNext, setAutoplayNext] = useState(true);
@@ -61,6 +69,15 @@ export function SettingsPage({
 			await onLocaleChange(nextLocale);
 		} catch {
 			setLocaleError(true);
+		}
+	};
+
+	const changeMetadataLanguage = async (value: string) => {
+		setMetadataLanguageError(false);
+		try {
+			await onMetadataLanguageChange(value === "auto" ? null : value);
+		} catch {
+			setMetadataLanguageError(true);
 		}
 	};
 
@@ -131,6 +148,26 @@ export function SettingsPage({
 							{t("localeSaveFailed")}
 						</p>
 					)}
+					<SettingsRow
+						label={t("preferredMetadataLanguage")}
+						sub={t("preferredMetadataLanguageDescription")}
+						border={false}
+						right={
+							<Dropdown
+								aria-label={t("preferredMetadataLanguage")}
+								value={metadataLanguage.mode === "auto" ? "auto" : metadataLanguage.language}
+								onChange={(value) => void changeMetadataLanguage(value)}
+								options={[
+									{ value: "auto", label: t("metadataLanguageAutomatic") },
+									...metadataLanguages.map((value) => ({
+										value,
+										label: new Intl.DisplayNames([locale], { type: "language" }).of(value) ?? value,
+									})),
+								]}
+							/>
+						}
+					/>
+					{metadataLanguageError && <p role="alert" className="border-t border-white/5 px-4 py-3 text-xs text-red-300">{t("metadataLanguageSaveFailed")}</p>}
 				</SettingsSection>
 
 				<SettingsSection title={t("playback")}>
@@ -767,3 +804,4 @@ function Avatar({ userId }: { userId: string }) {
 		</div>
 	);
 }
+

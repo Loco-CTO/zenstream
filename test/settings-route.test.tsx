@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 import { ProgressProvider } from "@/components/status/progress-indicator";
-import * as jellyfin from "@/lib/jellyfin";
+import * as jellyfin from "@/lib/media-api";
 import * as session from "@/lib/session";
 
 vi.mock("next/navigation", () => ({
@@ -37,3 +37,4 @@ describe("settings route", () => {
 		expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 	});
 });
+

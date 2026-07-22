@@ -19,8 +19,8 @@ import {
 	posterImage,
 	type LibrarySortBy,
 	type LibraryView,
-	type JellyfinItem,
-} from "@/lib/jellyfin";
+	type MediaItem,
+} from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useSortPreference } from "@/lib/sort-preferences";
@@ -51,7 +51,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const { start } = useProgress();
 	const [libraries, setLibraries] = useState<LibraryView[]>([]);
 	const [libraryId, setLibraryId] = useState("");
-	const [items, setItems] = useState<JellyfinItem[]>([]);
+	const [items, setItems] = useState<MediaItem[]>([]);
 	const [loadedCount, setLoadedCount] = useState(0);
 	const [total, setTotal] = useState(0);
 	const [sort, setSort] = useSortPreference(
@@ -341,7 +341,7 @@ function VirtualMediaGrid({
 	onLoadMore,
 	session,
 }: {
-	items: JellyfinItem[];
+	items: MediaItem[];
 	hasMore: boolean;
 	onLoadMore: () => void;
 	session: AuthSession;
@@ -442,7 +442,7 @@ function LibraryCard({
 	item,
 	session,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	session: AuthSession;
 }) {
 	const image = posterImage(item);
@@ -504,7 +504,7 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
 	);
 }
 
-function uniqueItems(items: JellyfinItem[]) {
+function uniqueItems(items: MediaItem[]) {
 	const seen = new Set<string>();
 	return items.filter((item) => {
 		if (seen.has(item.Id)) return false;
@@ -512,3 +512,4 @@ function uniqueItems(items: JellyfinItem[]) {
 		return true;
 	});
 }
+

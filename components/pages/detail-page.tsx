@@ -17,8 +17,8 @@ import {
 	titleLogoImage,
 	playbackStreams,
 	type DetailData,
-	type JellyfinItem,
-} from "@/lib/jellyfin";
+	type MediaItem,
+} from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { releaseDateLabel, runtimeLabel, progressPercent } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
@@ -243,7 +243,7 @@ export function DetailPage({
 						<div className="min-w-0 flex-1">
 							{isEpisode && (
 								<p className="mb-2 text-xs uppercase tracking-[.18em] text-white/40">
-									{t("season")} {item.ParentIndexNumber ?? 0} ·{" "}
+									{t("season")} {item.ParentIndexNumber ?? 0} Â·{" "}
 									{t("episodesLabel")} {item.IndexNumber ?? 0}
 								</p>
 							)}
@@ -510,7 +510,7 @@ function DetailArtwork({
 	item,
 	episode,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	episode: boolean;
 }) {
 	const image = episode ? landscapeImage(item) : posterImage(item);
@@ -532,7 +532,7 @@ function Metadata({
 	item,
 	locale,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	locale: "en" | "ja";
 }) {
 	return (
@@ -590,11 +590,11 @@ function EpisodeSection({
 	episodes,
 	onSeasonChange,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	session: AuthSession;
-	seasons: JellyfinItem[];
+	seasons: MediaItem[];
 	seasonId: string;
-	episodes: JellyfinItem[];
+	episodes: MediaItem[];
 	onSeasonChange: (id: string) => void;
 }) {
 	const { t } = useI18n();
@@ -602,7 +602,7 @@ function EpisodeSection({
 	const selectedSeason =
 		seasonItems.find((season) => season.Id === seasonId) ?? seasonItems[0];
 	async function toggleSeason(
-		season: JellyfinItem,
+		season: MediaItem,
 		field: "Played" | "IsFavorite",
 	) {
 		const previous = Boolean(season.UserData?.[field]);
@@ -693,7 +693,7 @@ function EpisodeSection({
 	);
 }
 
-function seasonLabel(season: JellyfinItem) {
+function seasonLabel(season: MediaItem) {
 	const number = season.IndexNumber;
 	const name = season.Name.trim();
 	if (number === undefined) return name;
@@ -708,7 +708,7 @@ export function EpisodeCard({
 	session,
 }: {
 	seriesId: string;
-	episode: JellyfinItem;
+	episode: MediaItem;
 	horizontal: boolean;
 	active: boolean;
 	session?: AuthSession;
@@ -799,7 +799,7 @@ function ItemActionButtons({
 	item,
 	onToggle,
 }: {
-	item: JellyfinItem;
+	item: MediaItem;
 	onToggle: (field: "Played" | "IsFavorite") => void;
 }) {
 	const { t } = useI18n();
@@ -844,7 +844,7 @@ function ItemActionButtons({
 function PeopleSection({
 	people,
 }: {
-	people: NonNullable<JellyfinItem["People"]>;
+	people: NonNullable<MediaItem["People"]>;
 }) {
 	const { t } = useI18n();
 	const title = t("castCrew");
@@ -888,7 +888,7 @@ function SimilarSection({
 	items,
 	session,
 }: {
-	items: JellyfinItem[];
+	items: MediaItem[];
 	session: AuthSession;
 }) {
 	const { t } = useI18n();
@@ -908,8 +908,9 @@ function SimilarSection({
 }
 
 function updateUserData(
-	item: JellyfinItem,
-	patch: NonNullable<JellyfinItem["UserData"]>,
+	item: MediaItem,
+	patch: NonNullable<MediaItem["UserData"]>,
 ) {
 	return { ...item, UserData: { ...item.UserData, ...patch } };
 }
+

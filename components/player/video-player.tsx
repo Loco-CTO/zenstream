@@ -34,10 +34,10 @@ import {
 	setPlayed,
 	subtitleUrl,
 	trickplayPreview,
-	type JellyfinItem,
-	type JellyfinMediaSource,
+	type MediaItem,
+	type MediaSource,
 	type PlaybackMarker,
-} from "@/lib/jellyfin";
+} from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
@@ -53,13 +53,13 @@ import {
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 
 type Props = {
-	item: JellyfinItem;
+	item: MediaItem;
 	session: AuthSession;
 	initialAudioStreamIndex?: number;
 	initialSubtitleStreamIndex?: number;
 	initialStreams?: ReturnType<typeof playbackStreams>;
 	onClose: () => void;
-	onNext?: (item: JellyfinItem) => void;
+	onNext?: (item: MediaItem) => void;
 	onPlayedChange?: (played: boolean) => void;
 };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -112,7 +112,7 @@ export function syncplayWaitingForMembers(
 }
 
 export function advanceToNextEpisode(
-	nextItem: JellyfinItem | null,
+	nextItem: MediaItem | null,
 	onNext: Props["onNext"],
 	onClose: Props["onClose"],
 ) {
@@ -123,12 +123,12 @@ export function advanceToNextEpisode(
 	onClose();
 }
 
-export function nextEpisodeSyncplayCommand(item: JellyfinItem) {
+export function nextEpisodeSyncplayCommand(item: MediaItem) {
 	return { action: "media", itemId: item.Id, position: 0, playing: true };
 }
 
 export function advanceToNextEpisodeWithSyncplay(
-	nextItem: JellyfinItem,
+	nextItem: MediaItem,
 	command: (
 		value: ReturnType<typeof nextEpisodeSyncplayCommand>,
 	) => Promise<unknown>,
@@ -335,7 +335,7 @@ export function VideoPlayer({
 		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
-	const sourceRef = useRef<JellyfinMediaSource | undefined>(
+	const sourceRef = useRef<MediaSource | undefined>(
 		initialStreams?.source,
 	);
 	const transcodeAttemptRef = useRef(false);
@@ -417,7 +417,7 @@ export function VideoPlayer({
 		value: number;
 	} | null>(null);
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
-	const [nextItem, setNextItem] = useState<JellyfinItem | null>(null);
+	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const nextUpVisible =
@@ -1001,7 +1001,7 @@ export function VideoPlayer({
 	}
 	async function fetchCompatibilityTranscode(
 		audioStreamIndex?: number,
-		previousSource?: JellyfinMediaSource,
+		previousSource?: MediaSource,
 	) {
 		const playback = await getPlaybackInfo(session, item.Id, {
 			mediaSourceId: previousSource?.Id ?? sourceRef.current?.Id,
@@ -1011,7 +1011,7 @@ export function VideoPlayer({
 		});
 		const parsed = playbackStreams(playback);
 		if (!parsed.source?.TranscodingUrl)
-			throw new Error("Jellyfin did not return a transcoding URL.");
+			throw new Error("The server did not return a transcoding URL.");
 		return {
 			...parsed,
 			source: preserveTrickplay(
@@ -1233,7 +1233,7 @@ export function VideoPlayer({
 			maxStreamingBitrate: bitrate,
 			mediaSourceId: info?.source?.Id,
 			audioStreamIndex: audio ? Number(audio) : undefined,
-			// Subtitles are rendered by the custom VTT overlay; never ask Jellyfin
+			// Subtitles are rendered by the custom VTT overlay; never ask the server
 			// to encode them into the video stream.
 			subtitleStreamIndex: -1,
 		})
@@ -1241,7 +1241,7 @@ export function VideoPlayer({
 				if (request !== qualityRequestRef.current) return;
 				const parsed = playbackStreams(playback);
 				if (!parsed.source?.TranscodingUrl)
-					throw new Error("Jellyfin did not return a transcoding URL.");
+					throw new Error("The server did not return a transcoding URL.");
 				const source = preserveTrickplay(parsed.source, info?.source);
 				sourceRef.current = source;
 				transcodeAttemptRef.current = Boolean(source?.TranscodingUrl);
@@ -1287,7 +1287,7 @@ export function VideoPlayer({
 				if (request !== qualityRequestRef.current) return;
 				const parsed = playbackStreams(playback);
 				const source = preserveTrickplay(parsed.source, info.source);
-				if (!source) throw new Error("Jellyfin did not return a media source.");
+				if (!source) throw new Error("The server did not return a media source.");
 				sourceRef.current = source;
 				transcodeAttemptRef.current = Boolean(source.TranscodingUrl);
 				setInfo((previous) => ({

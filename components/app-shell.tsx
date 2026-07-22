@@ -10,7 +10,7 @@ import {
 	primeResourceTicket,
 	type DetailData,
 	type HomeData,
-} from "@/lib/jellyfin";
+} from "@/lib/media-api";
 import {
 	clearAuthCookies,
 	getAuthSession,
@@ -33,9 +33,13 @@ import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
 import {
 	getLocalePreference,
+	getMetadataLanguagePreference,
+	getMetadataLanguages,
 	getStoredLocale,
 	setLocalePreference,
+	setMetadataLanguagePreference,
 	storeLocale,
+	type MetadataLanguagePreference,
 } from "@/lib/preferences";
 import {
 	DEFAULT_SUBTITLE_STYLE,
@@ -61,6 +65,8 @@ export function AppShell() {
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
+	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
+	const [metadataLanguage, setMetadataLanguage] = useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
@@ -74,6 +80,8 @@ export function AppShell() {
 		void getSubtitlePreference()
 			.then(setSubtitleStyle)
 			.catch(() => undefined);
+		void getMetadataLanguages().then(setMetadataLanguages).catch(() => undefined);
+		void getMetadataLanguagePreference().then(setMetadataLanguage).catch(() => undefined);
 	}, []);
 
 	const loadHome = useCallback(
@@ -220,12 +228,36 @@ export function AppShell() {
 		storeLocale(nextLocale);
 		try {
 			await setLocalePreference(nextLocale);
+			if (metadataLanguage.mode === "auto") {
+				const updated = await getMetadataLanguagePreference();
+				setMetadataLanguage(updated);
+				if (session) {
+					if (detailId) await loadDetail(session, detailId);
+					else await loadHome(session);
+				}
+			}
 		} catch (saveError) {
 			setLocale(previousLocale);
 			storeLocale(previousLocale);
 			throw saveError;
 		} finally {
 			finishProgress();
+		}
+	};
+
+	const handleMetadataLanguageChange = async (language: string | null) => {
+		const previous = metadataLanguage;
+		setMetadataLanguage({ mode: language ? "explicit" : "auto", language: language ?? locale });
+		try {
+			const updated = await setMetadataLanguagePreference(language);
+			setMetadataLanguage(updated);
+			if (session) {
+				if (detailId) await loadDetail(session, detailId);
+				else await loadHome(session);
+			}
+		} catch (error) {
+			setMetadataLanguage(previous);
+			throw error;
 		}
 	};
 
@@ -249,6 +281,9 @@ export function AppShell() {
 									userId={session.userId}
 									locale={locale}
 									onLocaleChange={handleLocaleChange}
+									metadataLanguages={metadataLanguages}
+									metadataLanguage={metadataLanguage}
+									onMetadataLanguageChange={handleMetadataLanguageChange}
 									onLogout={handleLogout}
 								/>
 							) : (

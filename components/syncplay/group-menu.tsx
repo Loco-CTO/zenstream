@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { userImageUrl } from "@/lib/jellyfin";
+import { userImageUrl } from "@/lib/media-api";
 import { useRouter } from "next/navigation";
 import {
 	ChevronLeft,
@@ -397,3 +397,4 @@ function ActiveGroupView({
 		</>
 	);
 }
+

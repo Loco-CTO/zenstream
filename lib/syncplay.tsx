@@ -8,36 +8,45 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-type Socket = NativeSocket;
-type NativeEvent = unknown;
-class NativeSocket {
+type Socket = SyncplaySocket;
+type SyncplayEvent = unknown;
+class SyncplaySocket {
 	private ws: WebSocket | null = null;
-	private listeners = new Map<string, ((value?: NativeEvent) => void)[]>();
-	id = "native-syncplay";
+	private listeners = new Map<string, ((value?: SyncplayEvent) => void)[]>();
+	id = "syncplay";
 	constructor(
 		private readonly url: string,
 		private readonly auth: { token: string; participantId: string },
 	) {}
-	on<T = NativeEvent>(event: string, listener: (value: T) => void) {
+	on<T = SyncplayEvent>(event: string, listener: (value: T) => void) {
 		this.listeners.set(event, [
 			...(this.listeners.get(event) ?? []),
-			listener as unknown as (value?: NativeEvent) => void,
+			listener as unknown as (value?: SyncplayEvent) => void,
 		]);
 		return this;
 	}
-	private fire(event: string, value?: NativeEvent) {
+	private fire(event: string, value?: SyncplayEvent) {
 		for (const listener of this.listeners.get(event) ?? []) listener(value);
 	}
-	connect() {
+	async connect() {
 		if (
 			this.ws &&
 			(this.ws.readyState === WebSocket.OPEN ||
 				this.ws.readyState === WebSocket.CONNECTING)
 		)
 			return;
-		const ws = new WebSocket(
-			`${this.url}?token=${encodeURIComponent(this.auth.token)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
-		);
+		const httpOrigin = this.url.replace(/^ws:/, "http:").replace(/^wss:/, "https:").replace(/\/api\/ws\/syncplay$/, "");
+		let ticket: string;
+		try {
+			const response = await fetch(`${httpOrigin}/api/auth/socket-ticket`, { method: "POST", headers: { Authorization: `Bearer ${this.auth.token}` } });
+			if (!response.ok) throw new Error("Socket ticket request failed");
+			ticket = String((await response.json()).ticket ?? "");
+			if (!ticket) throw new Error("Socket ticket was empty");
+		} catch (error) {
+			this.fire("connect_error", error as Error);
+			return;
+		}
+		const ws = new WebSocket(`${this.url}?ticket=${encodeURIComponent(ticket)}&participantId=${encodeURIComponent(this.auth.participantId)}`);
 		this.ws = ws;
 		ws.onopen = () => this.fire("connect");
 		ws.onclose = (event) => {
@@ -57,7 +66,7 @@ class NativeSocket {
 			else if (message.type === "clock") this.fire("clock", message);
 		};
 	}
-	emit<T = NativeEvent>(
+	emit<T = SyncplayEvent>(
 		event: string,
 		payload: Record<string, unknown>,
 		callback?: (value: T) => void,
@@ -68,7 +77,7 @@ class NativeSocket {
 			this.ws.send(JSON.stringify({ type: "clock", ...payload }));
 		}
 	}
-	once<T = NativeEvent>(event: string, callback?: (value: T) => void) {
+	once<T = SyncplayEvent>(event: string, callback?: (value: T) => void) {
 		if (callback) {
 			const listener = (value: T) => {
 				callback(value);
@@ -99,10 +108,10 @@ const io = (
 		path?: string;
 		autoConnect?: boolean;
 	},
-) => new NativeSocket(normalizeSyncplayOrigin(origin), options.auth);
+) => new SyncplaySocket(normalizeSyncplayOrigin(origin), options.auth);
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
-import { getItem } from "@/lib/jellyfin";
+import { getItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { getAuthSession } from "@/lib/session";
 
@@ -239,7 +248,7 @@ async function call(path: string, method = "GET", body?: unknown) {
 			method,
 			headers: {
 				...(getAuthSession()?.token
-					? { "X-Jellyfin-Token": getAuthSession()!.token }
+					? { Authorization: `Bearer ${getAuthSession()!.token}` }
 					: {}),
 				...(getAuthSession()?.username
 					? { "X-ZenStream-Username": getAuthSession()!.username }
@@ -915,3 +924,5 @@ export function SyncplayProvider({
 export function useSyncplay() {
 	return useContext(SyncplayContext);
 }
+
+

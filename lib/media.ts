@@ -1,4 +1,4 @@
-import type { HomeData, JellyfinItem } from "@/lib/jellyfin";
+import type { HomeData, MediaItem } from "@/lib/media-api";
 import { translate, type Locale, type TranslationKey } from "@/lib/i18n";
 
 export const HOME_ROWS: Array<{
@@ -12,10 +12,10 @@ export const HOME_ROWS: Array<{
 
 export interface MediaStack {
 	key: string;
-	items: JellyfinItem[];
+	items: MediaItem[];
 }
 
-export function stackNewlyAdded(items: JellyfinItem[]): MediaStack[] {
+export function stackNewlyAdded(items: MediaItem[]): MediaStack[] {
 	const stacks: MediaStack[] = [];
 	for (const item of items) {
 		const previousStack = stacks.at(-1);
@@ -39,7 +39,7 @@ export function pickHeroItem(data: Partial<HomeData>) {
 	);
 }
 
-export function runtimeLabel(item: JellyfinItem, locale: Locale = "en") {
+export function runtimeLabel(item: MediaItem, locale: Locale = "en") {
 	if (item.RunTimeTicks) {
 		return translate(locale, "minutes", {
 			count: Math.round(item.RunTimeTicks / 600000000),
@@ -54,10 +54,10 @@ export function runtimeLabel(item: JellyfinItem, locale: Locale = "en") {
 	return undefined;
 }
 
-/** Formats Jellyfin's most precise known release/premiere date for detail views. */
-export function releaseDateLabel(item: JellyfinItem, locale: Locale = "en") {
+/** Formats the most precise known release/premiere date for detail views. */
+export function releaseDateLabel(item: MediaItem, locale: Locale = "en") {
 	if (item.PremiereDate) {
-		// Jellyfin commonly returns a date-only value; parse it as local midnight
+		// Date-only provider values are parsed as local midnight
 		// so users west of UTC do not see the previous calendar day.
 		const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(item.PremiereDate);
 		const date = dateOnly
@@ -78,7 +78,7 @@ export function releaseDateLabel(item: JellyfinItem, locale: Locale = "en") {
 	return item.ProductionYear?.toString();
 }
 
-export function subtitle(item: JellyfinItem) {
+export function subtitle(item: MediaItem) {
 	if (
 		item.Type === "Episode" &&
 		item.ParentIndexNumber != null &&
@@ -90,11 +90,11 @@ export function subtitle(item: JellyfinItem) {
 	return (
 		[item.ProductionYear, item.SeriesName, item.OfficialRating]
 			.filter(Boolean)
-			.join(" ・ ") || item.Type
+			.join(" ãƒ» ") || item.Type
 	);
 }
 
-export function progressPercent(item: JellyfinItem) {
+export function progressPercent(item: MediaItem) {
 	if (item.UserData?.PlayedPercentage != null) {
 		return Math.max(0, Math.min(100, item.UserData.PlayedPercentage));
 	}
@@ -110,7 +110,7 @@ export function progressPercent(item: JellyfinItem) {
 	);
 }
 
-function areSequentialEpisodes(a: JellyfinItem, b: JellyfinItem) {
+function areSequentialEpisodes(a: MediaItem, b: MediaItem) {
 	return (
 		a.Type === "Episode" &&
 		b.Type === "Episode" &&
@@ -123,10 +123,6 @@ function areSequentialEpisodes(a: JellyfinItem, b: JellyfinItem) {
 	);
 }
 
-function hasVisualImage(item: JellyfinItem) {
-	return Boolean(
-		item.BackdropImageTags?.length ||
-		item.ImageTags?.Thumb ||
-		item.ImageTags?.Primary,
-	);
+function hasVisualImage(item: MediaItem) {
+	return Boolean(item.BackdropImageTags?.length);
 }

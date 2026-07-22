@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Hero } from "@/components/home/hero";
-import type { JellyfinItem } from "@/lib/jellyfin";
+import type { MediaItem } from "@/lib/media-api";
 
 const session = { token: "token", userId: "user", username: "Alex" };
 const router = vi.hoisted(() => ({ push: vi.fn() }));
@@ -9,9 +9,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 describe("Hero", () => {
 	it("constrains long titles so they cannot overrun the hero", () => {
-		const item: JellyfinItem = {
+		const item: MediaItem = {
 			Id: "long-title",
-			Name: "隣な美少女が、昔男子と思って一緒に遊んだ幼馴染だった件",
+			Name: "éš£ãªç¾Žå°‘å¥³ãŒã€æ˜”ç”·å­ã¨æ€ã£ã¦ä¸€ç·’ã«éŠã‚“ã å¹¼é¦´æŸ“ã ã£ãŸä»¶",
 			Overview: "A long overview for the selected item.",
 			ImageTags: {
 				Primary: "primary-tag",
@@ -30,7 +30,7 @@ describe("Hero", () => {
 	});
 
 	it("sizes the featured section to about three quarters of the viewport", () => {
-		const item: JellyfinItem = {
+		const item: MediaItem = {
 			Id: "featured",
 			Name: "Featured Title",
 			ImageTags: {
@@ -48,7 +48,7 @@ describe("Hero", () => {
 	});
 
 	it("uses readable mixed-case typography for hero action buttons", () => {
-		const item: JellyfinItem = {
+		const item: MediaItem = {
 			Id: "featured",
 			Name: "Featured Title",
 			ImageTags: {
@@ -82,7 +82,7 @@ describe("Hero", () => {
 	});
 
 	it("uses the Logo image in place of the visual title when present", () => {
-		const item: JellyfinItem = {
+		const item: MediaItem = {
 			Id: "featured",
 			Name: "Featured Title",
 			ImageTags: {
@@ -284,7 +284,7 @@ describe("Hero", () => {
 	});
 });
 
-function heroItem(id: string, name: string): JellyfinItem {
+function heroItem(id: string, name: string): MediaItem {
 	return {
 		Id: id,
 		Name: name,
@@ -296,3 +296,4 @@ function heroItem(id: string, name: string): JellyfinItem {
 		LocalTrailerCount: 0,
 	};
 }
+

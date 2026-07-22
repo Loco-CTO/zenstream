@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { libraryHref } from "@/components/pages/home-page";
-import * as jellyfin from "@/lib/jellyfin";
+import * as jellyfin from "@/lib/media-api";
 import * as session from "@/lib/session";
 
 describe("home screen", () => {
@@ -193,7 +193,7 @@ describe("home screen", () => {
 	});
 });
 
-function item(id: string, name: string): jellyfin.JellyfinItem {
+function item(id: string, name: string): jellyfin.MediaItem {
 	return {
 		Id: id,
 		Name: name,
@@ -205,3 +205,4 @@ function item(id: string, name: string): jellyfin.JellyfinItem {
 		LocalTrailerCount: 0,
 	};
 }
+

@@ -42,7 +42,7 @@ export function SearchPage({
 		return () => controller.abort();
 	}, [query, requestKey, session]);
 
-	const title = query ? `${t("searchResults")} Â· ${query}` : t("search");
+	const title = query ? `${t("searchResults")} · ${query}` : t("search");
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
 			<div className="mx-auto max-w-[1800px]">

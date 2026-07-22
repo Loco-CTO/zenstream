@@ -243,7 +243,7 @@ export function DetailPage({
 						<div className="min-w-0 flex-1">
 							{isEpisode && (
 								<p className="mb-2 text-xs uppercase tracking-[.18em] text-white/40">
-									{t("season")} {item.ParentIndexNumber ?? 0} Â·{" "}
+									{t("season")} {item.ParentIndexNumber ?? 0} ·{" "}
 									{t("episodesLabel")} {item.IndexNumber ?? 0}
 								</p>
 							)}

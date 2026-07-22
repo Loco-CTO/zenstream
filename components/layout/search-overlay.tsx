@@ -139,7 +139,7 @@ export function SearchOverlay({
 											</span>
 											<span className="block text-xs text-white/35">
 												{item.Type === "Series" ? t("series") : t("movie")}
-												{item.ProductionYear ? ` Â· ${item.ProductionYear}` : ""}
+												{item.ProductionYear ? ` · ${item.ProductionYear}` : ""}
 											</span>
 										</span>
 									</button>

@@ -37,6 +37,13 @@ export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
 	mono: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
 };
 
+let subtitlePreferenceCache: { expiresAt: number; value: SubtitleStyle } | null = null;
+let subtitlePreferenceInFlight: Promise<SubtitleStyle> | null = null;
+
+export function clearSubtitlePreferenceCache() {
+	subtitlePreferenceCache = null;
+}
+
 export function subtitleOuterShadow(size: number, color: string) {
 	if (!size) return "none";
 	const radius = Math.max(0, Math.round(size));
@@ -99,6 +106,10 @@ function decodeSubtitleText(value: string) {
 }
 
 export async function getSubtitlePreference(): Promise<SubtitleStyle> {
+	if (subtitlePreferenceCache && subtitlePreferenceCache.expiresAt > Date.now())
+		return subtitlePreferenceCache.value;
+	if (subtitlePreferenceInFlight) return subtitlePreferenceInFlight;
+	subtitlePreferenceInFlight = (async () => {
 	const response = await fetch(preferenceUrl, {
 		cache: "no-store",
 		headers: preferenceHeaders(),
@@ -107,7 +118,12 @@ export async function getSubtitlePreference(): Promise<SubtitleStyle> {
 	const data: unknown = await response.json();
 	const style = normalizeSubtitleStyle(data);
 	if (!style) throw new Error("Invalid subtitle preference response.");
+	subtitlePreferenceCache = { expiresAt: Date.now() + 30_000, value: style };
 	return style;
+	})().finally(() => {
+		subtitlePreferenceInFlight = null;
+	});
+	return subtitlePreferenceInFlight;
 }
 
 export async function setSubtitlePreference(
@@ -122,6 +138,7 @@ export async function setSubtitlePreference(
 	const data: unknown = await response.json();
 	if (!isSubtitleStyle(data))
 		throw new Error("Invalid subtitle preference response.");
+	clearSubtitlePreferenceCache();
 	return data;
 }
 

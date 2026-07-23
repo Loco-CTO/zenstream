@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { sessionFromAuth } from "@/lib/auth";
 import {
 	authenticateByName,
 	fetchDetailData,
+	fetchPlayData,
 	fetchHomeData,
+	clearMediaClientCache,
 	primeResourceTicket,
 	type DetailData,
 	type HomeData,
@@ -70,6 +72,7 @@ export function AppShell() {
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
+	const loadedPreferencesToken = useRef<string | null>(null);
 	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
@@ -134,12 +137,14 @@ export function AppShell() {
 					return;
 				}
 				setDetailData(
-					await fetchDetailData(
-						nextSession,
-						itemId,
-						new URLSearchParams(window.location.search).get("seasonId") ??
-							undefined,
-					),
+					playId
+						? await fetchPlayData(nextSession, itemId)
+						: await fetchDetailData(
+							nextSession,
+							itemId,
+							new URLSearchParams(window.location.search).get("seasonId") ??
+								undefined,
+						),
 				);
 				setStatus("ready");
 			} catch (err) {
@@ -172,9 +177,16 @@ export function AppShell() {
 			return;
 		}
 		setSession(stored);
-		loadPreferences();
+		if (loadedPreferencesToken.current !== stored.token) {
+			loadedPreferencesToken.current = stored.token;
+			loadPreferences();
+		}
 		void (async () => {
 			if (detailId || playId) await loadDetail(stored, detailId ?? playId!);
+			else if (pathname === "/search" || pathname === "/settings") {
+				if (pathname === "/search") setSearchData(searchQuery);
+				setStatus("ready");
+			}
 			else if (pathname === "/library" || pathname === "/favorites") {
 				await primeResourceTicket(stored);
 				setStatus("ready");
@@ -210,7 +222,9 @@ export function AppShell() {
 
 	const handleLogout = useCallback(() => {
 		clearAuthCookies();
+		clearMediaClientCache();
 		setSession(null);
+		loadedPreferencesToken.current = null;
 		setHomeData(null);
 		setDetailData(null);
 		setSearchData(null);

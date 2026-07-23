@@ -14,7 +14,29 @@ export type MetadataLanguagePreference = {
 	language: string;
 };
 
+const PREFERENCE_TTL_MS = 30_000;
+const preferenceCache = new Map<string, { expiresAt: number; value: unknown }>();
+const preferenceInFlight = new Map<string, Promise<unknown>>();
+
+async function cachedPreference<T>(key: string, loader: () => Promise<T>): Promise<T> {
+	const cached = preferenceCache.get(key);
+	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+	const pending = preferenceInFlight.get(key);
+	if (pending) return pending as Promise<T>;
+	const request = loader().then((value) => {
+		preferenceCache.set(key, { expiresAt: Date.now() + PREFERENCE_TTL_MS, value });
+		return value;
+	}).finally(() => preferenceInFlight.delete(key));
+	preferenceInFlight.set(key, request);
+	return request;
+}
+
+export function clearPreferenceCache() {
+	preferenceCache.clear();
+}
+
 export async function getMetadataLanguages(): Promise<string[]> {
+	return cachedPreference("metadata-languages", async () => {
 	const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
 	const response = await fetch(`${base}/api/metadata/languages`, {
 		cache: "no-store",
@@ -25,15 +47,18 @@ export async function getMetadataLanguages(): Promise<string[]> {
 	if (!Array.isArray(data.languages) || !data.languages.every((value) => typeof value === "string"))
 		throw new Error("Invalid metadata language response.");
 	return data.languages;
+	});
 }
 
 export async function getMetadataLanguagePreference(): Promise<MetadataLanguagePreference> {
+	return cachedPreference("metadata-language", async () => {
 	const response = await fetch(preferencesUrl("metadata-language"), { cache: "no-store", headers: preferenceHeaders() });
 	if (!response.ok) throw new Error("Could not load metadata language preference.");
 	const data = (await response.json()) as Partial<MetadataLanguagePreference>;
 	if ((data.mode !== "auto" && data.mode !== "explicit") || typeof data.language !== "string")
 		throw new Error("Invalid metadata language preference response.");
 	return data as MetadataLanguagePreference;
+	});
 }
 
 export async function setMetadataLanguagePreference(language: string | null): Promise<MetadataLanguagePreference> {
@@ -46,6 +71,7 @@ export async function setMetadataLanguagePreference(language: string | null): Pr
 	const data = (await response.json()) as Partial<MetadataLanguagePreference>;
 	if ((data.mode !== "auto" && data.mode !== "explicit") || typeof data.language !== "string")
 		throw new Error("Invalid metadata language preference response.");
+	clearPreferenceCache();
 	return data as MetadataLanguagePreference;
 }
 
@@ -71,6 +97,7 @@ export function storeLocale(locale: Locale): void {
 }
 
 export async function getLocalePreference(): Promise<Locale> {
+	return cachedPreference("locale", async () => {
 	const response = await fetch(preferencesUrl("locale"), {
 		cache: "no-store",
 		headers: preferenceHeaders(),
@@ -81,6 +108,7 @@ export async function getLocalePreference(): Promise<Locale> {
 		throw new Error("Invalid locale preference response.");
 	storeLocale(data.locale);
 	return data.locale;
+	});
 }
 
 export async function setLocalePreference(locale: Locale): Promise<Locale> {
@@ -93,6 +121,7 @@ export async function setLocalePreference(locale: Locale): Promise<Locale> {
 	const data: unknown = await response.json();
 	if (!isPreference(data))
 		throw new Error("Invalid locale preference response.");
+	clearPreferenceCache();
 	storeLocale(data.locale);
 	return data.locale;
 }

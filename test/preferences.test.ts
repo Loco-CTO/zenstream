@@ -5,17 +5,21 @@ import {
 	LOCALE_STORAGE_KEY,
 	setLocalePreference,
 	storeLocale,
+	clearPreferenceCache,
 } from "@/lib/preferences";
 import {
 	getSubtitlePreference,
 	isSubtitleStyle,
 	parseWebVttCues,
 	setSubtitlePreference,
+	clearSubtitlePreferenceCache,
 } from "@/lib/subtitle-preferences";
 
 const storage = new Map<string, string>();
 
 beforeEach(() => {
+	clearPreferenceCache();
+	clearSubtitlePreferenceCache();
 	storage.clear();
 	Object.defineProperty(window, "localStorage", {
 		configurable: true,

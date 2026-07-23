@@ -421,13 +421,24 @@ export async function getPlaybackInfo(
 			method: "POST",
 			body: JSON.stringify({
 				engine: "web",
+				mediaSourceId: options.mediaSourceId,
+				forceTranscoding: options.forceTranscoding === true,
+				directPlayOnly: options.directPlayOnly === true,
 				containers: options.forceTranscoding
 					? []
 					: profile.directPlayProfiles.flatMap((entry) =>
 						String(entry.Container ?? "").split(","),
 					),
-				videoCodecs: options.forceTranscoding ? [] : ["h264", "vp9", "av1"],
-				audioCodecs: options.forceTranscoding ? [] : ["aac", "opus", "vorbis"],
+				videoCodecs: options.forceTranscoding
+					? []
+					: profile.directPlayProfiles.flatMap((entry) =>
+						String(entry.VideoCodec ?? "").split(","),
+					),
+				audioCodecs: options.forceTranscoding
+					? []
+					: profile.directPlayProfiles.flatMap((entry) =>
+						String(entry.AudioCodec ?? "").split(","),
+					),
 				maxStreamingBitrate: options.maxStreamingBitrate,
 				audioStreamIndex: options.audioStreamIndex,
 				subtitleStreamIndex: options.subtitleStreamIndex,

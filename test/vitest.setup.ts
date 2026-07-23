@@ -1,5 +1,14 @@
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
+import { clearMediaClientCache } from "@/lib/media-api";
+import { clearPreferenceCache } from "@/lib/preferences";
+import { clearSubtitlePreferenceCache } from "@/lib/subtitle-preferences";
+
+afterEach(() => {
+	clearMediaClientCache();
+	clearPreferenceCache();
+	clearSubtitlePreferenceCache();
+});
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: vi.fn(), back: vi.fn() }),

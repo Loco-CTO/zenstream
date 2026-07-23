@@ -132,11 +132,7 @@ sortTitle: タイトル
 sortDateAdded: 追加日
 sortLastAdded: 最終追加日
 sortReleaseDate: 公開日
-sortYear: 年
-sortCriticRating: 批評家評価
 sortRuntime: 再生時間
-sortLastPlayed: 最終再生日
-sortPlayCount: 再生回数
 libraryItems: "{count}件"
 libraryLoadPageFailed: ライブラリページを読み込めませんでした
 libraryLoadMoreFailed: さらに作品を読み込めませんでした

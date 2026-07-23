@@ -140,11 +140,7 @@ sortTitle: Title
 sortDateAdded: Date added
 sortLastAdded: Last added
 sortReleaseDate: Release date
-sortYear: Year
-sortCriticRating: Critic rating
 sortRuntime: Runtime
-sortLastPlayed: Last played
-sortPlayCount: Play count
 libraryItems: "{count} items"
 libraryLoadPageFailed: Could not load Library
 collectionItems: "{count} items"

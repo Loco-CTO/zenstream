@@ -13,11 +13,10 @@ export function libraryHref(options: {
 	sortBy: string;
 	sortOrder: string;
 }) {
-	const params = new URLSearchParams({
-		sortBy: options.sortBy,
-		sortOrder: options.sortOrder,
-	});
+	const params = new URLSearchParams();
 	if (options.libraryId) params.set("libraryId", options.libraryId);
+	params.set("sortBy", options.sortBy);
+	params.set("sortOrder", options.sortOrder.toLowerCase());
 	return `/library?${params.toString()}`;
 }
 
@@ -64,7 +63,7 @@ export function HomePage({
 						title={
 							section.titleKey === "newlyAddedOn"
 								? t("newlyAddedOn", { library: section.libraryName })
-								: `${section.libraryName} ${t(section.titleKey)}`
+								: `${section.libraryName} ${t(section.titleKey)}`.trim()
 						}
 						items={section.items}
 						variant="poster"
@@ -72,12 +71,12 @@ export function HomePage({
 						session={session}
 						viewAllHref={libraryHref({
 							libraryId: section.libraryId,
-							sortBy:
-								section.titleKey === "topRated"
-									? "CommunityRating"
-									: section.titleKey === "newlyAddedOn"
-										? "DateLastContentAdded"
-										: "PremiereDate",
+								sortBy:
+									section.titleKey === "topRated"
+										? "rating"
+										: section.titleKey === "newlyAddedOn"
+											? "lastAdded"
+											: "release",
 							sortOrder: "Descending",
 						})}
 					/>
@@ -98,4 +97,3 @@ export function HomePage({
 		</main>
 	);
 }
-

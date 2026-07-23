@@ -144,12 +144,12 @@ describe("home screen", () => {
 	it("opens newly added rows as series sorted by the latest episode added date", () => {
 		const href = libraryHref({
 			libraryId: "anime",
-			sortBy: "DateLastContentAdded",
+			sortBy: "lastAdded",
 			sortOrder: "Descending",
 		});
 
 		expect(href).toBe(
-			"/library?sortBy=DateLastContentAdded&sortOrder=Descending&libraryId=anime",
+			"/library?libraryId=anime&sortBy=lastAdded&sortOrder=descending",
 		);
 		expect(href).not.toContain("newlyAdded");
 	});
@@ -205,4 +205,3 @@ function item(id: string, name: string): jellyfin.MediaItem {
 		LocalTrailerCount: 0,
 	};
 }
-

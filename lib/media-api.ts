@@ -166,19 +166,16 @@ export interface HomeLibrarySection extends NewlyAddedSection {
 }
 
 export type LibrarySortBy =
-	| "SortName"
-	| "DateCreated"
-	| "DateLastContentAdded"
-	| "PremiereDate"
-	| "ProductionYear"
-	| "CommunityRating"
-	| "CriticRating"
-	| "Runtime"
-	| "DatePlayed"
-	| "PlayCount";
+	| "title"
+	| "added"
+	| "lastAdded"
+	| "release"
+	| "rating"
+	| "runtime";
 
 export interface LibraryView extends MediaItem {
 	CollectionType?: string;
+	SupportsLastAdded?: boolean;
 }
 
 export interface LibraryPage {
@@ -294,7 +291,7 @@ export async function getLibraryViews(
 	signal?: AbortSignal,
 ) {
 	const result = await catalogRequest<{
-		libraries: Array<{ id: string; name: string; type: string }>;
+		libraries: Array<{ id: string; name: string; type: string; supportsLastAdded?: boolean }>;
 	}>(session, "/api/catalog/libraries", { signal });
 	return result.libraries.map((library) => ({
 		Id: library.id,
@@ -306,6 +303,7 @@ export async function getLibraryViews(
 				: library.type === "movies"
 					? "movies"
 					: "boxsets",
+		SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
 	})) as LibraryView[];
 }
 
@@ -340,17 +338,7 @@ export async function getLibraryItems(
 }
 
 function catalogSort(value: LibrarySortBy) {
-	return (
-		{
-			DateCreated: "dateAdded",
-			DateLastContentAdded: "dateAdded",
-			PremiereDate: "releaseDate",
-			ProductionYear: "releaseDate",
-			CommunityRating: "rating",
-			CriticRating: "rating",
-			Runtime: "runtime",
-		} as Partial<Record<LibrarySortBy, string>>
-	)[value] ?? "title";
+	return value;
 }
 
 export async function fetchDetailData(

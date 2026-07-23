@@ -79,7 +79,7 @@ describe("LibraryPage", () => {
 				session,
 				expect.objectContaining({
 					parentId: "shows",
-					sortBy: "DateCreated",
+				sortBy: "added",
 					sortOrder: "Ascending",
 				}),
 			),
@@ -171,7 +171,7 @@ describe("LibraryPage", () => {
 		await waitFor(() =>
 			expect(getLibraryItems).toHaveBeenLastCalledWith(
 				session,
-				expect.objectContaining({ sortBy: "DateLastContentAdded" }),
+				expect.objectContaining({ sortBy: "lastAdded" }),
 			),
 		);
 	});
@@ -222,4 +222,3 @@ function makeItems(count: number, offset = 0): jellyfin.MediaItem[] {
 		ImageTags: { Primary: "poster" },
 	}));
 }
-

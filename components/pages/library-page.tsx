@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Star } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
 	MediaCardOverlay,
 	MEDIA_CARD_IMAGE_CLASS,
@@ -33,21 +33,18 @@ const CARD_TEXT_HEIGHT = 48;
 const OVERSCAN_ROWS = 3;
 
 const SORTS = [
-	{ value: "CommunityRating", labelKey: "sortRating" },
-	{ value: "SortName", labelKey: "sortTitle" },
-	{ value: "DateCreated", labelKey: "sortDateAdded" },
-	{ value: "DateLastContentAdded", labelKey: "sortLastAdded" },
-	{ value: "PremiereDate", labelKey: "sortReleaseDate" },
-	{ value: "ProductionYear", labelKey: "sortYear" },
-	{ value: "CriticRating", labelKey: "sortCriticRating" },
-	{ value: "Runtime", labelKey: "sortRuntime" },
-	{ value: "DatePlayed", labelKey: "sortLastPlayed" },
-	{ value: "PlayCount", labelKey: "sortPlayCount" },
+	{ value: "rating", labelKey: "sortRating" },
+	{ value: "title", labelKey: "sortTitle" },
+	{ value: "added", labelKey: "sortDateAdded" },
+	{ value: "lastAdded", labelKey: "sortLastAdded" },
+	{ value: "release", labelKey: "sortReleaseDate" },
+	{ value: "runtime", labelKey: "sortRuntime" },
 ] as const;
 
 export function LibraryPage({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
 	const searchParams = useSearchParams();
+	const router = useRouter();
 	const { start } = useProgress();
 	const [libraries, setLibraries] = useState<LibraryView[]>([]);
 	const [libraryId, setLibraryId] = useState("");
@@ -56,7 +53,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [total, setTotal] = useState(0);
 	const [sort, setSort] = useSortPreference(
 		`zenstream:sort:library:${libraryId}`,
-		{ sortBy: "CommunityRating" as LibrarySortBy, sortOrder: "Descending" },
+		{ sortBy: "lastAdded" as LibrarySortBy, sortOrder: "Descending" },
 		SORTS.map((item) => item.value),
 	);
 	const { sortBy, sortOrder } = sort;
@@ -73,6 +70,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
+	const supportsLastAdded =
+		activeLibrary?.SupportsLastAdded ?? activeLibrary?.CollectionType !== "movies";
+	const availableSorts = SORTS.filter(
+		(item) => item.value !== "lastAdded" || supportsLastAdded,
+	);
 
 	const loadLibraries = useCallback(async () => {
 		requestRef.current?.abort();
@@ -108,13 +110,42 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	}, [queryLibraryId, session, start]);
 
 	useEffect(() => {
+		const normalizedQueryOrder = querySortOrder?.toLowerCase();
 		if (
 			validQuerySort &&
-			(querySortOrder === "Ascending" || querySortOrder === "Descending")
+			(normalizedQueryOrder === "ascending" || normalizedQueryOrder === "descending")
 		) {
-			setSort({ sortBy: querySortBy!, sortOrder: querySortOrder });
+			setSort({
+				sortBy: querySortBy!,
+				sortOrder: normalizedQueryOrder === "ascending" ? "Ascending" : "Descending",
+			});
 		}
 	}, [libraryId, querySortBy, querySortOrder, setSort, validQuerySort]);
+
+	useEffect(() => {
+		if (!activeLibrary) return;
+		const selectedSort = availableSorts.some((item) => item.value === sortBy)
+			? sortBy
+			: supportsLastAdded
+				? "lastAdded"
+				: "added";
+		if (selectedSort !== sortBy) {
+			setSort({ sortBy: selectedSort, sortOrder });
+			return;
+		}
+		const params = new URLSearchParams();
+		params.set("libraryId", activeLibrary.Id);
+		params.set("sortBy", selectedSort);
+		params.set("sortOrder", sortOrder.toLowerCase());
+		const nextUrl = `/library?${params.toString()}`;
+		if (window.location.pathname + window.location.search !== nextUrl) {
+			if (typeof router.replace === "function") {
+				router.replace(nextUrl);
+			} else {
+				window.history.replaceState(null, "", nextUrl);
+			}
+		}
+	}, [activeLibrary, availableSorts, router, setSort, sortBy, sortOrder, supportsLastAdded]);
 
 	useEffect(() => {
 		// Async hydration is intentionally owned by this route component.
@@ -233,8 +264,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	]);
 
 	const sortOptions = useMemo<DropdownOption[]>(
-		() => SORTS.map((sort) => ({ value: sort.value, label: t(sort.labelKey) })),
-		[t],
+		() => availableSorts.map((sort) => ({ value: sort.value, label: t(sort.labelKey) })),
+		[availableSorts, t],
 	);
 
 	return (
@@ -512,4 +543,3 @@ function uniqueItems(items: MediaItem[]) {
 		return true;
 	});
 }
-

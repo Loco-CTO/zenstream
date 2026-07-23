@@ -118,6 +118,32 @@ export interface PlaybackMarker {
 
 export type ArtworkType = "Primary" | "Backdrop" | "Logo" | "Banner";
 
+const LIST_CACHE_TTL_MS = 30_000;
+const DETAIL_CACHE_TTL_MS = 120_000;
+const clientCache = new Map<string, { expiresAt: number; value: unknown }>();
+const clientInFlight = new Map<string, Promise<unknown>>();
+
+async function cachedClientRequest<T>(
+	key: string,
+	loader: () => Promise<T>,
+	ttl = LIST_CACHE_TTL_MS,
+): Promise<T> {
+	const cached = clientCache.get(key);
+	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+	const pending = clientInFlight.get(key);
+	if (pending) return pending as Promise<T>;
+	const request = loader().then((value) => {
+		clientCache.set(key, { expiresAt: Date.now() + ttl, value });
+		return value;
+	}).finally(() => clientInFlight.delete(key));
+	clientInFlight.set(key, request);
+	return request;
+}
+
+export function clearMediaClientCache() {
+	clientCache.clear();
+}
+
 export type ImageBlurHashes = Partial<
 	Record<ArtworkType, Record<string, string | undefined>>
 >;
@@ -190,8 +216,14 @@ export async function getSearchItems(
 ): Promise<MediaItem[]> {
 	const term = query.trim();
 	if (!term) return [];
-	const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=${options.limit ?? 40}`, { signal: options.signal });
-	return result.items.map(toMediaItem);
+	const limit = options.limit ?? 40;
+	return cachedClientRequest(
+		`search:${session.userId}:${term.toLocaleLowerCase()}`,
+		async () => {
+			const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`);
+			return result.items.map(toMediaItem);
+		},
+	).then((items) => items.slice(0, limit));
 }
 
 export interface NewlyAddedSection {
@@ -257,13 +289,15 @@ export async function fetchHomeData(
 	session: AuthSession,
 	onSection?: (section: Partial<HomeData>) => void,
 ): Promise<HomeData> {
+	const data = await cachedClientRequest(`home:${session.userId}`, async () => {
 	const result = await catalogRequest<{ latestItems: CatalogItem[]; continueWatching: CatalogItem[]; nextUp: CatalogItem[]; libraryRows: Array<Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }> }>(session, "/api/catalog/home");
-	const data: HomeData = {
+	return {
 		latestItems: result.latestItems.map(toMediaItem),
 		continueWatching: result.continueWatching.map(toMediaItem),
 		nextUp: result.nextUp.map(toMediaItem),
 		libraryRows: result.libraryRows.map((row) => ({ ...row, items: row.items.map(toMediaItem) })),
 	};
+	});
 	onSection?.(data);
 	return data;
 }
@@ -279,17 +313,17 @@ export function getFavoriteItems(
 	const params = new URLSearchParams({ pageSize: "100" });
 	if (options.sortBy) params.set("sortBy", options.sortBy);
 	if (options.sortOrder) params.set("sortOrder", options.sortOrder);
-	return catalogRequest<{ items: CatalogItem[] }>(
-		session,
-		`/api/catalog/favorites?${params}`,
-		{ signal: options.signal },
-	).then((result) => result.items.map(toMediaItem));
+	return cachedClientRequest(`favorites:${session.userId}:${params}`, async () => {
+		const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/favorites?${params}`);
+		return result.items.map(toMediaItem);
+	});
 }
 
 export async function getLibraryViews(
 	session: AuthSession,
 	signal?: AbortSignal,
 ) {
+	return cachedClientRequest(`libraries:${session.userId}`, async () => {
 	const result = await catalogRequest<{
 		libraries: Array<{ id: string; name: string; type: string; supportsLastAdded?: boolean }>;
 	}>(session, "/api/catalog/libraries", { signal });
@@ -305,6 +339,7 @@ export async function getLibraryViews(
 					: "boxsets",
 		SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
 	})) as LibraryView[];
+	});
 }
 
 export async function getLibraryItems(
@@ -327,6 +362,7 @@ export async function getLibraryItems(
 		sortBy: catalogSort(options.sortBy),
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
+	return cachedClientRequest(`library:${session.userId}:${options.parentId}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`, async () => {
 	const result = await catalogRequest<{
 		items: CatalogItem[];
 		total: number;
@@ -335,6 +371,7 @@ export async function getLibraryItems(
 		items: result.items.map(toMediaItem),
 		totalRecordCount: result.total,
 	};
+	});
 }
 
 function catalogSort(value: LibrarySortBy) {
@@ -346,6 +383,7 @@ export async function fetchDetailData(
 	itemId: string,
 	requestedSeasonId?: string,
 ): Promise<DetailData> {
+	return cachedClientRequest(`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`, async () => {
 	const item = await getItem(session, itemId);
 	const seriesId = item.Type === "Episode" ? item.SeriesId : item.Id;
 	const backgroundItem =
@@ -368,6 +406,12 @@ export async function fetchDetailData(
 			? await getChildren(session, item)
 			: undefined;
 	return { item, backgroundItem, seasons, episodes, similar, collectionItems };
+	}, DETAIL_CACHE_TTL_MS);
+}
+
+export async function fetchPlayData(session: AuthSession, itemId: string): Promise<DetailData> {
+	const item = await getItem(session, itemId);
+	return { item, seasons: [], episodes: [], similar: [] };
 }
 
 export function getInitialSeason(
@@ -387,11 +431,16 @@ export function getInitialSeason(
 }
 
 export async function getItem(session: AuthSession, itemId: string) {
-	return toMediaItem(
-		await catalogRequest<CatalogItem>(
-			session,
-			`/api/catalog/items/${encodeURIComponent(itemId)}`,
-		),
+	return cachedClientRequest(
+		`item:${session.userId}:${itemId}`,
+		async () =>
+			toMediaItem(
+				await catalogRequest<CatalogItem>(
+					session,
+					`/api/catalog/items/${encodeURIComponent(itemId)}`,
+				),
+			),
+		DETAIL_CACHE_TTL_MS,
 	);
 }
 
@@ -846,6 +895,7 @@ export async function setFavorite(
 		method: "PATCH",
 		body: JSON.stringify({ favorite }),
 	});
+	clearMediaClientCache();
 }
 
 export async function setPlayed(
@@ -857,6 +907,7 @@ export async function setPlayed(
 		method: "PATCH",
 		body: JSON.stringify({ played }),
 	});
+	clearMediaClientCache();
 }
 
 export function landscapeImageUrl(item: MediaItem) {

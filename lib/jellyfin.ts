@@ -188,19 +188,24 @@ export async function getSearchItems(
 ): Promise<JellyfinItem[]> {
 	const term = query.trim();
 	if (!term) return [];
-	return getItemList(session, "/Items", {
-		userId: session.userId,
-		searchTerm: term,
-		startIndex: 0,
-		limit: options.limit ?? 40,
-		recursive: true,
-		includeItemTypes: "Series,Movie",
-		fields: ITEM_FIELDS,
-		enableImages: true,
-		imageTypeLimit: 1,
-		enableImageTypes: ITEM_IMAGE_TYPES,
-		enableUserData: true,
-	}, options.signal);
+	return getItemList(
+		session,
+		"/Items",
+		{
+			userId: session.userId,
+			searchTerm: term,
+			startIndex: 0,
+			limit: options.limit ?? 40,
+			recursive: true,
+			includeItemTypes: "Series,Movie",
+			fields: ITEM_FIELDS,
+			enableImages: true,
+			imageTypeLimit: 1,
+			enableImageTypes: ITEM_IMAGE_TYPES,
+			enableUserData: true,
+		},
+		options.signal,
+	);
 }
 
 export interface NewlyAddedSection {
@@ -214,9 +219,7 @@ export const ITEM_FIELDS =
 export const ITEM_IMAGE_TYPES = "Primary,Backdrop,Logo,Thumb";
 
 export function jellyfinBaseUrl() {
-	return (
-		process.env.NEXT_PUBLIC_JELLYFIN_URL || "https://miru.amai.space"
-	).replace(/\/+$/, "");
+	return (process.env.NEXT_PUBLIC_JELLYFIN_URL ?? "").replace(/\/+$/, "");
 }
 
 export function authorizationHeader(token?: string) {
@@ -245,9 +248,10 @@ function deviceId() {
 	}
 	if (memoryDeviceId) return memoryDeviceId;
 
-	const generated = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-		? crypto.randomUUID()
-		: `web-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+	const generated =
+		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+			? crypto.randomUUID()
+			: `web-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 	memoryDeviceId = generated;
 	try {
 		window.localStorage?.setItem?.(DEVICE_ID_STORAGE_KEY, generated);
@@ -288,18 +292,22 @@ export async function fetchHomeData(
 	session: AuthSession,
 	onSection?: (section: Partial<HomeData>) => void,
 ): Promise<HomeData> {
-	const publish = <K extends keyof HomeData>(key: K, promise: Promise<HomeData[K]>) =>
+	const publish = <K extends keyof HomeData>(
+		key: K,
+		promise: Promise<HomeData[K]>,
+	) =>
 		promise.then((value) => {
 			onSection?.({ [key]: value } as Pick<HomeData, K>);
 			return value;
 		});
-	const [latestItems, newlyAdded, continueWatching, nextUp, libraryRows] = await Promise.all([
-		publish("latestItems", getLatestItems(session)),
-		publish("newlyAdded", getNewlyAddedItems(session)),
-		publish("continueWatching", getResumeItems(session)),
-		publish("nextUp", getNextUpItems(session)),
-		getHomeLibraryRows(session),
-	]);
+	const [latestItems, newlyAdded, continueWatching, nextUp, libraryRows] =
+		await Promise.all([
+			publish("latestItems", getLatestItems(session)),
+			publish("newlyAdded", getNewlyAddedItems(session)),
+			publish("continueWatching", getResumeItems(session)),
+			publish("nextUp", getNextUpItems(session)),
+			getHomeLibraryRows(session),
+		]);
 
 	return {
 		latestItems,
@@ -308,26 +316,59 @@ export async function fetchHomeData(
 		nextUp,
 		libraryRows: [
 			...libraryRows.flat(),
-			...(newlyAdded ?? []).map((section) => ({ ...section, titleKey: "newlyAddedOn" as const, stackEpisodes: true })),
+			...(newlyAdded ?? []).map((section) => ({
+				...section,
+				titleKey: "newlyAddedOn" as const,
+				stackEpisodes: true,
+			})),
 		],
 	};
 }
 
-async function getHomeLibraryRows(session: AuthSession): Promise<HomeLibrarySection[][]> {
+async function getHomeLibraryRows(
+	session: AuthSession,
+): Promise<HomeLibrarySection[][]> {
 	const libraries = await getLibraryViews(session);
-	return Promise.all(libraries.filter((library) => library.CollectionType === "tvshows" || library.CollectionType === "movies").map(async (library) => {
-		const common = { parentId: library.Id, limit: 18, fields: `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage`, enableImages: true, imageTypeLimit: 1, enableImageTypes: ITEM_IMAGE_TYPES, enableUserData: true };
-		const rows: HomeLibrarySection[] = [];
-		const queries = [
-			["topRated", { sortBy: "CommunityRating", sortOrder: "Descending" }],
-			["newReleases", { sortBy: "PremiereDate", sortOrder: "Descending" }],
-		] as const;
-		for (const [titleKey, options] of queries) {
-			const items = await getLibraryItems(session, { ...common, collectionType: library.CollectionType, startIndex: 0, ...options });
-			if (items.items.length) rows.push({ libraryId: library.Id, libraryName: library.Name, titleKey, items: items.items });
-		}
-		return rows;
-	}));
+	return Promise.all(
+		libraries
+			.filter(
+				(library) =>
+					library.CollectionType === "tvshows" ||
+					library.CollectionType === "movies",
+			)
+			.map(async (library) => {
+				const common = {
+					parentId: library.Id,
+					limit: 18,
+					fields: `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage`,
+					enableImages: true,
+					imageTypeLimit: 1,
+					enableImageTypes: ITEM_IMAGE_TYPES,
+					enableUserData: true,
+				};
+				const rows: HomeLibrarySection[] = [];
+				const queries = [
+					["topRated", { sortBy: "CommunityRating", sortOrder: "Descending" }],
+					["newReleases", { sortBy: "PremiereDate", sortOrder: "Descending" }],
+				] as const;
+				for (const [titleKey, options] of queries) {
+					const items = await getLibraryItems(session, {
+						...common,
+						collectionType: library.CollectionType,
+						startIndex: 0,
+						...options,
+					});
+					if (items.items.length)
+						rows.push({
+							libraryId: library.Id,
+							libraryName: library.Name,
+							titleKey,
+							items: items.items,
+						});
+				}
+				return rows;
+			}),
+	);
 }
 
 export async function getNewlyAddedItems(session: AuthSession) {
@@ -340,7 +381,11 @@ export async function getNewlyAddedItems(session: AuthSession) {
 	);
 	return Promise.all(
 		libraries
-			.filter((library) => library.CollectionType === "tvshows" || library.CollectionType === "movies")
+			.filter(
+				(library) =>
+					library.CollectionType === "tvshows" ||
+					library.CollectionType === "movies",
+			)
 			.map(async (library) => ({
 				libraryId: library.Id,
 				libraryName: library.Name,
@@ -349,7 +394,10 @@ export async function getNewlyAddedItems(session: AuthSession) {
 					parentId: library.Id,
 					recursive: true,
 					limit: 18,
-					includeItemTypes: library.CollectionType === "tvshows" ? "Episode" : libraryItemTypes(library.CollectionType),
+					includeItemTypes:
+						library.CollectionType === "tvshows"
+							? "Episode"
+							: libraryItemTypes(library.CollectionType),
 					sortBy: "DateCreated",
 					sortOrder: "Descending",
 					fields: `${ITEM_FIELDS},DateCreated,SeriesPrimaryImage`,
@@ -439,21 +487,26 @@ export function getFavoriteItems(
 		signal?: AbortSignal;
 	} = {},
 ) {
-	return getItemList(session, "/Items", {
-		userId: session.userId,
-		startIndex: 0,
-		limit: 100,
-		recursive: true,
-		includeItemTypes: "Episode,Movie,Series",
-		isFavorite: true,
-		sortBy: options.sortBy ?? "SortName",
-		sortOrder: options.sortOrder ?? "Ascending",
-		fields: ITEM_FIELDS,
-		enableImages: true,
-		imageTypeLimit: 1,
-		enableImageTypes: ITEM_IMAGE_TYPES,
-		enableUserData: true,
-	}, options.signal);
+	return getItemList(
+		session,
+		"/Items",
+		{
+			userId: session.userId,
+			startIndex: 0,
+			limit: 100,
+			recursive: true,
+			includeItemTypes: "Episode,Movie,Series",
+			isFavorite: true,
+			sortBy: options.sortBy ?? "SortName",
+			sortOrder: options.sortOrder ?? "Ascending",
+			fields: ITEM_FIELDS,
+			enableImages: true,
+			imageTypeLimit: 1,
+			enableImageTypes: ITEM_IMAGE_TYPES,
+			enableUserData: true,
+		},
+		options.signal,
+	);
 }
 
 export async function getLibraryViews(
@@ -553,9 +606,22 @@ export async function fetchDetailData(
 			: [];
 	const similar =
 		item.Type === "Episode" ? [] : await getSimilarItems(session, item.Id);
-	const collectionItems = item.Type === "BoxSet"
-		? (await getItemList(session, "/Items", { userId: session.userId, parentId: item.Id, recursive: true, includeItemTypes: "Series,Movie", fields: ITEM_FIELDS, enableImages: true, imageTypeLimit: 1, enableImageTypes: ITEM_IMAGE_TYPES, enableUserData: true })).filter((child) => child.Type === "Series" || child.Type === "Movie")
-		: undefined;
+	const collectionItems =
+		item.Type === "BoxSet"
+			? (
+					await getItemList(session, "/Items", {
+						userId: session.userId,
+						parentId: item.Id,
+						recursive: true,
+						includeItemTypes: "Series,Movie",
+						fields: ITEM_FIELDS,
+						enableImages: true,
+						imageTypeLimit: 1,
+						enableImageTypes: ITEM_IMAGE_TYPES,
+						enableUserData: true,
+					})
+				).filter((child) => child.Type === "Series" || child.Type === "Movie")
+			: undefined;
 	return { item, backgroundItem, seasons, episodes, similar, collectionItems };
 }
 
@@ -633,7 +699,10 @@ export async function getPlaybackInfo(
 					MaxStreamingBitrate: options.maxStreamingBitrate,
 					DirectPlayProfiles: profile.directPlayProfiles,
 					SubtitleProfiles: profile.subtitleProfiles,
-					TranscodingProfiles: (options.directPlayOnly ? [] : profile.transcodingProfiles).map((transcoding) => ({
+					TranscodingProfiles: (options.directPlayOnly
+						? []
+						: profile.transcodingProfiles
+					).map((transcoding) => ({
 						Type: "Video",
 						Context: "Streaming",
 						Protocol: "hls",
@@ -705,7 +774,10 @@ export function playbackUrl(
 	const negotiatedUrl = source?.TranscodingUrl ?? source?.DirectStreamUrl;
 	if (negotiatedUrl) {
 		const remote = new URL(negotiatedUrl, jellyfinBaseUrl());
-		const hasApiKey = [...remote.searchParams.keys()].some((key) => key.toLowerCase() === "api_key" || key.toLowerCase() === "apikey");
+		const hasApiKey = [...remote.searchParams.keys()].some(
+			(key) =>
+				key.toLowerCase() === "api_key" || key.toLowerCase() === "apikey",
+		);
 		if (!hasApiKey) remote.searchParams.set("api_key", session.token);
 		return remote.toString();
 	}

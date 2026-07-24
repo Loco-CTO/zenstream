@@ -121,11 +121,12 @@ export function toMediaStreams(streams: Array<Record<string, unknown>>): MediaSt
 			return value ? `${value[0].toUpperCase()}${value.slice(1)}` : "";
 		})(),
 		Language: typeof (stream.tags as Record<string, unknown> | undefined)?.language === "string" ? String((stream.tags as Record<string, unknown>).language) : undefined,
+		DisplayTitle: typeof (stream.tags as Record<string, unknown> | undefined)?.title === "string" && String((stream.tags as Record<string, unknown>).title) ? String((stream.tags as Record<string, unknown>).title) : undefined,
 		Codec: typeof stream.codec_name === "string" ? stream.codec_name : undefined,
 		Width: typeof stream.width === "number" ? stream.width : undefined,
 		Height: typeof stream.height === "number" ? stream.height : undefined,
 		Channels: typeof stream.channels === "number" ? stream.channels : undefined,
 		FileId: typeof stream.fileId === "string" ? stream.fileId : undefined,
+		IsExternal: Boolean(stream.fileId),
 	}));
 }
-

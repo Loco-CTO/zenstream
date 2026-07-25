@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { WideCard, PosterCard } from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import { ErrorPanel } from "@/components/status/error-panel";
+import { useProgress } from "@/components/status/progress-indicator";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { getFavoriteItems, type MediaItem } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
@@ -13,6 +14,7 @@ import { useSortPreference } from "@/lib/sort-preferences";
 
 export function FavoritesPage({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
+	const { start } = useProgress();
 	const [items, setItems] = useState<MediaItem[]>([]);
 	const [sort, setSort] = useSortPreference(
 		"zenstream:sort:favorites",
@@ -26,6 +28,7 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		const controller = new AbortController();
+		const finish = start();
 		// Loading state is reset when the sort query changes.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLoading(true);
@@ -36,10 +39,11 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 				if (!controller.signal.aborted) setError(true);
 			})
 			.finally(() => {
+				finish();
 				if (!controller.signal.aborted) setLoading(false);
 			});
 		return () => controller.abort();
-	}, [retryKey, session, sortBy, sortOrder]);
+	}, [retryKey, session, sortBy, sortOrder, start]);
 
 	const options: DropdownOption[] = [
 		{ value: "SortName", label: t("sortTitle") },
@@ -139,4 +143,3 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		</main>
 	);
 }
-

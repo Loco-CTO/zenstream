@@ -6,6 +6,8 @@ import {
 	type DetailData,
 	type MediaItem,
 } from "@/lib/media-api";
+import { progressPercent } from "@/lib/media";
+import { WatchedIndicator, WatchProgress } from "@/components/home/media-card";
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 
@@ -56,6 +58,8 @@ function CollectionCard({ item }: { item: MediaItem }) {
 							className="h-full w-full object-cover brightness-[0.85] transition hover:brightness-50"
 						/>
 					)}
+					<WatchProgress progress={progressPercent(item)} />
+					<WatchedIndicator item={item} />
 				</div>
 				<p className="mt-2 truncate text-xs font-medium text-white/80">
 					{item.Name}

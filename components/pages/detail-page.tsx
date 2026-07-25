@@ -22,7 +22,7 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { releaseDateLabel, runtimeLabel, progressPercent } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
-import { LoadingState, useProgress } from "@/components/status/progress-indicator";
+import { useProgress } from "@/components/status/progress-indicator";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import {
@@ -532,13 +532,7 @@ function DetailArtwork({
 	);
 }
 
-function Metadata({
-	item,
-	locale,
-}: {
-	item: MediaItem;
-	locale: "en" | "ja";
-}) {
+function Metadata({ item, locale }: { item: MediaItem; locale: "en" | "ja" }) {
 	return (
 		<div className="flex flex-wrap items-center gap-3 text-xs text-white/40">
 			{item.CommunityRating != null && (
@@ -661,9 +655,7 @@ function EpisodeSection({
 					)}
 				</div>
 			</div>
-			{loading ? (
-				<LoadingState compact />
-			) : item.Type === "Episode" ? (
+			{loading ? null : item.Type === "Episode" ? (
 				<HorizontalScroller
 					title={t("episodesLabel")}
 					className="pb-2"
@@ -921,4 +913,3 @@ function updateUserData(
 ) {
 	return { ...item, UserData: { ...item.UserData, ...patch } };
 }
-

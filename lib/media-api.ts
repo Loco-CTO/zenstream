@@ -42,6 +42,9 @@ export interface MediaItem {
 		PlayedPercentage?: number;
 		PlaybackPositionTicks?: number;
 		Played?: boolean;
+		PlayCount?: number;
+		DurationSeconds?: number;
+		LastPlayedAt?: string;
 	};
 	DateCreated?: string;
 	CollectionType?: string;
@@ -677,7 +680,7 @@ export async function reportPlayback(
 		method: "PATCH",
 		body: JSON.stringify({
 			positionSeconds: Math.max(0, positionSeconds),
-			...(durationSeconds && Number.isFinite(durationSeconds)
+			...(durationSeconds != null && Number.isFinite(durationSeconds) && durationSeconds > 0
 				? { durationSeconds }
 				: {}),
 		}),

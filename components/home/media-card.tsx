@@ -79,6 +79,7 @@ export function PosterCard({
 	session?: AuthSession;
 }) {
 	const image = seriesPosterImage(item);
+	const progress = progressPercent(item);
 	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (

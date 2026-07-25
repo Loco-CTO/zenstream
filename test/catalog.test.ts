@@ -15,13 +15,22 @@ describe("catalog client", () => {
 			name: "Fallback",
 			metadata: {
 				title: "Dune",
+				officialRating: "PG-13",
 				runtimeMinutes: 155,
 				images: {
 					Primary: { url: "/api/catalog/items/movie-1/images/Primary?language=en" },
 					Backdrop: { url: "/api/catalog/items/movie-1/images/Backdrop?language=en" },
 				},
 			},
-			userState: { favorite: true, played: false, positionSeconds: 42 },
+			userState: {
+				favorite: true,
+				played: false,
+				unplayedItemCount: 3,
+				playCount: 2,
+				durationSeconds: 120,
+				lastPlayedAt: "2026-07-26T00:00:00Z",
+				positionSeconds: 42,
+			},
 		} satisfies CatalogItem);
 
 		expect(item.Name).toBe("Dune");
@@ -33,6 +42,13 @@ describe("catalog client", () => {
 			"/api/catalog/items/movie-1/images/Backdrop?language=en",
 		]);
 		expect(item.UserData?.PlaybackPositionTicks).toBe(420_000_000);
+		expect(item.OfficialRating).toBe("PG-13");
+		expect(item.UserData).toMatchObject({
+			UnplayedItemCount: 3,
+			PlayCount: 2,
+			DurationSeconds: 120,
+			LastPlayedAt: "2026-07-26T00:00:00Z",
+		});
 	});
 
 	it("maps URL-based TVDB trailers into remote trailers", () => {

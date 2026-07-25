@@ -157,6 +157,22 @@ describe("media card sizing", () => {
 		).toHaveClass("h-0.5");
 	});
 
+	it("shows progress on poster cards but omits it for parent series cards", () => {
+		const { container, rerender } = render(
+			<PosterCard
+				item={{ ...item, UserData: { PlayedPercentage: 50 } }}
+			/>,
+		);
+		expect(container.querySelector('[style="width: 50%;"]')).toBeInTheDocument();
+
+		rerender(
+			<PosterCard
+				item={{ ...item, Type: "Series", UserData: { PlayedPercentage: 50 } }}
+			/>,
+		);
+		expect(container.querySelector('[style="width: 50%;"]')).not.toBeInTheDocument();
+	});
+
 	it("shows watched badges for movies, episodes, and series", () => {
 		const { rerender } = render(
 			<PosterCard item={{ ...item, UserData: { Played: true } }} />,
@@ -192,6 +208,24 @@ describe("media card sizing", () => {
 		expect(
 			container.querySelector('[style="width: 25%;"]')?.parentElement,
 		).toHaveClass("h-0.5");
+	});
+
+	it("shows watch progress on vertical detail episode thumbnails", () => {
+		const { container } = render(
+			<EpisodeCard
+				seriesId="series-1"
+				episode={{
+					...item,
+					Type: "Episode",
+					SeriesId: "series-1",
+					RunTimeTicks: 100,
+					UserData: { PlaybackPositionTicks: 25 },
+				}}
+				horizontal={false}
+				active={false}
+			/>,
+		);
+		expect(container.querySelector('[style="width: 25%;"]')).toBeInTheDocument();
 	});
 
 	it("adds a playable overlay to vertical season episode rows", () => {

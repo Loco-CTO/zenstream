@@ -8,6 +8,7 @@ import {
 	MediaCardOverlay,
 	MEDIA_CARD_IMAGE_CLASS,
 	WatchedIndicator,
+	WatchProgress,
 } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
@@ -24,6 +25,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useSortPreference } from "@/lib/sort-preferences";
+import { progressPercent } from "@/lib/media";
 
 const PAGE_SIZE = 40;
 const CARD_MIN_WIDTH = 200;
@@ -71,7 +73,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
 	const supportsLastAdded =
-		activeLibrary?.SupportsLastAdded ?? activeLibrary?.CollectionType !== "movies";
+		activeLibrary?.SupportsLastAdded ??
+		activeLibrary?.CollectionType !== "movies";
 	const availableSorts = SORTS.filter(
 		(item) => item.value !== "lastAdded" || supportsLastAdded,
 	);
@@ -113,11 +116,13 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		const normalizedQueryOrder = querySortOrder?.toLowerCase();
 		if (
 			validQuerySort &&
-			(normalizedQueryOrder === "ascending" || normalizedQueryOrder === "descending")
+			(normalizedQueryOrder === "ascending" ||
+				normalizedQueryOrder === "descending")
 		) {
 			setSort({
 				sortBy: querySortBy!,
-				sortOrder: normalizedQueryOrder === "ascending" ? "Ascending" : "Descending",
+				sortOrder:
+					normalizedQueryOrder === "ascending" ? "Ascending" : "Descending",
 			});
 		}
 	}, [libraryId, querySortBy, querySortOrder, setSort, validQuerySort]);
@@ -145,7 +150,15 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				window.history.replaceState(null, "", nextUrl);
 			}
 		}
-	}, [activeLibrary, availableSorts, router, setSort, sortBy, sortOrder, supportsLastAdded]);
+	}, [
+		activeLibrary,
+		availableSorts,
+		router,
+		setSort,
+		sortBy,
+		sortOrder,
+		supportsLastAdded,
+	]);
 
 	useEffect(() => {
 		// Async hydration is intentionally owned by this route component.
@@ -264,7 +277,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	]);
 
 	const sortOptions = useMemo<DropdownOption[]>(
-		() => availableSorts.map((sort) => ({ value: sort.value, label: t(sort.labelKey) })),
+		() =>
+			availableSorts.map((sort) => ({
+				value: sort.value,
+				label: t(sort.labelKey),
+			})),
 		[availableSorts, t],
 	);
 
@@ -358,9 +375,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				</div>
 			)}
 			{loadingMore && (
-				<p className="sr-only" aria-live="polite">
-					{t("loadingMore")}
-				</p>
+				<div aria-live="polite">
+					<span className="sr-only">{t("loadingMore")}</span>
+				</div>
 			)}
 		</main>
 	);
@@ -505,6 +522,7 @@ function LibraryCard({
 								</span>
 							</div>
 						)}
+						<WatchProgress progress={progressPercent(item)} />
 						<WatchedIndicator item={item} />
 					</div>
 					<p className="mt-2 truncate text-xs font-medium text-white/80">

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { PosterCard } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
+import { useProgress } from "@/components/status/progress-indicator";
 import { getSearchItems, type MediaItem } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
@@ -16,6 +17,7 @@ export function SearchPage({
 	query: string;
 }) {
 	const { t } = useI18n();
+	const { start } = useProgress();
 	const [items, setItems] = useState<MediaItem[]>([]);
 	const [loadedKey, setLoadedKey] = useState<string | null>(null);
 	const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export function SearchPage({
 
 	useEffect(() => {
 		const controller = new AbortController();
+		const finish = start();
 		getSearchItems(session, query, { signal: controller.signal })
 			.then((results) => {
 				if (controller.signal.aborted) return;
@@ -39,8 +42,11 @@ export function SearchPage({
 					setLoadedKey(requestKey);
 				}
 			});
-		return () => controller.abort();
-	}, [query, requestKey, session]);
+		return () => {
+			controller.abort();
+			finish();
+		};
+	}, [query, requestKey, session, start]);
 
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
 	return (

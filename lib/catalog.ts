@@ -22,6 +22,7 @@ export type CatalogItem = {
 		runtimeMinutes?: number;
 		tags?: string[];
 		communityRating?: number;
+		officialRating?: string;
 		people?: Array<Record<string, unknown>>;
 		trailers?: Array<Record<string, unknown>>;
 		images?: Partial<Record<"Primary" | "Backdrop" | "Logo" | "Banner", { url?: string }>>;
@@ -29,6 +30,10 @@ export type CatalogItem = {
 	userState?: {
 		favorite?: boolean;
 		played?: boolean;
+		playCount?: number;
+		durationSeconds?: number;
+		lastPlayedAt?: string | null;
+		unplayedItemCount?: number;
 		playedPercentage?: number;
 		positionSeconds?: number;
 	};
@@ -92,6 +97,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		PremiereDate: item.metadata.date,
 		RunTimeTicks: item.metadata.runtimeMinutes ? item.metadata.runtimeMinutes * 60 * 10_000_000 : undefined,
 		CommunityRating: item.metadata.communityRating,
+		OfficialRating: item.metadata.officialRating,
 		Genres: item.metadata.tags,
 		People: people,
 		RemoteTrailers: trailers,
@@ -103,8 +109,12 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		UserData: {
 			IsFavorite: item.userState?.favorite,
 			Played: item.userState?.played,
+			UnplayedItemCount: item.userState?.unplayedItemCount,
 			PlayedPercentage: item.userState?.playedPercentage,
 			PlaybackPositionTicks: item.userState?.positionSeconds ? item.userState.positionSeconds * 10_000_000 : 0,
+			PlayCount: item.userState?.playCount,
+			DurationSeconds: item.userState?.durationSeconds,
+			LastPlayedAt: item.userState?.lastPlayedAt ?? undefined,
 		},
 		DateCreated: item.dateAdded,
 		LibraryId: item.libraryId,

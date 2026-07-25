@@ -104,6 +104,7 @@ export function PosterCard({
 								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
+						<WatchProgress progress={progress} />
 						<WatchedIndicator item={item} />
 					</div>
 				</Link>

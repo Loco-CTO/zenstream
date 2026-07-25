@@ -426,6 +426,22 @@ export function VideoPlayer({
 		duration > 0 &&
 		duration - currentTime <= 10 &&
 		Boolean(nextItem);
+	const reportCurrentProgress = useCallback(
+		(video: HTMLVideoElement | null) => {
+			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
+				return;
+			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
+			const durationSeconds = mediaDuration > 0 ? mediaDuration : duration || knownDuration;
+			void reportPlayback(
+				session,
+				item.Id,
+				video.currentTime,
+				video.paused,
+				durationSeconds,
+			).catch(() => undefined);
+		},
+		[duration, item.Id, knownDuration, session],
+	);
 	const updateBufferedRanges = (video: HTMLVideoElement) => {
 		const ranges: Array<[number, number]> = [];
 		for (let index = 0; index < video.buffered.length; index += 1) {
@@ -863,17 +879,21 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		const timer = window.setInterval(() => {
-			const video = videoRef.current;
-			if (video && video.currentTime > 0)
-				void reportPlayback(
-					session,
-					item.Id,
-					video.currentTime,
-					video.paused,
-				).catch(() => undefined);
+			reportCurrentProgress(videoRef.current);
 		}, 10_000);
-		return () => window.clearInterval(timer);
-	}, [item.Id, session]);
+		const flushOnLifecycle = () => reportCurrentProgress(videoRef.current);
+		const handleVisibility = () => {
+			if (document.visibilityState === "hidden") flushOnLifecycle();
+		};
+		window.addEventListener("pagehide", flushOnLifecycle);
+		document.addEventListener("visibilitychange", handleVisibility);
+		return () => {
+			window.clearInterval(timer);
+			flushOnLifecycle();
+			window.removeEventListener("pagehide", flushOnLifecycle);
+			document.removeEventListener("visibilitychange", handleVisibility);
+		};
+	}, [reportCurrentProgress]);
 
 	useEffect(() => {
 		if (!settingsOpen && !trackMenu) return;
@@ -1500,7 +1520,8 @@ export function VideoPlayer({
 					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}
-				onPause={(e) => {
+					onPause={(e) => {
+					reportCurrentProgress(e.currentTarget);
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",

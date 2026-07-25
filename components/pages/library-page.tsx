@@ -217,8 +217,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
-		if (activeLibrary) void loadFirstPage();
-	}, [activeLibrary, loadFirstPage]);
+		if (activeLibrary && availableSorts.some((item) => item.value === sortBy)) {
+			void loadFirstPage();
+		}
+	}, [activeLibrary, availableSorts, loadFirstPage, sortBy]);
 
 	const loadMore = useCallback(async () => {
 		if (

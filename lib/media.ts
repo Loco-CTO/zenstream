@@ -95,6 +95,9 @@ export function subtitle(item: MediaItem) {
 }
 
 export function progressPercent(item: MediaItem) {
+	if (item.Type !== "Movie" && item.Type !== "Episode") {
+		return undefined;
+	}
 	if (item.UserData?.PlayedPercentage != null) {
 		return Math.max(0, Math.min(100, item.UserData.PlayedPercentage));
 	}

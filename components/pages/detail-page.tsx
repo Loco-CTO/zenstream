@@ -22,7 +22,7 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { releaseDateLabel, runtimeLabel, progressPercent } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
-import { useProgress } from "@/components/status/progress-indicator";
+import { LoadingState, useProgress } from "@/components/status/progress-indicator";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import {
@@ -75,6 +75,7 @@ export function DetailPage({
 		)?.Id ?? "",
 	);
 	const [mutationError, setMutationError] = useState("");
+	const [seasonLoading, setSeasonLoading] = useState(false);
 	const [trackChoices, setTrackChoices] = useState<{
 		itemId: string;
 		streams: ReturnType<typeof playbackStreams>;
@@ -135,6 +136,7 @@ export function DetailPage({
 		if (!seriesId || nextSeasonId === seasonId) return;
 		const previous = seasonId;
 		setSeasonId(nextSeasonId);
+		setSeasonLoading(true);
 		const finish = start();
 		try {
 			setEpisodes(await getEpisodes(session, seriesId, nextSeasonId));
@@ -142,6 +144,7 @@ export function DetailPage({
 			setSeasonId(previous);
 			setMutationError(t("detailLoadFailed"));
 		} finally {
+			setSeasonLoading(false);
 			finish();
 		}
 	}
@@ -337,6 +340,7 @@ export function DetailPage({
 							seasons={initialData.seasons}
 							seasonId={seasonId}
 							episodes={episodes}
+							loading={seasonLoading}
 							onSeasonChange={selectSeason}
 						/>
 					)}
@@ -588,6 +592,7 @@ function EpisodeSection({
 	seasons,
 	seasonId,
 	episodes,
+	loading,
 	onSeasonChange,
 }: {
 	item: MediaItem;
@@ -595,6 +600,7 @@ function EpisodeSection({
 	seasons: MediaItem[];
 	seasonId: string;
 	episodes: MediaItem[];
+	loading: boolean;
 	onSeasonChange: (id: string) => void;
 }) {
 	const { t } = useI18n();
@@ -655,7 +661,9 @@ function EpisodeSection({
 					)}
 				</div>
 			</div>
-			{item.Type === "Episode" ? (
+			{loading ? (
+				<LoadingState compact />
+			) : item.Type === "Episode" ? (
 				<HorizontalScroller
 					title={t("episodesLabel")}
 					className="pb-2"
@@ -746,7 +754,7 @@ export function EpisodeCard({
 							}
 						/>
 					)}
-					{horizontal && <WatchProgress progress={progress} />}
+					<WatchProgress progress={progress} />
 					<WatchedIndicator item={currentEpisode} />
 				</Link>
 				{!active && (

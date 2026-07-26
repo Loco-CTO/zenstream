@@ -91,6 +91,9 @@ export function DetailPage({
 			? heroImage(initialData.backgroundItem)
 			: null);
 	const titleLogo = titleLogoImage(item);
+	const returnTitle = isEpisode
+		? initialData.backgroundItem?.Name ?? item.SeriesName ?? t("back")
+		: t("back");
 	const people =
 		item.People?.filter(
 			(person) => person.Type === "Actor" || person.Type === "Director",
@@ -239,7 +242,7 @@ export function DetailPage({
 						className="absolute left-4 top-[calc(4rem+env(safe-area-inset-top))] flex items-center gap-1 rounded-md px-2 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white sm:left-5 md:left-8 md:top-20"
 					>
 						<ChevronLeft className="h-4 w-4" />
-						{isEpisode ? item.SeriesName : t("back")}
+						{returnTitle}
 					</button>
 					<div className="absolute bottom-6 left-4 right-4 flex items-end gap-3 sm:left-6 sm:right-6 md:bottom-8 md:left-14 md:right-14 md:gap-6">
 						<DetailArtwork item={item} episode={isEpisode} />

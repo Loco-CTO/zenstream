@@ -452,6 +452,27 @@ export function VideoPlayer({
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
 	const debugSource = sourceRef.current ?? info?.source;
 	const playbackSessionId = info?.source?.sessionId;
+	const cancelActiveSession = useCallback(
+		async (reason: string) => {
+			const source = sourceRef.current ?? info?.source;
+			if (!source?.sessionId || source.mode === "direct") return;
+			const sessionId = source.sessionId;
+			await cancelPlaybackSession(session, sessionId).then(
+				() => playerDebug("HLS session cancellation requested", { sessionId, reason }),
+				(error) =>
+					playerDebug("HLS session cancellation failed", {
+						sessionId,
+						reason,
+						error: error instanceof Error ? error.message : String(error),
+					}),
+			);
+		},
+		[info?.source, session],
+	);
+	const handleClose = useCallback(() => {
+		void cancelActiveSession("player_close");
+		onClose();
+	}, [cancelActiveSession, onClose]);
 	const debugVideo = videoRef.current;
 	const debugVideoStream = debugSource?.MediaStreams?.find(
 		(stream) => stream.Type === "Video",
@@ -497,9 +518,15 @@ export function VideoPlayer({
 				});
 		};
 		const timer = window.setInterval(heartbeat, 15_000);
+		const cancelOnPageHide = () => {
+			active = false;
+			void cancelPlaybackSession(session, playbackSessionId).catch(() => undefined);
+		};
+		window.addEventListener("pagehide", cancelOnPageHide);
 		return () => {
 			active = false;
 			window.clearInterval(timer);
+			window.removeEventListener("pagehide", cancelOnPageHide);
 			void cancelPlaybackSession(session, playbackSessionId).then(
 				() => playerDebug("HLS session cancelled", { sessionId: playbackSessionId }),
 				(error) =>
@@ -1939,7 +1966,7 @@ export function VideoPlayer({
 				<button
 					aria-label="Close player"
 					className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white"
-					onClick={onClose}
+					onClick={handleClose}
 				>
 					<ArrowLeft />
 				</button>
@@ -2050,7 +2077,7 @@ export function VideoPlayer({
 						<div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
 							<button
 								type="button"
-								onClick={onClose}
+								onClick={handleClose}
 								className="rounded-lg px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
 							>
 								{t("stopPlaying")}

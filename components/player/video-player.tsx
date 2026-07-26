@@ -1219,11 +1219,14 @@ export function VideoPlayer({
 			}
 			return;
 		}
-		if (sourceRef.current?.TranscodingUrl) {
-			void seekTranscoded(target);
-			return;
-		}
-		video.currentTime = target;
+		// HLS is already a seekable media timeline. Re-negotiating here starts a
+		// second FFmpeg session for every slider move; while the old process is
+		// shutting down that can hit the transcode cap and leave the player black.
+		// Keep the existing session and seek within its (possibly offset) timeline.
+		const mediaTarget = sourceRef.current?.TranscodingUrl
+			? Math.max(0, target - transcodeOffsetRef.current)
+			: target;
+		video.currentTime = mediaTarget;
 		setCurrentTime(target);
 	}
 	function commitPendingSeek() {
@@ -1259,7 +1262,9 @@ export function VideoPlayer({
 				applyingSyncRef.current = false;
 		}, 1600);
 		optimisticSeekRef.current = optimistic;
-		video.currentTime = target;
+		video.currentTime = sourceRef.current?.TranscodingUrl
+			? Math.max(0, target - transcodeOffsetRef.current)
+			: target;
 		setCurrentTime(target);
 		void syncplay
 			.command({

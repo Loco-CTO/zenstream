@@ -64,10 +64,6 @@ export function browserDeviceProfile(
 		...(supports(video, 'audio/webm; codecs="opus"') ? ["opus"] : []),
 		...(supports(video, 'audio/webm; codecs="vorbis"') ? ["vorbis"] : []),
 	];
-	const hls =
-		supports(video, "application/x-mpegURL") ||
-		supports(video, "application/vnd.apple.mpegURL") ||
-		shouldUseHlsJs();
 	const directPlayProfiles: BrowserPlaybackProfile[] = [];
 	if (mp4Video.length && aac)
 		directPlayProfiles.push({
@@ -83,17 +79,6 @@ export function browserDeviceProfile(
 			VideoCodec: webmVideo.join(","),
 			AudioCodec: webmAudio.join(","),
 		});
-	const hlsVideo = mp4Video.filter(
-		(codec) => codec === "h264" || codec === "hevc",
-	);
-	if (hls && aac && hlsVideo.length)
-		directPlayProfiles.push({
-			Type: "Video",
-			Container: "ts",
-			VideoCodec: hlsVideo.join(","),
-			AudioCodec: "aac",
-		});
-
 	return {
 		directPlayProfiles,
 		// Subtitles are fetched as VTT by the custom overlay. Explicitly telling

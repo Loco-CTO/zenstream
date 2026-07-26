@@ -78,6 +78,16 @@ const playerDebug = (event: string, details?: unknown) => {
 	console[method](`[Player] ${event}`, safe);
 };
 
+function safePlayerUrl(value?: string) {
+	if (!value) return "-";
+	try {
+		const parsed = new URL(value, window.location.origin);
+		return `${parsed.pathname}${parsed.searchParams.has("access") ? "?access=<redacted>" : parsed.search}`;
+	} catch {
+		return value.replace(/access=[^&\s"']+/gi, "access=<redacted>");
+	}
+}
+
 export async function clearMediaSession(
 	video: HTMLVideoElement,
 	hls?: Hls | null,
@@ -384,6 +394,16 @@ export function VideoPlayer({
 		"root" | "quality" | "speed" | "offset"
 	>("root");
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [debugOpen, setDebugOpen] = useState(false);
+	const [debugStats, setDebugStats] = useState({
+		manifestParsed: false,
+		fragmentsRequested: 0,
+		fragmentsBuffered: 0,
+		lastRequest: "",
+		lastFragment: "",
+		hlsErrors: 0,
+		lastHlsError: "",
+	});
 	const [trackMenu, setTrackMenu] = useState<"audio" | "subtitle" | null>(null);
 	const [playing, setPlaying] = useState(false);
 	const [muted, setMuted] = useState(false);
@@ -420,18 +440,36 @@ export function VideoPlayer({
 		itemId: string;
 		value: number;
 	} | null>(null);
+	const [, setDebugRefresh] = useState(0);
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
+	const debugSource = sourceRef.current ?? info?.source;
+	const debugVideo = videoRef.current;
+	const debugVideoStream = debugSource?.MediaStreams?.find(
+		(stream) => stream.Type === "Video",
+	);
+	const debugAudioStream = debugSource?.MediaStreams?.find(
+		(stream) => stream.Type === "Audio",
+	);
+	const debugBufferAhead = bufferedRanges.ranges.reduce(
+		(maximum, [, end]) => Math.max(maximum, end - currentTime),
+		0,
+	);
 	const nextUpVisible =
 		item.Type === "Episode" &&
 		nextChecked &&
 		duration > 0 &&
 		duration - currentTime <= 10 &&
 		Boolean(nextItem);
+	useEffect(() => {
+		if (!debugOpen) return;
+		const timer = window.setInterval(() => setDebugRefresh((value) => value + 1), 250);
+		return () => window.clearInterval(timer);
+	}, [debugOpen]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
@@ -814,6 +852,15 @@ export function VideoPlayer({
 		if (!video || !url) return;
 		let active = true;
 		setBuffering(true);
+		setDebugStats({
+			manifestParsed: false,
+			fragmentsRequested: 0,
+			fragmentsBuffered: 0,
+			lastRequest: safePlayerUrl(url),
+			lastFragment: "",
+			hlsErrors: 0,
+			lastHlsError: "",
+		});
 		void clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
 		// Native HLS and hls.js can add a second subtitle track asynchronously.
@@ -932,7 +979,16 @@ export function VideoPlayer({
 			hls.on(Hls.Events.MANIFEST_PARSED, () => {
 				if (!active) return;
 				playerDebug("HLS manifest parsed", { url, mode: sourceRef.current?.mode });
+				setDebugStats((previous) => ({ ...previous, manifestParsed: true }));
 				setError("");
+			});
+			hls.on(Hls.Events.FRAG_LOADING, (_event, data) => {
+				if (!active) return;
+				setDebugStats((previous) => ({
+					...previous,
+					fragmentsRequested: previous.fragmentsRequested + 1,
+					lastRequest: safePlayerUrl(data.frag?.url),
+				}));
 			});
 				hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
 				if (!active) return;
@@ -940,11 +996,16 @@ export function VideoPlayer({
 					url: data.frag?.url,
 					currentTime: video.currentTime,
 				});
+				setDebugStats((previous) => ({
+					...previous,
+					fragmentsBuffered: previous.fragmentsBuffered + 1,
+					lastFragment: safePlayerUrl(data.frag?.url),
+				}));
 				setError("");
 				updateBufferedRanges(video);
 				setBuffering(false);
 			});
-			hls.on(Hls.Events.ERROR, (_event, data) => {
+				hls.on(Hls.Events.ERROR, (_event, data) => {
 				playerDebug(data.fatal ? "HLS fatal error" : "HLS error", {
 					type: data.type,
 					details: data.details,
@@ -952,6 +1013,11 @@ export function VideoPlayer({
 					responseCode: data.response?.code,
 					url: data.url,
 				});
+				setDebugStats((previous) => ({
+					...previous,
+					hlsErrors: previous.hlsErrors + 1,
+					lastHlsError: `${data.type}/${data.details}${data.fatal ? " (fatal)" : ""}`,
+				}));
 				if (!active || !data.fatal) return;
 				setBuffering(false);
 				void requestTranscodedPlayback();
@@ -1837,6 +1903,30 @@ export function VideoPlayer({
 					buttonClassName="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white/70 transition hover:bg-black/50 hover:text-white"
 				/>
 			</div>
+			{debugOpen && (
+				<div
+					data-testid="player-debug-panel"
+					className="pointer-events-none absolute left-3 top-[calc(4.5rem+env(safe-area-inset-top))] z-40 w-[min(29rem,calc(100vw-1.5rem))] rounded-lg border border-white/10 bg-[#10151bcc] px-3 py-2 font-mono text-[10px] leading-[1.35] text-white/85 shadow-2xl backdrop-blur-md sm:left-5 sm:top-24 md:left-10"
+				>
+					<div className="mb-1 text-[11px] font-semibold text-white">Playback diagnostics</div>
+					<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+						<span className="text-white/50">Mode</span><span>{debugSource?.mode ?? "negotiating"}</span>
+						<span className="text-white/50">Session</span><span>{debugSource?.sessionId ?? "direct/no session"}</span>
+						<span className="text-white/50">State</span><span>{debugSource?.sessionState ?? "ready"}</span>
+						<span className="text-white/50">Stream</span><span className="truncate" title={safePlayerUrl(url)}>{safePlayerUrl(url)}</span>
+						<span className="text-white/50">Source</span><span>{debugSource?.Container ?? "-"} / {debugSource?.Bitrate ? `${Math.round(debugSource.Bitrate / 1000)} kbps` : "bitrate -"}</span>
+						<span className="text-white/50">Video</span><span>{debugVideoStream?.Codec ?? "-"} {debugVideoStream?.Width ?? "?"}x{debugVideoStream?.Height ?? "?"}</span>
+						<span className="text-white/50">Audio</span><span>{debugAudioStream?.Codec ?? "-"} / {debugAudioStream?.Channels ?? "?"}ch</span>
+						<span className="text-white/50">Position</span><span>{displayedCurrentTime.toFixed(2)} / {(duration || knownDuration || 0).toFixed(2)}s</span>
+						<span className="text-white/50">Buffered</span><span>{bufferedRanges.ranges.length ? bufferedRanges.ranges.map(([start, end]) => `${start.toFixed(1)}-${end.toFixed(1)}`).join(" ") : "none"} ({debugBufferAhead.toFixed(1)}s ahead)</span>
+						<span className="text-white/50">Native</span><span>{debugVideo?.paused ? "paused" : "playing"} / ready {debugVideo?.readyState ?? 0} / network {debugVideo?.networkState ?? 0}</span>
+						<span className="text-white/50">HLS</span><span>manifest {debugStats.manifestParsed ? "yes" : "no"} / requested {debugStats.fragmentsRequested} / buffered {debugStats.fragmentsBuffered}</span>
+						<span className="text-white/50">Request</span><span className="truncate" title={debugStats.lastRequest || undefined}>{debugStats.lastRequest || "-"}</span>
+						<span className="text-white/50">Last segment</span><span className="truncate" title={debugStats.lastFragment || undefined}>{debugStats.lastFragment || "-"}</span>
+						<span className="text-white/50">Errors</span><span>{debugStats.hlsErrors}{debugStats.lastHlsError ? ` / ${debugStats.lastHlsError}` : ""}</span>
+					</div>
+				</div>
+			)}
 			{(buffering || syncplayWaitingForMembers(syncplay.active, item.Id)) && (
 				<div
 					data-testid="player-loading"
@@ -2154,6 +2244,13 @@ export function VideoPlayer({
 									<MenuRow
 										label={t("subtitleOffset")}
 										onClick={() => setSettingsSection("offset")}
+									/>
+									<MenuRow
+										label={debugOpen ? "Hide diagnostics" : "Show diagnostics"}
+										onClick={() => {
+											setDebugOpen(!debugOpen);
+											setSettingsOpen(false);
+										}}
 									/>
 								</div>
 							)}

@@ -347,6 +347,8 @@ export function VideoPlayer({
 	const resumePlayingRef = useRef<boolean | null>(null);
 	const transcodeOffsetRef = useRef(0);
 	const seekRequestRef = useRef(0);
+	const seekInFlightRef = useRef(false);
+	const pendingSeekTargetRef = useRef<number | null>(null);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
@@ -412,7 +414,6 @@ export function VideoPlayer({
 		ranges: Array<[number, number]>;
 	}>({ itemId: item.Id, ranges: [] });
 	const [error, setError] = useState("");
-	const [qualityLoading, setQualityLoading] = useState(false);
 	const [buffering, setBuffering] = useState(true);
 	const [controlsVisible, setControlsVisible] = useState(true);
 	const [isFullscreen, setIsFullscreen] = useState(false);
@@ -455,11 +456,13 @@ export function VideoPlayer({
 	);
 	const updateBufferedRanges = (video: HTMLVideoElement) => {
 		const ranges: Array<[number, number]> = [];
+		const offset =
+			sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current;
 		for (let index = 0; index < video.buffered.length; index += 1) {
 			const start = video.buffered.start(index);
 			const end = video.buffered.end(index);
 			if (Number.isFinite(start) && Number.isFinite(end) && end > start)
-				ranges.push([start, end]);
+				ranges.push([offset + start, offset + end]);
 		}
 		setBufferedRanges({ itemId: item.Id, ranges });
 	};
@@ -495,6 +498,8 @@ export function VideoPlayer({
 		transcodeOffsetRef.current = 0;
 		resumeTimeRef.current = null;
 		resumePlayingRef.current = null;
+		seekInFlightRef.current = false;
+		pendingSeekTargetRef.current = null;
 		seekRequestRef.current += 1;
 		advancingToNextRef.current = false;
 		readyItemIdRef.current = null;
@@ -695,7 +700,6 @@ export function VideoPlayer({
 					error: error instanceof Error ? error.message : String(error),
 				});
 				setBuffering(false);
-				setQualityLoading(false);
 				setError("Playback could not be loaded.");
 			});
 		return () => {
@@ -837,7 +841,7 @@ export function VideoPlayer({
 			void (async () => {
 				if (!active) return;
 				disableNativeSubtitleTracks(video);
-				setQualityLoading(false);
+				setBuffering(false);
 				const groupState = syncplayStateRef.current;
 				const syncplayApi = syncplayApiRef.current;
 				if (groupState?.itemId === item.Id) {
@@ -941,8 +945,8 @@ export function VideoPlayer({
 					currentTime: video.currentTime,
 				});
 				setError("");
+				updateBufferedRanges(video);
 				setBuffering(false);
-				setQualityLoading(false);
 			});
 			hls.on(Hls.Events.ERROR, (_event, data) => {
 				playerDebug(data.fatal ? "HLS fatal error" : "HLS error", {
@@ -1211,7 +1215,7 @@ export function VideoPlayer({
 			source: preserveTrickplay(parsed.source, previousSource ?? sourceRef.current),
 		};
 	}
-	async function seekPlayback(target: number) {
+	async function seekPlayback(target: number, request: number) {
 		const video = videoRef.current;
 		const source = sourceRef.current;
 		if (!video || !source) return;
@@ -1239,13 +1243,11 @@ export function VideoPlayer({
 			return;
 		}
 
-		const request = ++seekRequestRef.current;
 		const wasPlaying = !video.paused;
 		const previousSource = source;
 		resumeTimeRef.current = target;
 		resumePlayingRef.current = wasPlaying;
 		setBuffering(true);
-		setQualityLoading(true);
 		setError("");
 		playerDebug("seek requires a new media session", {
 			target,
@@ -1254,9 +1256,6 @@ export function VideoPlayer({
 			mode: source.mode,
 			sessionId: source.sessionId,
 		});
-		await clearMediaSession(video, hlsRef.current);
-		hlsRef.current = null;
-		setUrl(undefined);
 		try {
 			const next = await fetchPlaybackAt(target, previousSource);
 			if (request !== seekRequestRef.current) return;
@@ -1281,7 +1280,6 @@ export function VideoPlayer({
 			});
 		} catch (error) {
 			if (request !== seekRequestRef.current) return;
-			setQualityLoading(false);
 			setBuffering(false);
 			setError("This position could not be loaded.");
 			playerDebug("seek failed", {
@@ -1290,9 +1288,28 @@ export function VideoPlayer({
 			});
 		}
 	}
+	function queueSeekPlayback(target: number) {
+		pendingSeekTargetRef.current = target;
+		seekRequestRef.current += 1;
+		if (seekInFlightRef.current) return;
+		seekInFlightRef.current = true;
+		void (async () => {
+			try {
+				while (pendingSeekTargetRef.current != null) {
+					const nextTarget = pendingSeekTargetRef.current;
+					pendingSeekTargetRef.current = null;
+					await seekPlayback(nextTarget, seekRequestRef.current);
+				}
+			} finally {
+				seekInFlightRef.current = false;
+				if (pendingSeekTargetRef.current != null)
+					queueSeekPlayback(pendingSeekTargetRef.current);
+			}
+		})();
+	}
 	async function requestTranscodedPlayback() {
 		if (transcodeAttemptRef.current) {
-			setQualityLoading(false);
+			setBuffering(false);
 			setError(t("mediaPlaybackFailed"));
 			return false;
 		}
@@ -1302,11 +1319,8 @@ export function VideoPlayer({
 		resumeTimeRef.current =
 			(sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current) +
 			video.currentTime;
-		if (video) await clearMediaSession(video, hlsRef.current);
-		hlsRef.current = null;
-		setUrl(undefined);
 		setError("");
-		setQualityLoading(true);
+		setBuffering(true);
 		try {
 			const next = await fetchTranscodedPlayback();
 			if (!next.source) throw new Error("Missing transcoded source.");
@@ -1327,7 +1341,7 @@ export function VideoPlayer({
 				error: error instanceof Error ? error.message : String(error),
 				fallbackCount: 1,
 			});
-			setQualityLoading(false);
+			setBuffering(false);
 			setError(t("mediaPlaybackFailed"));
 			return false;
 		}
@@ -1463,7 +1477,7 @@ export function VideoPlayer({
 		if (!syncplay.active) {
 			seekPreviewRef.current = null;
 			setSeekPreview(null);
-			void seekPlayback(target);
+			queueSeekPlayback(target);
 			return;
 		}
 		if (!syncplay.canControl) return;
@@ -1512,7 +1526,7 @@ export function VideoPlayer({
 				? video.currentTime
 				: currentTime;
 		setError("");
-		setQualityLoading(true);
+		setBuffering(true);
 		setDuration(knownDuration);
 		setQuality(value);
 		const bitrate = Number(value);
@@ -1563,7 +1577,7 @@ export function VideoPlayer({
 					error: error instanceof Error ? error.message : String(error),
 				});
 				if (request === qualityRequestRef.current) {
-					setQualityLoading(false);
+					setBuffering(false);
 					setError("This quality could not be loaded.");
 				}
 			});
@@ -1586,7 +1600,7 @@ export function VideoPlayer({
 		if (!info?.source) return;
 		const request = ++qualityRequestRef.current;
 		resumeTimeRef.current = position;
-		setQualityLoading(true);
+		setBuffering(true);
 		setError("");
 		void getPlaybackInfo(session, item.Id, {
 			sourceId: info.source.Id,
@@ -1621,7 +1635,7 @@ export function VideoPlayer({
 			})
 			.catch(() => {
 				if (request === qualityRequestRef.current) {
-					setQualityLoading(false);
+					setBuffering(false);
 					setError("This track could not be loaded.");
 				}
 			});
@@ -1815,9 +1829,8 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				onPlaying={(event) => {
+				 onPlaying={(event) => {
 					disableNativeSubtitleTracks(event.currentTarget);
-					setQualityLoading(false);
 					setBuffering(false);
 					cancelPendingBufferingReport("playing");
 					seekSettlingUntilRef.current = 0;
@@ -1884,7 +1897,6 @@ export function VideoPlayer({
 					if (video && video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA)
 						return;
 					setBuffering(false);
-					setQualityLoading(false);
 					setError(t("mediaPlaybackFailed"));
 				}}
 			></video>
@@ -1930,16 +1942,6 @@ export function VideoPlayer({
 					buttonClassName="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white/70 transition hover:bg-black/50 hover:text-white"
 				/>
 			</div>
-			{qualityLoading && (
-				<div
-					role="status"
-					aria-live="polite"
-					className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-5 py-3 text-sm text-white/90 shadow-xl backdrop-blur-md"
-				>
-					<LoaderCircle className="h-5 w-5 animate-spin text-violet-300" />
-					{t("switchingQuality")}
-				</div>
-			)}
 			{(buffering || syncplayWaitingForMembers(syncplay.active, item.Id)) && (
 				<div
 					data-testid="player-loading"

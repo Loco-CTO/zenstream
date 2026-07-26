@@ -42,6 +42,7 @@ const SORTS = [
 	{ value: "release", labelKey: "sortReleaseDate" },
 	{ value: "runtime", labelKey: "sortRuntime" },
 ] as const;
+const VALID_SORTS = SORTS.map((item) => item.value);
 
 export function LibraryPage({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
@@ -56,7 +57,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [sort, setSort] = useSortPreference(
 		`zenstream:sort:library:${libraryId}`,
 		{ sortBy: "lastAdded" as LibrarySortBy, sortOrder: "Descending" },
-		SORTS.map((item) => item.value),
+		VALID_SORTS,
 	);
 	const { sortBy, sortOrder } = sort;
 	const [loading, setLoading] = useState(true);
@@ -70,14 +71,21 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
 	const querySortOrder = searchParams.get("sortOrder");
 	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
+	const queryLibraryIdRef = useRef(queryLibraryId);
+	queryLibraryIdRef.current = queryLibraryId;
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
 	const supportsLastAdded =
 		activeLibrary?.SupportsLastAdded ??
 		activeLibrary?.CollectionType !== "movies";
-	const availableSorts = SORTS.filter(
-		(item) => item.value !== "lastAdded" || supportsLastAdded,
+	const availableSorts = useMemo(
+		() =>
+			SORTS.filter(
+				(item) => item.value !== "lastAdded" || supportsLastAdded,
+			),
+		[supportsLastAdded],
 	);
+	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
 
 	const loadLibraries = useCallback(async () => {
 		requestRef.current?.abort();
@@ -87,12 +95,12 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		setLoading(true);
 		setError(null);
 		try {
-			const nextLibraries = await getLibraryViews(session, controller.signal);
+			const nextLibraries = await getLibraryViews(session);
 			if (controller.signal.aborted) return;
 			setLibraries(nextLibraries);
 			setLibraryId((current) =>
-				nextLibraries.some((library) => library.Id === queryLibraryId)
-					? queryLibraryId
+				nextLibraries.some((library) => library.Id === queryLibraryIdRef.current)
+					? queryLibraryIdRef.current
 					: nextLibraries.some((library) => library.Id === current)
 						? current
 						: (nextLibraries[0]?.Id ?? ""),
@@ -110,7 +118,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		} finally {
 			finish();
 		}
-	}, [queryLibraryId, session, start]);
+	}, [session, start]);
 
 	useEffect(() => {
 		const normalizedQueryOrder = querySortOrder?.toLowerCase();
@@ -217,10 +225,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
-		if (activeLibrary && availableSorts.some((item) => item.value === sortBy)) {
-			void loadFirstPage();
-		}
-	}, [activeLibrary, availableSorts, loadFirstPage, sortBy]);
+		if (activeLibrary && isSortAvailable) void loadFirstPage();
+	}, [activeLibrary, isSortAvailable, loadFirstPage]);
 
 	const loadMore = useCallback(async () => {
 		if (

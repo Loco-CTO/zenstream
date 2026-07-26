@@ -345,10 +345,6 @@ export function VideoPlayer({
 	const transcodeAttemptRef = useRef(false);
 	const resumeTimeRef = useRef<number | null>(null);
 	const resumePlayingRef = useRef<boolean | null>(null);
-	const transcodeOffsetRef = useRef(0);
-	const seekRequestRef = useRef(0);
-	const seekInFlightRef = useRef(false);
-	const pendingSeekTargetRef = useRef<number | null>(null);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
@@ -428,6 +424,8 @@ export function VideoPlayer({
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
+	const displayedCurrentTime =
+		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
 	const nextUpVisible =
 		item.Type === "Episode" &&
 		nextChecked &&
@@ -439,11 +437,9 @@ export function VideoPlayer({
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
 				return;
 			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
-			const offset =
-				sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current;
 			const durationSeconds =
-				mediaDuration > 0 ? mediaDuration + offset : duration || knownDuration;
-			const position = offset + video.currentTime;
+				mediaDuration > 0 ? mediaDuration : duration || knownDuration;
+			const position = video.currentTime;
 			void reportPlayback(
 				session,
 				item.Id,
@@ -456,13 +452,11 @@ export function VideoPlayer({
 	);
 	const updateBufferedRanges = (video: HTMLVideoElement) => {
 		const ranges: Array<[number, number]> = [];
-		const offset =
-			sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current;
 		for (let index = 0; index < video.buffered.length; index += 1) {
 			const start = video.buffered.start(index);
 			const end = video.buffered.end(index);
 			if (Number.isFinite(start) && Number.isFinite(end) && end > start)
-				ranges.push([offset + start, offset + end]);
+				ranges.push([start, end]);
 		}
 		setBufferedRanges({ itemId: item.Id, ranges });
 	};
@@ -495,12 +489,8 @@ export function VideoPlayer({
 		cancelPendingBufferingReport("item changed");
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
-		transcodeOffsetRef.current = 0;
 		resumeTimeRef.current = null;
 		resumePlayingRef.current = null;
-		seekInFlightRef.current = false;
-		pendingSeekTargetRef.current = null;
-		seekRequestRef.current += 1;
 		advancingToNextRef.current = false;
 		readyItemIdRef.current = null;
 		bufferedRef.current = true;
@@ -676,10 +666,6 @@ export function VideoPlayer({
 					fallbackCount: transcodeAttemptRef.current ? 1 : 0,
 				});
 				sourceRef.current = next.source;
-				transcodeOffsetRef.current =
-					next.source?.mode === "direct"
-						? 0
-						: next.source?.startPositionSeconds ?? 0;
 				// The first negotiation is automatic. A fallback is allowed exactly
 				// once, and only when the initial direct source genuinely fails.
 				transcodeAttemptRef.current = next.source?.mode === "video-transcode";
@@ -866,18 +852,27 @@ export function VideoPlayer({
 					return;
 				}
 				if (groupState) return;
-				const resumeTime = resumeTimeRef.current ?? position;
-				const relativeResume =
-					resumeTime -
-					(sourceRef.current?.mode === "direct"
-						? 0
-						: transcodeOffsetRef.current);
-				if (relativeResume > 0 && relativeResume < video.duration - 5)
-					video.currentTime = relativeResume;
-				resumeTimeRef.current = null;
 				const mediaDuration = Number.isFinite(video.duration)
 					? video.duration
 					: 0;
+				const requestedPosition =
+					resumeTimeRef.current ??
+					sourceRef.current?.startPositionSeconds ??
+					position;
+				if (
+					Number.isFinite(requestedPosition) &&
+					requestedPosition > 0 &&
+					(!mediaDuration || requestedPosition < mediaDuration)
+				) {
+					playerDebug("native initial position", {
+						requestedPosition,
+						mode: sourceRef.current?.mode,
+						sessionId: sourceRef.current?.sessionId,
+						duration: mediaDuration,
+					});
+					video.currentTime = requestedPosition;
+				}
+				resumeTimeRef.current = null;
 				setDuration(Math.max(knownDuration, mediaDuration));
 				const shouldPlay = resumePlayingRef.current ?? true;
 				resumePlayingRef.current = null;
@@ -895,6 +890,7 @@ export function VideoPlayer({
 		};
 		const textTracks = video.textTracks;
 		const onCanPlay = () => {
+			setBuffering(false);
 			playerDebug("media canplay", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1181,131 +1177,28 @@ export function VideoPlayer({
 			),
 		};
 	}
-	async function fetchPlaybackAt(
-		startPositionSeconds: number,
-		previousSource?: MediaSource,
-	) {
-		const playback = await getPlaybackInfo(session, item.Id, {
-			sourceId: previousSource?.Id ?? sourceRef.current?.Id,
-			audioStreamId: audio ? Number(audio) : undefined,
-			startPositionSeconds,
-		});
-		playerDebug("seek negotiation complete", {
-			target: startPositionSeconds,
-			mode: playback.source?.mode,
-			sessionId: playback.sessionId,
-			sessionState: playback.source?.sessionState,
-		});
-		if (playback.sessionId && playback.source?.sessionState === "starting") {
-			const status = await waitForPlaybackReady(session, playback.sessionId);
-			playerDebug("seek HLS session ready", {
-				target: startPositionSeconds,
-				sessionId: status.sessionId,
-				sessionState: status.sessionState,
-				playlistReady: status.playlistReady,
-				segmentCount: status.segmentCount,
-			});
-			playback.source.sessionState = "ready";
-		}
-		const parsed = playbackStreams(playback);
-		if (!parsed.source)
-			throw new Error("The server did not return a playback source.");
-		return {
-			...parsed,
-			source: preserveTrickplay(parsed.source, previousSource ?? sourceRef.current),
-		};
-	}
-	async function seekPlayback(target: number, request: number) {
+	function seekPlayback(target: number) {
 		const video = videoRef.current;
 		const source = sourceRef.current;
 		if (!video || !source) return;
-		const origin = source.mode === "direct" ? 0 : transcodeOffsetRef.current;
-		const mediaTarget = Math.max(0, target - origin);
-		const seekableEnd =
-			video.seekable.length > 0
-				? video.seekable.end(video.seekable.length - 1)
-				: -1;
-		const canUseCurrentSession =
-			source.mode === "direct" ||
-			(mediaTarget <= seekableEnd + 0.5 &&
-				mediaTarget >=
-					(video.seekable.length > 0 ? video.seekable.start(0) - 0.5 : 0));
-		if (canUseCurrentSession) {
-			playerDebug("seek within current media session", {
-				target,
-				mediaTarget,
-				mode: source.mode,
-				seekableEnd,
-				sessionId: source.sessionId,
-			});
-			video.currentTime = mediaTarget;
-			setCurrentTime(target);
-			return;
-		}
-
-		const wasPlaying = !video.paused;
-		const previousSource = source;
-		resumeTimeRef.current = target;
-		resumePlayingRef.current = wasPlaying;
-		setBuffering(true);
-		setError("");
-		playerDebug("seek requires a new media session", {
-			target,
-			mediaTarget,
-			seekableEnd,
+		const mediaDuration = Number.isFinite(video.duration) && video.duration > 0
+			? video.duration
+			: duration || knownDuration;
+		const boundedTarget = Math.max(
+			0,
+			Math.min(mediaDuration || target, target),
+		);
+		playerDebug("native media seek", {
+			target: boundedTarget,
+			currentTime: video.currentTime,
+			readyState: video.readyState,
+			networkState: video.networkState,
+			buffered: video.buffered.length,
 			mode: source.mode,
 			sessionId: source.sessionId,
 		});
-		try {
-			const next = await fetchPlaybackAt(target, previousSource);
-			if (request !== seekRequestRef.current) return;
-			if (!next.source) throw new Error("Missing playback source after seek.");
-			sourceRef.current = next.source;
-			transcodeOffsetRef.current =
-				next.source.mode === "direct"
-					? 0
-					: next.source.startPositionSeconds ?? target;
-			setInfo((previous) => ({
-				...next,
-				qualities: previous?.qualities ?? next.qualities,
-			}));
-			setUrl(playbackUrl(next.source));
-			setCurrentTime(target);
-			playerDebug("seek media session attached", {
-				target,
-				mode: next.source.mode,
-				sessionId: next.source.sessionId,
-				startPositionSeconds: next.source.startPositionSeconds,
-				wasPlaying,
-			});
-		} catch (error) {
-			if (request !== seekRequestRef.current) return;
-			setBuffering(false);
-			setError("This position could not be loaded.");
-			playerDebug("seek failed", {
-				target,
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
-	}
-	function queueSeekPlayback(target: number) {
-		pendingSeekTargetRef.current = target;
-		seekRequestRef.current += 1;
-		if (seekInFlightRef.current) return;
-		seekInFlightRef.current = true;
-		void (async () => {
-			try {
-				while (pendingSeekTargetRef.current != null) {
-					const nextTarget = pendingSeekTargetRef.current;
-					pendingSeekTargetRef.current = null;
-					await seekPlayback(nextTarget, seekRequestRef.current);
-				}
-			} finally {
-				seekInFlightRef.current = false;
-				if (pendingSeekTargetRef.current != null)
-					queueSeekPlayback(pendingSeekTargetRef.current);
-			}
-		})();
+		video.currentTime = boundedTarget;
+		setError("");
 	}
 	async function requestTranscodedPlayback() {
 		if (transcodeAttemptRef.current) {
@@ -1317,7 +1210,6 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		if (video && Number.isFinite(video.currentTime))
 		resumeTimeRef.current =
-			(sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current) +
 			video.currentTime;
 		setError("");
 		setBuffering(true);
@@ -1325,10 +1217,6 @@ export function VideoPlayer({
 			const next = await fetchTranscodedPlayback();
 			if (!next.source) throw new Error("Missing transcoded source.");
 			sourceRef.current = next.source;
-			transcodeOffsetRef.current =
-				next.source.mode === "direct"
-					? 0
-					: next.source.startPositionSeconds ?? 0;
 			setInfo((previous) => ({
 				...next,
 				qualities: previous?.qualities ?? next.qualities,
@@ -1438,9 +1326,12 @@ export function VideoPlayer({
 	function seek(delta: number) {
 		const video = videoRef.current;
 		if (!video) return;
+		const previewTarget = seekPreviewRef.current?.itemId === item.Id
+			? seekPreviewRef.current.value
+			: video.currentTime;
 		const target = Math.max(
 			0,
-			Math.min(duration || Infinity, currentTime + delta),
+			Math.min(duration || video.duration || Infinity, previewTarget + delta),
 		);
 		stageSeek(target);
 		commitPendingSeek();
@@ -1456,13 +1347,10 @@ export function VideoPlayer({
 			}
 			return;
 		}
-		// Keep slider movement visual-only until release. A long progressive HLS
-		// session cannot seek to a future fragment that FFmpeg has not generated;
-		// commitPendingSeek decides whether native seeking is enough or a single
-		// new session must be negotiated from the requested source position.
+		// Keep slider movement visual-only until release. The backend owns the
+		// logical HLS timeline; native media seeking requests its segment.
 		seekPreviewRef.current = preview;
 		setSeekPreview(preview);
-		setCurrentTime(target);
 	}
 	function commitPendingSeek() {
 		const pending = seekPreviewRef.current;
@@ -1475,9 +1363,12 @@ export function VideoPlayer({
 			return;
 		const target = pending.value;
 		if (!syncplay.active) {
-			seekPreviewRef.current = null;
-			setSeekPreview(null);
-			queueSeekPlayback(target);
+			// Keep the selected value rendered until the media element confirms the
+			// native seek. Clearing it here makes a paused slider jump back to the
+			// old currentTime for one render, which is especially visible during
+			// repeated or reverse seeks.
+			setCurrentTime(target);
+			seekPlayback(target);
 			return;
 		}
 		if (!syncplay.canControl) return;
@@ -1502,10 +1393,7 @@ export function VideoPlayer({
 				applyingSyncRef.current = false;
 		}, 1600);
 		optimisticSeekRef.current = optimistic;
-		video.currentTime =
-			sourceRef.current?.mode !== "direct"
-				? Math.max(0, target - transcodeOffsetRef.current)
-				: target;
+		video.currentTime = target;
 		setCurrentTime(target);
 		void syncplay
 			.command({
@@ -1518,6 +1406,10 @@ export function VideoPlayer({
 				if (optimisticSeekRef.current === optimistic)
 					optimisticSeekRef.current = null;
 			});
+	}
+	function commitTimelineSeek(value: string) {
+		stageSeek(Number(value));
+		commitPendingSeek();
 	}
 	function chooseQuality(value: string) {
 		const video = videoRef.current;
@@ -1560,10 +1452,6 @@ export function VideoPlayer({
 					throw new Error("The server did not return a playback source.");
 				const source = preserveTrickplay(parsed.source, info?.source);
 				sourceRef.current = source;
-				transcodeOffsetRef.current =
-					source?.mode === "direct"
-						? 0
-						: source?.startPositionSeconds ?? 0;
 				transcodeAttemptRef.current = source?.mode === "video-transcode";
 				setInfo((previous) => ({
 					...parsed,
@@ -1591,10 +1479,7 @@ export function VideoPlayer({
 		}
 		const video = videoRef.current;
 		const position =
-			video && Number.isFinite(video.currentTime)
-				? (sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current) +
-					video.currentTime
-				: currentTime;
+			video && Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
 		const nextAudio = value;
 		setAudio(value);
 		if (!info?.source) return;
@@ -1622,8 +1507,6 @@ export function VideoPlayer({
 				const source = preserveTrickplay(parsed.source, info.source);
 				if (!source) throw new Error("The server did not return a media source.");
 				sourceRef.current = source;
-				transcodeOffsetRef.current =
-					source.mode === "direct" ? 0 : source.startPositionSeconds ?? 0;
 				transcodeAttemptRef.current = source.mode === "video-transcode";
 				setInfo((previous) => ({
 					...parsed,
@@ -1771,20 +1654,38 @@ export function VideoPlayer({
 					)
 						startSyncedPlayback(video);
 				}}
-				onDurationChange={() => {
+					onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
 					if (Number.isFinite(value) && value > 0)
 						setDuration(Math.max(knownDuration, value));
 				}}
-					onTimeUpdate={() => {
+					onSeeking={(event) => {
+						playerDebug("media seeking", {
+							currentTime: event.currentTarget.currentTime,
+							readyState: event.currentTarget.readyState,
+						});
+					}}
+					onSeeked={(event) => {
+						const value = event.currentTarget.currentTime;
+						setCurrentTime(Number.isFinite(value) ? value : 0);
+						const pending = seekPreviewRef.current;
+						if (
+							pending?.itemId === item.Id &&
+							Math.abs(pending.value - value) < 1.5
+						) {
+							seekPreviewRef.current = null;
+							setSeekPreview(null);
+						}
+						playerDebug("media seeked", {
+							currentTime: value,
+							readyState: event.currentTarget.readyState,
+						});
+					}}
+						 onTimeUpdate={() => {
 					const value = videoRef.current?.currentTime ?? 0;
-					const offset =
-						sourceRef.current?.mode === "direct"
-							? 0
-							: transcodeOffsetRef.current;
 					setCurrentTime(
 						Number.isFinite(value)
-							? Math.min(offset + value, duration || offset + value)
+							? Math.min(value, duration || value)
 							: 0,
 					);
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
@@ -1794,10 +1695,7 @@ export function VideoPlayer({
 					else onClose();
 				}}
 				 onPlay={(e) => {
-					const logicalTime =
-						(sourceRef.current?.mode === "direct"
-							? 0
-							: transcodeOffsetRef.current) + e.currentTarget.currentTime;
+					const logicalTime = e.currentTarget.currentTime;
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",
@@ -1838,10 +1736,7 @@ export function VideoPlayer({
 					reportBuffering(false);
 				}}
 					onPause={(e) => {
-					const logicalTime =
-						(sourceRef.current?.mode === "direct"
-							? 0
-							: transcodeOffsetRef.current) + e.currentTarget.currentTime;
+					const logicalTime = e.currentTarget.currentTime;
 						reportCurrentProgress(e.currentTarget);
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
@@ -2044,7 +1939,7 @@ export function VideoPlayer({
 						<span
 							className="absolute inset-y-0 left-0 bg-violet-400"
 							style={{
-								width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
+								width: `${duration > 0 ? (displayedCurrentTime / duration) * 100 : 0}%`,
 							}}
 						/>
 						{markers?.intro && duration > 0 && (
@@ -2073,8 +1968,8 @@ export function VideoPlayer({
 						max={duration}
 						step="0.1"
 						value={Math.min(
-							seekPreview?.itemId === item.Id ? seekPreview.value : currentTime,
-							duration || currentTime,
+							displayedCurrentTime,
+							duration || displayedCurrentTime,
 						)}
 						className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 						onPointerMove={previewTimeline}
@@ -2083,8 +1978,12 @@ export function VideoPlayer({
 							setPreviewUnavailable(false);
 						}}
 						onPointerDown={previewTimeline}
-						onPointerUp={() => commitPendingSeek()}
-						onBlur={() => commitPendingSeek()}
+						onPointerUp={(event) =>
+							commitTimelineSeek(event.currentTarget.value)
+						}
+						onBlur={(event) =>
+							commitTimelineSeek(event.currentTarget.value)
+						}
 						onKeyUp={(event) => {
 							if (
 								[
@@ -2096,8 +1995,9 @@ export function VideoPlayer({
 									"PageDown",
 								].includes(event.key)
 							)
-								commitPendingSeek();
+								commitTimelineSeek(event.currentTarget.value);
 						}}
+						onInput={(event) => stageSeek(Number(event.currentTarget.value))}
 						onChange={(event) => stageSeek(Number(event.target.value))}
 					/>
 					{timelinePreview && (
@@ -2138,7 +2038,7 @@ export function VideoPlayer({
 						<SkipForward />
 					</button>
 					<span className="min-w-10 shrink-0 text-xs tabular-nums text-white/80 sm:text-sm">
-						-{formatPlayerTime(Math.max(0, duration - currentTime))}
+						-{formatPlayerTime(Math.max(0, duration - displayedCurrentTime))}
 					</span>
 					<span className="min-w-2 flex-1" />
 					{(info?.audio.length ?? 0) > 1 && (

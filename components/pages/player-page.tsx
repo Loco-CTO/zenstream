@@ -25,6 +25,10 @@ export function PlayerPage({
 		audio?: number;
 		subtitle?: number;
 	}>({});
+	const playerItem =
+		item.Type === "Episode" && !item.SeriesName && initialData.backgroundItem?.Name
+			? { ...item, SeriesName: initialData.backgroundItem.Name }
+			: item;
 
 	useEffect(() => {
 		let active = true;
@@ -53,7 +57,7 @@ export function PlayerPage({
 
 	return (
 		<VideoPlayer
-			item={item}
+			item={playerItem}
 			session={session}
 			initialAudioStreamIndex={selected.audio}
 			initialSubtitleStreamIndex={selected.subtitle}

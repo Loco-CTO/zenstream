@@ -557,7 +557,7 @@ export async function cancelPlaybackSession(
 	await catalogRequest(
 		session,
 		`/api/playback/sessions/${encodeURIComponent(sessionId)}`,
-		{ method: "DELETE" },
+		{ method: "DELETE", keepalive: true },
 	);
 }
 

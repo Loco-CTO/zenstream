@@ -23,6 +23,8 @@ import {
 import {
 	getPlaybackInfo,
 	waitForPlaybackReady,
+	cancelPlaybackSession,
+	getPlaybackSessionStatus,
 	getPlaybackMarkers,
 	getEpisodes,
 	getSeasons,
@@ -449,6 +451,7 @@ export function VideoPlayer({
 	const displayedCurrentTime =
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
 	const debugSource = sourceRef.current ?? info?.source;
+	const playbackSessionId = info?.source?.sessionId;
 	const debugVideo = videoRef.current;
 	const debugVideoStream = debugSource?.MediaStreams?.find(
 		(stream) => stream.Type === "Video",
@@ -471,6 +474,42 @@ export function VideoPlayer({
 		const timer = window.setInterval(() => setDebugRefresh((value) => value + 1), 250);
 		return () => window.clearInterval(timer);
 	}, [debugOpen]);
+	useEffect(() => {
+		if (!playbackSessionId || info?.source?.mode === "direct") return;
+		let active = true;
+		const heartbeat = () => {
+			void getPlaybackSessionStatus(session, playbackSessionId)
+				.then((status) => {
+					if (!active) return;
+					playerDebug("HLS session heartbeat", {
+						sessionId: status.sessionId,
+						sessionState: status.sessionState,
+						processAlive: status.processAlive,
+						segmentCount: status.segmentCount,
+					});
+				})
+				.catch((error) => {
+					if (active)
+						playerDebug("HLS session heartbeat failed", {
+							sessionId: playbackSessionId,
+							error: error instanceof Error ? error.message : String(error),
+						});
+				});
+		};
+		const timer = window.setInterval(heartbeat, 15_000);
+		return () => {
+			active = false;
+			window.clearInterval(timer);
+			void cancelPlaybackSession(session, playbackSessionId).then(
+				() => playerDebug("HLS session cancelled", { sessionId: playbackSessionId }),
+				(error) =>
+					playerDebug("HLS session cancellation failed", {
+						sessionId: playbackSessionId,
+						error: error instanceof Error ? error.message : String(error),
+					}),
+			);
+		};
+	}, [info?.source?.mode, playbackSessionId, session]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
@@ -1213,32 +1252,47 @@ export function VideoPlayer({
 		audioStreamId?: number,
 		previousSource?: MediaSource,
 	) {
-		const playback = await getPlaybackInfo(session, item.Id, {
-			sourceId: previousSource?.Id ?? sourceRef.current?.Id,
-			audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
-			requestedMode: "video-transcode",
-		});
-		if (playback.sessionId && playback.source?.sessionState === "starting") {
-			const status = await waitForPlaybackReady(session, playback.sessionId);
-			playerDebug("fallback HLS session ready", {
-				sessionId: status.sessionId,
-				mode: playback.source.mode,
-				sessionState: status.sessionState,
-				playlistReady: status.playlistReady,
-				segmentCount: status.segmentCount,
+		let playback: Awaited<ReturnType<typeof getPlaybackInfo>> | undefined;
+		try {
+			playback = await getPlaybackInfo(session, item.Id, {
+				sourceId: previousSource?.Id ?? sourceRef.current?.Id,
+				audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
+				requestedMode: "video-transcode",
 			});
-			playback.source.sessionState = "ready";
+			if (playback.sessionId && playback.source?.sessionState === "starting") {
+				const status = await waitForPlaybackReady(session, playback.sessionId);
+				playerDebug("fallback HLS session ready", {
+					sessionId: status.sessionId,
+					mode: playback.source.mode,
+					sessionState: status.sessionState,
+					playlistReady: status.playlistReady,
+					segmentCount: status.segmentCount,
+				});
+				playback.source.sessionState = "ready";
+			}
+			const parsed = playbackStreams(playback);
+			if (!parsed.source || parsed.source.mode === "direct")
+				throw new Error("The server did not return a transcoded session.");
+			return {
+				...parsed,
+				source: preserveTrickplay(
+					parsed.source,
+					previousSource ?? sourceRef.current,
+				),
+			};
+		} catch (error) {
+			if (
+				playback?.sessionId &&
+				playback.sessionId !== sourceRef.current?.sessionId
+			) {
+				await cancelPlaybackSession(session, playback.sessionId).catch(() => undefined);
+				playerDebug("canceled uncommitted fallback session", {
+					sessionId: playback.sessionId,
+					reason: error instanceof Error ? error.message : String(error),
+				});
+			}
+			throw error;
 		}
-		const parsed = playbackStreams(playback);
-		if (!parsed.source || parsed.source.mode === "direct")
-			throw new Error("The server did not return a transcoded session.");
-		return {
-			...parsed,
-			source: preserveTrickplay(
-				parsed.source,
-				previousSource ?? sourceRef.current,
-			),
-		};
 	}
 	function seekPlayback(target: number) {
 		const video = videoRef.current;
@@ -1485,21 +1539,22 @@ export function VideoPlayer({
 		setDuration(knownDuration);
 		setQuality(value);
 		const bitrate = Number(value);
-		if (!bitrate) {
-			qualityRequestRef.current += 1;
-			setUrl(playbackUrl(info?.source));
-			return;
-		}
 		const request = ++qualityRequestRef.current;
+		let pendingSessionId: string | undefined;
 		void getPlaybackInfo(session, item.Id, {
-			maxStreamingBitrate: bitrate,
+			...(bitrate ? { maxStreamingBitrate: bitrate } : {}),
 			sourceId: info?.source?.Id,
 			audioStreamId: audio ? Number(audio) : undefined,
 			// Subtitles are rendered by the custom VTT overlay; never ask the server
 			// to encode them into the video stream.
 		})
 			.then(async (playback) => {
-				if (request !== qualityRequestRef.current) return;
+				pendingSessionId = playback.sessionId;
+				if (request !== qualityRequestRef.current) {
+					if (pendingSessionId && pendingSessionId !== info?.source?.sessionId)
+						await cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
+					return;
+				}
 				if (playback.sessionId && playback.source?.sessionState === "starting") {
 					const status = await waitForPlaybackReady(session, playback.sessionId);
 					playerDebug("quality HLS session ready", {
@@ -1524,6 +1579,8 @@ export function VideoPlayer({
 				setUrl(playbackUrl(source));
 			})
 			.catch((error) => {
+				if (pendingSessionId && pendingSessionId !== info?.source?.sessionId)
+					void cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
 				playerDebug("quality change failed", {
 					error: error instanceof Error ? error.message : String(error),
 				});
@@ -1547,6 +1604,7 @@ export function VideoPlayer({
 		setAudio(value);
 		if (!info?.source) return;
 		const request = ++qualityRequestRef.current;
+		let pendingSessionId: string | undefined;
 		resumeTimeRef.current = position;
 		setBuffering(true);
 		setError("");
@@ -1555,7 +1613,12 @@ export function VideoPlayer({
 			audioStreamId: nextAudio ? Number(nextAudio) : undefined,
 		})
 			.then(async (playback) => {
-				if (request !== qualityRequestRef.current) return;
+				pendingSessionId = playback.sessionId;
+				if (request !== qualityRequestRef.current) {
+					if (pendingSessionId && pendingSessionId !== info.source.sessionId)
+						await cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
+					return;
+				}
 				if (playback.sessionId && playback.source?.sessionState === "starting") {
 					const status = await waitForPlaybackReady(session, playback.sessionId);
 					playerDebug("audio HLS session ready", {
@@ -1580,6 +1643,8 @@ export function VideoPlayer({
 				setTrackMenu(null);
 			})
 			.catch(() => {
+				if (pendingSessionId && pendingSessionId !== info.source?.sessionId)
+					void cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
 				if (request === qualityRequestRef.current) {
 					setBuffering(false);
 					setError("This track could not be loaded.");

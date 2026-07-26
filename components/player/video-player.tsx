@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
 	getPlaybackInfo,
+	waitForPlaybackReady,
 	getPlaybackMarkers,
 	getEpisodes,
 	getSeasons,
@@ -55,7 +56,7 @@ import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 type Props = {
 	item: MediaItem;
 	session: AuthSession;
-	initialAudioStreamIndex?: number;
+	initialAudioStreamId?: number;
 	initialSubtitleStreamIndex?: number;
 	initialStreams?: ReturnType<typeof playbackStreams>;
 	onClose: () => void;
@@ -71,7 +72,10 @@ export const HLS_TEXT_TRACK_CONFIG = {
 };
 const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
-	console.debug(`[Player] ${event}`, details ?? "");
+	const rendered = typeof details === "string" ? details : JSON.stringify(details ?? "");
+	const safe = rendered.replace(/access=[^&\s"']+/gi, "access=<redacted>");
+	const method = /error|failed|fatal|timeout|fallback/i.test(event) ? "warn" : "info";
+	console[method](`[Player] ${event}`, safe);
 };
 
 export async function clearMediaSession(
@@ -313,7 +317,7 @@ export function SkipMarkerActions({
 export function VideoPlayer({
 	item,
 	session,
-	initialAudioStreamIndex,
+	initialAudioStreamId,
 	initialSubtitleStreamIndex,
 	initialStreams,
 	onClose,
@@ -339,8 +343,10 @@ export function VideoPlayer({
 		initialStreams?.source,
 	);
 	const transcodeAttemptRef = useRef(false);
-	const resumeTimeRef = useRef(0);
+	const resumeTimeRef = useRef<number | null>(null);
+	const resumePlayingRef = useRef<boolean | null>(null);
 	const transcodeOffsetRef = useRef(0);
+	const seekRequestRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
@@ -366,7 +372,7 @@ export function VideoPlayer({
 	const seekSettlingUntilRef = useRef(0);
 	const [url, setUrl] = useState<string | undefined>(() =>
 		initialStreams?.source
-			? playbackUrl(session, item.Id, initialStreams.source, 0)
+			? playbackUrl(initialStreams.source)
 			: undefined,
 	);
 	const [info, setInfo] = useState<
@@ -387,7 +393,7 @@ export function VideoPlayer({
 	const [speed, setSpeed] = useState("1");
 	const [quality, setQuality] = useState("0");
 	const [audio, setAudio] = useState(
-		initialAudioStreamIndex == null ? "" : String(initialAudioStreamIndex),
+		initialAudioStreamId == null ? "" : String(initialAudioStreamId),
 	);
 	const [subtitle, setSubtitle] = useState(
 		initialSubtitleStreamIndex == null
@@ -432,11 +438,15 @@ export function VideoPlayer({
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
 				return;
 			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
-			const durationSeconds = mediaDuration > 0 ? mediaDuration : duration || knownDuration;
+			const offset =
+				sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current;
+			const durationSeconds =
+				mediaDuration > 0 ? mediaDuration + offset : duration || knownDuration;
+			const position = offset + video.currentTime;
 			void reportPlayback(
 				session,
 				item.Id,
-				video.currentTime,
+				position,
 				video.paused,
 				durationSeconds,
 			).catch(() => undefined);
@@ -482,6 +492,10 @@ export function VideoPlayer({
 		cancelPendingBufferingReport("item changed");
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
+		transcodeOffsetRef.current = 0;
+		resumeTimeRef.current = null;
+		resumePlayingRef.current = null;
+		seekRequestRef.current += 1;
 		advancingToNextRef.current = false;
 		readyItemIdRef.current = null;
 		bufferedRef.current = true;
@@ -597,11 +611,43 @@ export function VideoPlayer({
 		const streams = initialStreams
 			? Promise.resolve(initialStreams)
 			: getPlaybackInfo(session, item.Id, {
-					audioStreamIndex: initialAudioStreamIndex,
+					audioStreamId: initialAudioStreamId,
 					// Keep subtitles out of the media pipeline; the selected track is
 					// fetched as VTT and rendered by CustomSubtitleCue below.
-					subtitleStreamIndex: -1,
-				}).then(playbackStreams);
+				})
+					.then(async (playback) => {
+						playerDebug("negotiation complete", {
+							mode: playback.source?.mode,
+							sessionId: playback.sessionId,
+							sessionState: playback.source?.sessionState,
+							url: playback.source?.url,
+						});
+						if (
+							playback.sessionId &&
+							playback.source?.sessionState === "starting"
+						) {
+							playerDebug("waiting for HLS session readiness", {
+								sessionId: playback.sessionId,
+								mode: playback.source.mode,
+							});
+							const status = await waitForPlaybackReady(
+								session,
+								playback.sessionId,
+							);
+							playerDebug("HLS session ready", {
+								sessionId: status.sessionId,
+								sessionState: status.sessionState,
+								playlistReady: status.playlistReady,
+								segmentCount: status.segmentCount,
+							});
+							return {
+								...playback,
+								source: { ...playback.source, sessionState: "ready" },
+								};
+						}
+							return playback;
+					})
+					.then(playbackStreams);
 		Promise.all([
 			streams,
 			getPlaybackMarkers(session, item.Id),
@@ -617,27 +663,48 @@ export function VideoPlayer({
 							}
 						: parsed.source;
 				const next = { ...parsed, source };
+				playerDebug("playback source selected", {
+					mode: next.source?.mode,
+					sessionId: next.source?.sessionId,
+					sessionState: next.source?.sessionState,
+					url: next.source?.url,
+					fallbackCount: transcodeAttemptRef.current ? 1 : 0,
+				});
 				sourceRef.current = next.source;
-				transcodeAttemptRef.current = Boolean(next.source?.TranscodingUrl);
+				transcodeOffsetRef.current =
+					next.source?.mode === "direct"
+						? 0
+						: next.source?.startPositionSeconds ?? 0;
+				// The first negotiation is automatic. A fallback is allowed exactly
+				// once, and only when the initial direct source genuinely fails.
+				transcodeAttemptRef.current = next.source?.mode === "video-transcode";
 				setInfo(next);
-				setUrl(playbackUrl(session, item.Id, next.source, 0));
+				setUrl(playbackUrl(next.source));
 				setMarkers(markerData);
 				const initialAudio =
-					initialAudioStreamIndex == null
+					initialAudioStreamId == null
 						? (next.audio.find((track) => track.IsDefault) ?? next.audio[0])
 						: next.audio.find(
-								(track) => track.Index === initialAudioStreamIndex,
+							(track) => track.Index === initialAudioStreamId,
 							);
 				if (initialAudio?.Index != null) setAudio(String(initialAudio.Index));
 			})
-			.catch(() => active && setError("Playback could not be loaded."));
+			.catch((error) => {
+				if (!active) return;
+				playerDebug("playback negotiation or readiness failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				setBuffering(false);
+				setQualityLoading(false);
+				setError("Playback could not be loaded.");
+			});
 		return () => {
 			active = false;
 		};
 	}, [
 		item.Id,
 		session,
-		initialAudioStreamIndex,
+		initialAudioStreamId,
 		initialSubtitleStreamIndex,
 		initialStreams,
 	]);
@@ -795,16 +862,22 @@ export function VideoPlayer({
 					return;
 				}
 				if (groupState) return;
-				const resumeTime = resumeTimeRef.current || position;
-				const relativeResume = resumeTime - transcodeOffsetRef.current;
+				const resumeTime = resumeTimeRef.current ?? position;
+				const relativeResume =
+					resumeTime -
+					(sourceRef.current?.mode === "direct"
+						? 0
+						: transcodeOffsetRef.current);
 				if (relativeResume > 0 && relativeResume < video.duration - 5)
 					video.currentTime = relativeResume;
-				resumeTimeRef.current = 0;
+				resumeTimeRef.current = null;
 				const mediaDuration = Number.isFinite(video.duration)
 					? video.duration
 					: 0;
 				setDuration(Math.max(knownDuration, mediaDuration));
-				void video.play().catch(() => undefined);
+				const shouldPlay = resumePlayingRef.current ?? true;
+				resumePlayingRef.current = null;
+				if (shouldPlay) void video.play().catch(() => undefined);
 			})();
 		};
 		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
@@ -817,7 +890,32 @@ export function VideoPlayer({
 			disableNativeSubtitleTracks(video);
 		};
 		const textTracks = video.textTracks;
+		const onCanPlay = () => {
+			playerDebug("media canplay", {
+				readyState: video.readyState,
+				networkState: video.networkState,
+				buffered: video.buffered.length,
+			});
+		};
+		const onPlaying = () => {
+			playerDebug("media first playable signal", {
+				readyState: video.readyState,
+				networkState: video.networkState,
+				currentTime: video.currentTime,
+			});
+		};
+		const onMediaError = () => {
+			playerDebug("media error", {
+				readyState: video.readyState,
+				networkState: video.networkState,
+				code: video.error?.code,
+				message: video.error?.message,
+			},);
+		};
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
+		video.addEventListener("canplay", onCanPlay);
+		video.addEventListener("playing", onPlaying);
+		video.addEventListener("error", onMediaError);
 		video.addEventListener("canplay", onTextTrackAdded);
 		video.addEventListener("playing", onTextTrackAdded);
 		video.addEventListener("progress", onTextTrackAdded);
@@ -831,8 +929,32 @@ export function VideoPlayer({
 			hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, suppressHlsSubtitles);
 			hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, suppressHlsSubtitles);
 			hls.on(Hls.Events.SUBTITLE_TRACK_LOADED, suppressHlsSubtitles);
+			hls.on(Hls.Events.MANIFEST_PARSED, () => {
+				if (!active) return;
+				playerDebug("HLS manifest parsed", { url, mode: sourceRef.current?.mode });
+				setError("");
+			});
+				hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
+				if (!active) return;
+				playerDebug("HLS fragment buffered", {
+					url: data.frag?.url,
+					currentTime: video.currentTime,
+				});
+				setError("");
+				setBuffering(false);
+				setQualityLoading(false);
+			});
 			hls.on(Hls.Events.ERROR, (_event, data) => {
-				if (active && data.fatal) void requestCompatibilityPlayback();
+				playerDebug(data.fatal ? "HLS fatal error" : "HLS error", {
+					type: data.type,
+					details: data.details,
+					fatal: data.fatal,
+					responseCode: data.response?.code,
+					url: data.url,
+				});
+				if (!active || !data.fatal) return;
+				setBuffering(false);
+				void requestTranscodedPlayback();
 			});
 			hls.loadSource(url);
 			hls.attachMedia(video);
@@ -843,6 +965,9 @@ export function VideoPlayer({
 		return () => {
 			active = false;
 			video.removeEventListener("loadedmetadata", onMetadata);
+			video.removeEventListener("canplay", onCanPlay);
+			video.removeEventListener("playing", onPlaying);
+			video.removeEventListener("error", onMediaError);
 			video.removeEventListener("canplay", onTextTrackAdded);
 			video.removeEventListener("playing", onTextTrackAdded);
 			video.removeEventListener("progress", onTextTrackAdded);
@@ -1021,19 +1146,29 @@ export function VideoPlayer({
 			loading ? 750 : 300,
 		);
 	}
-	async function fetchCompatibilityTranscode(
-		audioStreamIndex?: number,
+	async function fetchTranscodedPlayback(
+		audioStreamId?: number,
 		previousSource?: MediaSource,
 	) {
 		const playback = await getPlaybackInfo(session, item.Id, {
-			mediaSourceId: previousSource?.Id ?? sourceRef.current?.Id,
-			audioStreamIndex: audioStreamIndex ?? (audio ? Number(audio) : undefined),
-			subtitleStreamIndex: -1,
-			forceTranscoding: true,
+			sourceId: previousSource?.Id ?? sourceRef.current?.Id,
+			audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
+			requestedMode: "video-transcode",
 		});
+		if (playback.sessionId && playback.source?.sessionState === "starting") {
+			const status = await waitForPlaybackReady(session, playback.sessionId);
+			playerDebug("fallback HLS session ready", {
+				sessionId: status.sessionId,
+				mode: playback.source.mode,
+				sessionState: status.sessionState,
+				playlistReady: status.playlistReady,
+				segmentCount: status.segmentCount,
+			});
+			playback.source.sessionState = "ready";
+		}
 		const parsed = playbackStreams(playback);
-		if (!parsed.source?.TranscodingUrl)
-			throw new Error("The server did not return a transcoding URL.");
+		if (!parsed.source || parsed.source.mode === "direct")
+			throw new Error("The server did not return a transcoded session.");
 		return {
 			...parsed,
 			source: preserveTrickplay(
@@ -1042,7 +1177,120 @@ export function VideoPlayer({
 			),
 		};
 	}
-	async function requestCompatibilityPlayback() {
+	async function fetchPlaybackAt(
+		startPositionSeconds: number,
+		previousSource?: MediaSource,
+	) {
+		const playback = await getPlaybackInfo(session, item.Id, {
+			sourceId: previousSource?.Id ?? sourceRef.current?.Id,
+			audioStreamId: audio ? Number(audio) : undefined,
+			startPositionSeconds,
+		});
+		playerDebug("seek negotiation complete", {
+			target: startPositionSeconds,
+			mode: playback.source?.mode,
+			sessionId: playback.sessionId,
+			sessionState: playback.source?.sessionState,
+		});
+		if (playback.sessionId && playback.source?.sessionState === "starting") {
+			const status = await waitForPlaybackReady(session, playback.sessionId);
+			playerDebug("seek HLS session ready", {
+				target: startPositionSeconds,
+				sessionId: status.sessionId,
+				sessionState: status.sessionState,
+				playlistReady: status.playlistReady,
+				segmentCount: status.segmentCount,
+			});
+			playback.source.sessionState = "ready";
+		}
+		const parsed = playbackStreams(playback);
+		if (!parsed.source)
+			throw new Error("The server did not return a playback source.");
+		return {
+			...parsed,
+			source: preserveTrickplay(parsed.source, previousSource ?? sourceRef.current),
+		};
+	}
+	async function seekPlayback(target: number) {
+		const video = videoRef.current;
+		const source = sourceRef.current;
+		if (!video || !source) return;
+		const origin = source.mode === "direct" ? 0 : transcodeOffsetRef.current;
+		const mediaTarget = Math.max(0, target - origin);
+		const seekableEnd =
+			video.seekable.length > 0
+				? video.seekable.end(video.seekable.length - 1)
+				: -1;
+		const canUseCurrentSession =
+			source.mode === "direct" ||
+			(mediaTarget <= seekableEnd + 0.5 &&
+				mediaTarget >=
+					(video.seekable.length > 0 ? video.seekable.start(0) - 0.5 : 0));
+		if (canUseCurrentSession) {
+			playerDebug("seek within current media session", {
+				target,
+				mediaTarget,
+				mode: source.mode,
+				seekableEnd,
+				sessionId: source.sessionId,
+			});
+			video.currentTime = mediaTarget;
+			setCurrentTime(target);
+			return;
+		}
+
+		const request = ++seekRequestRef.current;
+		const wasPlaying = !video.paused;
+		const previousSource = source;
+		resumeTimeRef.current = target;
+		resumePlayingRef.current = wasPlaying;
+		setBuffering(true);
+		setQualityLoading(true);
+		setError("");
+		playerDebug("seek requires a new media session", {
+			target,
+			mediaTarget,
+			seekableEnd,
+			mode: source.mode,
+			sessionId: source.sessionId,
+		});
+		await clearMediaSession(video, hlsRef.current);
+		hlsRef.current = null;
+		setUrl(undefined);
+		try {
+			const next = await fetchPlaybackAt(target, previousSource);
+			if (request !== seekRequestRef.current) return;
+			if (!next.source) throw new Error("Missing playback source after seek.");
+			sourceRef.current = next.source;
+			transcodeOffsetRef.current =
+				next.source.mode === "direct"
+					? 0
+					: next.source.startPositionSeconds ?? target;
+			setInfo((previous) => ({
+				...next,
+				qualities: previous?.qualities ?? next.qualities,
+			}));
+			setUrl(playbackUrl(next.source));
+			setCurrentTime(target);
+			playerDebug("seek media session attached", {
+				target,
+				mode: next.source.mode,
+				sessionId: next.source.sessionId,
+				startPositionSeconds: next.source.startPositionSeconds,
+				wasPlaying,
+			});
+		} catch (error) {
+			if (request !== seekRequestRef.current) return;
+			setQualityLoading(false);
+			setBuffering(false);
+			setError("This position could not be loaded.");
+			playerDebug("seek failed", {
+				target,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+	async function requestTranscodedPlayback() {
 		if (transcodeAttemptRef.current) {
 			setQualityLoading(false);
 			setError(t("mediaPlaybackFailed"));
@@ -1051,24 +1299,34 @@ export function VideoPlayer({
 		transcodeAttemptRef.current = true;
 		const video = videoRef.current;
 		if (video && Number.isFinite(video.currentTime))
-			resumeTimeRef.current = video.currentTime;
+		resumeTimeRef.current =
+			(sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current) +
+			video.currentTime;
 		if (video) await clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
 		setUrl(undefined);
 		setError("");
 		setQualityLoading(true);
 		try {
-			const next = await fetchCompatibilityTranscode();
+			const next = await fetchTranscodedPlayback();
 			if (!next.source) throw new Error("Missing transcoded source.");
 			sourceRef.current = next.source;
+			transcodeOffsetRef.current =
+				next.source.mode === "direct"
+					? 0
+					: next.source.startPositionSeconds ?? 0;
 			setInfo((previous) => ({
 				...next,
 				qualities: previous?.qualities ?? next.qualities,
 			}));
 			setQuality("1");
-			setUrl(playbackUrl(session, item.Id, next.source, 1_000_000));
+			setUrl(playbackUrl(next.source));
 			return true;
-		} catch {
+		} catch (error) {
+			playerDebug("video fallback failed", {
+				error: error instanceof Error ? error.message : String(error),
+				fallbackCount: 1,
+			});
 			setQualityLoading(false);
 			setError(t("mediaPlaybackFailed"));
 			return false;
@@ -1173,60 +1431,23 @@ export function VideoPlayer({
 		stageSeek(target);
 		commitPendingSeek();
 	}
-	async function seekTranscoded(target: number) {
-		const video = videoRef.current;
-		const currentSource = sourceRef.current;
-		if (!video || !currentSource?.TranscodingUrl) return false;
-		const request = ++qualityRequestRef.current;
-		const wasPlaying = !video.paused;
-		setQualityLoading(true);
-		setUrl(undefined);
-		try {
-			const playback = await getPlaybackInfo(session, item.Id, {
-				mediaSourceId: currentSource.Id,
-				audioStreamIndex: audio ? Number(audio) : undefined,
-				subtitleStreamIndex: -1,
-				forceTranscoding: true,
-				startTimeSeconds: target,
-			});
-			if (request !== qualityRequestRef.current) return false;
-			const parsed = playbackStreams(playback);
-			if (!parsed.source?.TranscodingUrl) throw new Error("Missing transcoded source.");
-			transcodeOffsetRef.current = playback.StartTimeSeconds ?? target;
-			sourceRef.current = parsed.source;
-			setInfo((previous) => ({ ...parsed, qualities: previous?.qualities ?? parsed.qualities }));
-			setCurrentTime(transcodeOffsetRef.current);
-			setUrl(playbackUrl(session, item.Id, parsed.source, 1_000_000));
-			resumeTimeRef.current = transcodeOffsetRef.current;
-			if (!wasPlaying) video.pause();
-			return true;
-		} catch {
-			if (request === qualityRequestRef.current) {
-				setQualityLoading(false);
-				setError(t("mediaPlaybackFailed"));
-			}
-			return false;
-		}
-	}
 	function stageSeek(target: number) {
 		const video = videoRef.current;
 		if (!video) return;
+		const preview = { itemId: item.Id, value: target };
 		if (syncplay.active) {
 			if (syncplay.canControl) {
-				const preview = { itemId: item.Id, value: target };
 				seekPreviewRef.current = preview;
 				setSeekPreview(preview);
 			}
 			return;
 		}
-		// HLS is already a seekable media timeline. Re-negotiating here starts a
-		// second FFmpeg session for every slider move; while the old process is
-		// shutting down that can hit the transcode cap and leave the player black.
-		// Keep the existing session and seek within its (possibly offset) timeline.
-		const mediaTarget = sourceRef.current?.TranscodingUrl
-			? Math.max(0, target - transcodeOffsetRef.current)
-			: target;
-		video.currentTime = mediaTarget;
+		// Keep slider movement visual-only until release. A long progressive HLS
+		// session cannot seek to a future fragment that FFmpeg has not generated;
+		// commitPendingSeek decides whether native seeking is enough or a single
+		// new session must be negotiated from the requested source position.
+		seekPreviewRef.current = preview;
+		setSeekPreview(preview);
 		setCurrentTime(target);
 	}
 	function commitPendingSeek() {
@@ -1235,12 +1456,17 @@ export function VideoPlayer({
 		if (
 			!pending ||
 			pending.itemId !== item.Id ||
-			!video ||
-			!syncplay.active ||
-			!syncplay.canControl
+			!video
 		)
 			return;
 		const target = pending.value;
+		if (!syncplay.active) {
+			seekPreviewRef.current = null;
+			setSeekPreview(null);
+			void seekPlayback(target);
+			return;
+		}
+		if (!syncplay.canControl) return;
 		cancelPendingBufferingReport("local seek committed");
 		seekPreviewRef.current = null;
 		setSeekPreview(null);
@@ -1262,9 +1488,10 @@ export function VideoPlayer({
 				applyingSyncRef.current = false;
 		}, 1600);
 		optimisticSeekRef.current = optimistic;
-		video.currentTime = sourceRef.current?.TranscodingUrl
-			? Math.max(0, target - transcodeOffsetRef.current)
-			: target;
+		video.currentTime =
+			sourceRef.current?.mode !== "direct"
+				? Math.max(0, target - transcodeOffsetRef.current)
+				: target;
 		setCurrentTime(target);
 		void syncplay
 			.command({
@@ -1291,34 +1518,50 @@ export function VideoPlayer({
 		const bitrate = Number(value);
 		if (!bitrate) {
 			qualityRequestRef.current += 1;
-			setUrl(playbackUrl(session, item.Id, info?.source, 0));
+			setUrl(playbackUrl(info?.source));
 			return;
 		}
 		const request = ++qualityRequestRef.current;
 		void getPlaybackInfo(session, item.Id, {
 			maxStreamingBitrate: bitrate,
-			mediaSourceId: info?.source?.Id,
-			audioStreamIndex: audio ? Number(audio) : undefined,
+			sourceId: info?.source?.Id,
+			audioStreamId: audio ? Number(audio) : undefined,
 			// Subtitles are rendered by the custom VTT overlay; never ask the server
 			// to encode them into the video stream.
-			subtitleStreamIndex: -1,
 		})
-			.then((playback) => {
+			.then(async (playback) => {
 				if (request !== qualityRequestRef.current) return;
+				if (playback.sessionId && playback.source?.sessionState === "starting") {
+					const status = await waitForPlaybackReady(session, playback.sessionId);
+					playerDebug("quality HLS session ready", {
+						sessionId: status.sessionId,
+						mode: playback.source.mode,
+						playlistReady: status.playlistReady,
+						segmentCount: status.segmentCount,
+					});
+					playback.source.sessionState = "ready";
+				}
 				const parsed = playbackStreams(playback);
-				if (!parsed.source?.TranscodingUrl)
-					throw new Error("The server did not return a transcoding URL.");
+				if (!parsed.source)
+					throw new Error("The server did not return a playback source.");
 				const source = preserveTrickplay(parsed.source, info?.source);
 				sourceRef.current = source;
-				transcodeAttemptRef.current = Boolean(source?.TranscodingUrl);
+				transcodeOffsetRef.current =
+					source?.mode === "direct"
+						? 0
+						: source?.startPositionSeconds ?? 0;
+				transcodeAttemptRef.current = source?.mode === "video-transcode";
 				setInfo((previous) => ({
 					...parsed,
 					source,
 					qualities: previous?.qualities ?? parsed.qualities,
 				}));
-				setUrl(playbackUrl(session, item.Id, source, bitrate));
+				setUrl(playbackUrl(source));
 			})
-			.catch(() => {
+			.catch((error) => {
+				playerDebug("quality change failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
 				if (request === qualityRequestRef.current) {
 					setQualityLoading(false);
 					setError("This quality could not be loaded.");
@@ -1335,7 +1578,8 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		const position =
 			video && Number.isFinite(video.currentTime)
-				? video.currentTime
+				? (sourceRef.current?.mode === "direct" ? 0 : transcodeOffsetRef.current) +
+					video.currentTime
 				: currentTime;
 		const nextAudio = value;
 		setAudio(value);
@@ -1345,30 +1589,34 @@ export function VideoPlayer({
 		setQualityLoading(true);
 		setError("");
 		void getPlaybackInfo(session, item.Id, {
-			mediaSourceId: info.source.Id,
-			audioStreamIndex: nextAudio ? Number(nextAudio) : undefined,
-			subtitleStreamIndex: -1,
+			sourceId: info.source.Id,
+			audioStreamId: nextAudio ? Number(nextAudio) : undefined,
 		})
-			.then((playback) => {
+			.then(async (playback) => {
 				if (request !== qualityRequestRef.current) return;
+				if (playback.sessionId && playback.source?.sessionState === "starting") {
+					const status = await waitForPlaybackReady(session, playback.sessionId);
+					playerDebug("audio HLS session ready", {
+						sessionId: status.sessionId,
+						mode: playback.source.mode,
+						playlistReady: status.playlistReady,
+						segmentCount: status.segmentCount,
+					});
+					playback.source.sessionState = "ready";
+				}
 				const parsed = playbackStreams(playback);
 				const source = preserveTrickplay(parsed.source, info.source);
 				if (!source) throw new Error("The server did not return a media source.");
 				sourceRef.current = source;
-				transcodeAttemptRef.current = Boolean(source.TranscodingUrl);
+				transcodeOffsetRef.current =
+					source.mode === "direct" ? 0 : source.startPositionSeconds ?? 0;
+				transcodeAttemptRef.current = source.mode === "video-transcode";
 				setInfo((previous) => ({
 					...parsed,
 					source,
 					qualities: previous?.qualities ?? parsed.qualities,
 				}));
-				setUrl(
-					playbackUrl(
-						session,
-						item.Id,
-						source,
-						source.TranscodingUrl ? 1_000_000 : 0,
-					),
-				);
+				setUrl(playbackUrl(source));
 				setTrackMenu(null);
 			})
 			.catch(() => {
@@ -1516,9 +1764,13 @@ export function VideoPlayer({
 				}}
 					onTimeUpdate={() => {
 					const value = videoRef.current?.currentTime ?? 0;
+					const offset =
+						sourceRef.current?.mode === "direct"
+							? 0
+							: transcodeOffsetRef.current;
 					setCurrentTime(
 						Number.isFinite(value)
-							? Math.min(transcodeOffsetRef.current + value, duration || transcodeOffsetRef.current + value)
+							? Math.min(offset + value, duration || offset + value)
 							: 0,
 					);
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
@@ -1527,13 +1779,17 @@ export function VideoPlayer({
 					if (nextChecked && nextItem) void playNext();
 					else onClose();
 				}}
-				onPlay={(e) => {
+				 onPlay={(e) => {
+					const logicalTime =
+						(sourceRef.current?.mode === "direct"
+							? 0
+							: transcodeOffsetRef.current) + e.currentTarget.currentTime;
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",
 					);
 					playerDebug("video play event", {
-						currentTime: e.currentTarget.currentTime,
+						currentTime: logicalTime,
 						suppressed: suppressSyncPlayRef.current,
 						applying: applyingSyncRef.current,
 						authoritativePlaying: syncWantsPlaying,
@@ -1554,7 +1810,7 @@ export function VideoPlayer({
 							.command({
 								action: "play",
 								itemId: item.Id,
-								position: e.currentTarget.currentTime,
+								position: logicalTime,
 								playing: true,
 							})
 							.catch(() => undefined);
@@ -1569,13 +1825,17 @@ export function VideoPlayer({
 					reportBuffering(false);
 				}}
 					onPause={(e) => {
-					reportCurrentProgress(e.currentTarget);
+					const logicalTime =
+						(sourceRef.current?.mode === "direct"
+							? 0
+							: transcodeOffsetRef.current) + e.currentTarget.currentTime;
+						reportCurrentProgress(e.currentTarget);
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",
 					);
 					playerDebug("video pause event", {
-						currentTime: e.currentTarget.currentTime,
+						currentTime: logicalTime,
 						suppressed: suppressSyncPauseRef.current,
 						applying: applyingSyncRef.current,
 						authoritativePlaying: syncWantsPlaying,
@@ -1605,7 +1865,7 @@ export function VideoPlayer({
 							.command({
 								action: "pause",
 								itemId: item.Id,
-								position: e.currentTarget.currentTime,
+								position: logicalTime,
 								playing: false,
 							})
 							.catch(() => undefined);
@@ -1614,9 +1874,9 @@ export function VideoPlayer({
 					const video = videoRef.current;
 					if (
 						!transcodeAttemptRef.current &&
-						!sourceRef.current?.TranscodingUrl
+							sourceRef.current?.mode === "direct"
 					) {
-						void requestCompatibilityPlayback();
+						void requestTranscodedPlayback();
 						return;
 					}
 					// Do not replace an already playable source with an error overlay

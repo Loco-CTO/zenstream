@@ -93,8 +93,11 @@ export interface MediaSource {
 	SupportsDirectPlay?: boolean;
 	SupportsDirectStream?: boolean;
 	SupportsTranscoding?: boolean;
-	DirectStreamUrl?: string;
-	TranscodingUrl?: string;
+	url?: string;
+	mode?: "direct" | "remux" | "audio-transcode" | "video-transcode";
+	sessionState?: string;
+	sessionId?: string;
+	startPositionSeconds?: number;
 	MediaStreams?: MediaStream[];
 	Trickplay?: Record<string, TrickplayInfo>;
 }
@@ -110,8 +113,21 @@ export interface TrickplayInfo {
 }
 
 export interface PlaybackInfo {
-	MediaSources?: MediaSource[];
-	PlaySessionId?: string;
+	source?: MediaSource;
+	sessionId?: string;
+	startPositionSeconds?: number;
+}
+
+export interface PlaybackSessionStatus {
+	sessionId: string;
+	sessionState: string;
+	sourceId?: string;
+	playlistReady?: boolean;
+	segmentCount?: number;
+	processAlive?: boolean;
+	errorCode?: string;
+	errorDetail?: string;
+	lastAccessedAt?: string;
 }
 
 export interface PlaybackMarker {
@@ -453,21 +469,21 @@ export async function getPlaybackInfo(
 	itemId: string,
 	options: {
 		maxStreamingBitrate?: number;
-		startTimeTicks?: number;
-		startTimeSeconds?: number;
-		mediaSourceId?: string;
-		audioStreamIndex?: number;
-		subtitleStreamIndex?: number;
+		startPositionSeconds?: number;
+		sourceId?: string;
+		audioStreamId?: number;
 		forceTranscoding?: boolean;
 		directPlayOnly?: boolean;
+		requestedMode?: "video-transcode";
 	} = {},
 ) {
 	const profile = browserDeviceProfile();
 	const response = await catalogRequest<{
-		mode: "direct" | "hls";
+		mode: "direct" | "remux" | "audio-transcode" | "video-transcode";
+		sessionState?: string;
 		source: Record<string, unknown> & { streams?: Array<Record<string, unknown>> };
 		sessionId?: string;
-		startTimeSeconds?: number;
+		startPositionSeconds?: number;
 		url: string;
 	}>(
 		session,
@@ -476,28 +492,23 @@ export async function getPlaybackInfo(
 			method: "POST",
 			body: JSON.stringify({
 				engine: "web",
-				mediaSourceId: options.mediaSourceId,
+				sourceId: options.sourceId,
 				forceTranscoding: options.forceTranscoding === true,
+				requestedMode: options.requestedMode,
 				directPlayOnly: options.directPlayOnly === true,
-				containers: options.forceTranscoding
-					? []
-					: profile.directPlayProfiles.flatMap((entry) =>
-						String(entry.Container ?? "").split(","),
-					),
-				videoCodecs: options.forceTranscoding
-					? []
-					: profile.directPlayProfiles.flatMap((entry) =>
-						String(entry.VideoCodec ?? "").split(","),
-					),
-				audioCodecs: options.forceTranscoding
-					? []
-					: profile.directPlayProfiles.flatMap((entry) =>
-						String(entry.AudioCodec ?? "").split(","),
-					),
+				containers: profile.directPlayProfiles.flatMap((entry) =>
+					String(entry.Container ?? "").split(","),
+				),
+				videoCodecs: profile.directPlayProfiles.flatMap((entry) =>
+					String(entry.VideoCodec ?? "").split(","),
+				),
+				audioCodecs: profile.directPlayProfiles.flatMap((entry) =>
+					String(entry.AudioCodec ?? "").split(","),
+				),
+				maxAudioChannels: 2,
 				maxStreamingBitrate: options.maxStreamingBitrate,
-				startTimeSeconds: options.startTimeSeconds,
-				audioStreamIndex: options.audioStreamIndex,
-				subtitleStreamIndex: options.subtitleStreamIndex,
+				startPositionSeconds: options.startPositionSeconds,
+				audioStreamId: options.audioStreamId,
 			}),
 		},
 	);
@@ -512,17 +523,52 @@ export async function getPlaybackInfo(
 				? response.source.bitrate
 				: undefined,
 		SupportsDirectPlay: response.mode === "direct",
-		SupportsDirectStream: response.mode === "direct",
+		SupportsDirectStream: response.mode === "remux" || response.mode === "audio-transcode",
 		SupportsTranscoding: true,
-		DirectStreamUrl: response.mode === "direct" ? response.url : undefined,
-		TranscodingUrl: response.mode === "hls" ? response.url : undefined,
+		url: response.url,
+		mode: response.mode,
+		sessionState: response.sessionState,
+		sessionId: response.sessionId,
+		startPositionSeconds: response.startPositionSeconds ?? 0,
 		MediaStreams: toMediaStreams(response.source.streams ?? []),
 	};
-	return {
-		MediaSources: [source],
-		PlaySessionId: response.sessionId,
-		StartTimeSeconds: response.startTimeSeconds ?? 0,
-	};
+	return { source, sessionId: response.sessionId, startPositionSeconds: response.startPositionSeconds ?? 0 };
+}
+
+export async function getPlaybackSessionStatus(
+	session: AuthSession,
+	sessionId: string,
+): Promise<PlaybackSessionStatus> {
+	return catalogRequest<PlaybackSessionStatus>(
+		session,
+		`/api/playback/sessions/${encodeURIComponent(sessionId)}`,
+	);
+}
+
+export async function waitForPlaybackReady(
+	session: AuthSession,
+	sessionId: string,
+	options: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<PlaybackSessionStatus> {
+	const deadline = Date.now() + (options.timeoutMs ?? 15_000);
+	const intervalMs = options.intervalMs ?? 350;
+	let latest: PlaybackSessionStatus | undefined;
+	while (Date.now() <= deadline) {
+		latest = await getPlaybackSessionStatus(session, sessionId);
+		if (latest.sessionState === "ready" && latest.playlistReady !== false)
+			return latest;
+		if (["failed", "stopping", "expired"].includes(latest.sessionState)) {
+			throw new Error(
+				latest.errorCode
+					? `${latest.errorCode}: ${latest.errorDetail ?? "Playback session failed."}`
+					: "Playback session failed before becoming ready.",
+			);
+		}
+		await new Promise((resolve) => setTimeout(resolve, intervalMs));
+	}
+	throw new Error(
+		latest?.errorCode ?? "Playback session did not become ready before the deadline.",
+	);
 }
 
 export async function getTrickplayInfo(session: AuthSession, itemId: string) {
@@ -539,7 +585,7 @@ export function playbackStreams(
 	info: PlaybackInfo,
 	trickplay?: Record<string, Record<string, TrickplayInfo>>,
 ) {
-	const source = info.MediaSources?.[0];
+	const source = info.source;
 	const sourceWithTrickplay: MediaSource | undefined = source
 		? {
 				...source,
@@ -567,36 +613,15 @@ export function preserveTrickplay(
 }
 
 export function playbackUrl(
-	session: AuthSession,
-	itemId: string,
 	source?: MediaSource,
-	bitrate?: number,
-	startTimeTicks?: number,
-	transcodeWidth?: number,
 ) {
-	const negotiatedUrl = source?.TranscodingUrl ?? source?.DirectStreamUrl;
+	const negotiatedUrl = source?.url;
 	if (negotiatedUrl) {
 		const gatewayUrl = new URL(orchestratorBaseUrl());
 		const resolved = new URL(negotiatedUrl, gatewayUrl);
 		if (resolved.origin === gatewayUrl.origin) return resolved.toString();
 	}
-	const params = new URLSearchParams({
-		Static: bitrate ? "false" : "true",
-		MediaSourceId: source?.Id ?? itemId,
-		...(startTimeTicks
-			? { startTimeTicks: String(Math.max(0, Math.round(startTimeTicks))) }
-			: {}),
-		...(bitrate && transcodeWidth
-			? {
-					Width: String(transcodeWidth),
-					Height: String(Math.round((transcodeWidth * 9) / 16)),
-				}
-			: {}),
-		TranscodingMaxAudioChannels: "2",
-		...(bitrate ? { TranscodingMaxBitrate: String(bitrate) } : {}),
-	});
-	addResourceTicket(params);
-	return `${orchestratorBaseUrl()}/api/playback/items/${encodeURIComponent(itemId)}/stream?${params}`;
+	throw new Error("Canonical playback response did not include a usable URL.");
 }
 
 export function subtitleUrl(

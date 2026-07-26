@@ -105,7 +105,8 @@ describe("catalog client", () => {
 			new Response(JSON.stringify({ mode: "direct", url: "/api/playback/items/movie-1/stream", source: { id: "source-1", container: "mp4", streams: [] } }), { status: 200 }),
 		);
 		const playback = await getPlaybackInfo(session, "movie-1");
-		expect(playback.MediaSources?.[0].DirectStreamUrl).toBe("/api/playback/items/movie-1/stream");
+		expect(playback.source?.mode).toBe("direct");
+		expect(playback.source?.url).toContain("/api/playback/items/movie-1/stream");
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/playback/items/movie-1/negotiate"),
 			expect.objectContaining({ method: "POST" }),

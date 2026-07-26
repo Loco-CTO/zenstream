@@ -103,7 +103,7 @@ export function DetailPage({
 
 	useEffect(() => {
 		let active = true;
-		void getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 })
+		void getPlaybackInfo(session, item.Id)
 			.then((playback) => {
 				if (!active) return;
 				const parsed = playbackStreams(playback);

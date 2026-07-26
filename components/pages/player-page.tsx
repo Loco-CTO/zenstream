@@ -32,7 +32,7 @@ export function PlayerPage({
 
 	useEffect(() => {
 		let active = true;
-		void getPlaybackInfo(session, item.Id, { subtitleStreamIndex: -1 })
+		void getPlaybackInfo(session, item.Id)
 			.then((playback) => {
 				if (!active) return;
 				const parsed = playbackStreams(playback);
@@ -59,7 +59,7 @@ export function PlayerPage({
 		<VideoPlayer
 			item={playerItem}
 			session={session}
-			initialAudioStreamIndex={selected.audio}
+			initialAudioStreamId={selected.audio}
 			initialSubtitleStreamIndex={selected.subtitle}
 			// VideoPlayer treats initialStreams as authoritative. Ignore the previous
 			// item's result until playback info for this item has arrived.

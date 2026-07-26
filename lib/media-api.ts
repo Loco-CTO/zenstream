@@ -98,6 +98,7 @@ export interface MediaSource {
 	sessionState?: string;
 	sessionId?: string;
 	startPositionSeconds?: number;
+	actualStartPositionSeconds?: number;
 	MediaStreams?: MediaStream[];
 	Trickplay?: Record<string, TrickplayInfo>;
 }
@@ -124,7 +125,11 @@ export interface PlaybackSessionStatus {
 	sourceId?: string;
 	playlistReady?: boolean;
 	segmentCount?: number;
+	firstSegmentDurationSeconds?: number;
 	processAlive?: boolean;
+	requestedStartPositionSeconds?: number;
+	actualStartPositionSeconds?: number;
+	seekGeneration?: number;
 	errorCode?: string;
 	errorDetail?: string;
 	lastAccessedAt?: string;

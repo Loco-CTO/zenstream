@@ -11,4 +11,13 @@ describe("browser playback capabilities", () => {
 			),
 		).toBe(false);
 	});
+
+	it("advertises native MKV when the browser reports MKV support", () => {
+		const profile = browserDeviceProfile({ canPlayType: () => "probably" });
+
+		expect(
+			profile.directPlayProfiles.some((entry) => entry.Container === "mkv"),
+		).toBe(true);
+		expect(profile.maxAudioChannels).toBe(6);
+	});
 });

@@ -510,7 +510,7 @@ export async function getPlaybackInfo(
 				audioCodecs: profile.directPlayProfiles.flatMap((entry) =>
 					String(entry.AudioCodec ?? "").split(","),
 				),
-				maxAudioChannels: 2,
+				maxAudioChannels: profile.maxAudioChannels,
 				maxStreamingBitrate: options.maxStreamingBitrate,
 				startPositionSeconds: options.startPositionSeconds,
 				audioStreamId: options.audioStreamId,
@@ -547,6 +547,17 @@ export async function getPlaybackSessionStatus(
 	return catalogRequest<PlaybackSessionStatus>(
 		session,
 		`/api/playback/sessions/${encodeURIComponent(sessionId)}`,
+	);
+}
+
+export async function cancelPlaybackSession(
+	session: AuthSession,
+	sessionId: string,
+): Promise<void> {
+	await catalogRequest(
+		session,
+		`/api/playback/sessions/${encodeURIComponent(sessionId)}`,
+		{ method: "DELETE" },
 	);
 }
 

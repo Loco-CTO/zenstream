@@ -37,6 +37,7 @@ import {
 	trickplayPreview,
 	type MediaItem,
 	type MediaSource,
+	type PlaybackInfo,
 	type PlaybackMarker,
 } from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
@@ -641,46 +642,42 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
-		const streams = initialStreams
+		const resolvePlaybackReady = async (playback: PlaybackInfo) => {
+			const sessionId = playback.source?.sessionId;
+			playerDebug("negotiation complete", {
+				mode: playback.source?.mode,
+				sessionId,
+				sessionState: playback.source?.sessionState,
+				url: playback.source?.url,
+			});
+			if (sessionId && playback.source?.sessionState === "starting") {
+				playerDebug("waiting for HLS session readiness", {
+					sessionId,
+					mode: playback.source.mode,
+				});
+				const status = await waitForPlaybackReady(session, sessionId);
+				playerDebug("HLS session ready", {
+					sessionId: status.sessionId,
+					sessionState: status.sessionState,
+					playlistReady: status.playlistReady,
+					segmentCount: status.segmentCount,
+				});
+				return {
+					...playback,
+					sessionId,
+					source: { ...playback.source, sessionState: "ready" },
+				};
+			}
+			return playback;
+		};
+		const streams = (initialStreams
 			? Promise.resolve(initialStreams)
 			: getPlaybackInfo(session, item.Id, {
 					audioStreamId: initialAudioStreamId,
 					// Keep subtitles out of the media pipeline; the selected track is
 					// fetched as VTT and rendered by CustomSubtitleCue below.
 				})
-					.then(async (playback) => {
-						playerDebug("negotiation complete", {
-							mode: playback.source?.mode,
-							sessionId: playback.sessionId,
-							sessionState: playback.source?.sessionState,
-							url: playback.source?.url,
-						});
-						if (
-							playback.sessionId &&
-							playback.source?.sessionState === "starting"
-						) {
-							playerDebug("waiting for HLS session readiness", {
-								sessionId: playback.sessionId,
-								mode: playback.source.mode,
-							});
-							const status = await waitForPlaybackReady(
-								session,
-								playback.sessionId,
-							);
-							playerDebug("HLS session ready", {
-								sessionId: status.sessionId,
-								sessionState: status.sessionState,
-								playlistReady: status.playlistReady,
-								segmentCount: status.segmentCount,
-							});
-							return {
-								...playback,
-								source: { ...playback.source, sessionState: "ready" },
-								};
-						}
-							return playback;
-					})
-					.then(playbackStreams);
+				).then(resolvePlaybackReady).then(playbackStreams);
 		Promise.all([
 			streams,
 			getPlaybackMarkers(session, item.Id),

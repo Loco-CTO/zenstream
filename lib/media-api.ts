@@ -413,7 +413,9 @@ export async function fetchDetailData(
 
 export async function fetchPlayData(session: AuthSession, itemId: string): Promise<DetailData> {
 	const item = await getItem(session, itemId);
-	return { item, seasons: [], episodes: [], similar: [] };
+	const seriesId = item.Type === "Episode" ? item.SeriesId : undefined;
+	const backgroundItem = seriesId ? await getItem(session, seriesId) : undefined;
+	return { item, backgroundItem, seasons: [], episodes: [], similar: [] };
 }
 
 export function getInitialSeason(
@@ -452,6 +454,7 @@ export async function getPlaybackInfo(
 	options: {
 		maxStreamingBitrate?: number;
 		startTimeTicks?: number;
+		startTimeSeconds?: number;
 		mediaSourceId?: string;
 		audioStreamIndex?: number;
 		subtitleStreamIndex?: number;
@@ -464,6 +467,7 @@ export async function getPlaybackInfo(
 		mode: "direct" | "hls";
 		source: Record<string, unknown> & { streams?: Array<Record<string, unknown>> };
 		sessionId?: string;
+		startTimeSeconds?: number;
 		url: string;
 	}>(
 		session,
@@ -491,6 +495,7 @@ export async function getPlaybackInfo(
 						String(entry.AudioCodec ?? "").split(","),
 					),
 				maxStreamingBitrate: options.maxStreamingBitrate,
+				startTimeSeconds: options.startTimeSeconds,
 				audioStreamIndex: options.audioStreamIndex,
 				subtitleStreamIndex: options.subtitleStreamIndex,
 			}),
@@ -513,7 +518,11 @@ export async function getPlaybackInfo(
 		TranscodingUrl: response.mode === "hls" ? response.url : undefined,
 		MediaStreams: toMediaStreams(response.source.streams ?? []),
 	};
-	return { MediaSources: [source], PlaySessionId: response.sessionId };
+	return {
+		MediaSources: [source],
+		PlaySessionId: response.sessionId,
+		StartTimeSeconds: response.startTimeSeconds ?? 0,
+	};
 }
 
 export async function getTrickplayInfo(session: AuthSession, itemId: string) {

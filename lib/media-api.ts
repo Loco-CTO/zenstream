@@ -324,12 +324,11 @@ export function getFavoriteItems(
 
 export async function getLibraryViews(
 	session: AuthSession,
-	signal?: AbortSignal,
 ) {
 	return cachedClientRequest(`libraries:${session.userId}`, async () => {
 	const result = await catalogRequest<{
 		libraries: Array<{ id: string; name: string; type: string; supportsLastAdded?: boolean }>;
-	}>(session, "/api/catalog/libraries", { signal });
+	}>(session, "/api/catalog/libraries");
 	return result.libraries.map((library) => ({
 		Id: library.id,
 		Name: library.name,

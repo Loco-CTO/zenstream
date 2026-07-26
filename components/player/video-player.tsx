@@ -340,6 +340,7 @@ export function VideoPlayer({
 	);
 	const transcodeAttemptRef = useRef(false);
 	const resumeTimeRef = useRef(0);
+	const transcodeOffsetRef = useRef(0);
 	const clearedPlayedRef = useRef(false);
 	const advancingToNextRef = useRef(false);
 	const suppressNextClickRef = useRef(false);
@@ -795,8 +796,9 @@ export function VideoPlayer({
 				}
 				if (groupState) return;
 				const resumeTime = resumeTimeRef.current || position;
-				if (resumeTime > 0 && resumeTime < video.duration - 5)
-					video.currentTime = resumeTime;
+				const relativeResume = resumeTime - transcodeOffsetRef.current;
+				if (relativeResume > 0 && relativeResume < video.duration - 5)
+					video.currentTime = relativeResume;
 				resumeTimeRef.current = 0;
 				const mediaDuration = Number.isFinite(video.duration)
 					? video.duration
@@ -1171,6 +1173,41 @@ export function VideoPlayer({
 		stageSeek(target);
 		commitPendingSeek();
 	}
+	async function seekTranscoded(target: number) {
+		const video = videoRef.current;
+		const currentSource = sourceRef.current;
+		if (!video || !currentSource?.TranscodingUrl) return false;
+		const request = ++qualityRequestRef.current;
+		const wasPlaying = !video.paused;
+		setQualityLoading(true);
+		setUrl(undefined);
+		try {
+			const playback = await getPlaybackInfo(session, item.Id, {
+				mediaSourceId: currentSource.Id,
+				audioStreamIndex: audio ? Number(audio) : undefined,
+				subtitleStreamIndex: -1,
+				forceTranscoding: true,
+				startTimeSeconds: target,
+			});
+			if (request !== qualityRequestRef.current) return false;
+			const parsed = playbackStreams(playback);
+			if (!parsed.source?.TranscodingUrl) throw new Error("Missing transcoded source.");
+			transcodeOffsetRef.current = playback.StartTimeSeconds ?? target;
+			sourceRef.current = parsed.source;
+			setInfo((previous) => ({ ...parsed, qualities: previous?.qualities ?? parsed.qualities }));
+			setCurrentTime(transcodeOffsetRef.current);
+			setUrl(playbackUrl(session, item.Id, parsed.source, 1_000_000));
+			resumeTimeRef.current = transcodeOffsetRef.current;
+			if (!wasPlaying) video.pause();
+			return true;
+		} catch {
+			if (request === qualityRequestRef.current) {
+				setQualityLoading(false);
+				setError(t("mediaPlaybackFailed"));
+			}
+			return false;
+		}
+	}
 	function stageSeek(target: number) {
 		const video = videoRef.current;
 		if (!video) return;
@@ -1180,6 +1217,10 @@ export function VideoPlayer({
 				seekPreviewRef.current = preview;
 				setSeekPreview(preview);
 			}
+			return;
+		}
+		if (sourceRef.current?.TranscodingUrl) {
+			void seekTranscoded(target);
 			return;
 		}
 		video.currentTime = target;
@@ -1468,10 +1509,12 @@ export function VideoPlayer({
 					if (Number.isFinite(value) && value > 0)
 						setDuration(Math.max(knownDuration, value));
 				}}
-				onTimeUpdate={() => {
+					onTimeUpdate={() => {
 					const value = videoRef.current?.currentTime ?? 0;
 					setCurrentTime(
-						Number.isFinite(value) ? Math.min(value, duration || value) : 0,
+						Number.isFinite(value)
+							? Math.min(transcodeOffsetRef.current + value, duration || transcodeOffsetRef.current + value)
+							: 0,
 					);
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}

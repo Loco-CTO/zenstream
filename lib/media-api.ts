@@ -623,7 +623,13 @@ export async function getTrickplayInfo(
 	const sheets = nested.sheets.flatMap((sheet): TrickplaySheet[] => {
 		if (!isRecord(sheet)) return [];
 		const index = Number(sheet.index);
-		const url = typeof sheet.url === "string" ? sheet.url : "";
+		const rawUrl = typeof sheet.url === "string" ? sheet.url : "";
+		let url = "";
+		try {
+			url = rawUrl ? new URL(rawUrl, orchestratorBaseUrl()).toString() : "";
+		} catch {
+			return [];
+		}
 		if (!Number.isInteger(index) || index < 0 || !url) return [];
 		const frameCount = Number(sheet.frameCount);
 		return [{ index, url, ...(Number.isFinite(frameCount) && frameCount > 0 ? { frameCount } : {}) }];

@@ -24,8 +24,12 @@ describe("catalog client", () => {
 				officialRating: "PG-13",
 				runtimeMinutes: 155,
 				images: {
-					Primary: { url: "/api/catalog/items/movie-1/images/Primary?language=en" },
-					Backdrop: { url: "/api/catalog/items/movie-1/images/Backdrop?language=en" },
+					Primary: {
+						url: "/api/catalog/items/movie-1/images/Primary?language=en",
+					},
+					Backdrop: {
+						url: "/api/catalog/items/movie-1/images/Backdrop?language=en",
+					},
 				},
 			},
 			userState: {
@@ -83,36 +87,62 @@ describe("catalog client", () => {
 	});
 
 	it("uses a Bearer token for catalog requests", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ libraries: [] }), { status: 200 }),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(JSON.stringify({ libraries: [] }), { status: 200 }),
+			);
 		await catalogRequest(session, "/api/catalog/libraries");
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/catalog/libraries"),
 			expect.objectContaining({
-				headers: expect.objectContaining({ Authorization: "Bearer opaque-token" }),
+				headers: expect.objectContaining({
+					Authorization: "Bearer opaque-token",
+				}),
 			}),
 		);
 	});
 
 	it("sends JSON credentials to the account login endpoint", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ token: "token", user: { id: "u", username: "alex" } }), { status: 200 }),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						token: "token",
+						user: { id: "u", username: "alex" },
+					}),
+					{ status: 200 },
+				),
+			);
 		await authenticateByName(" alex ", "password-123");
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/auth/login"),
-			expect.objectContaining({ method: "POST", body: JSON.stringify({ username: "alex", password: "password-123" }) }),
+			expect.objectContaining({
+				method: "POST",
+				body: JSON.stringify({ username: "alex", password: "password-123" }),
+			}),
 		);
 	});
 
 	it("negotiates playback through the catalog playback endpoint", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ mode: "direct", url: "/api/playback/items/movie-1/stream", source: { id: "source-1", container: "mp4", streams: [] } }), { status: 200 }),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						mode: "direct",
+						url: "/api/playback/items/movie-1/stream",
+						source: { id: "source-1", container: "mp4", streams: [] },
+					}),
+					{ status: 200 },
+				),
+			);
 		const playback = await getPlaybackInfo(session, "movie-1");
 		expect(playback.source?.mode).toBe("direct");
-		expect(playback.source?.url).toContain("/api/playback/items/movie-1/stream");
+		expect(playback.source?.url).toContain(
+			"/api/playback/items/movie-1/stream",
+		);
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/playback/items/movie-1/negotiate"),
 			expect.objectContaining({ method: "POST" }),
@@ -131,21 +161,35 @@ describe("catalog client", () => {
 					columns: 10,
 					rows: 10,
 					frameCount: 103,
-					sheets: [{ index: 0, frameCount: 100, url: "/api/playback/trickplay/0.jpg?access=ticket" }],
+					sheets: [
+						{
+							index: 0,
+							frameCount: 100,
+							url: "/api/playback/trickplay/0.jpg?access=ticket",
+						},
+					],
 				}),
 				{ status: 200 },
 			),
 		);
 
-		await expect(getTrickplayInfo(session, "movie-1", "source-1")).resolves.toMatchObject({
+		const trickplay = await getTrickplayInfo(session, "movie-1", "source-1");
+		expect(trickplay).toMatchObject({
 			frameWidth: 320,
 			frameHeight: 180,
-			sheets: [{ index: 0, url: "/api/playback/trickplay/0.jpg?access=ticket" }],
+			sheets: [{ index: 0 }],
 		});
+		expect(trickplay?.sheets?.[0]?.url).toMatch(
+			/^https?:\/\/.*\/api\/playback\/trickplay\/0\.jpg\?access=ticket$/,
+		);
 		expect(fetchMock).toHaveBeenCalledWith(
-			expect.stringContaining("/api/playback/items/movie-1/trickplay?sourceId=source-1"),
+			expect.stringContaining(
+				"/api/playback/items/movie-1/trickplay?sourceId=source-1",
+			),
 			expect.objectContaining({
-				headers: expect.objectContaining({ Authorization: "Bearer opaque-token" }),
+				headers: expect.objectContaining({
+					Authorization: "Bearer opaque-token",
+				}),
 			}),
 		);
 	});

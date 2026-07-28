@@ -744,18 +744,24 @@ export function VideoPlayer({
 					// fetched as VTT and rendered by CustomSubtitleCue below.
 				})
 				).then(resolvePlaybackReady).then(playbackStreams);
-		Promise.all([
-			streams,
-			getPlaybackMarkers(session, item.Id),
-			getTrickplayInfo(session, item.Id).catch(() => undefined),
-		])
-			.then(([parsed, markerData, trickplay]) => {
+		Promise.all([streams, getPlaybackMarkers(session, item.Id)])
+			.then(async ([parsed, markerData]) => {
+				const trickplay = parsed.source?.Id
+					? await getTrickplayInfo(session, item.Id, parsed.source.Id).catch(
+							() => undefined,
+						)
+					: undefined;
+				return { parsed, markerData, trickplay };
+			})
+			.then(({ parsed, markerData, trickplay }) => {
 				if (!active) return;
 				const source =
 					parsed.source && !parsed.source.Trickplay && trickplay
 						? {
 								...parsed.source,
-								Trickplay: trickplay[parsed.source.Id ?? ""],
+								Trickplay: {
+									[String(trickplay.frameWidth ?? 0)]: trickplay,
+								},
 							}
 						: parsed.source;
 				const next = { ...parsed, source };

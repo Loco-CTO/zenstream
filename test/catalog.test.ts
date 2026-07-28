@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogRequest, toMediaItem, type CatalogItem } from "@/lib/catalog";
-import { authenticateByName, getPlaybackInfo } from "@/lib/media-api";
+import {
+	authenticateByName,
+	getPlaybackInfo,
+	getTrickplayInfo,
+	trickplayPreview,
+	type MediaSource,
+} from "@/lib/media-api";
 
 const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 
@@ -111,5 +117,69 @@ describe("catalog client", () => {
 			expect.stringContaining("/api/playback/items/movie-1/negotiate"),
 			expect.objectContaining({ method: "POST" }),
 		);
+	});
+
+	it("loads ready trickplay manifests for the selected playback source", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					state: "ready",
+					sourceId: "source-1",
+					frameWidth: 320,
+					frameHeight: 180,
+					intervalSeconds: 5,
+					columns: 10,
+					rows: 10,
+					frameCount: 103,
+					sheets: [{ index: 0, frameCount: 100, url: "/api/playback/trickplay/0.jpg?access=ticket" }],
+				}),
+				{ status: 200 },
+			),
+		);
+
+		await expect(getTrickplayInfo(session, "movie-1", "source-1")).resolves.toMatchObject({
+			frameWidth: 320,
+			frameHeight: 180,
+			sheets: [{ index: 0, url: "/api/playback/trickplay/0.jpg?access=ticket" }],
+		});
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/playback/items/movie-1/trickplay?sourceId=source-1"),
+			expect.objectContaining({
+				headers: expect.objectContaining({ Authorization: "Bearer opaque-token" }),
+			}),
+		);
+	});
+
+	it("uses the manifest sheet URL and crops the requested timeline frame", () => {
+		const source: MediaSource = {
+			Id: "source-1",
+			Trickplay: {
+				"320": {
+					state: "ready",
+					frameWidth: 320,
+					frameHeight: 180,
+					intervalSeconds: 5,
+					columns: 2,
+					rows: 2,
+					frameCount: 7,
+					sheets: [
+						{ index: 0, url: "/trickplay/0.jpg?access=ticket" },
+						{ index: 1, url: "/trickplay/1.jpg?access=ticket" },
+					],
+				},
+			},
+		};
+
+		expect(trickplayPreview(session, "movie-1", source, 22)).toEqual({
+			url: "/trickplay/1.jpg?access=ticket",
+			width: 320,
+			height: 180,
+			tileIndex: 1,
+			cellX: 0,
+			cellY: 0,
+			columns: 2,
+			rows: 2,
+		});
+		expect(trickplayPreview(session, "movie-1", source, 35)).toBeNull();
 	});
 });

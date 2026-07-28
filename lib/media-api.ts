@@ -104,6 +104,15 @@ export interface MediaSource {
 }
 
 export interface TrickplayInfo {
+	state?: string;
+	sourceId?: string;
+	frameWidth?: number;
+	frameHeight?: number;
+	intervalSeconds?: number;
+	columns?: number;
+	rows?: number;
+	frameCount?: number;
+	sheets?: TrickplaySheet[];
 	Width?: number;
 	Height?: number;
 	TileWidth?: number;
@@ -111,6 +120,12 @@ export interface TrickplayInfo {
 	ThumbnailCount?: number;
 	Interval?: number;
 	TileCount?: number;
+}
+
+export interface TrickplaySheet {
+	index: number;
+	frameCount?: number;
+	url: string;
 }
 
 export interface PlaybackInfo {
@@ -587,10 +602,53 @@ export async function waitForPlaybackReady(
 	);
 }
 
-export async function getTrickplayInfo(session: AuthSession, itemId: string) {
-	void session;
-	void itemId;
-	return undefined;
+export async function getTrickplayInfo(
+	session: AuthSession,
+	itemId: string,
+	sourceId?: string,
+): Promise<TrickplayInfo | undefined> {
+	const params = new URLSearchParams();
+	if (sourceId) params.set("sourceId", sourceId);
+	const response = await catalogRequest<unknown>(
+		session,
+		`/api/playback/items/${encodeURIComponent(itemId)}/trickplay${params.size ? `?${params}` : ""}`,
+	);
+	if (!isRecord(response)) return undefined;
+	const nested = isRecord(response.trickplay)
+		? response.trickplay
+		: isRecord(response.sources) && sourceId && isRecord(response.sources[sourceId])
+			? response.sources[sourceId]
+			: response;
+	if (nested.state !== "ready" || !Array.isArray(nested.sheets)) return undefined;
+	const sheets = nested.sheets.flatMap((sheet): TrickplaySheet[] => {
+		if (!isRecord(sheet)) return [];
+		const index = Number(sheet.index);
+		const url = typeof sheet.url === "string" ? sheet.url : "";
+		if (!Number.isInteger(index) || index < 0 || !url) return [];
+		const frameCount = Number(sheet.frameCount);
+		return [{ index, url, ...(Number.isFinite(frameCount) && frameCount > 0 ? { frameCount } : {}) }];
+	});
+	if (!sheets.length) return undefined;
+	return {
+		state: "ready",
+		sourceId: typeof nested.sourceId === "string" ? nested.sourceId : sourceId,
+		frameWidth: numberValue(nested.frameWidth ?? nested.width),
+		frameHeight: numberValue(nested.frameHeight ?? nested.height),
+		intervalSeconds: numberValue(nested.intervalSeconds),
+		columns: numberValue(nested.columns),
+		rows: numberValue(nested.rows),
+		frameCount: numberValue(nested.frameCount),
+		sheets,
+	};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function numberValue(value: unknown) {
+	const number = Number(value);
+	return Number.isFinite(number) ? number : undefined;
 }
 
 const playbackQualities = [0, 1, 2, 4, 8, 16, 32, 64].map(
@@ -672,11 +730,13 @@ export function trickplayPreview(
 	source: MediaSource | undefined,
 	timeSeconds: number,
 ): TrickplayPreview | null {
+	void session;
+	void itemId;
 	const entries = Object.entries(source?.Trickplay ?? {}).sort(
 		([a], [b]) => Number(b) - Number(a),
 	);
 	const [width, info] = entries[0] ?? [];
-	if (!width || !info || !Number.isFinite(Number(width))) return null;
+	if (!width || !info) return null;
 	const details = info as TrickplayInfo & {
 		width?: number;
 		height?: number;
@@ -684,29 +744,43 @@ export function trickplayPreview(
 		tileHeight?: number;
 		interval?: number;
 	};
-	const thumbnailWidth = details.Width ?? details.width ?? Number(width);
+	const thumbnailWidth =
+		details.frameWidth ?? details.Width ?? details.width ?? Number(width);
 	const thumbnailHeight =
-		details.Height ?? details.height ?? Math.round((thumbnailWidth * 9) / 16);
-	const columns = details.TileWidth ?? details.tileWidth ?? 10;
-	const rows = details.TileHeight ?? details.tileHeight ?? 10;
-	const interval = details.Interval ?? details.interval ?? 10_000;
+		details.frameHeight ??
+		details.Height ??
+		details.height ??
+		Math.round((thumbnailWidth * 9) / 16);
+	const columns = details.columns ?? details.TileWidth ?? details.tileWidth ?? 10;
+	const rows = details.rows ?? details.TileHeight ?? details.tileHeight ?? 10;
+	const intervalSeconds =
+		details.intervalSeconds ??
+		((details.Interval ?? details.interval ?? 0) / 1_000);
+	const frameCount = details.frameCount ?? details.ThumbnailCount ?? 0;
 	if (
-		![thumbnailWidth, thumbnailHeight, columns, rows, interval].every(
+		![thumbnailWidth, thumbnailHeight, columns, rows, intervalSeconds, frameCount].every(
 			Number.isFinite,
 		)
 	)
 		return null;
-	const intervalSeconds = Math.max(1, interval / 1_000);
+	if (
+		thumbnailWidth <= 0 ||
+		thumbnailHeight <= 0 ||
+		columns <= 0 ||
+		rows <= 0 ||
+		intervalSeconds <= 0 ||
+		frameCount <= 0
+	)
+		return null;
 	const thumbnail = Math.max(0, Math.floor(timeSeconds / intervalSeconds));
+	if (thumbnail >= frameCount) return null;
 	const tileSize = columns * rows;
 	const tileIndex = Math.floor(thumbnail / tileSize);
 	const tileOffset = thumbnail % tileSize;
-	const params = new URLSearchParams({
-		MediaSourceId: source?.Id ?? itemId,
-	});
-	addResourceTicket(params);
+	const sheet = details.sheets?.find((entry) => entry.index === tileIndex);
+	if (!sheet?.url) return null;
 	return {
-		url: `${orchestratorBaseUrl()}/api/video/${encodeURIComponent(itemId)}/trickplay/${width}/${tileIndex}?${params}`,
+		url: sheet.url,
 		width: thumbnailWidth,
 		height: thumbnailHeight,
 		tileIndex,

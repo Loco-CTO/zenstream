@@ -57,6 +57,28 @@ export function HomePage({
 						session={session}
 					/>
 				))}
+				<MediaRow
+					title={t("myList")}
+					items={data.myList ?? []}
+					variant="poster"
+					session={session}
+					viewAllHref="/favorites"
+				/>
+				<MediaRow
+					title={t("recentlyPlayed")}
+					items={data.recentlyPlayed ?? []}
+					variant="poster"
+					session={session}
+				/>
+				{(data.genreRows ?? []).map((section) => (
+					<MediaRow
+						key={`genre:${section.genre}`}
+						title={section.genre}
+						items={section.items}
+						variant="poster"
+						session={session}
+					/>
+				))}
 				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}
@@ -69,16 +91,16 @@ export function HomePage({
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}
 						session={session}
-						viewAllHref={libraryHref({
-							libraryId: section.libraryId,
-								sortBy:
-									section.titleKey === "topRated"
-										? "rating"
-										: section.titleKey === "newlyAddedOn"
-											? "lastAdded"
-											: "release",
-							sortOrder: "Descending",
-						})}
+						viewAllHref={
+							section.titleKey === "newlyAddedOn"
+								? undefined
+								: libraryHref({
+										libraryId: section.libraryId,
+										sortBy:
+											section.titleKey === "topRated" ? "rating" : "release",
+									sortOrder: "Descending",
+									})
+						}
 					/>
 				))}
 			</div>

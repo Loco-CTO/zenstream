@@ -11,7 +11,7 @@ describe("Hero", () => {
 	it("constrains long titles so they cannot overrun the hero", () => {
 		const item: MediaItem = {
 			Id: "long-title",
-			Name: "éš£ãªç¾Žå°‘å¥³ãŒã€æ˜”ç”·å­ã¨æ€ã£ã¦ä¸€ç·’ã«éŠã‚“ã å¹¼é¦´æŸ“ã ã£ãŸä»¶",
+			Name: "隣の美少女が、昔男の子と思って一緒に遊んだ幼馴染だった件",
 			Overview: "A long overview for the selected item.",
 			ImageTags: {
 				Primary: "primary-tag",

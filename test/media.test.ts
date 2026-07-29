@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { releaseDateLabel, stackNewlyAdded } from "@/lib/media";
+import { releaseDateLabel, stackNewlyAdded, subtitle } from "@/lib/media";
 import type { MediaItem } from "@/lib/media-api";
 
 describe("newly added grouping", () => {
-	it("stacks adjacent sequential episodes from the same series", () => {
+	it("stacks adjacent sequential episodes added within one hour", () => {
 		const items: MediaItem[] = [
-			episode("ep-2", "series-1", 2),
-			episode("ep-1", "series-1", 1),
-			episode("other", "series-2", 4),
+			episode("ep-2", "series-1", 2, "2026-01-01T12:00:00Z"),
+			episode("ep-1", "series-1", 1, "2026-01-01T11:15:00Z"),
+			episode("other", "series-2", 4, "2026-01-01T10:00:00Z"),
 		];
 
 		expect(
@@ -15,11 +15,17 @@ describe("newly added grouping", () => {
 		).toEqual([["ep-2", "ep-1"], ["other"]]);
 	});
 
-	it("does not stack non-sequential releases", () => {
+	it("does not stack non-sequential or separately added releases", () => {
 		expect(
 			stackNewlyAdded([
-				episode("ep-3", "series-1", 3),
-				episode("ep-1", "series-1", 1),
+				episode("ep-3", "series-1", 3, "2026-01-01T12:00:00Z"),
+				episode("ep-1", "series-1", 1, "2026-01-01T11:30:00Z"),
+			]),
+		).toHaveLength(2);
+		expect(
+			stackNewlyAdded([
+				episode("ep-2", "series-1", 2, "2026-01-01T12:00:00Z"),
+				episode("ep-1", "series-1", 1, "2026-01-01T10:59:59Z"),
 			]),
 		).toHaveLength(2);
 	});
@@ -45,14 +51,30 @@ describe("release date labels", () => {
 	});
 });
 
-function episode(id: string, seriesId: string, index: number): MediaItem {
+describe("media subtitles", () => {
+	it("uses a real Japanese middle dot between non-episode metadata", () => {
+		expect(
+			subtitle({
+				Id: "series",
+				Name: "Series",
+				Type: "Series",
+				ProductionYear: 2026,
+				OfficialRating: "PG-13",
+			}),
+		).toBe("2026 ・ PG-13");
+	});
+});
+
+function episode(id: string, seriesId: string, index: number, lastAddedAt: string): MediaItem {
 	return {
 		Id: id,
 		Name: id,
 		Type: "Episode",
 		SeriesId: seriesId,
+		SeasonId: "season-1",
 		ParentIndexNumber: 1,
 		IndexNumber: index,
+		LastAddedAt: lastAddedAt,
 	};
 }
 

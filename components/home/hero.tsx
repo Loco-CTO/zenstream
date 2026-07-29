@@ -332,7 +332,7 @@ export function Hero({
 								key={`${value}-${index}`}
 								className={`whitespace-nowrap text-xs ${index === 0 ? "font-semibold text-white/80" : "text-white/35"}`}
 							>
-								{index > 0 && <span className="mr-2 text-white/15">ãƒ»</span>}
+								{index > 0 && <span className="mr-2 text-white/15">・</span>}
 								{value}
 							</span>
 						))}

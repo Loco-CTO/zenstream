@@ -6,12 +6,15 @@ export type CatalogItem = {
 	libraryId: string;
 	parentId?: string | null;
 	seriesId?: string | null;
+	seriesName?: string | null;
+	seriesPrimaryImage?: { url?: string; blurHash?: string } | null;
 	seasonId?: string | null;
 	type: "movie" | "series" | "season" | "episode" | "collection" | string;
 	name: string;
 	seasonNumber?: number | null;
 	episodeNumber?: number | null;
 	dateAdded?: string;
+	lastAddedAt?: string;
 	childIds?: string[];
 	metadata: Record<string, unknown> & {
 		title?: string;
@@ -24,8 +27,12 @@ export type CatalogItem = {
 		communityRating?: number;
 		officialRating?: string;
 		people?: Array<Record<string, unknown>>;
+		credits?: {
+			cast?: Array<Record<string, unknown>>;
+			crew?: Array<Record<string, unknown>>;
+		};
 		trailers?: Array<Record<string, unknown>>;
-		images?: Partial<Record<"Primary" | "Backdrop" | "Logo" | "Banner", { url?: string }>>;
+		images?: Partial<Record<"Primary" | "Backdrop" | "Logo" | "Banner", { url?: string; blurHash?: string }>>;
 	};
 	userState?: {
 		favorite?: boolean;
@@ -71,11 +78,30 @@ const itemTypes: Record<string, string> = {
 
 export function toMediaItem(item: CatalogItem): MediaItem {
 	const images = item.metadata.images ?? {};
-	const people = (item.metadata.people ?? []).map((person) => ({
-		Name: String(person.name ?? ""),
-		Role: typeof person.role === "string" ? person.role : undefined,
-		Type: typeof person.department === "string" ? person.department : undefined,
-	}));
+	const people = (["cast", "crew"] as const).flatMap((creditType) =>
+		(item.metadata.credits?.[creditType] ?? []).map((person) => {
+			const image = person.image;
+			const imageUrl =
+				image && typeof image === "object" && typeof (image as Record<string, unknown>).url === "string"
+					? String((image as Record<string, unknown>).url)
+					: undefined;
+			const blurHash =
+				image && typeof image === "object" && typeof (image as Record<string, unknown>).blurHash === "string"
+					? String((image as Record<string, unknown>).blurHash)
+					: undefined;
+			return {
+				Id: typeof person.id === "string" ? person.id : undefined,
+				Name: String(person.name ?? ""),
+				Role: typeof (creditType === "cast" ? person.character : person.job) === "string"
+					? String(creditType === "cast" ? person.character : person.job)
+					: undefined,
+				Type: typeof person.department === "string" ? person.department : undefined,
+				CreditType: creditType,
+				PrimaryImageTag: imageUrl,
+				ImageBlurHashes: imageUrl && blurHash ? { Primary: { [imageUrl]: blurHash } } : undefined,
+			};
+		}),
+	);
 	const trailers = (item.metadata.trailers ?? []).flatMap((trailer) => {
 		const site = String(trailer.site ?? "").toLowerCase();
 		if (site === "youtube" && trailer.key) {
@@ -89,9 +115,15 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		Name: item.metadata.title ?? item.name,
 		Type: itemTypes[item.type] ?? item.type,
 		SeriesId: item.seriesId ?? undefined,
+		SeriesName: item.seriesName ?? undefined,
+		SeriesPrimaryImageTag: item.seriesPrimaryImage?.url,
+		SeriesPrimaryImageBlurHash: item.seriesPrimaryImage?.blurHash,
 		SeasonId: item.seasonId ?? undefined,
 		ParentIndexNumber: item.seasonNumber ?? undefined,
-		IndexNumber: item.episodeNumber ?? undefined,
+		IndexNumber:
+			item.type === "season"
+				? item.seasonNumber ?? undefined
+				: item.episodeNumber ?? undefined,
 		Overview: item.metadata.overview ?? item.metadata.description,
 		ProductionYear: item.metadata.year ? Number(item.metadata.year) : undefined,
 		PremiereDate: item.metadata.date,
@@ -106,6 +138,11 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 			Logo: images.Logo?.url,
 		},
 		BackdropImageTags: images.Backdrop?.url ? [images.Backdrop.url] : [],
+		ImageBlurHashes: {
+			Primary: images.Primary?.url && images.Primary.blurHash ? { [images.Primary.url]: images.Primary.blurHash } : undefined,
+			Backdrop: images.Backdrop?.url && images.Backdrop.blurHash ? { [images.Backdrop.url]: images.Backdrop.blurHash } : undefined,
+			Banner: images.Banner?.url && images.Banner.blurHash ? { [images.Banner.url]: images.Banner.blurHash } : undefined,
+		},
 		UserData: {
 			IsFavorite: item.userState?.favorite,
 			Played: item.userState?.played,
@@ -117,6 +154,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 			LastPlayedAt: item.userState?.lastPlayedAt ?? undefined,
 		},
 		DateCreated: item.dateAdded,
+		LastAddedAt: item.lastAddedAt,
 		LibraryId: item.libraryId,
 		CatalogParentId: item.parentId ?? undefined,
 		ChildIds: item.childIds ?? [],

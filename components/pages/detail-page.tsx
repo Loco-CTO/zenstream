@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
-	getPlaybackInfo,
+	getPlaybackSource,
 	getEpisodes,
 	getInitialSeason,
 	heroImage,
@@ -44,7 +44,17 @@ import {
 	syncplayMediaStartCommand as mediaStartCommand,
 } from "@/lib/syncplay-playback";
 
-type TrackChoice = { audio?: number | string; subtitle?: number };
+type TrackChoice = { audio?: number | string; subtitle?: number | null };
+
+export function playbackPath(itemId: string, tracks: TrackChoice = {}) {
+	const params = new URLSearchParams();
+	if (tracks.audio != null) params.set("audio", String(tracks.audio));
+	if (tracks.subtitle === null) params.set("subtitle", "off");
+	else if (tracks.subtitle != null)
+		params.set("subtitle", String(tracks.subtitle));
+	const query = params.toString();
+	return `/play/${encodeURIComponent(itemId)}${query ? `?${query}` : ""}`;
+}
 
 export function syncplayMediaStartCommand(
 	active: SyncplayGroup | null,
@@ -84,6 +94,7 @@ export function DetailPage({
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
+	const hasTrackSelection = item.Type === "Movie" || isEpisode;
 	const seriesId = isEpisode ? item.SeriesId : item.Id;
 	const background =
 		heroImage(item) ??
@@ -94,19 +105,25 @@ export function DetailPage({
 	const returnTitle = isEpisode
 		? initialData.backgroundItem?.Name ?? item.SeriesName ?? t("back")
 		: t("back");
-	const people =
-		item.People?.filter(
-			(person) => person.Type === "Actor" || person.Type === "Director",
-		) ?? [];
+	const structuredCredits = item.People?.some((person) => person.CreditType) ?? false;
+	const cast = structuredCredits
+		? item.People?.filter((person) => person.CreditType === "cast") ?? []
+		: item.People ?? [];
+	const crew = structuredCredits
+		? item.People?.filter((person) => person.CreditType === "crew") ?? []
+		: [];
 	const currentTrackChoices =
 		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
 
 	useEffect(() => {
 		let active = true;
-		void getPlaybackInfo(session, item.Id)
-			.then((playback) => {
+		if (!hasTrackSelection) {
+			return;
+		}
+		void getPlaybackSource(session, item.Id)
+			.then((source) => {
 				if (!active) return;
-				const parsed = playbackStreams(playback);
+				const parsed = playbackStreams({ source });
 				setTrackChoices({ itemId: item.Id, streams: parsed });
 				const audio =
 					parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
@@ -119,7 +136,7 @@ export function DetailPage({
 		return () => {
 			active = false;
 		};
-	}, [item.Id, session]);
+	}, [hasTrackSelection, item.Id, session]);
 	function goBack() {
 		if (isEpisode && seriesId) {
 			const season = item.SeasonId ?? "";
@@ -219,8 +236,24 @@ export function DetailPage({
 				return;
 			}
 		}
-		router.push(`/play/${encodeURIComponent(target.Id)}`);
-	}, [active, canControl, command, isSeries, item, router, session, start, t]);
+		router.push(
+			playbackPath(
+				target.Id,
+				target.Id === item.Id ? selectedTracks : undefined,
+			),
+		);
+	}, [
+		active,
+		canControl,
+		command,
+		isSeries,
+		item,
+		router,
+		selectedTracks,
+		session,
+		start,
+		t,
+	]);
 
 	return (
 		<>
@@ -302,7 +335,8 @@ export function DetailPage({
 								}
 							/>
 						</div>
-						{currentTrackChoices &&
+						{hasTrackSelection &&
+							currentTrackChoices &&
 							(currentTrackChoices.audio.length > 0 ||
 								currentTrackChoices.subtitles.length > 0) && (
 								<InlineTrackChoices
@@ -347,7 +381,7 @@ export function DetailPage({
 							onSeasonChange={selectSeason}
 						/>
 					)}
-					{people.length > 0 && <PeopleSection people={people} />}
+					{(cast.length > 0 || crew.length > 0) && <PeopleSection cast={cast} crew={crew} />}
 					{!isEpisode && initialData.similar.length > 0 && (
 						<SimilarSection items={initialData.similar} session={session} />
 					)}
@@ -399,90 +433,15 @@ function InlineTrackChoices({
 						{ value: "", label: t("subtitlesOff") },
 						...options("subtitle"),
 					]}
-					value={selected.subtitle}
+					value={selected.subtitle ?? undefined}
 					onChange={(subtitle) =>
 						onChange({
 							...selected,
-							subtitle: subtitle ? Number(subtitle) : undefined,
+						subtitle: subtitle ? Number(subtitle) : null,
 						})
 					}
 				/>
 			)}
-		</div>
-	);
-}
-
-function TrackSelectionDialog({
-	tracks,
-	selected,
-	onChange,
-	onCancel,
-	onPlay,
-}: {
-	tracks: ReturnType<typeof playbackStreams>;
-	selected: TrackChoice;
-	onChange: (value: TrackChoice) => void;
-	onCancel: () => void;
-	onPlay: () => void;
-}) {
-	const { t } = useI18n();
-	const options = (kind: "audio" | "subtitle") =>
-		(kind === "audio" ? tracks.audio : tracks.subtitles).map((track) => ({
-			value: String(track.Index),
-			label:
-				track.DisplayTitle ??
-				track.Language ??
-				t(kind === "audio" ? "audioTrack" : "subtitleTrack"),
-		}));
-	return (
-		<div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
-			<div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-black/25 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
-				<h2 className="text-lg font-semibold text-white">
-					{t("selectTracks")}
-				</h2>
-				<div className="mt-5 grid gap-4">
-					{tracks.audio.length > 1 && (
-						<TrackSelect
-							label={t("audioTrack")}
-							options={options("audio")}
-							value={selected.audio}
-							onChange={(audio) => onChange({ ...selected, audio })}
-						/>
-					)}
-					{tracks.subtitles.length > 0 && (
-						<TrackSelect
-							label={t("subtitleTrack")}
-							options={[
-								{ value: "", label: t("subtitlesOff") },
-								...options("subtitle"),
-							]}
-							value={selected.subtitle}
-							onChange={(subtitle) =>
-								onChange({
-									...selected,
-									subtitle: subtitle ? Number(subtitle) : undefined,
-								})
-							}
-						/>
-					)}
-				</div>
-				<div className="mt-6 flex flex-wrap justify-end gap-2">
-					<button
-						type="button"
-						onClick={onCancel}
-						className="rounded-lg px-3 py-2 text-sm text-white/60 hover:bg-white/10"
-					>
-						{t("cancel")}
-					</button>
-					<button
-						type="button"
-						onClick={onPlay}
-						className="rounded-lg bg-violet-300 px-4 py-2 text-sm font-semibold text-black"
-					>
-						{t("play")}
-					</button>
-				</div>
-			</div>
 		</div>
 	);
 }
@@ -845,9 +804,11 @@ function ItemActionButtons({
 }
 
 function PeopleSection({
-	people,
+	cast,
+	crew,
 }: {
-	people: NonNullable<MediaItem["People"]>;
+	cast: NonNullable<MediaItem["People"]>;
+	crew: NonNullable<MediaItem["People"]>;
 }) {
 	const { t } = useI18n();
 	const title = t("castCrew");
@@ -856,7 +817,14 @@ function PeopleSection({
 			<h2 className="mb-4 text-xs font-semibold uppercase tracking-[.13em] text-white/50">
 				{title}
 			</h2>
-			<HorizontalScroller title={title} className="gap-4">
+			{(["cast", "crew"] as const).map((kind) => {
+				const people = kind === "cast" ? cast : crew;
+				if (!people.length) return null;
+				const sectionTitle = t(kind);
+				return (
+					<div key={kind} className="mb-6 last:mb-0">
+						<h3 className="mb-3 text-sm font-medium text-white/70">{sectionTitle}</h3>
+						<HorizontalScroller title={sectionTitle} className="gap-4">
 				{people.map((person) => {
 					const image = personImage(person);
 					return (
@@ -882,7 +850,10 @@ function PeopleSection({
 						</div>
 					);
 				})}
-			</HorizontalScroller>
+						</HorizontalScroller>
+					</div>
+				);
+			})}
 		</section>
 	);
 }

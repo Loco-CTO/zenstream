@@ -8,7 +8,6 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
-import { libraryHref } from "@/components/pages/home-page";
 import * as jellyfin from "@/lib/media-api";
 import * as session from "@/lib/session";
 
@@ -56,12 +55,37 @@ describe("home screen", () => {
 					items: [item("added-1", "Newly Added Movie")],
 				},
 			],
+			libraryRows: [
+				{
+					libraryId: "anime",
+					libraryName: "Anime",
+					titleKey: "newlyAddedOn",
+					stackEpisodes: true,
+					items: [item("added-1", "Newly Added Movie")],
+				},
+				{
+					libraryId: "anime",
+					libraryName: "Anime",
+					titleKey: "topRated",
+					items: [item("top-1", "Top Rated")],
+				},
+				{
+					libraryId: "anime",
+					libraryName: "Anime",
+					titleKey: "newReleases",
+					items: [item("new-1", "New Release")],
+				},
+			],
 			continueWatching: [item("resume-1", "Resume Show")],
 			nextUp: [item("next-1", "Next Episode")],
 			topRated: [item("top-1", "Top Rated")],
 			newReleases: [item("new-1", "New Release")],
 			movies: [item("movie-1", "Movie")],
 			myList: [item("list-1", "Favorite")],
+			recentlyPlayed: [item("recent-1", "Recently Played Title")],
+			genreRows: [
+				{ genre: "Drama", items: [item("drama-1", "Drama Title")] },
+			],
 		});
 
 		render(
@@ -86,9 +110,24 @@ describe("home screen", () => {
 		expect(screen.getByText("New Release")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
+		expect(
+			within(screen.getByText("Newly Added on Anime").closest("section")!).queryByRole(
+				"link",
+				{ name: /all/i },
+			),
+		).not.toBeInTheDocument();
 		expect(screen.getByText("Continue Watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
-		expect(screen.getByText("Top Rated Anime")).toBeInTheDocument();
+		expect(screen.getByText("My List")).toBeInTheDocument();
+		expect(screen.getByText("Recently Played")).toBeInTheDocument();
+		expect(screen.getByText("Drama")).toBeInTheDocument();
+		expect(screen.getByText("Favorite")).toBeInTheDocument();
+		expect(screen.getByText("Recently Played Title")).toBeInTheDocument();
+		expect(
+		within(screen.getByText("My List").closest("section")!).getByRole("link", {
+			name: /all/i,
+		}),
+	).toHaveAttribute("href", "/favorites");
 
 		const sectionHeadings = screen
 			.getAllByRole("heading")
@@ -120,6 +159,14 @@ describe("home screen", () => {
 			.mockResolvedValueOnce({
 				latestItems: [],
 				newlyAdded: [],
+				libraryRows: [
+					{
+						libraryId: "anime",
+						libraryName: "Anime",
+						titleKey: "topRated",
+						items: [item("top-1", "Recovered")],
+					},
+				],
 				continueWatching: [],
 				nextUp: [],
 				topRated: [item("top-1", "Recovered")],
@@ -139,19 +186,6 @@ describe("home screen", () => {
 
 		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
 		expect(await screen.findAllByText("Recovered")).toHaveLength(2);
-	});
-
-	it("opens newly added rows as series sorted by the latest episode added date", () => {
-		const href = libraryHref({
-			libraryId: "anime",
-			sortBy: "lastAdded",
-			sortOrder: "Descending",
-		});
-
-		expect(href).toBe(
-			"/library?libraryId=anime&sortBy=lastAdded&sortOrder=descending",
-		);
-		expect(href).not.toContain("newlyAdded");
 	});
 
 	it("does not show the empty-library state while home data is loading", async () => {
@@ -179,6 +213,7 @@ describe("home screen", () => {
 		resolveHome({
 			latestItems: [],
 			newlyAdded: [],
+			libraryRows: [],
 			continueWatching: [],
 			nextUp: [],
 			topRated: [],

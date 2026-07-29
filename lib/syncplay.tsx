@@ -316,6 +316,12 @@ export function SyncplayProvider({
 	const announcedMediaGenerationRef = useRef<string | null>(null);
 	const announcementItemRef = useRef<string | null>(null);
 	const membershipActionRef = useRef(false);
+	const socketHandlersRef = useRef<{
+		adopt: (group: SyncplayGroup, announceNewMedia?: boolean) => void;
+		setCurrent: (group: SyncplayGroup | null) => void;
+		t: ReturnType<typeof useI18n>["t"];
+		toast: ReturnType<typeof useToast>;
+	} | null>(null);
 	const [currentParticipantId] = useState(participantId);
 	const serverNow = useCallback(
 		() => Date.now() / 1000 + clockOffsetRef.current,
@@ -514,6 +520,9 @@ export function SyncplayProvider({
 		[announcePlayback, currentParticipantId, reconcile, setCurrent, t, toast],
 	);
 	useEffect(() => {
+		socketHandlersRef.current = { adopt, setCurrent, t, toast };
+	}, [adopt, setCurrent, t, toast]);
+	useEffect(() => {
 		let disposed = false;
 		// The HTTP snapshot is the source of truth when the WebSocket upgrade is
 		// unavailable (or its first server message is lost). It also lets a user
@@ -577,7 +586,7 @@ export function SyncplayProvider({
 		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
 			syncplayDebug("socket groups", message);
 			const next = message.groups ?? [];
-			for (const group of next) adopt(group);
+			for (const group of next) socketHandlersRef.current?.adopt(group);
 			const current = activeRef.current;
 			if (current) {
 				const candidate = next.find((group) => group.id === current.id);
@@ -604,7 +613,7 @@ export function SyncplayProvider({
 			syncplayDebug("socket group", message);
 			if (!message.group) return;
 			const group = message.group;
-			adopt(group);
+			socketHandlersRef.current?.adopt(group);
 		});
 		socket.on(
 			"syncplay:group-ended",
@@ -625,8 +634,10 @@ export function SyncplayProvider({
 			syncplayDebug("participant replaced", message);
 			if (!message.id || activeRef.current?.id !== message.id) return;
 			tombstonesRef.current.set(message.id, Number.MAX_SAFE_INTEGER);
-			setCurrent(null);
-			toast.error(t("syncplayParticipantReplaced"));
+			socketHandlersRef.current?.setCurrent(null);
+			socketHandlersRef.current?.toast.error(
+				socketHandlersRef.current.t("syncplayParticipantReplaced"),
+			);
 		});
 		return () => {
 			window.clearInterval(clockTimer);

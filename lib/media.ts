@@ -20,7 +20,7 @@ export function stackNewlyAdded(items: MediaItem[]): MediaStack[] {
 	for (const item of items) {
 		const previousStack = stacks.at(-1);
 		const previous = previousStack?.items.at(-1);
-		if (previousStack && previous && areSequentialEpisodes(previous, item)) {
+		if (previousStack && previous && areBatchEpisodes(previous, item)) {
 			previousStack.items.push(item);
 		} else {
 			stacks.push({ key: item.Id, items: [item] });
@@ -90,7 +90,7 @@ export function subtitle(item: MediaItem) {
 	return (
 		[item.ProductionYear, item.SeriesName, item.OfficialRating]
 			.filter(Boolean)
-			.join(" ãƒ» ") || item.Type
+			.join(" ・ ") || item.Type
 	);
 }
 
@@ -113,17 +113,26 @@ export function progressPercent(item: MediaItem) {
 	);
 }
 
-function areSequentialEpisodes(a: MediaItem, b: MediaItem) {
+function areBatchEpisodes(a: MediaItem, b: MediaItem) {
 	return (
 		a.Type === "Episode" &&
 		b.Type === "Episode" &&
 		Boolean(a.SeriesId) &&
 		a.SeriesId === b.SeriesId &&
+		Boolean(a.SeasonId) &&
+		a.SeasonId === b.SeasonId &&
 		a.ParentIndexNumber === b.ParentIndexNumber &&
 		a.IndexNumber != null &&
 		b.IndexNumber != null &&
-		Math.abs(a.IndexNumber - b.IndexNumber) === 1
+		Math.abs(a.IndexNumber - b.IndexNumber) === 1 &&
+		addedWithinOneHour(a.LastAddedAt, b.LastAddedAt)
 	);
+}
+
+function addedWithinOneHour(a?: string, b?: string) {
+	const aTime = a ? Date.parse(a) : Number.NaN;
+	const bTime = b ? Date.parse(b) : Number.NaN;
+	return Number.isFinite(aTime) && Number.isFinite(bTime) && Math.abs(aTime - bTime) <= 3_600_000;
 }
 
 function hasVisualImage(item: MediaItem) {

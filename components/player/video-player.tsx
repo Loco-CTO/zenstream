@@ -13,6 +13,7 @@ import {
 	Maximize,
 	Minimize,
 	Pause,
+	PictureInPicture,
 	Play,
 	Settings,
 	SkipBack,
@@ -34,6 +35,7 @@ import {
 	playbackUrl,
 	preserveTrickplay,
 	reportPlayback,
+	savedPlaybackPositionSeconds,
 	setPlayed,
 	subtitleUrl,
 	trickplayPreview,
@@ -100,7 +102,9 @@ export async function clearMediaSession(
 	hls?.destroy();
 	video.pause();
 	video.removeAttribute("src");
-	while (video.firstChild) video.removeChild(video.firstChild);
+	for (const child of Array.from(video.children)) {
+		if (child.tagName !== "TRACK") child.remove();
+	}
 	video.load();
 }
 
@@ -340,10 +344,13 @@ export function VideoPlayer({
 	const { t } = useI18n();
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const syncplay = useSyncplay();
+	const syncplayActive = syncplay.active;
+	const syncplayServerNow = syncplay.serverNow;
 	const applyingSyncRef = useRef(false);
 	const suppressSyncPlayRef = useRef(false);
 	const suppressSyncPauseRef = useRef(false);
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const nativeSubtitleTrackRef = useRef<HTMLTrackElement>(null);
 	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const syncplayStateRef = useRef(syncplay.active);
@@ -436,6 +443,8 @@ export function VideoPlayer({
 	const [buffering, setBuffering] = useState(true);
 	const [controlsVisible, setControlsVisible] = useState(true);
 	const [isFullscreen, setIsFullscreen] = useState(false);
+	const [pipSupported, setPipSupported] = useState(false);
+	const [isPictureInPicture, setIsPictureInPicture] = useState(false);
 	const [timelinePreview, setTimelinePreview] = useState<
 		ReturnType<typeof trickplayPreview> & { time: number; left: number }
 	>();
@@ -447,11 +456,19 @@ export function VideoPlayer({
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
+	const savedPositionSeconds = savedPlaybackPositionSeconds(item);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
 	const debugSource = sourceRef.current ?? info?.source;
 	const playbackSessionId = info?.source?.sessionId;
+	const selectedSubtitleStream = info?.subtitles.find(
+		(stream) => stream.Index === Number(subtitle),
+	);
+	const nativeSubtitleTrackUrl =
+		style.renderer === "native" && subtitle && info?.source
+			? subtitleUrl(session, item.Id, info.source, Number(subtitle))
+			: "";
 	const cancelActiveSession = useCallback(
 		async (reason: string) => {
 			const source = sourceRef.current ?? info?.source;
@@ -470,6 +487,8 @@ export function VideoPlayer({
 		[info?.source, session],
 	);
 	const handleClose = useCallback(() => {
+		if (document.pictureInPictureElement === videoRef.current)
+			void document.exitPictureInPicture().catch(() => undefined);
 		void cancelActiveSession("player_close");
 		onClose();
 	}, [cancelActiveSession, onClose]);
@@ -740,12 +759,16 @@ export function VideoPlayer({
 			? Promise.resolve(initialStreams)
 			: getPlaybackInfo(session, item.Id, {
 					audioStreamId: initialAudioStreamId,
+					startPositionSeconds: savedPositionSeconds,
 					// Keep subtitles out of the media pipeline; the selected track is
 					// fetched as VTT and rendered by CustomSubtitleCue below.
 				})
 				).then(resolvePlaybackReady).then(playbackStreams);
-		Promise.all([streams, getPlaybackMarkers(session, item.Id)])
-			.then(async ([parsed, markerData]) => {
+		streams
+			.then(async (parsed) => {
+				const markerData = parsed.source?.Id
+					? await getPlaybackMarkers(session, item.Id, parsed.source.Id).catch(() => null)
+					: null;
 				const trickplay = parsed.source?.Id
 					? await getTrickplayInfo(session, item.Id, parsed.source.Id).catch(
 							() => undefined,
@@ -804,9 +827,10 @@ export function VideoPlayer({
 		initialAudioStreamId,
 		initialSubtitleStreamIndex,
 		initialStreams,
+		savedPositionSeconds,
 	]);
 	useEffect(() => {
-		const state = syncplay.active;
+		const state = syncplayActive;
 		if (!state || state.itemId !== item.Id) return;
 		const generation = state.mediaGeneration ?? 0;
 		// A client can join after the media element already emitted `canplay`.
@@ -834,19 +858,22 @@ export function VideoPlayer({
 				.catch(() => undefined);
 		};
 	}, [
-		syncplay.active?.id,
-		syncplay.active?.itemId,
-		syncplay.active?.mediaGeneration,
+		syncplayActive,
 		item.Id,
 	]);
 	useEffect(() => {
-		const state = syncplay.active;
+		const state = syncplayActive;
 		const video = videoRef.current;
 		if (!state || !video || state.itemId !== item.Id) {
 			cancelPendingBufferingReport("timeline no longer applies");
 			return;
 		}
 		cancelPendingBufferingReport("authoritative timeline changed");
+		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
+		let forceSeek = appliedTimelineRef.current !== timelineKey;
+		appliedTimelineRef.current = timelineKey;
+		if (forceSeek) optimisticSeekRef.current = null;
+		const seekBarrier = forceSeek && state.pauseReason === "seek";
 		if (readyItemIdRef.current === item.Id && syncplayMediaIsReady(video)) {
 			playerDebug("reasserting readiness for new timeline", {
 				groupId: state.id,
@@ -855,15 +882,11 @@ export function VideoPlayer({
 				timelineRevision: state.timelineRevision,
 			});
 			void syncplayApiRef.current
-				.presence(true, false, state.mediaGeneration ?? 0)
+				.presence(true, seekBarrier, state.mediaGeneration ?? 0)
 				.catch(() => undefined);
 		}
-		const timelineKey = `${state.mediaGeneration ?? 0}:${state.timelineRevision ?? state.revision}`;
-		let forceSeek = appliedTimelineRef.current !== timelineKey;
-		appliedTimelineRef.current = timelineKey;
-		if (forceSeek) optimisticSeekRef.current = null;
 		const apply = () => {
-			const now = syncplay.serverNow();
+			const now = syncplayServerNow();
 			const pendingSeek = optimisticSeekRef.current;
 			const timeline =
 				pendingSeek &&
@@ -900,7 +923,7 @@ export function VideoPlayer({
 		apply();
 		const interval = window.setInterval(apply, 1000);
 		const startsAt = state.effectiveAt ?? state.updatedAt;
-		const startDelay = Math.max(0, (startsAt - syncplay.serverNow()) * 1000);
+		const startDelay = Math.max(0, (startsAt - syncplayServerNow()) * 1000);
 		const startTimer = window.setTimeout(apply, startDelay + 20);
 		return () => {
 			window.clearInterval(interval);
@@ -908,11 +931,9 @@ export function VideoPlayer({
 			video.playbackRate = 1;
 		};
 	}, [
-		syncplay.active?.timelineRevision,
-		syncplay.active?.mediaGeneration,
-		syncplay.active?.itemId,
+		syncplayActive,
 		item.Id,
-		syncplay.serverNow,
+		syncplayServerNow,
 		cancelPendingBufferingReport,
 	]);
 
@@ -935,14 +956,12 @@ export function VideoPlayer({
 		// Native HLS and hls.js can add a second subtitle track asynchronously.
 		// Install the suppression listener before assigning src so the browser
 		// cannot briefly select the stream's original captions.
-		disableNativeSubtitleTracks(video);
-		const position = item.UserData?.PlaybackPositionTicks
-			? item.UserData.PlaybackPositionTicks / 10_000_000
-			: 0;
+		disableNativeSubtitleTracks(video, nativeSubtitleTrackRef.current?.track);
+		const position = savedPositionSeconds;
 		const onMetadata = () => {
 			void (async () => {
 				if (!active) return;
-				disableNativeSubtitleTracks(video);
+				disableNativeSubtitleTracks(video, nativeSubtitleTrackRef.current?.track);
 				setBuffering(false);
 				const groupState = syncplayStateRef.current;
 				const syncplayApi = syncplayApiRef.current;
@@ -971,10 +990,10 @@ export function VideoPlayer({
 				const mediaDuration = Number.isFinite(video.duration)
 					? video.duration
 					: 0;
+				const negotiatedPosition = sourceRef.current?.startPositionSeconds ?? 0;
 				const requestedPosition =
 					resumeTimeRef.current ??
-					sourceRef.current?.startPositionSeconds ??
-					position;
+					(negotiatedPosition > 0 ? negotiatedPosition : position);
 				if (
 					Number.isFinite(requestedPosition) &&
 					requestedPosition > 0 &&
@@ -995,14 +1014,15 @@ export function VideoPlayer({
 				if (shouldPlay) void video.play().catch(() => undefined);
 			})();
 		};
-		const onTextTrackAdded = () => disableNativeSubtitleTracks(video);
+		const onTextTrackAdded = () =>
+			disableNativeSubtitleTracks(video, nativeSubtitleTrackRef.current?.track);
 		const suppressHlsSubtitles = () => {
 			const hls = hlsRef.current;
 			if (hls) {
 				hls.subtitleDisplay = false;
 				hls.subtitleTrack = -1;
 			}
-			disableNativeSubtitleTracks(video);
+			disableNativeSubtitleTracks(video, nativeSubtitleTrackRef.current?.track);
 		};
 		const textTracks = video.textTracks;
 		const onCanPlay = () => {
@@ -1112,14 +1132,33 @@ export function VideoPlayer({
 			hlsRef.current?.destroy();
 			hlsRef.current = null;
 		};
-	}, [url, item.UserData?.PlaybackPositionTicks, knownDuration]);
+	}, [url, item.Id, savedPositionSeconds, knownDuration]);
 
 	useEffect(() => {
 		if (videoRef.current) videoRef.current.volume = volume;
 	}, [volume]);
 
 	useEffect(() => {
-		if (!subtitle || !info?.source) {
+		const video = videoRef.current;
+		const track = nativeSubtitleTrackRef.current;
+		if (!video) return;
+		if (!nativeSubtitleTrackUrl || !track) {
+			disableNativeSubtitleTracks(video);
+			return;
+		}
+		const selectedTrack = track.track;
+		if (!selectedTrack) return;
+		const showSelectedTrack = () => {
+			disableNativeSubtitleTracks(video, selectedTrack);
+			selectedTrack.mode = "showing";
+		};
+		showSelectedTrack();
+		track.addEventListener("load", showSelectedTrack);
+		return () => track.removeEventListener("load", showSelectedTrack);
+	}, [nativeSubtitleTrackUrl]);
+
+	useEffect(() => {
+		if (style.renderer !== "overlay" || !subtitle || !info?.source) {
 			return;
 		}
 		const controller = new AbortController();
@@ -1137,7 +1176,7 @@ export function VideoPlayer({
 				}
 			});
 		return () => controller.abort();
-	}, [info?.source, item.Id, session, subtitle]);
+	}, [info?.source, item.Id, session, style.renderer, subtitle]);
 
 	useEffect(() => {
 		const timer = window.setInterval(() => {
@@ -1201,14 +1240,36 @@ export function VideoPlayer({
 	}, []);
 
 	useEffect(() => {
+		const player = playerRef.current;
 		const syncFullscreenState = () =>
-			setIsFullscreen(document.fullscreenElement === playerRef.current);
+			setIsFullscreen(document.fullscreenElement === player);
 		document.addEventListener("fullscreenchange", syncFullscreenState);
 		syncFullscreenState();
 		return () => {
 			document.removeEventListener("fullscreenchange", syncFullscreenState);
-			if (document.fullscreenElement === playerRef.current)
+			if (document.fullscreenElement === player)
 				exitFullscreenSafely();
+		};
+	}, []);
+
+	useEffect(() => {
+		const video = videoRef.current;
+		if (!video) return;
+		setPipSupported(
+			Boolean(
+				document.pictureInPictureEnabled &&
+				typeof video.requestPictureInPicture === "function",
+			),
+		);
+		const onEnter = () => setIsPictureInPicture(true);
+		const onLeave = () => setIsPictureInPicture(false);
+		video.addEventListener("enterpictureinpicture", onEnter);
+		video.addEventListener("leavepictureinpicture", onLeave);
+		return () => {
+			video.removeEventListener("enterpictureinpicture", onEnter);
+			video.removeEventListener("leavepictureinpicture", onLeave);
+			if (document.pictureInPictureElement === video)
+				void document.exitPictureInPicture().catch(() => undefined);
 		};
 	}, []);
 
@@ -1291,6 +1352,8 @@ export function VideoPlayer({
 				sourceId: previousSource?.Id ?? sourceRef.current?.Id,
 				audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
 				requestedMode: "video-transcode",
+				startPositionSeconds:
+					resumeTimeRef.current ?? savedPositionSeconds,
 			});
 			if (playback.sessionId && playback.source?.sessionState === "starting") {
 				const status = await waitForPlaybackReady(session, playback.sessionId);
@@ -1439,6 +1502,22 @@ export function VideoPlayer({
 			void playerRef.current?.requestFullscreen?.();
 		}
 	}
+	function togglePictureInPicture() {
+		const video = videoRef.current;
+		if (!video || !document.pictureInPictureEnabled) {
+			setError(t("pictureInPictureUnavailable"));
+			return;
+		}
+		if (document.pictureInPictureElement === video) {
+			void document.exitPictureInPicture().catch(() =>
+				setError(t("pictureInPictureUnavailable")),
+			);
+			return;
+		}
+		void video.requestPictureInPicture().catch(() =>
+			setError(t("pictureInPictureUnavailable")),
+		);
+	}
 	function handleVideoPointerDown(event: React.PointerEvent<HTMLVideoElement>) {
 		if (event.pointerType !== "touch") return;
 		touchVideoInteractionRef.current = true;
@@ -1529,10 +1608,11 @@ export function VideoPlayer({
 		// command remains authoritative and will correct other members (or this
 		// player after a rejected command), but waiting for a network round trip
 		// makes the control feel broken.
+		const wasPlaying = !video.paused;
 		const optimistic = {
 			itemId: item.Id,
 			position: target,
-			playing: !video.paused,
+			playing: false,
 			startedAt: syncplay.serverNow(),
 			expiresAt: Date.now() + 8_000,
 		};
@@ -1544,13 +1624,17 @@ export function VideoPlayer({
 		}, 1600);
 		optimisticSeekRef.current = optimistic;
 		video.currentTime = target;
+		if (wasPlaying) {
+			suppressSyncPauseRef.current = true;
+			video.pause();
+		}
 		setCurrentTime(target);
 		void syncplay
 			.command({
 				action: "seek",
 				itemId: item.Id,
 				position: target,
-				playing: !video.paused,
+				playing: wasPlaying,
 			})
 			.catch(() => {
 				if (optimisticSeekRef.current === optimistic)
@@ -1648,7 +1732,7 @@ export function VideoPlayer({
 			.then(async (playback) => {
 				pendingSessionId = playback.sessionId;
 				if (request !== qualityRequestRef.current) {
-					if (pendingSessionId && pendingSessionId !== info.source.sessionId)
+					if (pendingSessionId && pendingSessionId !== info.source?.sessionId)
 						await cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
 					return;
 				}
@@ -1731,9 +1815,13 @@ export function VideoPlayer({
 			}}
 			tabIndex={0}
 		>
+			{style.renderer === "native" && (
+				<style>{nativeSubtitleCueCss(style)}</style>
+			)}
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
+				crossOrigin="anonymous"
 				onPointerDown={handleVideoPointerDown}
 				playsInline
 				preload="auto"
@@ -1841,6 +1929,17 @@ export function VideoPlayer({
 							currentTime: value,
 							readyState: event.currentTarget.readyState,
 						});
+						const syncState = syncplayStateRef.current;
+						if (
+							syncState?.itemId === item.Id &&
+							syncState.pauseReason === "seek" &&
+							syncplayMediaIsReady(event.currentTarget)
+						) {
+							bufferedRef.current = false;
+							void syncplayApiRef.current
+								.presence(true, false, syncState.mediaGeneration ?? 0)
+								.catch(() => undefined);
+						}
 					}}
 						 onTimeUpdate={() => {
 					const value = videoRef.current?.currentTime ?? 0;
@@ -1888,8 +1987,11 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-				 onPlaying={(event) => {
-					disableNativeSubtitleTracks(event.currentTarget);
+					onPlaying={(event) => {
+					disableNativeSubtitleTracks(
+						event.currentTarget,
+						nativeSubtitleTrackRef.current?.track,
+					);
 					setBuffering(false);
 					cancelPendingBufferingReport("playing");
 					seekSettlingUntilRef.current = 0;
@@ -1955,8 +2057,26 @@ export function VideoPlayer({
 					setBuffering(false);
 					setError(t("mediaPlaybackFailed"));
 				}}
-			></video>
-			{subtitle && subtitleCueData?.track === subtitle && (
+			>
+				{nativeSubtitleTrackUrl && (
+					<track
+						key={nativeSubtitleTrackUrl}
+						ref={nativeSubtitleTrackRef}
+						kind="subtitles"
+						src={nativeSubtitleTrackUrl}
+						srcLang={selectedSubtitleStream?.Language ?? "und"}
+						label={
+							selectedSubtitleStream?.DisplayTitle ??
+							selectedSubtitleStream?.Language ??
+							t("subtitleTrack")
+						}
+						default
+					/>
+				)}
+			</video>
+			{style.renderer === "overlay" &&
+				subtitle &&
+				subtitleCueData?.track === subtitle && (
 				<CustomSubtitleCue
 					cues={subtitleCueData.cues}
 					time={currentTime + offset}
@@ -1979,7 +2099,7 @@ export function VideoPlayer({
 				<div className="min-w-0">
 					{item.Type === "Episode" && (
 						<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
-							{`${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
+							{`${item.SeriesName ?? "Series"} Â· S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
 						</p>
 					)}
 					{item.Name && (
@@ -2041,7 +2161,7 @@ export function VideoPlayer({
 				</div>
 			)}
 			<SkipMarkerActions
-				markers={markers}
+				markers={syncplay.active ? null : markers}
 				currentTime={currentTime}
 				labelIntro={t("skipIntro")}
 				labelOutro={t("skipOutro")}
@@ -2288,6 +2408,19 @@ export function VideoPlayer({
 					>
 						<Settings />
 					</button>
+					{pipSupported && (
+						<button
+							aria-label={
+								isPictureInPicture
+									? t("exitPictureInPicture")
+									: t("pictureInPicture")
+							}
+							onClick={togglePictureInPicture}
+							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+						>
+							<PictureInPicture />
+						</button>
+					)}
 					<button
 						aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
 						onClick={toggleFullscreen}
@@ -2336,10 +2469,12 @@ export function VideoPlayer({
 										label={t("speed")}
 										onClick={() => setSettingsSection("speed")}
 									/>
-									<MenuRow
-										label={t("subtitleOffset")}
-										onClick={() => setSettingsSection("offset")}
-									/>
+									{style.renderer === "overlay" && (
+										<MenuRow
+											label={t("subtitleOffset")}
+											onClick={() => setSettingsSection("offset")}
+										/>
+									)}
 									<MenuRow
 										label={debugOpen ? "Hide diagnostics" : "Show diagnostics"}
 										onClick={() => {
@@ -2514,8 +2649,20 @@ function hexToRgba(hex: string, opacity: number) {
 	return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
 }
 
-export function disableNativeSubtitleTracks(video: HTMLVideoElement) {
-	for (const track of Array.from(video.textTracks)) track.mode = "disabled";
+export function nativeSubtitleCueCss(style: SubtitleStyle) {
+	const cue = "video.zenstream-video::cue";
+	const text = `${cue}(*)`;
+	const textStyle = `color: ${style.fontColor}; font-family: ${SUBTITLE_FONT_STACKS[style.fontFamily]}; font-size: clamp(16px, ${style.textScale / 20}vh, 72px); font-weight: ${style.bold ? 700 : 400}; line-height: 1.15; text-shadow: ${subtitleOuterShadow(style.borderSize, style.borderColor)}; white-space: pre-line;`;
+	return `${cue} { ${textStyle} background-color: ${hexToRgba(style.backgroundColor, style.backgroundOpacity)}; } ${text} { ${textStyle} }`;
+}
+
+export function disableNativeSubtitleTracks(
+	video: HTMLVideoElement,
+	selectedTrack?: TextTrack | null,
+) {
+	for (const track of Array.from(video.textTracks)) {
+		track.mode = track === selectedTrack ? "showing" : "disabled";
+	}
 }
 
 export function exitFullscreenSafely() {

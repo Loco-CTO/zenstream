@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogRequest, toMediaItem, type CatalogItem } from "@/lib/catalog";
 import {
 	authenticateByName,
+	getInitialSeason,
 	getPlaybackInfo,
+	getPlaybackMarkers,
+	getPlaybackSource,
 	getTrickplayInfo,
 	trickplayPreview,
 	type MediaSource,
@@ -13,6 +16,22 @@ const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
+	it("loads source-specific intro and outro markers from the Orchestrator", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+			segments: [
+				{ type: "intro", startSeconds: 5, endSeconds: 35 },
+				{ type: "outro", startSeconds: 1200, endSeconds: 1260 },
+			],
+		}), { status: 200 }));
+		await expect(getPlaybackMarkers(session, "episode-1", "source-1")).resolves.toEqual({
+			intro: { start: 5, end: 35 }, outro: { start: 1200, end: 1260 },
+		});
+		expect(fetch).toHaveBeenCalledWith(
+			expect.stringContaining("/api/playback/items/episode-1/segments?sourceId=source-1"),
+			expect.any(Object),
+		);
+	});
+
 	it("maps catalog metadata, state, and canonical artwork", () => {
 		const item = toMediaItem({
 			id: "movie-1",
@@ -61,6 +80,26 @@ describe("catalog client", () => {
 		});
 	});
 
+	it("maps separate cast and crew credits with authenticated portrait paths", () => {
+		const item = toMediaItem({
+			id: "movie-1",
+			libraryId: "movies",
+			type: "movie",
+			name: "Fallback",
+			metadata: {
+				credits: {
+					cast: [{ id: "person-1", name: "Actor", character: "Lead", image: { url: "/api/catalog/items/movie-1/people/person-1/image", blurHash: "hash" } }],
+					crew: [{ id: "person-2", name: "Director", job: "Director", department: "Directing" }],
+				},
+			},
+		} satisfies CatalogItem);
+
+		expect(item.People).toEqual([
+			expect.objectContaining({ Id: "person-1", Name: "Actor", Role: "Lead", CreditType: "cast", PrimaryImageTag: "/api/catalog/items/movie-1/people/person-1/image" }),
+			expect.objectContaining({ Id: "person-2", Name: "Director", Role: "Director", Type: "Directing", CreditType: "crew" }),
+		]);
+	});
+
 	it("maps URL-based TVDB trailers into remote trailers", () => {
 		const item = toMediaItem({
 			id: "series-1",
@@ -84,6 +123,34 @@ describe("catalog client", () => {
 		expect(item.RemoteTrailers).toEqual([
 			{ Url: "https://www.youtube.com/watch?v=tvdb-trailer" },
 		]);
+	});
+
+	it("prefers season 1 over specials when opening a series", () => {
+		const seasons = [
+			toMediaItem({
+				id: "specials",
+				libraryId: "shows",
+				type: "season",
+				name: "Specials",
+				seasonNumber: 0,
+				metadata: {},
+			} satisfies CatalogItem),
+			toMediaItem({
+				id: "season-1",
+				libraryId: "shows",
+				type: "season",
+				name: "Season 1",
+				seasonNumber: 1,
+				metadata: {},
+			} satisfies CatalogItem),
+		];
+
+		expect(
+			getInitialSeason(
+				{ Id: "series", Name: "Example", Type: "Series" },
+				seasons,
+			)?.Id,
+		).toBe("season-1");
 	});
 
 	it("uses a Bearer token for catalog requests", async () => {
@@ -149,6 +216,31 @@ describe("catalog client", () => {
 		);
 	});
 
+	it("loads playback source metadata without negotiating playback", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					id: "source-1",
+					streams: [{ index: 2, codec_type: "audio" }],
+				}),
+				{ status: 200 },
+			),
+		);
+		const source = await getPlaybackSource(session, "movie-1");
+		expect(source.Id).toBe("source-1");
+		expect(source.MediaStreams).toHaveLength(1);
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/playback/items/movie-1/source"),
+			expect.objectContaining({
+				headers: expect.objectContaining({ Authorization: "Bearer opaque-token" }),
+			}),
+		);
+		expect(fetchMock).not.toHaveBeenCalledWith(
+			expect.stringContaining("/negotiate"),
+			expect.anything(),
+		);
+	});
+
 	it("loads ready trickplay manifests for the selected playback source", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(
@@ -165,7 +257,7 @@ describe("catalog client", () => {
 						{
 							index: 0,
 							frameCount: 100,
-							url: "/api/playback/trickplay/0.jpg?access=ticket",
+							url: "/api/playback/trickplay/0.webp?access=ticket",
 						},
 					],
 				}),
@@ -180,7 +272,7 @@ describe("catalog client", () => {
 			sheets: [{ index: 0 }],
 		});
 		expect(trickplay?.sheets?.[0]?.url).toMatch(
-			/^https?:\/\/.*\/api\/playback\/trickplay\/0\.jpg\?access=ticket$/,
+			/^https?:\/\/.*\/api\/playback\/trickplay\/0\.webp\?access=ticket$/,
 		);
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining(
@@ -207,15 +299,15 @@ describe("catalog client", () => {
 					rows: 2,
 					frameCount: 7,
 					sheets: [
-						{ index: 0, url: "/trickplay/0.jpg?access=ticket" },
-						{ index: 1, url: "/trickplay/1.jpg?access=ticket" },
+						{ index: 0, url: "/trickplay/0.webp?access=ticket" },
+						{ index: 1, url: "/trickplay/1.webp?access=ticket" },
 					],
 				},
 			},
 		};
 
 		expect(trickplayPreview(session, "movie-1", source, 22)).toEqual({
-			url: "/trickplay/1.jpg?access=ticket",
+			url: "/trickplay/1.webp?access=ticket",
 			width: 320,
 			height: 180,
 			tileIndex: 1,

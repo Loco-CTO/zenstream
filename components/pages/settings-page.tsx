@@ -25,6 +25,16 @@ type SettingsPageProps = {
 	onLogout: () => void;
 };
 
+type SettingsSectionName =
+	| "root"
+	| "account"
+	| "appearance"
+	| "playback"
+	| "subtitles"
+	| "notifications"
+	| "privacy"
+	| "versions";
+
 export function SettingsPage({
 	displayName,
 	userId,
@@ -55,6 +65,7 @@ export function SettingsPage({
 	const [watchHistory, setWatchHistory] = useState(true);
 	const [dataSaver, setDataSaver] = useState(false);
 	const [subtitlePreview, setSubtitlePreview] = useState(false);
+	const [section, setSection] = useState<SettingsSectionName>("root");
 	const [orchestratorVersion, setOrchestratorVersion] = useState<string | null>(
 		null,
 	);
@@ -82,6 +93,10 @@ export function SettingsPage({
 	};
 
 	const goBack = () => {
+		if (section !== "root") {
+			setSection("root");
+			return;
+		}
 		if (window.history.length > 1) {
 			router.back();
 			return;
@@ -101,12 +116,35 @@ export function SettingsPage({
 					<ChevronLeft className="h-4 w-4" />
 				</button>
 				<h1 className="text-lg font-bold tracking-tight text-white">
-					{t("settings")}
+					{section === "root"
+						? t("settings")
+						: section === "account"
+							? t("account")
+							: section === "appearance"
+								? t("appearance")
+								: section === "playback"
+									? t("playback")
+									: section === "subtitles"
+										? t("subtitles")
+										: section === "notifications"
+											? t("notifications")
+											: section === "privacy"
+												? t("privacyData")
+												: t("versions")}
 				</h1>
 			</header>
 
 			<div className="space-y-7 px-4 py-6 sm:px-6 sm:py-8 md:px-14">
-				<SettingsSection title={t("account")}>
+				{section === "root" && (
+					<SettingsIndex
+						displayName={displayName}
+						userId={userId}
+						onOpenSection={setSection}
+						onLogout={onLogout}
+					/>
+				)}
+
+				{section === "account" && <SettingsSection title={t("account")}>
 					<div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
 						<Avatar userId={userId} />
 						<p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
@@ -121,9 +159,9 @@ export function SettingsPage({
 						border={false}
 						right={<ChevronRight className="h-4 w-4 text-white/20" />}
 					/>
-				</SettingsSection>
+				</SettingsSection>}
 
-				<SettingsSection title={t("appearance")}>
+				{section === "appearance" && <SettingsSection title={t("appearance")}>
 					<SettingsRow
 						label={t("language")}
 						sub={t("languageDescription")}
@@ -168,9 +206,9 @@ export function SettingsPage({
 						}
 					/>
 					{metadataLanguageError && <p role="alert" className="border-t border-white/5 px-4 py-3 text-xs text-red-300">{t("metadataLanguageSaveFailed")}</p>}
-				</SettingsSection>
+				</SettingsSection>}
 
-				<SettingsSection title={t("playback")}>
+				{section === "playback" && <SettingsSection title={t("playback")}>
 					<SettingsRow
 						label={t("audioLanguage")}
 						right={
@@ -201,6 +239,49 @@ export function SettingsPage({
 									["off", t("off")],
 								]}
 								onChange={setSubtitleLanguage}
+							/>
+						}
+					/>
+					<SettingsRow
+						label={t("autoplayNextEpisode")}
+						right={
+							<Toggle
+								label={t("autoplayNextEpisode")}
+								checked={autoplayNext}
+								onChange={setAutoplayNext}
+							/>
+						}
+					/>
+					<SettingsRow
+						label={t("autoplayBrowse")}
+						sub={t("autoplayBrowseDescription")}
+						border={false}
+						right={
+							<Toggle
+								label={t("autoplayBrowse")}
+								checked={autoplayBrowse}
+								onChange={setAutoplayBrowse}
+							/>
+						}
+					/>
+				</SettingsSection>}
+
+				{section === "subtitles" && <SettingsSection title={t("subtitles")}>
+					<SettingsRow
+						label={t("subtitleRenderer")}
+						right={
+							<SettingsSelect
+								label={t("subtitleRenderer")}
+								value={style.renderer}
+								options={[
+									["native", t("subtitleRendererNative")],
+									["overlay", t("subtitleRendererOverlay")],
+								]}
+								onChange={(value) =>
+									void updateSubtitleStyle({
+										renderer: value as typeof style.renderer,
+									})
+								}
 							/>
 						}
 					/>
@@ -359,31 +440,9 @@ export function SettingsPage({
 							{t("subtitleSaveFailed")}
 						</p>
 					)}
-					<SettingsRow
-						label={t("autoplayNextEpisode")}
-						right={
-							<Toggle
-								label={t("autoplayNextEpisode")}
-								checked={autoplayNext}
-								onChange={setAutoplayNext}
-							/>
-						}
-					/>
-					<SettingsRow
-						label={t("autoplayBrowse")}
-						sub={t("autoplayBrowseDescription")}
-						border={false}
-						right={
-							<Toggle
-								label={t("autoplayBrowse")}
-								checked={autoplayBrowse}
-								onChange={setAutoplayBrowse}
-							/>
-						}
-					/>
-				</SettingsSection>
+				</SettingsSection>}
 
-				<SettingsSection title={t("notifications")}>
+				{section === "notifications" && <SettingsSection title={t("notifications")}>
 					<SettingsRow
 						label={t("newEpisodes")}
 						sub={t("newEpisodesDescription")}
@@ -427,9 +486,9 @@ export function SettingsPage({
 							/>
 						}
 					/>
-				</SettingsSection>
+				</SettingsSection>}
 
-				<SettingsSection title={t("privacyData")}>
+				{section === "privacy" && <SettingsSection title={t("privacyData")}>
 					<SettingsRow
 						label={t("watchHistory")}
 						sub={t("watchHistoryDescription")}
@@ -461,25 +520,9 @@ export function SettingsPage({
 							</button>
 						}
 					/>
-				</SettingsSection>
+				</SettingsSection>}
 
-				<SettingsSection title={t("dangerZone")}>
-					<SettingsRow
-						label={t("logout")}
-						border={false}
-						right={
-							<button
-								onClick={onLogout}
-								className="flex items-center gap-1.5 text-xs font-medium text-red-400/70 transition hover:text-red-400"
-							>
-								<LogOut className="h-3.5 w-3.5" />
-								{t("logout")}
-							</button>
-						}
-					/>
-				</SettingsSection>
-
-				<SettingsSection title={t("versions")}>
+				{section === "versions" && <SettingsSection title={t("versions")}>
 					<SettingsRow
 						label={t("zenstreamVersion")}
 						right={
@@ -495,7 +538,7 @@ export function SettingsPage({
 							</span>
 						}
 					/>
-				</SettingsSection>
+				</SettingsSection>}
 			</div>
 		</main>
 	);
@@ -517,6 +560,79 @@ function SettingsSection({
 				{children}
 			</div>
 		</section>
+	);
+}
+
+function SettingsIndex({
+	displayName,
+	userId,
+	onOpenSection,
+	onLogout,
+}: {
+	displayName: string;
+	userId: string;
+	onOpenSection: (section: Exclude<SettingsSectionName, "root">) => void;
+	onLogout: () => void;
+}) {
+	const { t } = useI18n();
+
+	return (
+		<div className="space-y-4">
+			<nav
+				aria-label={t("settings")}
+				className="overflow-hidden rounded-xl border border-white/6 bg-white/[0.025]"
+			>
+				<SettingsMenuItem
+					label={t("account")}
+					sub={displayName}
+					leading={<Avatar userId={userId} />}
+					onClick={() => onOpenSection("account")}
+				/>
+				<SettingsMenuItem label={t("appearance")} onClick={() => onOpenSection("appearance")} />
+				<SettingsMenuItem label={t("playback")} onClick={() => onOpenSection("playback")} />
+				<SettingsMenuItem label={t("subtitles")} onClick={() => onOpenSection("subtitles")} />
+				<SettingsMenuItem label={t("notifications")} onClick={() => onOpenSection("notifications")} />
+				<SettingsMenuItem label={t("privacyData")} onClick={() => onOpenSection("privacy")} />
+				<SettingsMenuItem label={t("versions")} border={false} onClick={() => onOpenSection("versions")} />
+			</nav>
+			<button
+				type="button"
+				onClick={onLogout}
+				className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-400/15 bg-red-400/[0.04] px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-red-400/[0.1] hover:text-red-200"
+			>
+				<LogOut className="h-4 w-4" />
+				{t("logout")}
+			</button>
+		</div>
+	);
+}
+
+function SettingsMenuItem({
+	label,
+	sub,
+	leading,
+	border = true,
+	onClick,
+}: {
+	label: string;
+	sub?: string;
+	leading?: React.ReactNode;
+	border?: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className={`flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-white/[0.04] ${border ? "border-b border-white/5" : ""}`}
+		>
+			{leading}
+			<div className="min-w-0 flex-1">
+				<p className="text-sm font-medium text-white/85">{label}</p>
+				{sub && <p className="mt-0.5 truncate text-xs text-white/35">{sub}</p>}
+			</div>
+			<ChevronRight className="h-4 w-4 shrink-0 text-white/25" />
+		</button>
 	);
 }
 

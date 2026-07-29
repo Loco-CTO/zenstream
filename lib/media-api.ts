@@ -47,12 +47,21 @@ export interface MediaItem {
 		LastPlayedAt?: string;
 	};
 	DateCreated?: string;
+	LastAddedAt?: string;
 	CollectionType?: string;
 	SeriesPrimaryImageTag?: string;
+	SeriesPrimaryImageBlurHash?: string;
 	Trickplay?: Record<string, Record<string, TrickplayInfo>>;
 	LibraryId?: string;
 	CatalogParentId?: string;
 	ChildIds?: string[];
+}
+
+export function savedPlaybackPositionSeconds(item: Pick<MediaItem, "UserData">) {
+	const ticks = item.UserData?.PlaybackPositionTicks;
+	return typeof ticks === "number" && Number.isFinite(ticks) && ticks > 0
+		? ticks / 10_000_000
+		: 0;
 }
 
 export interface MediaStream {
@@ -197,9 +206,11 @@ export type HeroTrailer =
 	| { kind: "local"; url: string };
 
 export interface MediaPerson {
+	Id?: string;
 	Name: string;
 	Role?: string;
 	Type?: string;
+	CreditType?: "cast" | "crew";
 	PrimaryImageTag?: string;
 	ImageBlurHashes?: Pick<ImageBlurHashes, "Primary">;
 }
@@ -223,11 +234,18 @@ export interface HomeData {
 	newReleases?: MediaItem[];
 	movies?: MediaItem[];
 	myList?: MediaItem[];
+	recentlyPlayed?: MediaItem[];
+	genreRows?: HomeGenreSection[];
 }
 
 export interface HomeLibrarySection extends NewlyAddedSection {
 	titleKey: "topRated" | "newReleases" | "newlyAddedOn";
 	stackEpisodes?: boolean;
+}
+
+export interface HomeGenreSection {
+	genre: string;
+	items: MediaItem[];
 }
 
 export type LibrarySortBy =
@@ -329,11 +347,25 @@ export async function fetchHomeData(
 	onSection?: (section: Partial<HomeData>) => void,
 ): Promise<HomeData> {
 	const data = await cachedClientRequest(`home:${session.userId}`, async () => {
-	const result = await catalogRequest<{ latestItems: CatalogItem[]; continueWatching: CatalogItem[]; nextUp: CatalogItem[]; libraryRows: Array<Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }> }>(session, "/api/catalog/home");
+	const result = await catalogRequest<{
+		latestItems: CatalogItem[];
+		continueWatching: CatalogItem[];
+		nextUp: CatalogItem[];
+		myList: CatalogItem[];
+		recentlyPlayed: CatalogItem[];
+		genreRows: Array<{ genre: string; items: CatalogItem[] }>;
+		libraryRows: Array<Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }>;
+	}>(session, "/api/catalog/home");
 	return {
 		latestItems: result.latestItems.map(toMediaItem),
 		continueWatching: result.continueWatching.map(toMediaItem),
 		nextUp: result.nextUp.map(toMediaItem),
+		myList: result.myList.map(toMediaItem),
+		recentlyPlayed: result.recentlyPlayed.map(toMediaItem),
+		genreRows: result.genreRows.map((row) => ({
+			...row,
+			items: row.items.map(toMediaItem),
+		})),
 		libraryRows: result.libraryRows.map((row) => ({ ...row, items: row.items.map(toMediaItem) })),
 	};
 	});
@@ -532,27 +564,51 @@ export async function getPlaybackInfo(
 			}),
 		},
 	);
-	const source: MediaSource = {
-		Id: String(response.source.id ?? itemId),
-		Container:
-			typeof response.source.container === "string"
-				? response.source.container
-				: undefined,
-		Bitrate:
-			typeof response.source.bitrate === "number"
-				? response.source.bitrate
-				: undefined,
-		SupportsDirectPlay: response.mode === "direct",
-		SupportsDirectStream: response.mode === "remux" || response.mode === "audio-transcode",
-		SupportsTranscoding: true,
+	const source = mediaSourceFromPayload(response.source, itemId, {
 		url: response.url,
 		mode: response.mode,
 		sessionState: response.sessionState,
 		sessionId: response.sessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
-		MediaStreams: toMediaStreams(response.source.streams ?? []),
-	};
+	});
 	return { source, sessionId: response.sessionId, startPositionSeconds: response.startPositionSeconds ?? 0 };
+}
+
+export async function getPlaybackSource(
+	session: AuthSession,
+	itemId: string,
+): Promise<MediaSource> {
+	const response = await catalogRequest<
+		Record<string, unknown> & { streams?: Array<Record<string, unknown>> }
+	>(session, `/api/playback/items/${encodeURIComponent(itemId)}/source`);
+	return mediaSourceFromPayload(response, itemId);
+}
+
+function mediaSourceFromPayload(
+	source: Record<string, unknown> & { streams?: Array<Record<string, unknown>> },
+	itemId: string,
+	playback: Pick<
+		MediaSource,
+		"url" | "mode" | "sessionState" | "sessionId" | "startPositionSeconds"
+	> = {},
+): MediaSource {
+	return {
+		Id: String(source.id ?? itemId),
+		Container:
+			typeof source.container === "string"
+				? source.container
+				: undefined,
+		Bitrate:
+			typeof source.bitrate === "number"
+				? source.bitrate
+				: undefined,
+		SupportsDirectPlay: playback.mode === "direct",
+		SupportsDirectStream:
+			playback.mode === "remux" || playback.mode === "audio-transcode",
+		SupportsTranscoding: playback.mode != null,
+		...playback,
+		MediaStreams: toMediaStreams(source.streams ?? []),
+	};
 }
 
 export async function getPlaybackSessionStatus(
@@ -819,81 +875,19 @@ export async function reportPlayback(
 export async function getPlaybackMarkers(
 	session: AuthSession,
 	itemId: string,
+	sourceId?: string,
 ): Promise<{ intro?: PlaybackMarker; outro?: PlaybackMarker } | null> {
-	void session;
-	void itemId;
-	return null;
-}
-
-function normalizePlaybackMarkers(
-	value: unknown,
-): { intro?: PlaybackMarker; outro?: PlaybackMarker } | null {
-	const segments = Array.isArray(value)
-		? value
-		: Array.isArray((value as { Items?: unknown[] })?.Items)
-			? (value as { Items: unknown[] }).Items
-			: null;
-	if (segments) {
-		const byType = (types: string[]) =>
-			segments.find((segment) => {
-				const type = (segment as { Type?: unknown }).Type;
-				return typeof type === "string" && types.includes(type.toLowerCase());
-			});
-		const segmentMarker = (segment: unknown) => {
-			if (!segment || typeof segment !== "object") return undefined;
-			const data = segment as Record<string, unknown>;
-			const start = data.StartTicks ?? data.StartTimeTicks;
-			const end = data.EndTicks ?? data.EndTimeTicks;
-			return toMarker(start, end);
-		};
-		const intro = segmentMarker(byType(["intro", "opening"]));
-		const outro = segmentMarker(byType(["outro", "credits", "closing"]));
-		return intro || outro ? { intro, outro } : null;
-	}
-	if (!value || typeof value !== "object") return null;
-	const data = value as Record<string, unknown>;
-	const namedMarker = (names: string[]) => {
-		const entry = Object.entries(data).find(([key]) =>
-			names.includes(key.toLowerCase()),
-		)?.[1];
-		if (!entry || typeof entry !== "object") return undefined;
-		const segment = entry as Record<string, unknown>;
-		return toMarker(segment.Start ?? segment.start, segment.End ?? segment.end);
+	const query = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : "";
+	const value = await catalogRequest(session, `/api/playback/items/${encodeURIComponent(itemId)}/segments${query}`);
+	const segments = Array.isArray((value as { segments?: unknown }).segments)
+		? (value as { segments: Array<Record<string, unknown>> }).segments
+		: [];
+	const marker = (type: "intro" | "outro") => {
+		const match = segments.find((segment) => String(segment.type).toLowerCase() === type);
+		return match ? toMarker(match.startSeconds, match.endSeconds) : undefined;
 	};
-	const marker = (
-		name: "intro" | "outro",
-		startKeys: string[],
-		endKeys: string[],
-	) => {
-		const nested = data[name] as Record<string, unknown> | undefined;
-		const start =
-			nested?.start ??
-			nested?.Start ??
-			startKeys
-				.map((key) => data[key])
-				.find((entry) => typeof entry === "number");
-		const end =
-			nested?.end ??
-			nested?.End ??
-			endKeys
-				.map((key) => data[key])
-				.find((entry) => typeof entry === "number");
-		return toMarker(start, end);
-	};
-	const intro =
-		namedMarker(["intro", "introduction", "opening"]) ??
-		marker(
-			"intro",
-			["IntroStart", "IntroStartTicks", "StartTicks"],
-			["IntroEnd", "IntroEndTicks", "EndTicks"],
-		);
-	const outro =
-		namedMarker(["outro", "credits", "closing"]) ??
-		marker(
-			"outro",
-			["OutroStart", "CreditsStart", "CreditsStartTicks"],
-			["OutroEnd", "CreditsEnd", "CreditsEndTicks"],
-		);
+	const intro = marker("intro");
+	const outro = marker("outro");
 	return intro || outro ? { intro, outro } : null;
 }
 
@@ -1085,6 +1079,12 @@ export function seriesPosterImage(item: MediaItem) {
 			...item,
 			Id: item.SeriesId,
 			ImageTags: { Primary: item.SeriesPrimaryImageTag },
+			ImageBlurHashes: {
+				...item.ImageBlurHashes,
+				Primary: item.SeriesPrimaryImageBlurHash
+					? { [item.SeriesPrimaryImageTag]: item.SeriesPrimaryImageBlurHash }
+					: undefined,
+			},
 		},
 		"Primary",
 		280,
@@ -1110,7 +1110,17 @@ export function personImageUrl(person: MediaPerson) {
 }
 
 export function personImage(person: MediaPerson) {
-	void person;
+	const tag = person.PrimaryImageTag;
+	if (!tag) return null;
+	if (tag.startsWith("/api/")) {
+		const url = new URL(tag, orchestratorBaseUrl());
+		if (resourceTicket && resourceTicket.expiresAt > Date.now())
+			url.searchParams.set("access", resourceTicket.value);
+		return {
+			src: url.toString(),
+			blurHash: person.ImageBlurHashes?.Primary?.[tag],
+		};
+	}
 	return null;
 }
 
@@ -1129,7 +1139,13 @@ function imageData(
 		const url = new URL(tag, orchestratorBaseUrl());
 		if (resourceTicket && resourceTicket.expiresAt > Date.now())
 			url.searchParams.set("access", resourceTicket.value);
-		return { src: url.toString(), blurHash: undefined };
+		return {
+			src: url.toString(),
+			blurHash:
+				imageType === "Logo"
+					? undefined
+					: item.ImageBlurHashes?.[imageType]?.[tag],
+		};
 	}
 
 	const index = imageType === "Backdrop" ? "/0" : "";

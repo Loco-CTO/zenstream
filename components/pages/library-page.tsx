@@ -71,8 +71,6 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
 	const querySortOrder = searchParams.get("sortOrder");
 	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
-	const queryLibraryIdRef = useRef(queryLibraryId);
-	queryLibraryIdRef.current = queryLibraryId;
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
 	const supportsLastAdded =
@@ -99,8 +97,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (controller.signal.aborted) return;
 			setLibraries(nextLibraries);
 			setLibraryId((current) =>
-				nextLibraries.some((library) => library.Id === queryLibraryIdRef.current)
-					? queryLibraryIdRef.current
+				nextLibraries.some((library) => library.Id === queryLibraryId)
+					? queryLibraryId
 					: nextLibraries.some((library) => library.Id === current)
 						? current
 						: (nextLibraries[0]?.Id ?? ""),
@@ -118,7 +116,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		} finally {
 			finish();
 		}
-	}, [session, start]);
+	}, [queryLibraryId, session, start]);
 
 	useEffect(() => {
 		const normalizedQueryOrder = querySortOrder?.toLowerCase();

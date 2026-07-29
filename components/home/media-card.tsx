@@ -80,12 +80,9 @@ export function PosterCard({
 }) {
 	const image = seriesPosterImage(item);
 	const progress = progressPercent(item);
-	const preview = useHoverPreview(item.Id, item.RunTimeTicks, session);
 
 	return (
 		<article
-			onPointerEnter={preview.start}
-			onPointerLeave={preview.stop}
 			className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]"
 		>
 			<div className="relative">
@@ -96,7 +93,6 @@ export function PosterCard({
 					className="block"
 				>
 					<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
-						{item.Type === "Movie" && <HoverPreviewVideo preview={preview} />}
 						{image && (
 							<BlurHashImage
 								image={image}
@@ -131,6 +127,7 @@ export function StackedPosterCard({
 }) {
 	const item = items[0];
 	const stacked = items.length > 1;
+	const episode = item.Type === "Episode" && Boolean(item.SeriesId);
 	const image = seriesPosterImage(item);
 
 	return (
@@ -148,7 +145,7 @@ export function StackedPosterCard({
 							{image && (
 								<BlurHashImage
 									image={image}
-									alt={stacked ? (item.SeriesName ?? item.Name) : item.Name}
+									alt={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 									draggable={false}
 									className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 								/>
@@ -170,16 +167,20 @@ export function StackedPosterCard({
 					</div>
 					<div className="mt-2">
 						<p className="truncate text-xs font-medium text-white/80">
-							{stacked ? (item.SeriesName ?? item.Name) : item.Name}
+							{stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 						</p>
 						<p className="mt-0.5 truncate text-xs text-white/30">
-							{stacked ? (item.ProductionYear ?? item.Type) : subtitle(item)}
+							{stacked
+								? (item.ProductionYear ?? item.Type)
+								: episode
+									? episodeLabel(item)
+									: subtitle(item)}
 						</p>
 					</div>
 				</Link>
 				<MediaCardOverlay
 					href={detailHref(item)}
-					title={stacked ? (item.SeriesName ?? item.Name) : item.Name}
+					title={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 					item={item}
 					session={session}
 					className="inset-x-0 top-0 aspect-[2/3]"
@@ -334,6 +335,6 @@ function episodeLabel(item: MediaItem) {
 			: String(item.ParentIndexNumber).padStart(2, "0");
 	const episode =
 		item.IndexNumber == null ? "??" : String(item.IndexNumber).padStart(2, "0");
-	return `S${season}E${episode}ãƒ»${item.Name}`;
+	return `S${season}E${episode}・${item.Name}`;
 }
 

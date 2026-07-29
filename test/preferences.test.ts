@@ -75,6 +75,7 @@ describe("locale preferences", () => {
 
 describe("subtitle preferences", () => {
 	const style = {
+		renderer: "native" as const,
 		fontFamily: "serif" as const,
 		bold: true,
 		textScale: 125,
@@ -107,6 +108,7 @@ describe("subtitle preferences", () => {
 		);
 		await expect(getSubtitlePreference()).resolves.toEqual({
 			...legacyStyle,
+			renderer: "native",
 			fontFamily: "sans",
 			bold: false,
 		});

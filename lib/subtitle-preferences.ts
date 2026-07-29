@@ -1,7 +1,10 @@
 export const SUBTITLE_FONT_FAMILIES = ["sans", "serif", "mono"] as const;
 export type SubtitleFontFamily = (typeof SUBTITLE_FONT_FAMILIES)[number];
+export const SUBTITLE_RENDERERS = ["native", "overlay"] as const;
+export type SubtitleRenderer = (typeof SUBTITLE_RENDERERS)[number];
 
 export type SubtitleStyle = {
+	renderer: SubtitleRenderer;
 	fontFamily: SubtitleFontFamily;
 	bold: boolean;
 	textScale: number;
@@ -21,6 +24,7 @@ const preferenceHeaders = (): Record<string, string> => {
 };
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
+	renderer: "native",
 	fontFamily: "sans",
 	bold: false,
 	textScale: 100,
@@ -155,6 +159,9 @@ function normalizeSubtitleStyle(
 	const fontFamily =
 		style.fontFamily ??
 		(allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.fontFamily : undefined);
+	const renderer =
+		style.renderer ??
+		(allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.renderer : undefined);
 	const bold =
 		style.bold ?? (allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.bold : undefined);
 	if (
@@ -173,8 +180,9 @@ function normalizeSubtitleStyle(
 				/^#[0-9a-f]{6}$/i.test(style[key] as string),
 		) ||
 		!SUBTITLE_FONT_FAMILIES.includes(fontFamily as SubtitleFontFamily) ||
+		!SUBTITLE_RENDERERS.includes(renderer as SubtitleRenderer) ||
 		typeof bold !== "boolean"
 	)
 		return null;
-	return { ...style, fontFamily, bold } as SubtitleStyle;
+	return { ...style, renderer, fontFamily, bold } as SubtitleStyle;
 }

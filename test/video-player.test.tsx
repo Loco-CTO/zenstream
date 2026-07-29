@@ -6,6 +6,7 @@ import {
 	advanceToNextEpisode,
 	advanceToNextEpisodeWithSyncplay,
 	nextEpisodeSyncplayCommand,
+	nativeSubtitleCueCss,
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
@@ -23,12 +24,15 @@ import {
 	VideoPlayer,
 	syncplayWaitingForMembers,
 } from "@/components/player/video-player";
-import { parseWebVttCues } from "@/lib/subtitle-preferences";
+import {
+	DEFAULT_SUBTITLE_STYLE,
+	parseWebVttCues,
+} from "@/lib/subtitle-preferences";
 import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
-import type { MediaItem } from "@/lib/media-api";
+import { getPlaybackInfo, type MediaItem } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
 
 vi.mock("@/lib/media-api", async () => {
@@ -231,6 +235,117 @@ describe("video player controls", () => {
 		);
 
 		expect(container.firstElementChild).toHaveClass("overflow-hidden");
+	});
+
+	it("adds the selected VTT stream as a native subtitle track", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						initialSubtitleStreamIndex={3}
+						initialStreams={{
+							source: {
+								Id: "source",
+								MediaStreams: [
+									{
+										Index: 3,
+										Type: "Subtitle",
+										FileId: "subtitle-file",
+										Language: "en",
+										DisplayTitle: "English",
+									},
+								],
+							},
+							audio: [],
+							subtitles: [
+								{
+									Index: 3,
+									Type: "Subtitle",
+									FileId: "subtitle-file",
+									Language: "en",
+									DisplayTitle: "English",
+								},
+							],
+							qualities: [],
+						} as never}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		const track = container.querySelector("track");
+		expect(track).toHaveAttribute("kind", "subtitles");
+		expect(track?.getAttribute("src")).toContain(
+			"/subtitles/subtitle-file.vtt",
+		);
+	});
+
+	it("requests Picture in Picture when the browser supports it", () => {
+		const requestPictureInPicture = vi.fn().mockResolvedValue(undefined);
+		Object.defineProperty(document, "pictureInPictureEnabled", {
+			configurable: true,
+			value: true,
+		});
+		Object.defineProperty(HTMLVideoElement.prototype, "requestPictureInPicture", {
+			configurable: true,
+			value: requestPictureInPicture,
+		});
+		const { getByRole } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		fireEvent.click(getByRole("button", { name: "Picture in Picture" }));
+		expect(requestPictureInPicture).toHaveBeenCalledOnce();
+		delete (document as Document & { pictureInPictureEnabled?: boolean })
+			.pictureInPictureEnabled;
+		delete (
+			HTMLVideoElement.prototype as HTMLVideoElement & {
+				requestPictureInPicture?: () => Promise<unknown>;
+			}
+		).requestPictureInPicture;
+	});
+
+	it("negotiates playback from the saved progress", async () => {
+		const session = { token: "token", userId: "user", username: "Alex" };
+		vi.mocked(getPlaybackInfo).mockClear();
+		render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{
+								Id: "movie",
+								Name: "Movie",
+								Type: "Movie",
+								UserData: { PlaybackPositionTicks: 420_000_000 },
+							} as MediaItem
+						}
+						session={session}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+		expect(getPlaybackInfo).toHaveBeenCalledWith(
+			session,
+			"movie",
+			expect.objectContaining({ startPositionSeconds: 42 }),
+		);
 	});
 
 	it("renders movie names as the prominent player title", () => {
@@ -560,6 +675,7 @@ describe("video player controls", () => {
 
 	it("loads subtitle preferences when playback opens", async () => {
 		const style = {
+			renderer: "native" as const,
 			fontFamily: "sans",
 			bold: false,
 			textScale: 100,
@@ -599,6 +715,7 @@ describe("video player controls", () => {
 				]}
 				time={2}
 				style={{
+					renderer: "native",
 					fontFamily: "serif",
 					bold: true,
 					textScale: 160,
@@ -639,7 +756,7 @@ describe("video player controls", () => {
 		const { getByAltText } = render(
 			<TrickplayBubble
 				preview={{
-					url: "/trickplay.jpg",
+					url: "/trickplay.webp",
 					width: 320,
 					height: 180,
 					columns: 1,
@@ -672,6 +789,7 @@ describe("video player controls", () => {
 				cues={[{ start: 1, end: 2, text: "Finished" }]}
 				time={2}
 				style={{
+					renderer: "native",
 					fontFamily: "sans",
 					bold: false,
 					textScale: 100,
@@ -698,6 +816,34 @@ describe("video player controls", () => {
 			textTracks: tracks,
 		} as unknown as HTMLVideoElement);
 		expect(tracks).toEqual([{ mode: "disabled" }, { mode: "disabled" }]);
+		const selected = { mode: "disabled" };
+		disableNativeSubtitleTracks(
+			{ textTracks: [selected, { mode: "showing" }] } as unknown as HTMLVideoElement,
+			selected as unknown as TextTrack,
+		);
+		expect(selected.mode).toBe("showing");
+	});
+
+	it("renders every shared subtitle preference through native cue CSS", () => {
+		const css = nativeSubtitleCueCss({
+			...DEFAULT_SUBTITLE_STYLE,
+			fontFamily: "serif",
+			bold: true,
+			textScale: 160,
+			fontColor: "#aabbcc",
+			backgroundColor: "#445566",
+			backgroundOpacity: 40,
+			borderSize: 2,
+			borderColor: "#112233",
+		});
+		expect(css).toContain("video.zenstream-video::cue {");
+		expect(css).toContain("video.zenstream-video::cue(*) {");
+		expect(css).toContain("color: #aabbcc");
+		expect(css).toContain("font-family: Georgia, 'Times New Roman', serif");
+		expect(css).toContain("font-size: clamp(16px, 8vh, 72px)");
+		expect(css).toContain("font-weight: 700");
+		expect(css).toContain("background-color: rgba(68, 85, 102, 0.4)");
+		expect(css).toContain("text-shadow: -2px -2px 0 #112233");
 	});
 
 	it("ignores fullscreen exit failures when the document is no longer active", async () => {

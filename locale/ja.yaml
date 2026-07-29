@@ -46,6 +46,7 @@ topRated: 高評価のアニメ
 newReleases: 新着作品
 movies: 映画
 myList: マイリスト
+recentlyPlayed: 最近再生した項目
 minutes: "{count}分"
 episodes: "{count}エピソード"
 unwatchedEpisodes: 未視聴
@@ -64,9 +65,16 @@ preferredMetadataLanguageDescription: タイトル、説明、アートワーク
 metadataLanguageAutomatic: 自動（インターフェース言語）
 metadataLanguageSaveFailed: メタデータ言語設定を保存できませんでした。
 playback: 再生
+subtitles: 字幕
 mediaPlaybackFailed: このメディアを再生できませんでした。
+pictureInPicture: ピクチャー イン ピクチャー
+exitPictureInPicture: ピクチャー イン ピクチャーを終了
+pictureInPictureUnavailable: ピクチャー イン ピクチャーは利用できません。
 audioLanguage: 音声言語
 subtitleLanguage: 字幕言語
+subtitleRenderer: 字幕レンダラー
+subtitleRendererNative: ネイティブ（ピクチャー イン ピクチャー対応）
+subtitleRendererOverlay: オーバーレイ（詳細なタイミング調整）
 audioTrack: 音声
 subtitleTrack: 字幕
 subtitlesOff: 字幕オフ
@@ -115,6 +123,8 @@ back: 戻る
 episodesLabel: エピソード
 season: シーズン
 castCrew: キャスト＆スタッフ
+cast: キャスト
+crew: スタッフ
 moreLikeThis: 関連作品
 markWatched: 視聴済みにする
 markUnwatched: 未視聴にする

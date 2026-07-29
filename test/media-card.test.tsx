@@ -7,6 +7,7 @@ import {
 } from "@/components/home/media-card";
 import { EpisodeCard } from "@/components/pages/detail-page";
 import type { MediaItem } from "@/lib/media-api";
+import { toMediaItem } from "@/lib/catalog";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -18,6 +19,24 @@ const item = {
 } as MediaItem;
 
 describe("media card sizing", () => {
+	it("maps canonical episode series titles for home cards", () => {
+		const mediaItem = toMediaItem({
+			id: "episode-1",
+			libraryId: "shows",
+			type: "episode",
+			name: "Episode title",
+			seriesId: "series-1",
+			seriesName: "Example Series",
+			seriesPrimaryImage: { url: "/api/catalog/items/series-1/images/Primary?language=en" },
+			metadata: {},
+		});
+
+		expect(mediaItem.SeriesName).toBe("Example Series");
+		expect(mediaItem.SeriesPrimaryImageTag).toBe(
+			"/api/catalog/items/series-1/images/Primary?language=en",
+		);
+	});
+
 	it.each([
 		["movie", { ...item, Type: "Movie" }, "/show/item-1"],
 		["series", { ...item, Type: "Series" }, "/show/item-1"],
@@ -61,7 +80,7 @@ describe("media card sizing", () => {
 		expect(
 			screen.getByRole("link", { name: "Example Series" }),
 		).toHaveAttribute("href", "/show/series-1");
-		expect(screen.getByText("S01E02ãƒ»Test title")).toHaveAttribute(
+		expect(screen.getByText("S01E02・Test title")).toHaveAttribute(
 			"href",
 			"/show/series-1/episode/item-1",
 		);
@@ -93,6 +112,12 @@ describe("media card sizing", () => {
 			"w-[148px]",
 			"md:w-[200px]",
 		);
+	});
+
+	it("does not render a hover preview on poster cards", () => {
+		const { container } = render(<PosterCard item={item} />);
+
+		expect(container.querySelector("video")).not.toBeInTheDocument();
 	});
 
 	it.each([
@@ -140,6 +165,28 @@ describe("media card sizing", () => {
 		expect(screen.getByText("2 EP")).toHaveClass("bg-black/40", "rounded-full");
 		expect(screen.getByText("2026")).toBeInTheDocument();
 		expect(screen.queryByText("S1:E2")).not.toBeInTheDocument();
+	});
+
+	it("uses the series title and episode label for an unstacked release", () => {
+		render(
+			<StackedPosterCard
+				items={[
+					{
+						...item,
+						Id: "episode-2",
+						Name: "Second",
+						Type: "Episode",
+						SeriesId: "series",
+						SeriesName: "Series",
+						ParentIndexNumber: 1,
+						IndexNumber: 2,
+					},
+				]}
+			/>,
+		);
+
+		expect(screen.getByText("Series")).toBeInTheDocument();
+		expect(screen.getByText(/S01E02.*Second/)).toBeInTheDocument();
 	});
 
 	it("uses a two-pixel progress bar on in-progress landscape cards", () => {

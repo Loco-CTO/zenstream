@@ -54,6 +54,7 @@ topRated: Top Rated Anime
 newReleases: New Releases
 movies: Movies
 myList: My List
+recentlyPlayed: Recently Played
 minutes: "{count} min"
 episodes: "{count} episodes"
 unwatchedEpisodes: unwatched
@@ -72,9 +73,16 @@ preferredMetadataLanguageDescription: Choose the language used for titles, descr
 metadataLanguageAutomatic: Automatic (interface language)
 metadataLanguageSaveFailed: Could not save your metadata language setting.
 playback: Playback
+subtitles: Subtitles
 mediaPlaybackFailed: This media could not be played.
+pictureInPicture: Picture in Picture
+exitPictureInPicture: Exit Picture in Picture
+pictureInPictureUnavailable: Picture in Picture is unavailable.
 audioLanguage: Audio Language
 subtitleLanguage: Subtitle Language
+subtitleRenderer: Subtitle Renderer
+subtitleRendererNative: Native (Picture-in-Picture compatible)
+subtitleRendererOverlay: Overlay (advanced timing control)
 audioTrack: Audio
 subtitleTrack: Subtitles
 subtitlesOff: Subtitles off
@@ -123,6 +131,8 @@ back: Back
 episodesLabel: Episodes
 season: Season
 castCrew: Cast & Crew
+cast: Cast
+crew: Crew
 moreLikeThis: More Like This
 markWatched: Mark as watched
 markUnwatched: Mark as unwatched

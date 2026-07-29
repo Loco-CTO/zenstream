@@ -156,7 +156,7 @@ export function AppShell() {
 				finishProgress();
 			}
 		},
-		[start, pathname, searchQuery],
+		[start, pathname, playId, searchQuery],
 	);
 
 	useEffect(() => {

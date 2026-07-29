@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	DetailPage,
+	playbackPath,
 	syncplayMediaStartCommand,
 } from "@/components/pages/detail-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
@@ -37,6 +38,18 @@ describe("detail views", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+	});
+
+	it("includes detail track selections in the player path", () => {
+		expect(playbackPath("movie", { audio: 2, subtitle: 4 })).toBe(
+			"/play/movie?audio=2&subtitle=4",
+		);
+		expect(playbackPath("movie", { subtitle: 4 })).toBe(
+			"/play/movie?subtitle=4",
+		);
+		expect(playbackPath("movie", { subtitle: null })).toBe(
+			"/play/movie?subtitle=off",
+		);
 	});
 
 	it("uses browser history for the detail back button", () => {
@@ -365,7 +378,7 @@ describe("detail views", () => {
 			similar: [{ ...movie(), Id: "similar", Name: "Related Film" }],
 		});
 
-		const castScroller = screen.getByLabelText("Cast & Crew");
+		const castScroller = screen.getByLabelText("Cast");
 		const similarScroller = screen.getByLabelText("More Like This");
 		if (!castScroller || !similarScroller)
 			throw new Error("Detail scrollers were not rendered");
@@ -391,14 +404,14 @@ describe("detail views", () => {
 		fireEvent.scroll(similarScroller);
 		await waitFor(() => {
 			expect(
-				screen.getByRole("button", { name: "Scroll Cast & Crew right" }),
+				screen.getByRole("button", { name: "Scroll Cast right" }),
 			).toBeInTheDocument();
 			expect(
 				screen.getByRole("button", { name: "Scroll More Like This right" }),
 			).toBeInTheDocument();
 		});
 		fireEvent.click(
-			screen.getByRole("button", { name: "Scroll Cast & Crew right" }),
+			screen.getByRole("button", { name: "Scroll Cast right" }),
 		);
 		fireEvent.click(
 			screen.getByRole("button", { name: "Scroll More Like This right" }),

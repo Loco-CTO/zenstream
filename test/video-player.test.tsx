@@ -536,6 +536,20 @@ describe("video player controls", () => {
 		expect(skipButton).toHaveClass("pointer-events-auto");
 	});
 
+	it("keeps Syncplay skip markers visible for viewers without room controls", () => {
+		const { getByRole } = render(
+			<SkipMarkerActions
+				markers={{ outro: { start: 10, end: 20 } }}
+				currentTime={12}
+				labelIntro="Skip Intro"
+				labelOutro="Skip Outro"
+				onSkip={vi.fn()}
+				disabled
+			/>,
+		);
+		expect(getByRole("button", { name: "Skip Outro" })).toBeDisabled();
+	});
+
 	it("uses the next episode action without closing the player when Next Up is available", () => {
 		const onNext = vi.fn();
 		const onClose = vi.fn();

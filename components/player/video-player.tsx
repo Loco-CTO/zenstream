@@ -290,12 +290,14 @@ export function SkipMarkerActions({
 	labelIntro,
 	labelOutro,
 	onSkip,
+	disabled = false,
 }: {
 	markers: { intro?: PlaybackMarker; outro?: PlaybackMarker } | null;
 	currentTime: number;
 	labelIntro: string;
 	labelOutro: string;
 	onSkip: (marker: PlaybackMarker) => void;
+	disabled?: boolean;
 }) {
 	return (
 		<div className="zenstream-player-skip-actions pointer-events-none absolute bottom-24 left-5 right-5 z-20 flex flex-wrap justify-end gap-2 md:bottom-28 md:left-10 md:right-10">
@@ -304,7 +306,8 @@ export function SkipMarkerActions({
 				currentTime < markers.intro.end && (
 					<button
 						aria-label={labelIntro}
-						className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-sm font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40 sm:px-6 sm:py-3 sm:text-base"
+						disabled={disabled}
+						className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-sm font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-6 sm:py-3 sm:text-base"
 						onClick={() => {
 							if (markers.intro) onSkip(markers.intro);
 						}}
@@ -318,7 +321,8 @@ export function SkipMarkerActions({
 				currentTime < markers.outro.end && (
 					<button
 						aria-label={labelOutro}
-						className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-sm font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40 sm:px-6 sm:py-3 sm:text-base"
+						disabled={disabled}
+						className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-black/25 px-3 py-2 text-sm font-medium text-white/90 shadow-xl shadow-black/20 backdrop-blur-xl transition hover:border-white/40 hover:bg-black/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-6 sm:py-3 sm:text-base"
 						onClick={() => {
 							if (markers.outro) onSkip(markers.outro);
 						}}
@@ -2171,11 +2175,12 @@ export function VideoPlayer({
 				</div>
 			)}
 			<SkipMarkerActions
-				markers={syncplay.active ? null : markers}
+				markers={markers}
 				currentTime={currentTime}
 				labelIntro={t("skipIntro")}
 				labelOutro={t("skipOutro")}
 				onSkip={skip}
+				disabled={Boolean(syncplay.active && !syncplay.canControl)}
 			/>
 			{nextUpVisible && nextItem && (
 				<div

@@ -31,6 +31,25 @@ describe("BlurHashImage", () => {
 		);
 	});
 
+	it("clips the placeholder to the artwork bounds", () => {
+		const { container } = render(
+			<div className="relative">
+				<BlurHashImage
+					image={{
+						src: "/missing-poster.jpg",
+						blurHash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+					}}
+					alt="Missing poster"
+					className="h-full w-full object-cover"
+				/>
+			</div>,
+		);
+
+		const placeholder = container.querySelector("img[aria-hidden='true']");
+		expect(placeholder).toHaveClass("[clip-path:inset(0)]");
+		expect(placeholder).toHaveClass("opacity-100");
+	});
+
 	it("maps canonical artwork hashes to the client image model", () => {
 		const item = toMediaItem({
 			id: "movie",

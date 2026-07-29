@@ -16,6 +16,7 @@ export function BlurHashImage({
 	image,
 	className,
 	onLoad,
+	onError,
 	alt,
 	...props
 }: BlurHashImageProps) {
@@ -33,7 +34,7 @@ export function BlurHashImage({
 					alt=""
 					aria-hidden="true"
 					draggable={false}
-					className={`absolute inset-0 h-full w-full scale-105 object-cover blur-xl transition-opacity duration-300 ${
+					className={`pointer-events-none absolute inset-0 h-full w-full scale-105 object-cover [clip-path:inset(0)] blur-xl transition-opacity duration-300 ${
 						loaded ? "opacity-0" : "opacity-100"
 					}`}
 				/>
@@ -46,6 +47,10 @@ export function BlurHashImage({
 				onLoad={(event) => {
 					setLoaded(true);
 					onLoad?.(event);
+				}}
+				onError={(event) => {
+					setLoaded(true);
+					onError?.(event);
 				}}
 			/>
 		</>

@@ -53,6 +53,7 @@ vi.mock("@/lib/i18n", () => ({
 				syncplayViewingTogether: "Viewing together",
 				syncplayBrowsing: "Browsing",
 				leaveGroup: "Leave group",
+				joinView: "Join view",
 				createGroup: "Create group",
 				allowViewerControls: "Allow viewer controls",
 			})[key] ?? key,

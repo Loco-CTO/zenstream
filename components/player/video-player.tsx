@@ -345,6 +345,11 @@ export function VideoPlayer({
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const syncplay = useSyncplay();
 	const syncplayActive = syncplay.active;
+	const syncplayGroupId = syncplayActive?.id;
+	const syncplayItemId = syncplayActive?.itemId;
+	const syncplayGeneration = syncplayActive?.mediaGeneration ?? 0;
+	const syncplayTimelineRevision =
+		syncplayActive?.timelineRevision ?? syncplayActive?.revision;
 	const syncplayServerNow = syncplay.serverNow;
 	const applyingSyncRef = useRef(false);
 	const suppressSyncPlayRef = useRef(false);
@@ -830,9 +835,7 @@ export function VideoPlayer({
 		savedPositionSeconds,
 	]);
 	useEffect(() => {
-		const state = syncplayActive;
-		if (!state || state.itemId !== item.Id) return;
-		const generation = state.mediaGeneration ?? 0;
+		if (!syncplayGroupId || syncplayItemId !== item.Id) return;
 		// A client can join after the media element already emitted `canplay`.
 		// In that case there may be no future event to clear the loading flag, so
 		// inspect the current readyState when entering the readiness barrier.
@@ -850,17 +853,20 @@ export function VideoPlayer({
 		// Otherwise a later canplay event can be incorrectly deduplicated.
 		bufferedRef.current = loading;
 		void syncplayApiRef.current
-			.presence(true, loading, generation)
+			.presence(true, loading, syncplayGeneration)
 			.catch(() => undefined);
-		return () => {
-			void syncplayApiRef.current
-				.presence(false, false, generation)
-				.catch(() => undefined);
-		};
 	}, [
-		syncplayActive,
+		syncplayGroupId,
+		syncplayItemId,
+		syncplayGeneration,
+		syncplayTimelineRevision,
 		item.Id,
 	]);
+	useEffect(() => {
+		return () => {
+			void syncplayApiRef.current.presence(false, false).catch(() => undefined);
+		};
+	}, []);
 	useEffect(() => {
 		const state = syncplayActive;
 		const video = videoRef.current;
@@ -874,7 +880,11 @@ export function VideoPlayer({
 		appliedTimelineRef.current = timelineKey;
 		if (forceSeek) optimisticSeekRef.current = null;
 		const seekBarrier = forceSeek && state.pauseReason === "seek";
-		if (readyItemIdRef.current === item.Id && syncplayMediaIsReady(video)) {
+		if (
+			forceSeek &&
+			readyItemIdRef.current === item.Id &&
+			syncplayMediaIsReady(video)
+		) {
 			playerDebug("reasserting readiness for new timeline", {
 				groupId: state.id,
 				itemId: item.Id,

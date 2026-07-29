@@ -73,8 +73,8 @@ pictureInPictureUnavailable: ピクチャー イン ピクチャーは利用で�
 audioLanguage: 音声言語
 subtitleLanguage: 字幕言語
 subtitleRenderer: 字幕レンダラー
-subtitleRendererNative: ネイティブ（ピクチャー イン ピクチャー対応）
-subtitleRendererOverlay: オーバーレイ（詳細なタイミング調整）
+subtitleRendererNative: ネイティブ
+subtitleRendererOverlay: オーバーレイ
 audioTrack: 音声
 subtitleTrack: 字幕
 subtitlesOff: 字幕オフ

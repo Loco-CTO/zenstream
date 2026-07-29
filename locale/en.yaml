@@ -81,8 +81,8 @@ pictureInPictureUnavailable: Picture in Picture is unavailable.
 audioLanguage: Audio Language
 subtitleLanguage: Subtitle Language
 subtitleRenderer: Subtitle Renderer
-subtitleRendererNative: Native (Picture-in-Picture compatible)
-subtitleRendererOverlay: Overlay (advanced timing control)
+subtitleRendererNative: Native
+subtitleRendererOverlay: Overlay
 audioTrack: Audio
 subtitleTrack: Subtitles
 subtitlesOff: Subtitles off

@@ -805,22 +805,10 @@ function ColorControl({
 	const labelId = useId();
 	const [draftHsv, setDraftHsv] = useState(() => hexToHsv(value));
 	const draftHsvRef = useRef(draftHsv);
+	const lastHueRef = useRef(draftHsv.h);
+	const activePickerRef = useRef<"square" | "hue" | null>(null);
 	const [hexDraft, setHexDraft] = useState(() => value.toUpperCase());
 	const [copied, setCopied] = useState(false);
-	const palette = [
-		"#ffffff",
-		"#d7dbe8",
-		"#9ca3af",
-		"#000000",
-		"#ef4444",
-		"#f59e0b",
-		"#eab308",
-		"#22c55e",
-		"#14b8a6",
-		"#38bdf8",
-		"#818cf8",
-		"#c084fc",
-	];
 	const vividColor = hsvToHex({ h: draftHsv.h, s: 1, v: 1 });
 
 	useEffect(() => {
@@ -842,19 +830,12 @@ function ColorControl({
 	const updateDraftHsv = (next: Hsv) => {
 		const color = hsvToHex(next);
 		draftHsvRef.current = next;
+		lastHueRef.current = next.h;
 		setDraftHsv(next);
 		setHexDraft(color.toUpperCase());
 	};
 
 	const commitDraftColor = (next = draftHsvRef.current) => onChange(hsvToHex(next));
-
-	const applyPreset = (next: string) => {
-		const parsed = hexToRgb(next);
-		if (!parsed) return;
-		const hsv = preserveHueForNeutral(rgbToHsv(parsed), draftHsvRef.current.h);
-		updateDraftHsv(hsv);
-		commitDraftColor(hsv);
-	};
 
 	const updateSquare = (event: React.PointerEvent<HTMLDivElement>) => {
 		const rect = squareRef.current?.getBoundingClientRect();
@@ -878,6 +859,23 @@ function ColorControl({
 		});
 	};
 
+	const startDrag = (
+		picker: "square" | "hue",
+		event: React.PointerEvent<HTMLDivElement>,
+		update: (event: React.PointerEvent<HTMLDivElement>) => void,
+	) => {
+		event.preventDefault();
+		activePickerRef.current = picker;
+		event.currentTarget.setPointerCapture(event.pointerId);
+		update(event);
+	};
+
+	const finishDrag = (picker: "square" | "hue") => {
+		if (activePickerRef.current !== picker) return;
+		activePickerRef.current = null;
+		commitDraftColor();
+	};
+
 	return (
 		<div ref={controlRef} className="relative shrink-0">
 			<span id={labelId} className="sr-only">
@@ -890,8 +888,13 @@ function ColorControl({
 				aria-expanded={open}
 				onClick={() => {
 					if (!open) {
-						const next = hexToHsv(value);
+						const fromValue = hexToHsv(value);
+						const next =
+							fromValue.s > 0.02
+								? fromValue
+								: { ...fromValue, h: lastHueRef.current };
 						draftHsvRef.current = next;
+						lastHueRef.current = next.h;
 						setDraftHsv(next);
 						setHexDraft(value.toUpperCase());
 					}
@@ -909,33 +912,34 @@ function ColorControl({
 				<div
 					role="dialog"
 					aria-labelledby={labelId}
-					className="absolute right-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+					className="absolute right-0 top-full z-30 mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
 				>
-					<div className="mb-3 flex items-center gap-3 border-b border-white/[0.075] pb-3">
+					<div className="mb-3 flex items-center gap-2 border-b border-white/[0.075] pb-2">
 						<span
 							aria-hidden="true"
 							className="h-8 w-8 shrink-0 rounded-md border border-white/15"
 							style={{ backgroundColor: value }}
 						/>
 						<div className="min-w-0">
-							<p className="text-sm font-semibold text-white/90">{value.toUpperCase()}</p>
+							<p className="font-mono text-sm font-semibold text-white/90">{value.toUpperCase()}</p>
 						</div>
 					</div>
 					<div
 						ref={squareRef}
-						className="relative mb-3 h-32 cursor-crosshair touch-none overflow-hidden rounded-lg"
+						className="relative mb-3 h-24 cursor-crosshair touch-none overflow-hidden rounded-lg"
 						style={{
 							background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${vividColor})`,
 						}}
 						onPointerDown={(event) => {
-							event.preventDefault();
-							event.currentTarget.setPointerCapture(event.pointerId);
-							updateSquare(event);
+							startDrag("square", event, updateSquare);
 						}}
 						onPointerMove={(event) => {
-							if (event.buttons === 1) updateSquare(event);
+							if (activePickerRef.current === "square") updateSquare(event);
 						}}
-						onPointerUp={() => commitDraftColor()}
+						onPointerUp={() => finishDrag("square")}
+						onPointerCancel={() => {
+							activePickerRef.current = null;
+						}}
 					>
 						<span
 							aria-hidden="true"
@@ -946,35 +950,23 @@ function ColorControl({
 							}}
 						/>
 					</div>
-					<div className="mb-3 grid grid-cols-6 gap-2">
-						{palette.map((color) => (
-							<button
-								key={color}
-								type="button"
-								aria-label={color}
-								aria-pressed={value.toLowerCase() === color}
-								onClick={() => applyPreset(color)}
-								className={`h-7 rounded-full border transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-400 ${value.toLowerCase() === color ? "border-white ring-2 ring-white/45" : "border-white/15 hover:border-white/35"}`}
-								style={{ backgroundColor: color }}
-							/>
-						))}
-					</div>
 					<div
 						ref={hueRef}
-						className="relative mb-4 h-3 cursor-pointer touch-none rounded-full"
+						className="relative mb-3 h-3 cursor-pointer touch-none rounded-full"
 						style={{
 							background:
 								"linear-gradient(to right, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30)",
 						}}
 						onPointerDown={(event) => {
-							event.preventDefault();
-							event.currentTarget.setPointerCapture(event.pointerId);
-							updateHue(event);
+							startDrag("hue", event, updateHue);
 						}}
 						onPointerMove={(event) => {
-							if (event.buttons === 1) updateHue(event);
+							if (activePickerRef.current === "hue") updateHue(event);
 						}}
-						onPointerUp={() => commitDraftColor()}
+						onPointerUp={() => finishDrag("hue")}
+						onPointerCancel={() => {
+							activePickerRef.current = null;
+						}}
 					>
 						<span
 							aria-hidden="true"

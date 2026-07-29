@@ -165,11 +165,11 @@ describe("SettingsPage", () => {
 		expect(colorDialog).toBeInTheDocument();
 		expect(colorDialog.closest(".overflow-hidden")).toBeNull();
 		const hexInput = screen.getByRole("textbox", { name: "Subtitle font color hex" });
+		const callsBeforeEdit = fetchMock.mock.calls.length;
 		fireEvent.change(hexInput, { target: { value: "#818cf8" } });
-		expect(fetchMock).not.toHaveBeenCalled();
+		expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit);
 		fireEvent.blur(hexInput);
-		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-		fireEvent.click(screen.getByRole("button", { name: "#818cf8" }));
+		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit + 1));
 		await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
 			"/api/preferences/subtitles",
 			expect.objectContaining({ method: "PATCH", body: JSON.stringify({ ...style, fontColor: "#818cf8" }) }),

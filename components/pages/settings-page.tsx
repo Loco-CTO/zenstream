@@ -799,6 +799,7 @@ function ColorControl({
 	onChange: (value: string) => void;
 }) {
 	const [open, setOpen] = useState(false);
+	const [position, setPosition] = useState<ColorPickerPosition>("below");
 	const controlRef = useRef<HTMLDivElement>(null);
 	const squareRef = useRef<HTMLDivElement>(null);
 	const hueRef = useRef<HTMLDivElement>(null);
@@ -876,6 +877,20 @@ function ColorControl({
 		commitDraftColor();
 	};
 
+	const openPicker = () => {
+		const rect = controlRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		const below = window.innerHeight - rect.bottom;
+		const above = rect.top;
+		setPosition(
+			below >= COLOR_PICKER_HEIGHT
+				? "below"
+				: above >= COLOR_PICKER_HEIGHT
+					? "above"
+					: "center",
+		);
+	};
+
 	return (
 		<div ref={controlRef} className="relative shrink-0">
 			<span id={labelId} className="sr-only">
@@ -887,7 +902,9 @@ function ColorControl({
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				onClick={() => {
-					if (!open) {
+					if (open) {
+						setOpen(false);
+					} else {
 						const fromValue = hexToHsv(value);
 						const next =
 							fromValue.s > 0.02
@@ -897,8 +914,9 @@ function ColorControl({
 						lastHueRef.current = next.h;
 						setDraftHsv(next);
 						setHexDraft(value.toUpperCase());
+						openPicker();
+						setOpen(true);
 					}
-					setOpen(!open);
 				}}
 				className="flex h-8 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 shadow-sm transition hover:border-violet-300/60 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-400/70"
 			>
@@ -912,7 +930,13 @@ function ColorControl({
 				<div
 					role="dialog"
 					aria-labelledby={labelId}
-					className="absolute right-0 top-full z-30 mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+					className={`z-30 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl ${
+						position === "center"
+							? "fixed inset-x-3 top-1/2 max-h-[calc(100dvh-1.5rem)] -translate-y-1/2 overflow-y-auto"
+							: position === "above"
+								? "absolute bottom-full right-0 mb-2"
+								: "absolute right-0 top-full mt-2"
+					}`}
 				>
 					<div className="mb-3 flex items-center gap-2 border-b border-white/[0.075] pb-2">
 						<span
@@ -1024,6 +1048,9 @@ function ColorControl({
 
 type Hsv = { h: number; s: number; v: number };
 type Rgb = { r: number; g: number; b: number };
+type ColorPickerPosition = "above" | "below" | "center";
+
+const COLOR_PICKER_HEIGHT = 240;
 
 function clamp(value: number) {
 	return Math.min(1, Math.max(0, value));

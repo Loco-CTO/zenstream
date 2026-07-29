@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 
@@ -6,6 +6,7 @@ const push = vi.hoisted(() => vi.fn());
 const setWatchingTogether = vi.hoisted(() =>
 	vi.fn().mockResolvedValue(undefined),
 );
+const join = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const syncplayState = vi.hoisted(() => ({
 	groups: [] as (typeof active)[],
 	active: null as typeof active | null,
@@ -65,7 +66,7 @@ vi.mock("@/lib/syncplay", () => ({
 		refresh: vi.fn().mockResolvedValue(undefined),
 		setWatchingTogether,
 		create: vi.fn(),
-		join: vi.fn(),
+		join,
 		leave: vi.fn(),
 		setControls: vi.fn(),
 		removeMember: vi.fn(),
@@ -74,6 +75,9 @@ vi.mock("@/lib/syncplay", () => ({
 
 describe("SyncplayGroupMenu", () => {
 	beforeEach(() => {
+		join.mockReset();
+		join.mockResolvedValue(undefined);
+		push.mockReset();
 		syncplayState.groups = [active];
 		syncplayState.active = active;
 	});
@@ -99,5 +103,18 @@ describe("SyncplayGroupMenu", () => {
 		expect(
 			screen.queryByRole("button", { name: "Return to view" }),
 		).not.toBeInTheDocument();
+	});
+
+	it("opens an already announced item immediately after joining", async () => {
+		syncplayState.groups = [publicGroup];
+		syncplayState.active = null;
+		join.mockResolvedValue(publicGroup);
+		render(<SyncplayGroupMenu userId="viewer" />);
+		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
+		fireEvent.click(screen.getByRole("button", { name: "Join view" }));
+		await waitFor(() => {
+			expect(join).toHaveBeenCalledWith("public-group");
+			expect(push).toHaveBeenCalledWith("/play/episode-2");
+		});
 	});
 });

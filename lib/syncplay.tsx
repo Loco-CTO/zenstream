@@ -158,7 +158,7 @@ type Context = {
 	active: SyncplayGroup | null;
 	currentMember: SyncplayGroup["members"][number] | null;
 	create: () => Promise<void>;
-	join: (id: string) => Promise<void>;
+	join: (id: string) => Promise<SyncplayGroup | undefined>;
 	leave: () => Promise<void>;
 	refresh: () => Promise<void>;
 	setControls: (value: boolean) => Promise<void>;
@@ -680,6 +680,7 @@ export function SyncplayProvider({
 			tombstonesRef.current.delete(id);
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
+			return group;
 		} catch (error) {
 			toast.error(
 				error instanceof SyncplayRequestError && error.status === 409

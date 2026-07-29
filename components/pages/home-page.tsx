@@ -64,21 +64,6 @@ export function HomePage({
 					session={session}
 					viewAllHref="/favorites"
 				/>
-				<MediaRow
-					title={t("recentlyPlayed")}
-					items={data.recentlyPlayed ?? []}
-					variant="poster"
-					session={session}
-				/>
-				{(data.genreRows ?? []).map((section) => (
-					<MediaRow
-						key={`genre:${section.genre}`}
-						title={section.genre}
-						items={section.items}
-						variant="poster"
-						session={session}
-					/>
-				))}
 				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}
@@ -101,6 +86,21 @@ export function HomePage({
 									sortOrder: "Descending",
 									})
 						}
+					/>
+				))}
+				<MediaRow
+					title={t("recentlyPlayed")}
+					items={data.recentlyPlayed ?? []}
+					variant="poster"
+					session={session}
+				/>
+				{(data.genreRows ?? []).map((section) => (
+					<MediaRow
+						key={`genre:${section.genre}`}
+						title={section.genre}
+						items={section.items}
+						variant="poster"
+						session={session}
 					/>
 				))}
 			</div>

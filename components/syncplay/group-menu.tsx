@@ -55,6 +55,13 @@ export function SyncplayGroupMenu({
 		setOpen(false);
 	}
 
+	async function joinAndFollow(groupId: string) {
+		const group = await join(groupId);
+		if (!group?.itemId) return;
+		router.push(`/play/${encodeURIComponent(group.itemId)}`);
+		setOpen(false);
+	}
+
 	return (
 		<div className="relative" data-player-context={playerContext || undefined}>
 			<button
@@ -164,7 +171,7 @@ export function SyncplayGroupMenu({
 													<button
 														disabled={Boolean(active && !isActive)}
 														onClick={() =>
-															void (isActive ? leave() : join(group.id)).catch(
+															void (isActive ? leave() : joinAndFollow(group.id)).catch(
 																() => undefined,
 															)
 														}

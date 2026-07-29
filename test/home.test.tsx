@@ -138,6 +138,12 @@ describe("home screen", () => {
 		expect(sectionHeadings.indexOf("Next Up")).toBeLessThan(
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
+		expect(sectionHeadings.indexOf("Newly Added on Anime")).toBeLessThan(
+			sectionHeadings.indexOf("Recently Played"),
+		);
+		expect(sectionHeadings.indexOf("Recently Played")).toBeLessThan(
+			sectionHeadings.indexOf("Drama"),
+		);
 
 		const resumeCard = screen.getByText("Resume Show").closest("article");
 		expect(

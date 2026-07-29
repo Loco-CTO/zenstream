@@ -161,7 +161,9 @@ describe("SettingsPage", () => {
 		const fontColorControl = screen.getByRole("button", { name: "Subtitle font color" });
 		expect(fontColorControl).toHaveAttribute("aria-haspopup", "dialog");
 		fireEvent.click(fontColorControl);
-		expect(screen.getByRole("dialog", { name: "Subtitle font color" })).toBeInTheDocument();
+		const colorDialog = screen.getByRole("dialog", { name: "Subtitle font color" });
+		expect(colorDialog).toBeInTheDocument();
+		expect(colorDialog.closest(".overflow-hidden")).toBeNull();
 		fireEvent.click(screen.getByRole("button", { name: "#818cf8" }));
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
 			"/api/preferences/subtitles",

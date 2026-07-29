@@ -556,7 +556,7 @@ function SettingsSection({
 			<p className="mb-3 px-1 text-xs uppercase tracking-[0.14em] text-white/25">
 				{title}
 			</p>
-			<div className="overflow-hidden rounded-xl border border-white/6 bg-white/[0.025]">
+			<div className="overflow-visible rounded-xl border border-white/6 bg-white/[0.025]">
 				{children}
 			</div>
 		</section>

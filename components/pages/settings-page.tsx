@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
 import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
@@ -800,7 +800,13 @@ function ColorControl({
 }) {
 	const [open, setOpen] = useState(false);
 	const controlRef = useRef<HTMLDivElement>(null);
+	const squareRef = useRef<HTMLDivElement>(null);
+	const hueRef = useRef<HTMLDivElement>(null);
 	const labelId = useId();
+	const [draftHsv, setDraftHsv] = useState(() => hexToHsv(value));
+	const draftHsvRef = useRef(draftHsv);
+	const [hexDraft, setHexDraft] = useState(() => value.toUpperCase());
+	const [copied, setCopied] = useState(false);
 	const palette = [
 		"#ffffff",
 		"#d7dbe8",
@@ -815,6 +821,7 @@ function ColorControl({
 		"#818cf8",
 		"#c084fc",
 	];
+	const vividColor = hsvToHex({ h: draftHsv.h, s: 1, v: 1 });
 
 	useEffect(() => {
 		if (!open) return;
@@ -832,8 +839,43 @@ function ColorControl({
 		};
 	}, [open]);
 
-	const setColor = (next: string) => {
-		if (/^#[0-9a-f]{6}$/i.test(next)) onChange(next.toLowerCase());
+	const updateDraftHsv = (next: Hsv) => {
+		const color = hsvToHex(next);
+		draftHsvRef.current = next;
+		setDraftHsv(next);
+		setHexDraft(color.toUpperCase());
+	};
+
+	const commitDraftColor = (next = draftHsvRef.current) => onChange(hsvToHex(next));
+
+	const applyPreset = (next: string) => {
+		const parsed = hexToRgb(next);
+		if (!parsed) return;
+		const hsv = preserveHueForNeutral(rgbToHsv(parsed), draftHsvRef.current.h);
+		updateDraftHsv(hsv);
+		commitDraftColor(hsv);
+	};
+
+	const updateSquare = (event: React.PointerEvent<HTMLDivElement>) => {
+		const rect = squareRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		const current = draftHsvRef.current;
+		updateDraftHsv({
+			h: current.h,
+			s: clamp((event.clientX - rect.left) / rect.width),
+			v: 1 - clamp((event.clientY - rect.top) / rect.height),
+		});
+	};
+
+	const updateHue = (event: React.PointerEvent<HTMLDivElement>) => {
+		const rect = hueRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		const current = draftHsvRef.current;
+		updateDraftHsv({
+			h: clamp((event.clientX - rect.left) / rect.width) * 360,
+			s: current.s,
+			v: current.v,
+		});
 	};
 
 	return (
@@ -846,7 +888,15 @@ function ColorControl({
 				aria-labelledby={labelId}
 				aria-haspopup="dialog"
 				aria-expanded={open}
-				onClick={() => setOpen((current) => !current)}
+				onClick={() => {
+					if (!open) {
+						const next = hexToHsv(value);
+						draftHsvRef.current = next;
+						setDraftHsv(next);
+						setHexDraft(value.toUpperCase());
+					}
+					setOpen(!open);
+				}}
 				className="flex h-8 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] p-1.5 shadow-sm transition hover:border-violet-300/60 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-400/70"
 			>
 				<span
@@ -859,40 +909,183 @@ function ColorControl({
 				<div
 					role="dialog"
 					aria-labelledby={labelId}
-					className="absolute right-0 top-full z-30 mt-2 w-52 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/25 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+					className="absolute right-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
 				>
-					<div className="mb-3 flex items-center gap-2 rounded-lg border border-white/8 bg-black/20 p-2">
+					<div className="mb-3 flex items-center gap-3 border-b border-white/[0.075] pb-3">
 						<span
 							aria-hidden="true"
-							className="h-7 w-7 shrink-0 rounded-md ring-1 ring-inset ring-white/10"
+							className="h-8 w-8 shrink-0 rounded-md border border-white/15"
 							style={{ backgroundColor: value }}
 						/>
-						<input
-							aria-labelledby={labelId}
-							value={value.toUpperCase()}
-							onChange={(event) => setColor(event.target.value)}
-							spellCheck={false}
-							maxLength={7}
-							className="min-w-0 flex-1 bg-transparent font-mono text-xs uppercase tracking-wide text-white/80 outline-none placeholder:text-white/25"
+						<div className="min-w-0">
+							<p className="text-sm font-semibold text-white/90">{value.toUpperCase()}</p>
+						</div>
+					</div>
+					<div
+						ref={squareRef}
+						className="relative mb-3 h-32 cursor-crosshair touch-none overflow-hidden rounded-lg"
+						style={{
+							background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${vividColor})`,
+						}}
+						onPointerDown={(event) => {
+							event.preventDefault();
+							event.currentTarget.setPointerCapture(event.pointerId);
+							updateSquare(event);
+						}}
+						onPointerMove={(event) => {
+							if (event.buttons === 1) updateSquare(event);
+						}}
+						onPointerUp={() => commitDraftColor()}
+					>
+						<span
+							aria-hidden="true"
+							className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
+							style={{
+								left: `${draftHsv.s * 100}%`,
+								top: `${(1 - draftHsv.v) * 100}%`,
+							}}
 						/>
 					</div>
-					<div className="grid grid-cols-6 gap-2">
+					<div className="mb-3 grid grid-cols-6 gap-2">
 						{palette.map((color) => (
 							<button
 								key={color}
 								type="button"
 								aria-label={color}
 								aria-pressed={value.toLowerCase() === color}
-								onClick={() => setColor(color)}
-								className={`h-5 rounded-md ring-1 ring-inset transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-400 ${value.toLowerCase() === color ? "ring-white ring-offset-2 ring-offset-black" : "ring-white/15"}`}
+								onClick={() => applyPreset(color)}
+								className={`h-7 rounded-full border transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-violet-400 ${value.toLowerCase() === color ? "border-white ring-2 ring-white/45" : "border-white/15 hover:border-white/35"}`}
 								style={{ backgroundColor: color }}
 							/>
 						))}
+					</div>
+					<div
+						ref={hueRef}
+						className="relative mb-4 h-3 cursor-pointer touch-none rounded-full"
+						style={{
+							background:
+								"linear-gradient(to right, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30)",
+						}}
+						onPointerDown={(event) => {
+							event.preventDefault();
+							event.currentTarget.setPointerCapture(event.pointerId);
+							updateHue(event);
+						}}
+						onPointerMove={(event) => {
+							if (event.buttons === 1) updateHue(event);
+						}}
+						onPointerUp={() => commitDraftColor()}
+					>
+						<span
+							aria-hidden="true"
+							className="pointer-events-none absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
+							style={{
+								left: `${(draftHsv.h / 360) * 100}%`,
+								backgroundColor: value,
+							}}
+						/>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							aria-label={`${label} hex`}
+							value={hexDraft}
+							onBlur={() => {
+								if (hexToRgb(hexDraft)) commitDraftColor();
+								else setHexDraft(value.toUpperCase());
+							}}
+							onChange={(event) => {
+								setHexDraft(event.target.value.toUpperCase());
+								const parsed = hexToRgb(event.target.value);
+								if (parsed) {
+									updateDraftHsv(
+										preserveHueForNeutral(rgbToHsv(parsed), draftHsvRef.current.h),
+									);
+								}
+							}}
+							onKeyDown={(event) => {
+								if (event.key !== "Enter") return;
+								event.currentTarget.blur();
+							}}
+							spellCheck={false}
+							maxLength={7}
+							className="h-9 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 font-mono text-sm uppercase tracking-wide text-white/80 outline-none transition focus:border-violet-400/70 focus:ring-2 focus:ring-violet-400/30"
+						/>
+						<button
+							type="button"
+							aria-label="Copy color"
+							title={copied ? "Copied" : "Copy color"}
+							onClick={async () => {
+								await navigator.clipboard?.writeText(value.toUpperCase());
+								setCopied(true);
+								window.setTimeout(() => setCopied(false), 900);
+							}}
+							className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 text-white/55 transition hover:border-white/25 hover:bg-white/[0.055] hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-400/70"
+						>
+							<Copy className="h-4 w-4" />
+						</button>
 					</div>
 				</div>
 			)}
 		</div>
 	);
+}
+
+type Hsv = { h: number; s: number; v: number };
+type Rgb = { r: number; g: number; b: number };
+
+function clamp(value: number) {
+	return Math.min(1, Math.max(0, value));
+}
+
+function hexToRgb(value: string): Rgb | null {
+	const match = /^#?([0-9a-f]{6})$/i.exec(value.trim());
+	if (!match) return null;
+	const hex = match[1];
+	return {
+		r: Number.parseInt(hex.slice(0, 2), 16),
+		g: Number.parseInt(hex.slice(2, 4), 16),
+		b: Number.parseInt(hex.slice(4, 6), 16),
+	};
+}
+
+function rgbToHsv({ r, g, b }: Rgb): Hsv {
+	const red = r / 255;
+	const green = g / 255;
+	const blue = b / 255;
+	const max = Math.max(red, green, blue);
+	const min = Math.min(red, green, blue);
+	const delta = max - min;
+	let h = 0;
+	if (delta) {
+		if (max === red) h = 60 * (((green - blue) / delta) % 6);
+		else if (max === green) h = 60 * ((blue - red) / delta + 2);
+		else h = 60 * ((red - green) / delta + 4);
+	}
+	return { h: (h + 360) % 360, s: max ? delta / max : 0, v: max };
+}
+
+function hexToHsv(value: string): Hsv {
+	return rgbToHsv(hexToRgb(value) ?? { r: 0, g: 0, b: 0 });
+}
+
+function preserveHueForNeutral(next: Hsv, currentHue: number): Hsv {
+	return next.s > 0.02 ? next : { ...next, h: currentHue };
+}
+
+function hsvToHex({ h, s, v }: Hsv) {
+	const chroma = v * s;
+	const segment = ((h % 360) + 360) % 360 / 60;
+	const offset = chroma * (1 - Math.abs((segment % 2) - 1));
+	const [red, green, blue] =
+		segment < 1 ? [chroma, offset, 0] :
+		segment < 2 ? [offset, chroma, 0] :
+		segment < 3 ? [0, chroma, offset] :
+		segment < 4 ? [0, offset, chroma] :
+		segment < 5 ? [offset, 0, chroma] : [chroma, 0, offset];
+	const base = v - chroma;
+	return `#${[red, green, blue]
+		.map((component) => Math.round((component + base) * 255).toString(16).padStart(2, "0"))
+		.join("")}`;
 }
 
 function hexToRgba(hex: string, opacity: number) {

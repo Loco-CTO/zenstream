@@ -1100,9 +1100,13 @@ export function titleLogoImage(item: MediaItem) {
 	return imageData(item, "Logo", 680, 260);
 }
 
-export function userImageUrl(userId: string) {
+export function userImageUrl(userId: string): string | null {
 	void userId;
-	return "/icon.png";
+	return null;
+}
+
+export function userInitial(username: string) {
+	return Array.from(username.trim())[0]?.toLocaleUpperCase() ?? "?";
 }
 
 export function personImageUrl(person: MediaPerson) {

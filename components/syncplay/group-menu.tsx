@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { userImageUrl } from "@/lib/media-api";
+import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useRouter } from "next/navigation";
 import {
 	ChevronLeft,
@@ -266,18 +266,19 @@ function MemberAvatar({
 }) {
 	const [failed, setFailed] = useState(false);
 	const dimensions = size === "md" ? "h-6 w-6" : "h-5 w-5";
-	return failed ? (
+	const imageUrl = userImageUrl(userId);
+	return !imageUrl || failed ? (
 		<span
 			className={
 				dimensions +
 				" flex items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/60"
 			}
 		>
-			{username.slice(0, 1).toUpperCase()}
+			{userInitial(username)}
 		</span>
 	) : (
 		<img
-			src={userImageUrl(userId)}
+			src={imageUrl}
 			alt=""
 			onError={() => setFailed(true)}
 			className={dimensions + " rounded-full bg-white/10 object-cover"}

@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, LogOut, User } from "lucide-react";
-import { userImageUrl } from "@/lib/media-api";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
@@ -146,7 +146,7 @@ export function SettingsPage({
 
 				{section === "account" && <SettingsSection title={t("account")}>
 					<div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
-						<Avatar userId={userId} />
+						<Avatar displayName={displayName} userId={userId} />
 						<p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
 							{displayName}
 						</p>
@@ -585,7 +585,7 @@ function SettingsIndex({
 				<SettingsMenuItem
 					label={t("account")}
 					sub={displayName}
-					leading={<Avatar userId={userId} />}
+					leading={<Avatar displayName={displayName} userId={userId} />}
 					onClick={() => onOpenSection("account")}
 				/>
 				<SettingsMenuItem label={t("appearance")} onClick={() => onOpenSection("appearance")} />
@@ -903,15 +903,18 @@ function hexToRgba(hex: string, opacity: number) {
 	return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
 }
 
-function Avatar({ userId }: { userId: string }) {
+function Avatar({ displayName, userId }: { displayName: string; userId: string }) {
 	const [failed, setFailed] = useState(false);
+	const imageUrl = userImageUrl(userId);
 	return (
 		<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 ring-1 ring-white/12">
-			{failed ? (
-				<User className="h-5 w-5 text-white/60" />
+			{!imageUrl || failed ? (
+				<span className="text-base font-semibold text-white/80">
+					{userInitial(displayName)}
+				</span>
 			) : (
 				<img
-					src={userImageUrl(userId)}
+					src={imageUrl}
 					alt=""
 					className="h-full w-full object-cover"
 					onError={() => setFailed(true)}

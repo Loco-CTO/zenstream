@@ -40,28 +40,13 @@ describe("Navbar", () => {
 		);
 	});
 
-	it("uses the profile image when it is available", () => {
+	it("uses the user's uppercase initial when no profile image is available", () => {
 		renderNavbar();
 
+		expect(screen.getByTestId("default-user-initial")).toHaveTextContent("T");
 		expect(
 			screen.getByRole("button", { name: "Profile" }).querySelector("img"),
-		).toHaveAttribute(
-			"src",
-				expect.stringContaining(
-					"/api/assets/users/user-123/image?maxWidth=80&quality=90",
-				),
-		);
-		expect(screen.queryByTestId("default-user-icon")).not.toBeInTheDocument();
-	});
-
-	it("falls back to the default icon when has no profile image", () => {
-		renderNavbar();
-
-		fireEvent.error(
-			screen.getByRole("button", { name: "Profile" }).querySelector("img")!,
-		);
-
-		expect(screen.getByTestId("default-user-icon")).toBeInTheDocument();
+		).not.toBeInTheDocument();
 	});
 
 	it("links profile settings to the settings page", () => {

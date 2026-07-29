@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, Search, Settings, User } from "lucide-react";
+import { Bell, LogOut, Search, Settings } from "lucide-react";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
-import { userImageUrl } from "@/lib/media-api";
+import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
@@ -83,7 +83,7 @@ export function Navbar({
 								onClick={() => setProfileOpen((open) => !open)}
 								className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 text-white/70 transition hover:border-violet-400/60"
 							>
-								<UserAvatar key={userId} userId={userId} />
+								<UserAvatar key={userId} displayName={displayName} userId={userId} />
 							</button>
 							{profileOpen && (
 								<div
@@ -123,16 +123,21 @@ export function Navbar({
 	);
 }
 
-function UserAvatar({ userId }: { userId: string }) {
+function UserAvatar({ displayName, userId }: { displayName: string; userId: string }) {
 	const [imageFailed, setImageFailed] = useState(false);
+	const imageUrl = userImageUrl(userId);
 
-	if (imageFailed) {
-		return <User data-testid="default-user-icon" className="h-5 w-5" />;
+	if (!imageUrl || imageFailed) {
+		return (
+			<span data-testid="default-user-initial" className="text-sm font-semibold text-white">
+				{userInitial(displayName)}
+			</span>
+		);
 	}
 
 	return (
 		<img
-			src={userImageUrl(userId)}
+			src={imageUrl}
 			alt=""
 			className="h-full w-full object-cover"
 			onError={() => setImageFailed(true)}

@@ -53,15 +53,31 @@ export function orchestratorBaseUrl() {
 }
 
 export async function catalogRequest<T>(session: AuthSession, path: string, init: RequestInit = {}): Promise<T> {
-	const response = await fetch(`${orchestratorBaseUrl()}${path}`, {
-		...init,
-		headers: {
-			Accept: "application/json",
-			Authorization: `Bearer ${session.token}`,
-			...(init.body ? { "Content-Type": "application/json" } : {}),
-			...init.headers,
-		},
-	});
+	const controller = new AbortController();
+	const timeout = window.setTimeout(() => controller.abort(), 20_000);
+	const abort = () => controller.abort();
+	init.signal?.addEventListener("abort", abort, { once: true });
+	let response: Response;
+	try {
+		response = await fetch(`${orchestratorBaseUrl()}${path}`, {
+			...init,
+			signal: controller.signal,
+			headers: {
+				Accept: "application/json",
+				Authorization: `Bearer ${session.token}`,
+				...(init.body ? { "Content-Type": "application/json" } : {}),
+				...init.headers,
+			},
+		});
+	} catch (error) {
+		if (controller.signal.aborted && !init.signal?.aborted) {
+			throw new Error("The Orchestrator did not respond within 20 seconds.");
+		}
+		throw error;
+	} finally {
+		window.clearTimeout(timeout);
+		init.signal?.removeEventListener("abort", abort);
+	}
 	if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("zenstream:auth-expired"));
 	if (!response.ok) throw new Error(`Request failed with ${response.status}.`);
 	if (response.status === 204) return null as T;

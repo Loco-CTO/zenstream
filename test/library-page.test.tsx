@@ -21,6 +21,15 @@ const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
 describe("LibraryPage", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		const storage = new Map<string, string>();
+		Object.defineProperty(window, "localStorage", {
+			configurable: true,
+			value: {
+				clear: () => storage.clear(),
+				getItem: (key: string) => storage.get(key) ?? null,
+				setItem: (key: string, value: string) => storage.set(key, value),
+			},
+		});
 		Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
 		Object.defineProperty(HTMLElement.prototype, "clientWidth", {
 			configurable: true,
@@ -55,7 +64,7 @@ describe("LibraryPage", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("loads libraries and sends sorting changes back to Jellyfin", async () => {
+	it("keeps sorting preferences separate for each library", async () => {
 		const getLibraryItems = vi
 			.spyOn(jellyfin, "getLibraryItems")
 			.mockResolvedValue({
@@ -93,6 +102,27 @@ describe("LibraryPage", () => {
 					collectionType: "movies",
 				}),
 			),
+		);
+		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
+		fireEvent.click(screen.getByRole("option", { name: "Runtime" }));
+		fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));
+
+		fireEvent.click(screen.getByRole("button", { name: "Shows" }));
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenLastCalledWith(
+				session,
+				expect.objectContaining({
+					parentId: "shows",
+					sortBy: "added",
+					sortOrder: "Ascending",
+				}),
+			),
+		);
+		expect(window.localStorage.getItem("zenstream:user:sort:library:shows")).toBe(
+			JSON.stringify({ sortBy: "added", sortOrder: "Ascending" }),
+		);
+		expect(window.localStorage.getItem("zenstream:user:sort:library:movies")).toBe(
+			JSON.stringify({ sortBy: "runtime", sortOrder: "Ascending" }),
 		);
 	});
 

@@ -15,14 +15,24 @@ export function useSortPreference<T extends string>(
 	validSortBy: readonly T[],
 ) {
 	const [preference, setPreference] = useState(defaults);
-	const keyRef = useRef(key);
-	const hydratedRef = useRef(false);
+	const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+	const hydratedKeyRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (keyRef.current === key && hydratedRef.current) return;
-		keyRef.current = key;
-		if (!key) return;
-		hydratedRef.current = false;
+		if (hydratedKeyRef.current === key) return;
+		hydratedKeyRef.current = null;
+		// Do not render the previous key's value while the new preference is
+		// being read. This matters when switching libraries in one route.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setHydratedKey(null);
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setPreference(defaults);
+		if (!key) {
+			hydratedKeyRef.current = key;
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setHydratedKey(key);
+			return;
+		}
 		let stored: Partial<SortPreference<T>> = {};
 		try {
 			stored = JSON.parse(localStorage.getItem(key) ?? "{}");
@@ -39,7 +49,9 @@ export function useSortPreference<T extends string>(
 					? stored.sortOrder
 					: defaults.sortOrder,
 		});
-		hydratedRef.current = true;
+		hydratedKeyRef.current = key;
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setHydratedKey(key);
 	}, [defaults.sortBy, defaults.sortOrder, key, validSortBy]);
 
 	const updatePreference = useCallback(
@@ -52,7 +64,7 @@ export function useSortPreference<T extends string>(
 				const next = typeof value === "function" ? value(current) : value;
 				if (
 					key &&
-					hydratedRef.current &&
+					hydratedKeyRef.current === key &&
 					typeof localStorage.setItem === "function"
 				)
 					localStorage.setItem(key, JSON.stringify(next));
@@ -62,5 +74,5 @@ export function useSortPreference<T extends string>(
 		[key],
 	);
 
-	return [preference, updatePreference] as const;
+	return [preference, updatePreference, hydratedKey === key] as const;
 }

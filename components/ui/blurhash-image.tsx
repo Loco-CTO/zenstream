@@ -2,7 +2,7 @@
 
 import { decode } from "blurhash";
 import { Clapperboard } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentPropsWithoutRef } from "react";
 import type { MediaImage } from "@/lib/media-api";
 
@@ -22,6 +22,10 @@ export function BlurHashImage({
 }: BlurHashImageProps) {
 	const [loaded, setLoaded] = useState(false);
 	const [failed, setFailed] = useState(false);
+	useEffect(() => {
+		setLoaded(false);
+		setFailed(false);
+	}, [image.src]);
 	const placeholder = useMemo(
 		() => blurHashToDataUrl(image.blurHash),
 		[image.blurHash],

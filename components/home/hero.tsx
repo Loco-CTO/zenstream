@@ -44,6 +44,7 @@ export function Hero({
 	const [trailer, setTrailer] = useState<HeroTrailer | null>(null);
 	const [isTrailerMuted, setIsTrailerMuted] = useState(true);
 	const [canPlayTrailers, setCanPlayTrailers] = useState(false);
+	const [titleLogoFailed, setTitleLogoFailed] = useState(false);
 	const dragStartX = useRef<number | null>(null);
 	const dragHandled = useRef(false);
 	const fallbackTimer = useRef<number | null>(null);
@@ -184,6 +185,10 @@ export function Hero({
 
 	const image = heroImage(item);
 	const titleLogo = titleLogoImage(item);
+
+	useEffect(() => {
+		setTitleLogoFailed(false);
+	}, [titleLogo?.src]);
 	const activeSlideKey = `${item.Id}-${visibleIndex}`;
 	const meta = [
 		item.ProductionYear,
@@ -312,17 +317,18 @@ export function Hero({
 					data-slide-direction={slideDirection}
 					className="hero-slide-content max-w-lg"
 				>
-					{titleLogo ? (
+					{titleLogo && !titleLogoFailed ? (
 						<h1 className="relative mb-5">
-							<BlurHashImage
-								image={titleLogo}
-								alt={item.Name}
+							<img
+								src={titleLogo.src}
+								alt=""
 								draggable={false}
-								className="max-h-28 max-w-full object-contain object-left md:max-h-36"
+								onError={() => setTitleLogoFailed(true)}
+								className="max-h-16 max-w-full object-contain object-left md:max-h-20"
 							/>
 						</h1>
 					) : (
-						<h1 className="mb-5 line-clamp-3 max-w-2xl text-[clamp(2rem,9vw,4rem)] font-black leading-[0.95] tracking-normal text-white [overflow-wrap:anywhere] md:text-6xl lg:text-7xl">
+						<h1 className="mb-5 line-clamp-3 max-w-2xl text-[clamp(1.5rem,5vw,3rem)] font-black leading-[0.95] tracking-normal text-white [overflow-wrap:anywhere] md:text-4xl lg:text-5xl">
 							{item.Name}
 						</h1>
 					)}

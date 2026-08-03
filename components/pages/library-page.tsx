@@ -63,7 +63,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const requestRef = useRef<AbortController | null>(null);
+	const libraryRequestRef = useRef<AbortController | null>(null);
+	const itemRequestRef = useRef<AbortController | null>(null);
 	const loadingMoreRef = useRef(false);
 	const loadedQueryRef = useRef("");
 	const requestedOffsetsRef = useRef(new Set<number>());
@@ -86,9 +87,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
 
 	const loadLibraries = useCallback(async () => {
-		requestRef.current?.abort();
+		libraryRequestRef.current?.abort();
 		const controller = new AbortController();
-		requestRef.current = controller;
+		libraryRequestRef.current = controller;
 		const finish = start();
 		setLoading(true);
 		setError(null);
@@ -170,7 +171,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		// Async hydration is intentionally owned by this route component.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void loadLibraries();
-		return () => requestRef.current?.abort();
+		return () => libraryRequestRef.current?.abort();
 	}, [loadLibraries]);
 
 	const loadFirstPage = useCallback(
@@ -178,9 +179,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (!activeLibrary) return;
 			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
 			if (!force && loadedQueryRef.current === queryKey) return;
-			requestRef.current?.abort();
+			itemRequestRef.current?.abort();
 			const controller = new AbortController();
-			requestRef.current = controller;
+			itemRequestRef.current = controller;
 			loadingMoreRef.current = false;
 			requestedOffsetsRef.current = new Set([0]);
 			const finish = start();
@@ -240,7 +241,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		loadingMoreRef.current = true;
 		setLoadingMore(true);
 		const controller = new AbortController();
-		requestRef.current = controller;
+		itemRequestRef.current = controller;
 		const finish = start();
 		try {
 			const page = await getLibraryItems(session, {

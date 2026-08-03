@@ -9,7 +9,7 @@ import {
 	type MediaItem,
 } from "@/lib/media-api";
 import { progressPercent, subtitle } from "@/lib/media";
-import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import {

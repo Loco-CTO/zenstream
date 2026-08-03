@@ -1,6 +1,7 @@
 "use client";
 
 import { decode } from "blurhash";
+import { Clapperboard } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ComponentPropsWithoutRef } from "react";
 import type { MediaImage } from "@/lib/media-api";
@@ -20,6 +21,7 @@ export function BlurHashImage({
 	...props
 }: BlurHashImageProps) {
 	const [loaded, setLoaded] = useState(false);
+	const [failed, setFailed] = useState(false);
 	const placeholder = useMemo(
 		() => blurHashToDataUrl(image.blurHash),
 		[image.blurHash],
@@ -38,17 +40,33 @@ export function BlurHashImage({
 					}`}
 				/>
 			)}
-			<img
-				{...props}
-				src={image.src}
-				alt={alt}
-				className={className}
-				onLoad={(event) => {
-					setLoaded(true);
-					onLoad?.(event);
-				}}
-			/>
+			{failed ? (
+				<MediaPlaceholder />
+			) : (
+				<img
+					{...props}
+					src={image.src}
+					alt={alt}
+					className={className}
+					onError={() => setFailed(true)}
+					onLoad={(event) => {
+						setLoaded(true);
+						onLoad?.(event);
+					}}
+				/>
+			)}
 		</>
+	);
+}
+
+export function MediaPlaceholder() {
+	return (
+		<div
+			aria-hidden="true"
+			className="absolute inset-0 flex items-center justify-center bg-white/[0.035] text-white/20"
+		>
+			<Clapperboard className="h-10 w-10 stroke-[1.5]" />
+		</div>
 	);
 }
 

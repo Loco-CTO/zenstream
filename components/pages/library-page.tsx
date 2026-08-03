@@ -12,7 +12,7 @@ import {
 } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
-import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import {
 	getLibraryItems,
@@ -521,6 +521,7 @@ function LibraryCard({
 								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
+						{!image && <MediaPlaceholder />}
 						{item.CommunityRating != null && (
 							<div className="absolute bottom-2 left-2 flex items-center gap-1">
 								<Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />

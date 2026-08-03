@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import {
 	posterImage,
 	type DetailData,
@@ -58,6 +58,7 @@ function CollectionCard({ item }: { item: MediaItem }) {
 							className="h-full w-full object-cover brightness-[0.85] transition hover:brightness-50"
 						/>
 					)}
+					{!image && <MediaPlaceholder />}
 					<WatchProgress progress={progressPercent(item)} />
 					<WatchedIndicator item={item} />
 				</div>

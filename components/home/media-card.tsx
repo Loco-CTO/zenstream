@@ -54,6 +54,7 @@ export function WideCard({
 								className={`brightness-[0.82] ${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
+						{!image && <MediaPlaceholder />}
 						<WatchProgress progress={progress} />
 						<WatchedIndicator item={item} />
 					</div>
@@ -101,6 +102,7 @@ export function PosterCard({
 								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
+						{!image && <MediaPlaceholder />}
 						<WatchProgress progress={progress} />
 						<WatchedIndicator item={item} />
 					</div>
@@ -150,6 +152,7 @@ export function StackedPosterCard({
 									className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 								/>
 							)}
+							{!image && <MediaPlaceholder />}
 							{stacked && (
 								<span
 									className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}

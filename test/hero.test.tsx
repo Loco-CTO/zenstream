@@ -99,7 +99,7 @@ describe("Hero", () => {
 		expect(heading).not.toHaveClass("text-4xl");
 		expect(titleImage).toHaveAttribute(
 			"src",
-			expect.stringContaining("/api/assets/items/item-1/images/Logo?"),
+			expect.stringContaining("/api/assets/items/featured/images/Logo?"),
 		);
 		expect(titleImage).toHaveAttribute(
 			"src",

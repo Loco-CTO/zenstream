@@ -321,7 +321,7 @@ export function Hero({
 						<h1 className="relative mb-5">
 							<img
 								src={titleLogo.src}
-								alt=""
+								alt={item.Name}
 								draggable={false}
 								onError={() => setTitleLogoFailedSrc(titleLogo.src)}
 								className="max-h-[300px] max-w-full object-contain object-left"

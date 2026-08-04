@@ -1097,7 +1097,7 @@ export function titleLogoImageUrl(item: MediaItem) {
 }
 
 export function titleLogoImage(item: MediaItem) {
-	return imageData(item, "Logo", 680, 260);
+	return imageData(item, "Logo", 680, 300);
 }
 
 export function userImageUrl(userId: string): string | null {

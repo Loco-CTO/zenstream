@@ -101,7 +101,11 @@ describe("Hero", () => {
 			"src",
 			expect.stringContaining("/api/assets/items/item-1/images/Logo?"),
 		);
-		expect(titleImage).toHaveClass("max-h-28");
+		expect(titleImage).toHaveAttribute(
+			"src",
+			expect.stringContaining("fillHeight=300"),
+		);
+		expect(titleImage).toHaveClass("max-h-[300px]");
 	});
 
 	it("switches featured slides with hover-revealed arrow controls", () => {

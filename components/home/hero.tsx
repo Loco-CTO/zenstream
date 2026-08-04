@@ -44,7 +44,9 @@ export function Hero({
 	const [trailer, setTrailer] = useState<HeroTrailer | null>(null);
 	const [isTrailerMuted, setIsTrailerMuted] = useState(true);
 	const [canPlayTrailers, setCanPlayTrailers] = useState(false);
-	const [titleLogoFailed, setTitleLogoFailed] = useState(false);
+	const [titleLogoFailedSrc, setTitleLogoFailedSrc] = useState<string | null>(
+		null,
+	);
 	const dragStartX = useRef<number | null>(null);
 	const dragHandled = useRef(false);
 	const fallbackTimer = useRef<number | null>(null);
@@ -165,6 +167,10 @@ export function Hero({
 		setIsDragging(false);
 	};
 
+	const image = item ? heroImage(item) : null;
+	const titleLogo = item ? titleLogoImage(item) : null;
+	const titleLogoFailed = titleLogo?.src === titleLogoFailedSrc;
+
 	if (!item) {
 		return (
 			<section className="relative flex h-[min(72svh,640px)] items-end overflow-hidden bg-neutral-950 px-5 pb-16 md:h-[85svh] md:px-14 md:pb-20">
@@ -183,12 +189,6 @@ export function Hero({
 		);
 	}
 
-	const image = heroImage(item);
-	const titleLogo = titleLogoImage(item);
-
-	useEffect(() => {
-		setTitleLogoFailed(false);
-	}, [titleLogo?.src]);
 	const activeSlideKey = `${item.Id}-${visibleIndex}`;
 	const meta = [
 		item.ProductionYear,
@@ -323,7 +323,7 @@ export function Hero({
 								src={titleLogo.src}
 								alt=""
 								draggable={false}
-								onError={() => setTitleLogoFailed(true)}
+								onError={() => setTitleLogoFailedSrc(titleLogo.src)}
 								className="max-h-16 max-w-full object-contain object-left md:max-h-20"
 							/>
 						</h1>

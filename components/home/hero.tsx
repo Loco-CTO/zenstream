@@ -324,7 +324,7 @@ export function Hero({
 								alt=""
 								draggable={false}
 								onError={() => setTitleLogoFailedSrc(titleLogo.src)}
-								className="max-h-16 max-w-full object-contain object-left md:max-h-20"
+								className="max-h-[300px] max-w-full object-contain object-left"
 							/>
 						</h1>
 					) : (

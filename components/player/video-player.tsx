@@ -2113,7 +2113,7 @@ export function VideoPlayer({
 				<div className="min-w-0">
 					{item.Type === "Episode" && (
 						<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
-							{`${item.SeriesName ?? "Series"} Â· S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
+							{`${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
 						</p>
 					)}
 					{item.Name && (

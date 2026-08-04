@@ -14,6 +14,7 @@ export function useSortPreference<T extends string>(
 	defaults: SortPreference<T>,
 	validSortBy: readonly T[],
 ) {
+	const { sortBy: defaultSortBy, sortOrder: defaultSortOrder } = defaults;
 	const [preference, setPreference] = useState(defaults);
 	const [hydratedKey, setHydratedKey] = useState<string | null>(null);
 	const hydratedKeyRef = useRef<string | null>(null);
@@ -23,10 +24,8 @@ export function useSortPreference<T extends string>(
 		hydratedKeyRef.current = null;
 		// Do not render the previous key's value while the new preference is
 		// being read. This matters when switching libraries in one route.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setHydratedKey(null);
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setPreference(defaults);
+		setPreference({ sortBy: defaultSortBy, sortOrder: defaultSortOrder });
 		if (!key) {
 			hydratedKeyRef.current = key;
 			// eslint-disable-next-line react-hooks/set-state-in-effect
@@ -39,20 +38,18 @@ export function useSortPreference<T extends string>(
 		} catch {
 			stored = {};
 		}
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setPreference({
 			sortBy: validSortBy.includes(stored.sortBy as T)
 				? (stored.sortBy as T)
-				: defaults.sortBy,
+				: defaultSortBy,
 			sortOrder:
 				stored.sortOrder === "Ascending" || stored.sortOrder === "Descending"
 					? stored.sortOrder
-					: defaults.sortOrder,
+					: defaultSortOrder,
 		});
 		hydratedKeyRef.current = key;
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setHydratedKey(key);
-	}, [defaults.sortBy, defaults.sortOrder, key, validSortBy]);
+	}, [defaultSortBy, defaultSortOrder, key, validSortBy]);
 
 	const updatePreference = useCallback(
 		(

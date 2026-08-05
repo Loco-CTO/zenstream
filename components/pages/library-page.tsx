@@ -535,7 +535,7 @@ function LibraryCard({
 								alt={item.Name}
 								loading="lazy"
 								decoding="async"
-								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
 						{!image && <MediaPlaceholder />}

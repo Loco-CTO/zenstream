@@ -99,7 +99,7 @@ export function PosterCard({
 								image={image}
 								alt={item.Name}
 								draggable={false}
-								className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
 						{!image && <MediaPlaceholder />}
@@ -149,7 +149,7 @@ export function StackedPosterCard({
 									image={image}
 									alt={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 									draggable={false}
-									className={`brightness-[0.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+									className={`${MEDIA_CARD_IMAGE_CLASS}`}
 								/>
 							)}
 							{!image && <MediaPlaceholder />}

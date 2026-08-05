@@ -55,7 +55,7 @@ function CollectionCard({ item }: { item: MediaItem }) {
 							alt={item.Name}
 							loading="lazy"
 							decoding="async"
-							className="h-full w-full object-cover brightness-[0.85] transition hover:brightness-50"
+							className="h-full w-full object-cover transition hover:brightness-50"
 						/>
 					)}
 					{!image && <MediaPlaceholder />}

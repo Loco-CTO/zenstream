@@ -29,6 +29,8 @@ export function startCatalogEvents(session: AuthSession): () => void {
 	let socket: WebSocket | null = null;
 	let retryTimer: number | null = null;
 	let retryDelay = 1_000;
+	let refreshTimer: number | null = null;
+	let pendingEvent: CatalogEvent | null = null;
 
 	const scheduleReconnect = () => {
 		if (stopped || retryTimer !== null) return;
@@ -49,12 +51,22 @@ export function startCatalogEvents(session: AuthSession): () => void {
 			if (stopped) return;
 			socket = new WebSocket(catalogSocketUrl(ticket));
 			socket.onopen = () => { retryDelay = 1_000; };
-			socket.onmessage = (message) => {
-				const event = parseCatalogEvent(String(message.data));
-				if (event?.type !== "catalog.updated" && event?.type !== "catalog.changed") return;
+		socket.onmessage = (message) => {
+			const event = parseCatalogEvent(String(message.data));
+			if (event?.type !== "catalog.updated" && event?.type !== "catalog.changed") return;
+			pendingEvent = event;
+			if (refreshTimer !== null) return;
+			refreshTimer = window.setTimeout(() => {
+				refreshTimer = null;
+				const nextEvent = pendingEvent;
+				pendingEvent = null;
+				if (!nextEvent) return;
 				clearMediaClientCache();
-				window.dispatchEvent(new CustomEvent("zenstream:catalog-changed", { detail: event }));
-			};
+				window.dispatchEvent(
+					new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
+				);
+			}, 250);
+		};
 			socket.onclose = scheduleReconnect;
 			socket.onerror = () => socket?.close();
 		} catch {
@@ -66,6 +78,7 @@ export function startCatalogEvents(session: AuthSession): () => void {
 	return () => {
 		stopped = true;
 		if (retryTimer !== null) window.clearTimeout(retryTimer);
+		if (refreshTimer !== null) window.clearTimeout(refreshTimer);
 		socket?.close();
 	};
 }

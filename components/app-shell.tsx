@@ -75,6 +75,7 @@ export function AppShell() {
 	);
 	const loadedPreferencesToken = useRef<string | null>(null);
 	const homeLoadInFlight = useRef(false);
+	const homeDataRef = useRef<HomeData | null>(null);
 	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
@@ -93,25 +94,35 @@ export function AppShell() {
 		async (nextSession: AuthSession) => {
 			if (homeLoadInFlight.current) return;
 			homeLoadInFlight.current = true;
+			const hasExistingHome = homeDataRef.current !== null;
 			const finishProgress = start();
-			setStatus("loading");
-			setHomeData(null);
+			if (!hasExistingHome) {
+				setStatus("loading");
+				setHomeData(null);
+			}
 			setError(null);
 			try {
 				await primeResourceTicket(nextSession);
 				const data = await fetchHomeData(nextSession, (section) => {
 					setHomeData(
-						(current) => ({ ...(current ?? {}), ...section }) as HomeData,
+						(current) => {
+							const next = ({ ...(current ?? {}), ...section }) as HomeData;
+							homeDataRef.current = next;
+							return next;
+						},
 					);
 					if (sectionHasContent(section)) setStatus("ready");
 				});
+				homeDataRef.current = data;
 				setHomeData(data);
 				setStatus("ready");
 			} catch (err) {
-				setError(
-					err instanceof Error ? err.message : "Could not load your library.",
-				);
-				setStatus("error");
+				if (!hasExistingHome) {
+					setError(
+						err instanceof Error ? err.message : "Could not load your library.",
+					);
+					setStatus("error");
+				}
 			} finally {
 				homeLoadInFlight.current = false;
 				finishProgress();
@@ -230,6 +241,7 @@ export function AppShell() {
 		clearMediaClientCache();
 		setSession(null);
 		loadedPreferencesToken.current = null;
+		homeDataRef.current = null;
 		setHomeData(null);
 		setDetailData(null);
 		setSearchData(null);

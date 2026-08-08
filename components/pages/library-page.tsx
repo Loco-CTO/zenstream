@@ -65,6 +65,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [error, setError] = useState<string | null>(null);
 	const libraryRequestRef = useRef<AbortController | null>(null);
 	const itemRequestRef = useRef<AbortController | null>(null);
+	const firstPageLoadingRef = useRef(false);
 	const loadingMoreRef = useRef(false);
 	const loadedQueryRef = useRef("");
 	const requestedOffsetsRef = useRef(new Set<number>());
@@ -194,11 +195,13 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const loadFirstPage = useCallback(
 		async (force = false) => {
 			if (!activeLibrary) return;
+			if (force && firstPageLoadingRef.current) return;
 			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
 			if (!force && loadedQueryRef.current === queryKey) return;
 			itemRequestRef.current?.abort();
 			const controller = new AbortController();
 			itemRequestRef.current = controller;
+			firstPageLoadingRef.current = true;
 			loadingMoreRef.current = false;
 			requestedOffsetsRef.current = new Set([0]);
 			const finish = start();
@@ -231,6 +234,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					);
 				}
 			} finally {
+				if (itemRequestRef.current === controller) {
+					firstPageLoadingRef.current = false;
+				}
 				if (!controller.signal.aborted) setLoading(false);
 				finish();
 			}

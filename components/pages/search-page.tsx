@@ -48,6 +48,12 @@ export function SearchPage({
 		};
 	}, [query, requestKey, session, start]);
 
+	useEffect(() => {
+		const refresh = () => setRetryKey((value) => value + 1);
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, []);
+
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">

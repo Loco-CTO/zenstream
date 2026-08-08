@@ -74,6 +74,7 @@ export function AppShell() {
 		DEFAULT_SUBTITLE_STYLE,
 	);
 	const loadedPreferencesToken = useRef<string | null>(null);
+	const homeLoadInFlight = useRef(false);
 	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
@@ -90,6 +91,8 @@ export function AppShell() {
 
 	const loadHome = useCallback(
 		async (nextSession: AuthSession) => {
+			if (homeLoadInFlight.current) return;
+			homeLoadInFlight.current = true;
 			const finishProgress = start();
 			setStatus("loading");
 			setHomeData(null);
@@ -110,6 +113,7 @@ export function AppShell() {
 				);
 				setStatus("error");
 			} finally {
+				homeLoadInFlight.current = false;
 				finishProgress();
 			}
 		},

@@ -53,6 +53,7 @@ import { SyncplayProvider } from "@/lib/syncplay";
 import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
 import { ToastProvider } from "@/components/ui/toast";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
+import { startCatalogEvents } from "@/lib/catalog-events";
 
 type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
 
@@ -238,6 +239,25 @@ export function AppShell() {
 		return () =>
 			window.removeEventListener("zenstream:auth-expired", handleAuthExpired);
 	}, [handleLogout]);
+
+	useEffect(() => {
+		if (!session || process.env.NODE_ENV === "test") return;
+		return startCatalogEvents(session);
+	}, [session]);
+
+	useEffect(() => {
+		if (!session || pathname !== "/") return;
+		const refresh = () => { void loadHome(session); };
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, [loadHome, pathname, session]);
+
+	useEffect(() => {
+		if (!session || !detailId || playId) return;
+		const refresh = () => { void loadDetail(session, detailId); };
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, [detailId, loadDetail, pathname, playId, session]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
 		const previousLocale = locale;

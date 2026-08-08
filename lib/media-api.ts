@@ -169,7 +169,11 @@ export type ArtworkType = "Primary" | "Backdrop" | "Logo" | "Banner";
 const LIST_CACHE_TTL_MS = 30_000;
 const DETAIL_CACHE_TTL_MS = 120_000;
 const clientCache = new Map<string, { expiresAt: number; value: unknown }>();
-const clientInFlight = new Map<string, Promise<unknown>>();
+const clientInFlight = new Map<
+	string,
+	{ generation: number; promise: Promise<unknown> }
+>();
+let clientCacheGeneration = 0;
 
 async function cachedClientRequest<T>(
 	key: string,
@@ -179,17 +183,28 @@ async function cachedClientRequest<T>(
 	const cached = clientCache.get(key);
 	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
 	const pending = clientInFlight.get(key);
-	if (pending) return pending as Promise<T>;
-	const request = loader().then((value) => {
-		clientCache.set(key, { expiresAt: Date.now() + ttl, value });
+	const generation = clientCacheGeneration;
+	if (pending?.generation === generation) return pending.promise as Promise<T>;
+	const request = Promise.resolve().then(loader).then((value) => {
+		if (generation === clientCacheGeneration) {
+			clientCache.set(key, { expiresAt: Date.now() + ttl, value });
+		}
 		return value;
-	}).finally(() => clientInFlight.delete(key));
-	clientInFlight.set(key, request);
-	return request;
+	});
+	let trackedRequest: Promise<T>;
+	trackedRequest = request.finally(() => {
+		if (clientInFlight.get(key)?.promise === trackedRequest) {
+			clientInFlight.delete(key);
+		}
+	});
+	clientInFlight.set(key, { generation, promise: trackedRequest });
+	return trackedRequest;
 }
 
 export function clearMediaClientCache() {
 	clientCache.clear();
+	clientCacheGeneration += 1;
+	clientInFlight.clear();
 }
 
 export type ImageBlurHashes = Partial<

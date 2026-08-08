@@ -197,18 +197,21 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (!activeLibrary) return;
 			if (force && firstPageLoadingRef.current) return;
 			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
+			const preserveCurrentItems = force && loadedQueryRef.current === queryKey;
 			if (!force && loadedQueryRef.current === queryKey) return;
 			itemRequestRef.current?.abort();
 			const controller = new AbortController();
 			itemRequestRef.current = controller;
 			firstPageLoadingRef.current = true;
 			loadingMoreRef.current = false;
-			requestedOffsetsRef.current = new Set([0]);
+			if (!preserveCurrentItems) requestedOffsetsRef.current = new Set([0]);
 			const finish = start();
 			setLoading(true);
-			setItems([]);
-			setLoadedCount(0);
-			setTotal(0);
+			if (!preserveCurrentItems) {
+				setItems([]);
+				setLoadedCount(0);
+				setTotal(0);
+			}
 			setError(null);
 			try {
 				const page = await getLibraryItems(session, {
@@ -221,8 +224,13 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					signal: controller.signal,
 				});
 				if (controller.signal.aborted) return;
-				setItems(uniqueItems(page.items));
-				setLoadedCount(page.items.length);
+				if (preserveCurrentItems) {
+					setItems((current) => uniqueItems([...page.items, ...current]));
+					setLoadedCount((current) => Math.max(current, page.items.length));
+				} else {
+					setItems(uniqueItems(page.items));
+					setLoadedCount(page.items.length);
+				}
 				setTotal(page.totalRecordCount);
 				loadedQueryRef.current = queryKey;
 			} catch (nextError) {
@@ -251,10 +259,14 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 
 	useEffect(() => {
-		const refresh = () => { void loadFirstPage(true); };
+		const refresh = (event: Event) => {
+			const libraryId = (event as CustomEvent<{ libraryId?: string }>).detail?.libraryId;
+			if (libraryId && libraryId !== activeLibrary?.Id) return;
+			void loadFirstPage(true);
+		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
-	}, [loadFirstPage]);
+	}, [activeLibrary?.Id, loadFirstPage]);
 
 	const loadMore = useCallback(async () => {
 		if (

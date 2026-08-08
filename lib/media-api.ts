@@ -191,8 +191,7 @@ async function cachedClientRequest<T>(
 		}
 		return value;
 	});
-	let trackedRequest: Promise<T>;
-	trackedRequest = request.finally(() => {
+	const trackedRequest = request.finally(() => {
 		if (clientInFlight.get(key)?.promise === trackedRequest) {
 			clientInFlight.delete(key);
 		}

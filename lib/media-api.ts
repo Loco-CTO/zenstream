@@ -259,6 +259,7 @@ export type LibrarySortBy =
 export interface LibraryView extends MediaItem {
 	CollectionType?: string;
 	SupportsLastAdded?: boolean;
+	CatalogGeneration?: number;
 }
 
 export interface LibraryPage {
@@ -395,7 +396,7 @@ export async function getLibraryViews(
 ) {
 	return cachedClientRequest(`libraries:${session.userId}`, async () => {
 	const result = await catalogRequest<{
-		libraries: Array<{ id: string; name: string; type: string; supportsLastAdded?: boolean }>;
+		libraries: Array<{ id: string; name: string; type: string; supportsLastAdded?: boolean; catalogGeneration?: number }>;
 	}>(session, "/api/catalog/libraries");
 	return result.libraries.map((library) => ({
 		Id: library.id,
@@ -408,6 +409,7 @@ export async function getLibraryViews(
 					? "movies"
 					: "boxsets",
 		SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
+		CatalogGeneration: library.catalogGeneration ?? 0,
 	})) as LibraryView[];
 	});
 }

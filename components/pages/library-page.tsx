@@ -244,6 +244,12 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		if (activeLibrary && sortReady && isSortAvailable) void loadFirstPage();
 	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 
+	useEffect(() => {
+		const refresh = () => { void loadFirstPage(true); };
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, [loadFirstPage]);
+
 	const loadMore = useCallback(async () => {
 		if (
 			!activeLibrary ||

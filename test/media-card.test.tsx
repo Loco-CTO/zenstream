@@ -203,7 +203,7 @@ describe("media card sizing", () => {
 
 		expect(
 			container.querySelector('[style="width: 50%;"]')?.parentElement,
-		).toHaveClass("h-1");
+		).toHaveClass("h-0.5");
 	});
 
 	it("shows progress on poster cards but omits it for parent series cards", () => {
@@ -258,7 +258,7 @@ describe("media card sizing", () => {
 
 		expect(
 			container.querySelector('[style="width: 25%;"]')?.parentElement,
-		).toHaveClass("h-1");
+		).toHaveClass("h-0.5");
 	});
 
 	it("shows watch progress on vertical detail episode thumbnails", () => {

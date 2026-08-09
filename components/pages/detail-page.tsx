@@ -278,6 +278,7 @@ export function DetailPage({
 		router,
 		selectedTracks,
 		session,
+		setItem,
 		start,
 		t,
 	]);

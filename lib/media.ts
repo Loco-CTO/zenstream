@@ -78,6 +78,16 @@ export function releaseDateLabel(item: MediaItem, locale: Locale = "en") {
 	return item.ProductionYear?.toString();
 }
 
+export function releaseYear(
+	item: Pick<MediaItem, "ProductionYear" | "PremiereDate">,
+) {
+	if (Number.isFinite(item.ProductionYear)) {
+		return String(item.ProductionYear);
+	}
+
+	return /^(\d{4})/.exec(item.PremiereDate ?? "")?.[1];
+}
+
 export function subtitle(item: MediaItem) {
 	if (
 		item.Type === "Episode" &&
@@ -88,7 +98,7 @@ export function subtitle(item: MediaItem) {
 	}
 
 	return (
-		[item.ProductionYear, item.SeriesName, item.OfficialRating]
+		[releaseYear(item), item.SeriesName, item.OfficialRating]
 			.filter(Boolean)
 			.join(" ・ ") || item.Type
 	);

@@ -489,8 +489,36 @@ export async function fetchDetailData(
 	session: AuthSession,
 	itemId: string,
 	requestedSeasonId?: string,
+	requestSignal?: AbortSignal,
 ): Promise<DetailData> {
-	return cachedClientRequest(`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`, async () => {
+	return cachedClientRequest(`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`, async (signal) => {
+	const params = new URLSearchParams();
+	if (requestedSeasonId) params.set("seasonId", requestedSeasonId);
+	try {
+		const response = await catalogRequest<{
+			item: CatalogItem;
+			backgroundItem?: CatalogItem | null;
+			seasons: CatalogItem[];
+			episodes: CatalogItem[];
+			similar: CatalogItem[];
+			collectionItems?: CatalogItem[] | null;
+		}>(
+			session,
+			`/api/catalog/items/${encodeURIComponent(itemId)}/detail${params.size ? `?${params}` : ""}`,
+			{ signal: requestSignal ?? signal },
+		);
+		return {
+			item: toMediaItem(response.item),
+			backgroundItem: response.backgroundItem ? toMediaItem(response.backgroundItem) : undefined,
+			seasons: response.seasons.map(toMediaItem),
+			episodes: response.episodes.map(toMediaItem),
+			similar: response.similar.map(toMediaItem),
+			collectionItems: response.collectionItems?.map(toMediaItem),
+		};
+	} catch (error) {
+		const status = error instanceof Error ? error.message.match(/Request failed with (\d+)/)?.[1] : undefined;
+		if (status !== "404" && status !== "405") throw error;
+	}
 	const item = await getItem(session, itemId);
 	const seriesId = item.Type === "Episode" ? item.SeriesId : item.Id;
 	const backgroundItem =

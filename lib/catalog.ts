@@ -92,6 +92,11 @@ const itemTypes: Record<string, string> = {
 	collection: "BoxSet",
 };
 
+function metadataYear(value: unknown, date: unknown) {
+	const match = /^(\d{4})/.exec(String(value ?? date ?? ""));
+	return match ? Number(match[1]) : undefined;
+}
+
 export function toMediaItem(item: CatalogItem): MediaItem {
 	const images = item.metadata.images ?? {};
 	const people = (["cast", "crew"] as const).flatMap((creditType) =>
@@ -126,6 +131,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		const url = typeof trailer.url === "string" ? trailer.url.trim() : "";
 		return /^https?:\/\//i.test(url) ? [{ Url: url }] : [];
 	});
+	const productionYear = metadataYear(item.metadata.year, item.metadata.date);
 	return {
 		Id: item.id,
 		Name: item.metadata.title ?? item.name,
@@ -141,7 +147,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 				? item.seasonNumber ?? undefined
 				: item.episodeNumber ?? undefined,
 		Overview: item.metadata.overview ?? item.metadata.description,
-		ProductionYear: item.metadata.year ? Number(item.metadata.year) : undefined,
+		ProductionYear: productionYear,
 		PremiereDate: item.metadata.date,
 		RunTimeTicks: item.metadata.runtimeMinutes ? item.metadata.runtimeMinutes * 60 * 10_000_000 : undefined,
 		CommunityRating: item.metadata.communityRating,

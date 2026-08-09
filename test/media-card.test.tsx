@@ -27,7 +27,9 @@ describe("media card sizing", () => {
 			name: "Episode title",
 			seriesId: "series-1",
 			seriesName: "Example Series",
-			seriesPrimaryImage: { url: "/api/catalog/items/series-1/images/Primary?language=en" },
+			seriesPrimaryImage: {
+				url: "/api/catalog/items/series-1/images/Primary?language=en",
+			},
 			metadata: {},
 		});
 
@@ -201,23 +203,25 @@ describe("media card sizing", () => {
 
 		expect(
 			container.querySelector('[style="width: 50%;"]')?.parentElement,
-		).toHaveClass("h-0.5");
+		).toHaveClass("h-1");
 	});
 
 	it("shows progress on poster cards but omits it for parent series cards", () => {
 		const { container, rerender } = render(
-			<PosterCard
-				item={{ ...item, UserData: { PlayedPercentage: 50 } }}
-			/>,
+			<PosterCard item={{ ...item, UserData: { PlayedPercentage: 50 } }} />,
 		);
-		expect(container.querySelector('[style="width: 50%;"]')).toBeInTheDocument();
+		expect(
+			container.querySelector('[style="width: 50%;"]'),
+		).toBeInTheDocument();
 
 		rerender(
 			<PosterCard
 				item={{ ...item, Type: "Series", UserData: { PlayedPercentage: 50 } }}
 			/>,
 		);
-		expect(container.querySelector('[style="width: 50%;"]')).not.toBeInTheDocument();
+		expect(
+			container.querySelector('[style="width: 50%;"]'),
+		).not.toBeInTheDocument();
 	});
 
 	it("shows watched badges for movies, episodes, and series", () => {
@@ -254,7 +258,7 @@ describe("media card sizing", () => {
 
 		expect(
 			container.querySelector('[style="width: 25%;"]')?.parentElement,
-		).toHaveClass("h-0.5");
+		).toHaveClass("h-1");
 	});
 
 	it("shows watch progress on vertical detail episode thumbnails", () => {
@@ -272,7 +276,9 @@ describe("media card sizing", () => {
 				active={false}
 			/>,
 		);
-		expect(container.querySelector('[style="width: 25%;"]')).toBeInTheDocument();
+		expect(
+			container.querySelector('[style="width: 25%;"]'),
+		).toBeInTheDocument();
 	});
 
 	it("adds a playable overlay to vertical season episode rows", () => {
@@ -319,4 +325,3 @@ describe("media card sizing", () => {
 		},
 	);
 });
-

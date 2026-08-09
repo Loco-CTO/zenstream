@@ -7,6 +7,7 @@ type CatalogEvent = {
 	generation?: number;
 	libraryId?: string;
 	rootEntityId?: string | null;
+	libraries?: Array<{ id?: string; catalogGeneration?: number }>;
 };
 
 export function parseCatalogEvent(value: string): CatalogEvent | null {
@@ -55,9 +56,22 @@ export function startCatalogEvents(session: AuthSession): () => void {
 			socket.onopen = () => { retryDelay = 1_000; };
 		socket.onmessage = (message) => {
 			const event = parseCatalogEvent(String(message.data));
-			if (event?.type !== "catalog.updated" && event?.type !== "catalog.changed") return;
-			const eventKey = `${event.libraryId ?? "global"}:${event.rootEntityId ?? "root"}`;
-			pendingEvents.set(eventKey, event);
+			if (event?.type === "catalog.status") {
+				for (const library of event.libraries ?? []) {
+					if (!library.id) continue;
+					pendingEvents.set(`status:${library.id}`, {
+						type: "catalog.updated",
+						libraryId: library.id,
+						generation: library.catalogGeneration,
+						rootEntityId: null,
+					});
+				}
+			} else if (event?.type === "catalog.updated" || event?.type === "catalog.changed") {
+				const eventKey = `${event.libraryId ?? "global"}:${event.rootEntityId ?? "root"}`;
+				pendingEvents.set(eventKey, event);
+			} else {
+				return;
+			}
 			if (refreshTimer !== null) return;
 			refreshTimer = window.setTimeout(() => {
 				refreshTimer = null;

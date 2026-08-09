@@ -144,7 +144,7 @@ describe("media card sizing", () => {
 						SeriesPrimaryImageTag: "poster",
 						ParentIndexNumber: 1,
 						IndexNumber: 2,
-						ProductionYear: 2026,
+						SeriesProductionYear: 2026,
 					},
 					{
 						...item,
@@ -155,7 +155,7 @@ describe("media card sizing", () => {
 						SeriesName: "Series",
 						ParentIndexNumber: 1,
 						IndexNumber: 1,
-						ProductionYear: 2026,
+						SeriesProductionYear: 2026,
 					},
 				]}
 			/>,

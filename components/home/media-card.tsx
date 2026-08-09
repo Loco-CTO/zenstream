@@ -174,7 +174,7 @@ export function StackedPosterCard({
 						</p>
 						<p className="mt-0.5 truncate text-xs text-white/30">
 							{stacked
-								? (item.ProductionYear ?? item.Type)
+								? (item.SeriesProductionYear ?? item.ProductionYear ?? item.Type)
 								: episode
 									? episodeLabel(item)
 									: subtitle(item)}

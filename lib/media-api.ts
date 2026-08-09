@@ -172,13 +172,13 @@ const DETAIL_CACHE_TTL_MS = 120_000;
 const clientCache = new Map<string, { expiresAt: number; value: unknown }>();
 const clientInFlight = new Map<
 	string,
-	{ generation: number; promise: Promise<unknown> }
+	{ generation: number; promise: Promise<unknown>; controller: AbortController }
 >();
 let clientCacheGeneration = 0;
 
 async function cachedClientRequest<T>(
 	key: string,
-	loader: () => Promise<T>,
+	loader: (signal: AbortSignal) => Promise<T>,
 	ttl = LIST_CACHE_TTL_MS,
 	reuseInFlight = true,
 ): Promise<T> {
@@ -188,7 +188,9 @@ async function cachedClientRequest<T>(
 	const generation = clientCacheGeneration;
 	if (reuseInFlight && pending?.generation === generation)
 		return pending.promise as Promise<T>;
-	const request = Promise.resolve().then(loader).then((value) => {
+	if (pending) pending.controller.abort();
+	const controller = new AbortController();
+	const request = Promise.resolve().then(() => loader(controller.signal)).then((value) => {
 		if (generation === clientCacheGeneration) {
 			clientCache.set(key, { expiresAt: Date.now() + ttl, value });
 		}
@@ -199,14 +201,30 @@ async function cachedClientRequest<T>(
 			clientInFlight.delete(key);
 		}
 	});
-	if (reuseInFlight) clientInFlight.set(key, { generation, promise: trackedRequest });
+	if (reuseInFlight) clientInFlight.set(key, { generation, promise: trackedRequest, controller });
 	return trackedRequest;
 }
 
-export function clearMediaClientCache() {
-	clientCache.clear();
+export function clearMediaClientCache(scope?: { libraryId?: string; rootEntityId?: string }) {
+	const affected = (key: string, value?: unknown) => {
+		if (!scope?.libraryId && !scope?.rootEntityId) return true;
+		if (/^(home|search|libraries|favorites):/.test(key)) return true;
+		if (scope.libraryId && key.includes(`:${scope.libraryId}:`)) return true;
+		if (scope.rootEntityId && (key.includes(`:${scope.rootEntityId}:`) || key.endsWith(`:${scope.rootEntityId}`))) return true;
+		const item = value && typeof value === "object" && "item" in value
+			? (value as DetailData).item
+			: value as MediaItem | undefined;
+		return Boolean(scope.libraryId && item?.LibraryId === scope.libraryId);
+	};
+	for (const [key, cached] of clientCache) {
+		if (affected(key, cached.value)) clientCache.delete(key);
+	}
+	for (const [key, pending] of clientInFlight) {
+		if (!affected(key)) continue;
+		pending.controller.abort();
+		clientInFlight.delete(key);
+	}
 	clientCacheGeneration += 1;
-	clientInFlight.clear();
 }
 
 export type ImageBlurHashes = Partial<

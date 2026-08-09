@@ -116,20 +116,6 @@ export function DetailPage({
 		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
 
 	useEffect(() => {
-		// Catalog events replace the parent payload while this page remains
-		// mounted. Keep the locally managed view in sync with that fresh data.
-		setItem(initialData.item);
-		setEpisodes(initialData.episodes);
-		setSeasonId(
-			getInitialSeason(
-				initialData.item,
-				initialData.seasons,
-				getRequestedSeasonId(),
-			)?.Id ?? "",
-		);
-	}, [initialData]);
-
-	useEffect(() => {
 		let active = true;
 		if (!hasTrackSelection) {
 			return;

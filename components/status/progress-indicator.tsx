@@ -35,7 +35,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 				role="progressbar"
 				aria-label="Loading"
 				aria-valuetext={active ? "Loading" : "Idle"}
-				className={`fixed inset-x-0 top-0 z-[100] h-1 overflow-hidden transition-opacity duration-200 ${
+				className={`fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden transition-opacity duration-200 ${
 					active ? "opacity-100" : "pointer-events-none opacity-0"
 				}`}
 			>

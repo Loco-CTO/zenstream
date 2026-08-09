@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCatalogEvent } from "@/lib/catalog-events";
+import { catalogStatusChanges, parseCatalogEvent } from "@/lib/catalog-events";
 
 describe("catalog events", () => {
 	it("parses catalog updates", () => {
@@ -11,5 +11,15 @@ describe("catalog events", () => {
 
 	it("ignores invalid JSON", () => {
 		expect(parseCatalogEvent("invalid")).toBeNull();
+	});
+
+	it("turns reconnect status into library-wide invalidations", () => {
+		const status = parseCatalogEvent('{"type":"catalog.status","libraries":[{"id":"tv","catalogGeneration":7}]}');
+		expect(status && catalogStatusChanges(status)).toEqual([{
+			type: "catalog.updated",
+			libraryId: "tv",
+			generation: 7,
+			rootEntityId: null,
+		}]);
 	});
 });

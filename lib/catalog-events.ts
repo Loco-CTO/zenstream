@@ -19,6 +19,16 @@ export function parseCatalogEvent(value: string): CatalogEvent | null {
 	}
 }
 
+export function catalogStatusChanges(event: CatalogEvent): CatalogEvent[] {
+	if (event.type !== "catalog.status") return [];
+	return (event.libraries ?? []).flatMap((library) => library.id ? [{
+		type: "catalog.updated",
+		libraryId: library.id,
+		generation: library.catalogGeneration,
+		rootEntityId: null,
+	}] : []);
+}
+
 function catalogSocketUrl(ticket: string) {
 	const url = new URL(orchestratorBaseUrl());
 	url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -57,14 +67,8 @@ export function startCatalogEvents(session: AuthSession): () => void {
 		socket.onmessage = (message) => {
 			const event = parseCatalogEvent(String(message.data));
 			if (event?.type === "catalog.status") {
-				for (const library of event.libraries ?? []) {
-					if (!library.id) continue;
-					pendingEvents.set(`status:${library.id}`, {
-						type: "catalog.updated",
-						libraryId: library.id,
-						generation: library.catalogGeneration,
-						rootEntityId: null,
-					});
+				for (const change of catalogStatusChanges(event)) {
+					pendingEvents.set(`status:${change.libraryId}`, change);
 				}
 			} else if (event?.type === "catalog.updated" || event?.type === "catalog.changed") {
 				const eventKey = `${event.libraryId ?? "global"}:${event.rootEntityId ?? "root"}`;

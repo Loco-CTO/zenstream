@@ -9,7 +9,10 @@ import {
 	type MediaItem,
 } from "@/lib/media-api";
 import { progressPercent, subtitle } from "@/lib/media";
-import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
+import {
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import {
@@ -83,9 +86,7 @@ export function PosterCard({
 	const progress = progressPercent(item);
 
 	return (
-		<article
-			className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]"
-		>
+		<article className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
 			<div className="relative">
 				<Link
 					href={detailHref(item)}
@@ -147,7 +148,11 @@ export function StackedPosterCard({
 							{image && (
 								<BlurHashImage
 									image={image}
-									alt={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
+									alt={
+										stacked || episode
+											? (item.SeriesName ?? item.Name)
+											: item.Name
+									}
 									draggable={false}
 									className={`${MEDIA_CARD_IMAGE_CLASS}`}
 								/>
@@ -174,7 +179,9 @@ export function StackedPosterCard({
 						</p>
 						<p className="mt-0.5 truncate text-xs text-white/30">
 							{stacked
-								? (item.SeriesProductionYear ?? item.ProductionYear ?? item.Type)
+								? (item.SeriesProductionYear ??
+									item.ProductionYear ??
+									item.Type)
 								: episode
 									? episodeLabel(item)
 									: subtitle(item)}
@@ -183,7 +190,9 @@ export function StackedPosterCard({
 				</Link>
 				<MediaCardOverlay
 					href={detailHref(item)}
-					title={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
+					title={
+						stacked || episode ? (item.SeriesName ?? item.Name) : item.Name
+					}
 					item={item}
 					session={session}
 					className="inset-x-0 top-0 aspect-[2/3]"
@@ -293,7 +302,7 @@ export function WatchProgress({ progress }: { progress: number | undefined }) {
 	}
 
 	return (
-		<div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+		<div className="absolute bottom-0 left-0 right-0 h-1 bg-white/50">
 			<div
 				className="h-full bg-gradient-to-r from-violet-700 to-violet-300"
 				style={{ width: `${progress}%` }}
@@ -340,4 +349,3 @@ function episodeLabel(item: MediaItem) {
 		item.IndexNumber == null ? "??" : String(item.IndexNumber).padStart(2, "0");
 	return `S${season}E${episode}・${item.Name}`;
 }
-

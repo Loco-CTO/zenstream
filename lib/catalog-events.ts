@@ -5,6 +5,8 @@ import type { AuthSession } from "@/lib/session";
 type CatalogEvent = {
 	type?: string;
 	generation?: number;
+	libraryId?: string;
+	rootEntityId?: string | null;
 };
 
 export function parseCatalogEvent(value: string): CatalogEvent | null {
@@ -30,7 +32,7 @@ export function startCatalogEvents(session: AuthSession): () => void {
 	let retryTimer: number | null = null;
 	let retryDelay = 1_000;
 	let refreshTimer: number | null = null;
-	let pendingEvent: CatalogEvent | null = null;
+	const pendingEvents = new Map<string, CatalogEvent>();
 
 	const scheduleReconnect = () => {
 		if (stopped || retryTimer !== null) return;
@@ -54,17 +56,22 @@ export function startCatalogEvents(session: AuthSession): () => void {
 		socket.onmessage = (message) => {
 			const event = parseCatalogEvent(String(message.data));
 			if (event?.type !== "catalog.updated" && event?.type !== "catalog.changed") return;
-			pendingEvent = event;
+			const eventKey = `${event.libraryId ?? "global"}:${event.rootEntityId ?? "root"}`;
+			pendingEvents.set(eventKey, event);
 			if (refreshTimer !== null) return;
 			refreshTimer = window.setTimeout(() => {
 				refreshTimer = null;
-				const nextEvent = pendingEvent;
-				pendingEvent = null;
-				if (!nextEvent) return;
-				clearMediaClientCache();
-				window.dispatchEvent(
-					new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
-				);
+				const nextEvents = [...pendingEvents.values()];
+				pendingEvents.clear();
+				for (const nextEvent of nextEvents) {
+					clearMediaClientCache({
+						libraryId: nextEvent.libraryId,
+						rootEntityId: nextEvent.rootEntityId ?? undefined,
+					});
+					window.dispatchEvent(
+						new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
+					);
+				}
 			}, 250);
 		};
 			socket.onclose = scheduleReconnect;

@@ -312,8 +312,8 @@ export async function getSearchItems(
 	const limit = options.limit ?? 40;
 	return cachedClientRequest(
 		`search:${session.userId}:${term.toLocaleLowerCase()}`,
-		async () => {
-			const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`);
+		async (signal) => {
+			const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`, { signal: options.signal ?? signal });
 			return result.items.map(toMediaItem);
 		},
 	).then((items) => items.slice(0, limit));
@@ -382,7 +382,7 @@ export async function fetchHomeData(
 	session: AuthSession,
 	onSection?: (section: Partial<HomeData>) => void,
 ): Promise<HomeData> {
-	const data = await cachedClientRequest(`home:${session.userId}`, async () => {
+	const data = await cachedClientRequest(`home:${session.userId}`, async (signal) => {
 	const result = await catalogRequest<{
 		latestItems: CatalogItem[];
 		continueWatching: CatalogItem[];
@@ -391,7 +391,7 @@ export async function fetchHomeData(
 		recentlyPlayed: CatalogItem[];
 		genreRows: Array<{ genre: string; items: CatalogItem[] }>;
 		libraryRows: Array<Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }>;
-	}>(session, "/api/catalog/home");
+	}>(session, "/api/catalog/home", { signal });
 	return {
 		latestItems: result.latestItems.map(toMediaItem),
 		continueWatching: result.continueWatching.map(toMediaItem),
@@ -469,11 +469,11 @@ export async function getLibraryItems(
 		sortBy: catalogSort(options.sortBy),
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
-	return cachedClientRequest(`library:${session.userId}:${options.parentId}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`, async () => {
+	return cachedClientRequest(`library:${session.userId}:${options.parentId}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`, async (signal) => {
 	const result = await catalogRequest<{
 		items: CatalogItem[];
 		total: number;
-	}>(session, `/api/catalog/items?${params}`, { signal: options.signal });
+	}>(session, `/api/catalog/items?${params}`, { signal: options.signal ?? signal });
 	return {
 		items: result.items.map(toMediaItem),
 		totalRecordCount: result.total,

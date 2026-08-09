@@ -17,6 +17,7 @@ export function BlurHashImage({
 	image,
 	className,
 	onLoad,
+	onError,
 	alt,
 	...props
 }: BlurHashImageProps) {
@@ -50,7 +51,10 @@ export function BlurHashImage({
 					src={image.src}
 					alt={alt}
 					className={className}
-					onError={() => setFailedSrc(image.src)}
+					onError={(event) => {
+						setFailedSrc(image.src);
+						onError?.(event);
+					}}
 					onLoad={(event) => {
 						setLoadedSrc(image.src);
 						onLoad?.(event);

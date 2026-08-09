@@ -76,6 +76,7 @@ export function AppShell() {
 	const loadedPreferencesToken = useRef<string | null>(null);
 	const homeLoadInFlight = useRef(false);
 	const homeDataRef = useRef<HomeData | null>(null);
+	const detailRefreshGeneration = useRef(0);
 	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
@@ -139,6 +140,21 @@ export function AppShell() {
 			: "";
 	const currentSearch =
 		typeof window !== "undefined" ? window.location.search : "";
+	const fetchDetailPayload = useCallback(
+		async (nextSession: AuthSession, itemId: string) => {
+			await primeResourceTicket(nextSession);
+			if (pathname === "/search") return null;
+			return playId
+				? fetchPlayData(nextSession, itemId)
+				: fetchDetailData(
+					nextSession,
+					itemId,
+					new URLSearchParams(window.location.search).get("seasonId") ??
+						undefined,
+				);
+		},
+		[pathname, playId],
+	);
 	const loadDetail = useCallback(
 		async (nextSession: AuthSession, itemId: string) => {
 			const finishProgress = start();
@@ -146,22 +162,12 @@ export function AppShell() {
 			setError(null);
 			setDetailData(null);
 			try {
-				await primeResourceTicket(nextSession);
 				if (pathname === "/search") {
 					setSearchData(searchQuery);
 					setStatus("ready");
 					return;
 				}
-				setDetailData(
-					playId
-						? await fetchPlayData(nextSession, itemId)
-						: await fetchDetailData(
-							nextSession,
-							itemId,
-							new URLSearchParams(window.location.search).get("seasonId") ??
-								undefined,
-						),
-				);
+				setDetailData(await fetchDetailPayload(nextSession, itemId));
 				setStatus("ready");
 			} catch (err) {
 				setError(
@@ -172,7 +178,28 @@ export function AppShell() {
 				finishProgress();
 			}
 		},
-		[start, pathname, playId, searchQuery],
+		[fetchDetailPayload, pathname, searchQuery, start],
+	);
+
+	const refreshDetail = useCallback(
+		async (nextSession: AuthSession, itemId: string) => {
+			const generation = ++detailRefreshGeneration.current;
+			const finishProgress = start();
+			try {
+				const nextData = await fetchDetailPayload(nextSession, itemId);
+				if (
+					generation === detailRefreshGeneration.current &&
+					nextData
+				)
+					setDetailData(nextData);
+			} catch {
+				// Keep the already-rendered detail page available if a background
+				// catalog refresh cannot be completed.
+			} finally {
+				finishProgress();
+			}
+		},
+		[fetchDetailPayload, start],
 	);
 
 	useEffect(() => {
@@ -269,11 +296,15 @@ export function AppShell() {
 	}, [loadHome, pathname, session]);
 
 	useEffect(() => {
+		detailRefreshGeneration.current += 1;
+	}, [detailId, playId]);
+
+	useEffect(() => {
 		if (!session || !detailId || playId) return;
-		const refresh = () => { void loadDetail(session, detailId); };
+		const refresh = () => { void refreshDetail(session, detailId); };
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
-	}, [detailId, loadDetail, pathname, playId, session]);
+	}, [detailId, pathname, playId, refreshDetail, session]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
 		const previousLocale = locale;

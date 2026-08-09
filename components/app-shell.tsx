@@ -75,8 +75,12 @@ export function AppShell() {
 	);
 	const loadedPreferencesToken = useRef<string | null>(null);
 	const homeLoadInFlight = useRef(false);
+	const homeTrailingRefresh = useRef(false);
 	const homeDataRef = useRef<HomeData | null>(null);
 	const detailRefreshGeneration = useRef(0);
+	const detailRefreshInFlight = useRef(false);
+	const detailTrailingRefresh = useRef(false);
+	const detailRefreshController = useRef<AbortController | null>(null);
 	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
@@ -141,7 +145,7 @@ export function AppShell() {
 	const currentSearch =
 		typeof window !== "undefined" ? window.location.search : "";
 	const fetchDetailPayload = useCallback(
-		async (nextSession: AuthSession, itemId: string) => {
+		async (nextSession: AuthSession, itemId: string, signal?: AbortSignal) => {
 			await primeResourceTicket(nextSession);
 			if (pathname === "/search") return null;
 			return playId
@@ -151,6 +155,7 @@ export function AppShell() {
 					itemId,
 					new URLSearchParams(window.location.search).get("seasonId") ??
 						undefined,
+					signal,
 				);
 		},
 		[pathname, playId],
@@ -183,19 +188,32 @@ export function AppShell() {
 
 	const refreshDetail = useCallback(
 		async (nextSession: AuthSession, itemId: string) => {
-			const generation = ++detailRefreshGeneration.current;
+			if (detailRefreshInFlight.current) {
+				detailTrailingRefresh.current = true;
+				detailRefreshController.current?.abort();
+				return;
+			}
+			detailRefreshInFlight.current = true;
 			const finishProgress = start();
 			try {
-				const nextData = await fetchDetailPayload(nextSession, itemId);
-				if (
-					generation === detailRefreshGeneration.current &&
-					nextData
-				)
-					setDetailData(nextData);
+				do {
+					detailTrailingRefresh.current = false;
+					const generation = ++detailRefreshGeneration.current;
+					const controller = new AbortController();
+					detailRefreshController.current = controller;
+					try {
+						const nextData = await fetchDetailPayload(nextSession, itemId, controller.signal);
+						if (generation === detailRefreshGeneration.current && nextData)
+							setDetailData(nextData);
+					} catch (error) {
+						if (!controller.signal.aborted) throw error;
+					}
+				} while (detailTrailingRefresh.current);
 			} catch {
-				// Keep the already-rendered detail page available if a background
-				// catalog refresh cannot be completed.
+				// Keep the already-rendered detail page available on refresh failure.
 			} finally {
+				detailRefreshController.current = null;
+				detailRefreshInFlight.current = false;
 				finishProgress();
 			}
 		},
@@ -290,7 +308,16 @@ export function AppShell() {
 
 	useEffect(() => {
 		if (!session || pathname !== "/") return;
-		const refresh = () => { void loadHome(session); };
+		const refresh = async () => {
+			if (homeLoadInFlight.current) {
+				homeTrailingRefresh.current = true;
+				return;
+			}
+			do {
+				homeTrailingRefresh.current = false;
+				await loadHome(session);
+			} while (homeTrailingRefresh.current);
+		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
 	}, [loadHome, pathname, session]);
@@ -301,10 +328,14 @@ export function AppShell() {
 
 	useEffect(() => {
 		if (!session || !detailId || playId) return;
-		const refresh = () => { void refreshDetail(session, detailId); };
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{ libraryId?: string }>;
+			if (event.detail?.libraryId && detailData?.item.LibraryId !== event.detail.libraryId) return;
+			void refreshDetail(session, detailId);
+		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
-	}, [detailId, pathname, playId, refreshDetail, session]);
+	}, [detailData?.item.LibraryId, detailId, pathname, playId, refreshDetail, session]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
 		const previousLocale = locale;

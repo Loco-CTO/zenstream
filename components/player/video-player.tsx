@@ -29,7 +29,7 @@ import {
 	getPlaybackMarkers,
 	getEpisodes,
 	getSeasons,
-	landscapeImageUrl,
+	landscapeImage,
 	getTrickplayInfo,
 	playbackStreams,
 	playbackUrl,
@@ -57,6 +57,7 @@ import {
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
+import { BlurHashImage } from "@/components/ui/blurhash-image";
 
 type Props = {
 	item: MediaItem;
@@ -2200,11 +2201,18 @@ export function VideoPlayer({
 							</span>
 						</div>
 						<div className="mt-3 flex gap-3 sm:gap-3.5">
-							<img
-								src={landscapeImageUrl(nextItem) ?? undefined}
-								alt=""
-								className="h-16 w-24 shrink-0 rounded-xl object-cover shadow-lg shadow-black/30 sm:h-[4.5rem] sm:w-36"
-							/>
+							{(() => {
+								const image = landscapeImage(nextItem);
+								return image ? (
+									<div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl shadow-lg shadow-black/30 sm:h-[4.5rem] sm:w-36">
+										<BlurHashImage
+											image={image}
+											alt=""
+											className="h-full w-full object-cover"
+										/>
+									</div>
+								) : null;
+							})()}
 							<div className="min-w-0 self-center">
 								<p className="text-[11px] font-medium uppercase tracking-wider text-white/50">
 									S{nextItem.ParentIndexNumber ?? 0}:E

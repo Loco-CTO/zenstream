@@ -80,6 +80,18 @@ describe("catalog client", () => {
 		});
 	});
 
+	it("derives the production year from the metadata date", () => {
+		const item = toMediaItem({
+			id: "series-1",
+			libraryId: "shows",
+			type: "series",
+			name: "Example Show",
+			metadata: { date: "2026-04-01" },
+		} satisfies CatalogItem);
+
+		expect(item.ProductionYear).toBe(2026);
+	});
+
 	it("maps separate cast and crew credits with authenticated portrait paths", () => {
 		const item = toMediaItem({
 			id: "movie-1",

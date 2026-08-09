@@ -46,6 +46,33 @@ import {
 
 type TrackChoice = { audio?: number | string; subtitle?: number | null };
 
+function useLocalOverride<T>(initialValue: T) {
+	const [override, setOverride] = useState<{
+		source: T;
+		value: T;
+	} | null>(null);
+	const value = override?.source === initialValue ? override.value : initialValue;
+	const setValue = useCallback(
+		(next: T | ((current: T) => T)) => {
+			setOverride((currentOverride) => {
+				const currentValue =
+					currentOverride?.source === initialValue
+						? currentOverride.value
+						: initialValue;
+				return {
+					source: initialValue,
+					value:
+						typeof next === "function"
+							? (next as (current: T) => T)(currentValue)
+							: next,
+				};
+			});
+		},
+		[initialValue],
+	);
+	return [value, setValue] as const;
+}
+
 export function playbackPath(itemId: string, tracks: TrackChoice = {}) {
 	const params = new URLSearchParams();
 	if (tracks.audio != null) params.set("audio", String(tracks.audio));
@@ -75,9 +102,9 @@ export function DetailPage({
 	const { t, locale } = useI18n();
 	const router = useRouter();
 	const { start } = useProgress();
-	const [item, setItem] = useState(initialData.item);
-	const [episodes, setEpisodes] = useState(initialData.episodes);
-	const [seasonId, setSeasonId] = useState(
+	const [item, setItem] = useLocalOverride(initialData.item);
+	const [episodes, setEpisodes] = useLocalOverride(initialData.episodes);
+	const [seasonId, setSeasonId] = useLocalOverride(
 		getInitialSeason(
 			initialData.item,
 			initialData.seasons,
@@ -114,23 +141,6 @@ export function DetailPage({
 		: [];
 	const currentTrackChoices =
 		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
-
-	// eslint-disable-next-line react-hooks/set-state-in-effect
-	useEffect(() => {
-		// Catalog events replace the parent payload while this page remains
-		// mounted. Keep the locally managed view in sync with that fresh data.
-		setItem((current) => (current === initialData.item ? current : initialData.item));
-		setEpisodes((current) =>
-			current === initialData.episodes ? current : initialData.episodes,
-		);
-		const nextSeasonId =
-			getInitialSeason(
-				initialData.item,
-				initialData.seasons,
-				getRequestedSeasonId(),
-			)?.Id ?? "";
-		setSeasonId((current) => (current === nextSeasonId ? current : nextSeasonId));
-	}, [initialData]);
 
 	useEffect(() => {
 		let active = true;

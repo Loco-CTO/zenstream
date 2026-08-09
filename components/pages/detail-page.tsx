@@ -115,6 +115,7 @@ export function DetailPage({
 	const currentTrackChoices =
 		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
 
+	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => {
 		// Catalog events replace the parent payload while this page remains
 		// mounted. Keep the locally managed view in sync with that fresh data.

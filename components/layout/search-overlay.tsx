@@ -7,6 +7,7 @@ import { LoaderCircle, Search, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getSearchItems, posterImage, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
+import { BlurHashImage } from "@/components/ui/blurhash-image";
 
 export function SearchOverlay({
 	session,
@@ -124,14 +125,17 @@ export function SearchOverlay({
 										onClick={() => select(item)}
 										className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-white/[0.06]"
 									>
-										<div className="h-12 w-9 shrink-0 overflow-hidden rounded bg-white/5">
-											{posterImage(item) && (
-												<img
-													src={posterImage(item)?.src}
-													alt=""
-													className="h-full w-full object-cover"
-												/>
-											)}
+										<div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-white/5">
+											{(() => {
+												const image = posterImage(item);
+												return image ? (
+													<BlurHashImage
+														image={image}
+														alt=""
+														className="h-full w-full object-cover"
+													/>
+												) : null;
+											})()}
 										</div>
 										<span className="min-w-0">
 											<span className="block truncate text-sm text-white/80">

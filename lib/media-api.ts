@@ -180,12 +180,14 @@ async function cachedClientRequest<T>(
 	key: string,
 	loader: () => Promise<T>,
 	ttl = LIST_CACHE_TTL_MS,
+	reuseInFlight = true,
 ): Promise<T> {
 	const cached = clientCache.get(key);
 	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
 	const pending = clientInFlight.get(key);
 	const generation = clientCacheGeneration;
-	if (pending?.generation === generation) return pending.promise as Promise<T>;
+	if (reuseInFlight && pending?.generation === generation)
+		return pending.promise as Promise<T>;
 	const request = Promise.resolve().then(loader).then((value) => {
 		if (generation === clientCacheGeneration) {
 			clientCache.set(key, { expiresAt: Date.now() + ttl, value });
@@ -197,7 +199,7 @@ async function cachedClientRequest<T>(
 			clientInFlight.delete(key);
 		}
 	});
-	clientInFlight.set(key, { generation, promise: trackedRequest });
+	if (reuseInFlight) clientInFlight.set(key, { generation, promise: trackedRequest });
 	return trackedRequest;
 }
 
@@ -458,7 +460,7 @@ export async function getLibraryItems(
 		items: result.items.map(toMediaItem),
 		totalRecordCount: result.total,
 	};
-	});
+	}, LIST_CACHE_TTL_MS, false);
 }
 
 function catalogSort(value: LibrarySortBy) {

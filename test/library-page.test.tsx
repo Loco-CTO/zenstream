@@ -231,6 +231,34 @@ describe("LibraryPage", () => {
 		expect(screen.getByLabelText("All episodes watched")).toBeInTheDocument();
 		expect(screen.queryByLabelText("Movie")).not.toBeInTheDocument();
 	});
+
+	it("ignores a failed request from the previous library after switching tabs", async () => {
+		let rejectShows!: (error: Error) => void;
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockImplementation((_session, options) =>
+				options.parentId === "shows"
+					? new Promise((_resolve, reject) => {
+							rejectShows = reject;
+					})
+					: Promise.resolve({
+							items: makeItems(1),
+							totalRecordCount: 1,
+						}),
+			);
+		renderLibrary();
+
+		await screen.findByRole("heading", { name: "Shows" });
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		rejectShows(new Error("stale request failed"));
+
+		await screen.findByText("Title 0");
+		expect(screen.queryByText("Could not load this library")).not.toBeInTheDocument();
+		expect(getLibraryItems).toHaveBeenCalledWith(
+			session,
+			expect.objectContaining({ parentId: "movies" }),
+		);
+	});
 });
 
 function renderLibrary() {

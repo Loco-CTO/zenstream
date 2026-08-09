@@ -264,6 +264,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		[activeLibrary, session, sortBy, sortOrder, start],
 	);
 
+	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => {
 		// Invalidate the previous request immediately. Sort preferences are
 		// hydrated asynchronously when a library changes, so the next request

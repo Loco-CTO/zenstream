@@ -16,6 +16,7 @@ export interface MediaItem {
 	Name: string;
 	Type?: string;
 	SeriesName?: string;
+	SeriesProductionYear?: number;
 	ParentIndexNumber?: number;
 	IndexNumber?: number;
 	Overview?: string;

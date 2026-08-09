@@ -49,6 +49,17 @@ describe("release date labels", () => {
 			),
 		).toBe("2025");
 	});
+
+	it("uses the premiere date year when the production year is missing", () => {
+		expect(
+			subtitle({
+				Id: "series",
+				Name: "Series",
+				Type: "Series",
+				PremiereDate: "2026-04-01",
+			}),
+		).toBe("2026");
+	});
 });
 
 describe("media subtitles", () => {

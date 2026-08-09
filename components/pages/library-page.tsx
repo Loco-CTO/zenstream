@@ -195,6 +195,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	const loadFirstPage = useCallback(
 		async (force = false) => {
+			setLoadingMore(false);
 			if (!activeLibrary) return;
 			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
 			const preserveCurrentItems = force && loadedQueryRef.current === queryKey;
@@ -264,7 +265,6 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		[activeLibrary, session, sortBy, sortOrder, start],
 	);
 
-	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => {
 		// Invalidate the previous request immediately. Sort preferences are
 		// hydrated asynchronously when a library changes, so the next request
@@ -274,7 +274,6 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		itemRequestRef.current = null;
 		firstPageLoadingRef.current = false;
 		loadingMoreRef.current = false;
-		setLoadingMore(false);
 	}, [activeLibrary?.Id, sortBy, sortOrder]);
 
 	useEffect(() => {

@@ -65,6 +65,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [error, setError] = useState<string | null>(null);
 	const libraryRequestRef = useRef<AbortController | null>(null);
 	const itemRequestRef = useRef<AbortController | null>(null);
+	const itemRequestGenerationRef = useRef(0);
 	const firstPageLoadingRef = useRef(false);
 	const loadingMoreRef = useRef(false);
 	const loadedQueryRef = useRef("");
@@ -257,6 +258,18 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (activeLibrary && sortReady && isSortAvailable) void loadFirstPage();
 	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
+
+	useEffect(() => {
+		// Invalidate the previous request immediately. Sort preferences are
+		// hydrated asynchronously when a library changes, so the next request
+		// may not start until the following render.
+		itemRequestGenerationRef.current += 1;
+		itemRequestRef.current?.abort();
+		itemRequestRef.current = null;
+		firstPageLoadingRef.current = false;
+		loadingMoreRef.current = false;
+		setLoadingMore(false);
+	}, [activeLibrary?.Id, sortBy, sortOrder]);
 
 	useEffect(() => {
 		const refresh = (event: Event) => {

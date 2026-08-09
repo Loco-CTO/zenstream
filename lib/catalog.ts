@@ -93,8 +93,11 @@ const itemTypes: Record<string, string> = {
 };
 
 function metadataYear(value: unknown, date: unknown) {
-	const match = /^(\d{4})/.exec(String(value ?? date ?? ""));
-	return match ? Number(match[1]) : undefined;
+	for (const candidate of [value, date]) {
+		const match = /^(\d{4})/.exec(String(candidate ?? ""));
+		if (match) return Number(match[1]);
+	}
+	return undefined;
 }
 
 export function toMediaItem(item: CatalogItem): MediaItem {

@@ -196,10 +196,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const loadFirstPage = useCallback(
 		async (force = false) => {
 			if (!activeLibrary) return;
-			if (force && firstPageLoadingRef.current) return;
 			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
 			const preserveCurrentItems = force && loadedQueryRef.current === queryKey;
 			if (!force && loadedQueryRef.current === queryKey) return;
+			const requestGeneration = ++itemRequestGenerationRef.current;
 			itemRequestRef.current?.abort();
 			const controller = new AbortController();
 			itemRequestRef.current = controller;
@@ -224,7 +224,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					sortOrder,
 					signal: controller.signal,
 				});
-				if (controller.signal.aborted) return;
+				if (
+					controller.signal.aborted ||
+					itemRequestGenerationRef.current !== requestGeneration
+				)
+					return;
 				if (preserveCurrentItems) {
 					setItems((current) => uniqueItems([...page.items, ...current]));
 					setLoadedCount((current) => Math.max(current, page.items.length));
@@ -235,7 +239,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				setTotal(page.totalRecordCount);
 				loadedQueryRef.current = queryKey;
 			} catch (nextError) {
-				if (!controller.signal.aborted) {
+				if (
+					!controller.signal.aborted &&
+					itemRequestGenerationRef.current === requestGeneration
+				) {
 					setError(
 						nextError instanceof Error
 							? nextError.message
@@ -243,21 +250,19 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					);
 				}
 			} finally {
-				if (itemRequestRef.current === controller) {
+				if (
+					itemRequestRef.current === controller &&
+					itemRequestGenerationRef.current === requestGeneration
+				) {
 					firstPageLoadingRef.current = false;
+					itemRequestRef.current = null;
+					setLoading(false);
 				}
-				if (!controller.signal.aborted) setLoading(false);
 				finish();
 			}
 		},
 		[activeLibrary, session, sortBy, sortOrder, start],
 	);
-
-	useEffect(() => {
-		// A library or sort change replaces the current result set.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		if (activeLibrary && sortReady && isSortAvailable) void loadFirstPage();
-	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 
 	useEffect(() => {
 		// Invalidate the previous request immediately. Sort preferences are
@@ -270,6 +275,12 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		loadingMoreRef.current = false;
 		setLoadingMore(false);
 	}, [activeLibrary?.Id, sortBy, sortOrder]);
+
+	useEffect(() => {
+		// A library or sort change replaces the current result set.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		if (activeLibrary && sortReady && isSortAvailable) void loadFirstPage();
+	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 
 	useEffect(() => {
 		const refresh = (event: Event) => {
@@ -295,6 +306,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		loadingMoreRef.current = true;
 		setLoadingMore(true);
 		const controller = new AbortController();
+		const requestGeneration = ++itemRequestGenerationRef.current;
+		itemRequestRef.current?.abort();
 		itemRequestRef.current = controller;
 		const finish = start();
 		try {
@@ -307,14 +320,21 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				sortOrder,
 				signal: controller.signal,
 			});
-			if (controller.signal.aborted) return;
+			if (
+				controller.signal.aborted ||
+				itemRequestGenerationRef.current !== requestGeneration
+			)
+				return;
 			setItems((current) => uniqueItems([...current, ...page.items]));
 			setLoadedCount((current) => current + page.items.length);
 			setTotal(page.totalRecordCount);
 			setError(null);
 		} catch (nextError) {
 			requestedOffsetsRef.current.delete(startIndex);
-			if (!controller.signal.aborted) {
+			if (
+				!controller.signal.aborted &&
+				itemRequestGenerationRef.current === requestGeneration
+			) {
 				setError(
 					nextError instanceof Error
 						? nextError.message
@@ -322,8 +342,14 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				);
 			}
 		} finally {
-			loadingMoreRef.current = false;
-			if (!controller.signal.aborted) setLoadingMore(false);
+			if (
+				itemRequestRef.current === controller &&
+				itemRequestGenerationRef.current === requestGeneration
+			) {
+				loadingMoreRef.current = false;
+				itemRequestRef.current = null;
+				setLoadingMore(false);
+			}
 			finish();
 		}
 	}, [

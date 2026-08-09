@@ -2,7 +2,7 @@ import { catalogRequest, orchestratorBaseUrl } from "@/lib/catalog";
 import { clearMediaClientCache } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
-type CatalogEvent = {
+export type CatalogEvent = {
 	type?: string;
 	generation?: number;
 	libraryId?: string;

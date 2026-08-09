@@ -116,6 +116,22 @@ export function DetailPage({
 		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
 
 	useEffect(() => {
+		// Catalog events replace the parent payload while this page remains
+		// mounted. Keep the locally managed view in sync with that fresh data.
+		setItem((current) => (current === initialData.item ? current : initialData.item));
+		setEpisodes((current) =>
+			current === initialData.episodes ? current : initialData.episodes,
+		);
+		const nextSeasonId =
+			getInitialSeason(
+				initialData.item,
+				initialData.seasons,
+				getRequestedSeasonId(),
+			)?.Id ?? "";
+		setSeasonId((current) => (current === nextSeasonId ? current : nextSeasonId));
+	}, [initialData]);
+
+	useEffect(() => {
 		let active = true;
 		if (!hasTrackSelection) {
 			return;

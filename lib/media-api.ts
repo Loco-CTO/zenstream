@@ -172,9 +172,13 @@ const DETAIL_CACHE_TTL_MS = 120_000;
 const clientCache = new Map<string, { expiresAt: number; value: unknown }>();
 const clientInFlight = new Map<
 	string,
-	{ generation: number; promise: Promise<unknown>; controller: AbortController }
+	{ promise: Promise<unknown>; controller: AbortController }
 >();
-let clientCacheGeneration = 0;
+
+function combinedSignal(external: AbortSignal | undefined, internal: AbortSignal) {
+	if (!external) return internal;
+	return AbortSignal.any([external, internal]);
+}
 
 async function cachedClientRequest<T>(
 	key: string,
@@ -185,13 +189,12 @@ async function cachedClientRequest<T>(
 	const cached = clientCache.get(key);
 	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
 	const pending = clientInFlight.get(key);
-	const generation = clientCacheGeneration;
-	if (reuseInFlight && pending?.generation === generation)
+	if (reuseInFlight && pending)
 		return pending.promise as Promise<T>;
 	if (pending) pending.controller.abort();
 	const controller = new AbortController();
 	const request = Promise.resolve().then(() => loader(controller.signal)).then((value) => {
-		if (generation === clientCacheGeneration) {
+		if (clientInFlight.get(key)?.controller === controller) {
 			clientCache.set(key, { expiresAt: Date.now() + ttl, value });
 		}
 		return value;
@@ -201,7 +204,7 @@ async function cachedClientRequest<T>(
 			clientInFlight.delete(key);
 		}
 	});
-	if (reuseInFlight) clientInFlight.set(key, { generation, promise: trackedRequest, controller });
+	clientInFlight.set(key, { promise: trackedRequest, controller });
 	return trackedRequest;
 }
 
@@ -224,7 +227,6 @@ export function clearMediaClientCache(scope?: { libraryId?: string; rootEntityId
 		pending.controller.abort();
 		clientInFlight.delete(key);
 	}
-	clientCacheGeneration += 1;
 }
 
 export type ImageBlurHashes = Partial<
@@ -313,7 +315,7 @@ export async function getSearchItems(
 	return cachedClientRequest(
 		`search:${session.userId}:${term.toLocaleLowerCase()}`,
 		async (signal) => {
-			const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`, { signal: options.signal ?? signal });
+			const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`, { signal: combinedSignal(options.signal, signal) });
 			return result.items.map(toMediaItem);
 		},
 	).then((items) => items.slice(0, limit));
@@ -473,7 +475,7 @@ export async function getLibraryItems(
 	const result = await catalogRequest<{
 		items: CatalogItem[];
 		total: number;
-	}>(session, `/api/catalog/items?${params}`, { signal: options.signal ?? signal });
+	}>(session, `/api/catalog/items?${params}`, { signal: combinedSignal(options.signal, signal) });
 	return {
 		items: result.items.map(toMediaItem),
 		totalRecordCount: result.total,
@@ -505,7 +507,7 @@ export async function fetchDetailData(
 		}>(
 			session,
 			`/api/catalog/items/${encodeURIComponent(itemId)}/detail${params.size ? `?${params}` : ""}`,
-			{ signal: requestSignal ?? signal },
+			{ signal: combinedSignal(requestSignal, signal) },
 		);
 		return {
 			item: toMediaItem(response.item),

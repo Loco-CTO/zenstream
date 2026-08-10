@@ -17,17 +17,27 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
 	it("loads source-specific intro and outro markers from the Orchestrator", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
-			segments: [
-				{ type: "intro", startSeconds: 5, endSeconds: 35 },
-				{ type: "outro", startSeconds: 1200, endSeconds: 1260 },
-			],
-		}), { status: 200 }));
-		await expect(getPlaybackMarkers(session, "episode-1", "source-1")).resolves.toEqual({
-			intro: { start: 5, end: 35 }, outro: { start: 1200, end: 1260 },
+		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					segments: [
+						{ type: "intro", startSeconds: 5, endSeconds: 35 },
+						{ type: "outro", startSeconds: 1200, endSeconds: 1260 },
+					],
+				}),
+				{ status: 200 },
+			),
+		);
+		await expect(
+			getPlaybackMarkers(session, "episode-1", "source-1"),
+		).resolves.toEqual({
+			intro: { start: 5, end: 35 },
+			outro: { start: 1200, end: 1260 },
 		});
 		expect(fetch).toHaveBeenCalledWith(
-			expect.stringContaining("/api/playback/items/episode-1/segments?sourceId=source-1"),
+			expect.stringContaining(
+				"/api/playback/items/episode-1/segments?sourceId=source-1",
+			),
 			expect.any(Object),
 		);
 	});
@@ -100,15 +110,44 @@ describe("catalog client", () => {
 			name: "Fallback",
 			metadata: {
 				credits: {
-					cast: [{ id: "person-1", name: "Actor", character: "Lead", image: { url: "/api/catalog/items/movie-1/people/person-1/image", blurHash: "hash" } }],
-					crew: [{ id: "person-2", name: "Director", job: "Director", department: "Directing" }],
+					cast: [
+						{
+							id: "person-1",
+							name: "Actor",
+							character: "Lead",
+							image: {
+								url: "/api/catalog/items/movie-1/people/person-1/image",
+								blurHash: "hash",
+							},
+						},
+					],
+					crew: [
+						{
+							id: "person-2",
+							name: "Director",
+							job: "Director",
+							department: "Directing",
+						},
+					],
 				},
 			},
 		} satisfies CatalogItem);
 
 		expect(item.People).toEqual([
-			expect.objectContaining({ Id: "person-1", Name: "Actor", Role: "Lead", CreditType: "cast", PrimaryImageTag: "/api/catalog/items/movie-1/people/person-1/image" }),
-			expect.objectContaining({ Id: "person-2", Name: "Director", Role: "Director", Type: "Directing", CreditType: "crew" }),
+			expect.objectContaining({
+				Id: "person-1",
+				Name: "Actor",
+				Role: "Lead",
+				CreditType: "cast",
+				PrimaryImageTag: "/api/catalog/items/movie-1/people/person-1/image",
+			}),
+			expect.objectContaining({
+				Id: "person-2",
+				Name: "Director",
+				Role: "Director",
+				Type: "Directing",
+				CreditType: "crew",
+			}),
 		]);
 	});
 
@@ -174,10 +213,8 @@ describe("catalog client", () => {
 		];
 
 		expect(
-			getInitialSeason(
-				{ Id: "series", Name: "Example", Type: "Series" },
-				seasons,
-			)?.Id,
+			getInitialSeason({ Id: "series", Name: "Example", Type: "Series" }, seasons)
+				?.Id,
 		).toBe("season-1");
 	});
 
@@ -199,17 +236,15 @@ describe("catalog client", () => {
 	});
 
 	it("sends JSON credentials to the account login endpoint", async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response(
-					JSON.stringify({
-						token: "token",
-						user: { id: "u", username: "alex" },
-					}),
-					{ status: 200 },
-				),
-			);
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					token: "token",
+					user: { id: "u", username: "alex" },
+				}),
+				{ status: 200 },
+			),
+		);
 		await authenticateByName(" alex ", "password-123");
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/auth/login"),
@@ -221,23 +256,19 @@ describe("catalog client", () => {
 	});
 
 	it("negotiates playback through the catalog playback endpoint", async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response(
-					JSON.stringify({
-						mode: "direct",
-						url: "/api/playback/items/movie-1/stream",
-						source: { id: "source-1", container: "mp4", streams: [] },
-					}),
-					{ status: 200 },
-				),
-			);
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					mode: "direct",
+					url: "/api/playback/items/movie-1/stream",
+					source: { id: "source-1", container: "mp4", streams: [] },
+				}),
+				{ status: 200 },
+			),
+		);
 		const playback = await getPlaybackInfo(session, "movie-1");
 		expect(playback.source?.mode).toBe("direct");
-		expect(playback.source?.url).toContain(
-			"/api/playback/items/movie-1/stream",
-		);
+		expect(playback.source?.url).toContain("/api/playback/items/movie-1/stream");
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/playback/items/movie-1/negotiate"),
 			expect.objectContaining({ method: "POST" }),

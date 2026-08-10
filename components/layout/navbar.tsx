@@ -123,13 +123,22 @@ export function Navbar({
 	);
 }
 
-function UserAvatar({ displayName, userId }: { displayName: string; userId: string }) {
+function UserAvatar({
+	displayName,
+	userId,
+}: {
+	displayName: string;
+	userId: string;
+}) {
 	const [imageFailed, setImageFailed] = useState(false);
 	const imageUrl = userImageUrl(userId);
 
 	if (!imageUrl || imageFailed) {
 		return (
-			<span data-testid="default-user-initial" className="text-sm font-semibold text-white">
+			<span
+				data-testid="default-user-initial"
+				className="text-sm font-semibold text-white"
+			>
 				{userInitial(displayName)}
 			</span>
 		);
@@ -144,4 +153,3 @@ function UserAvatar({ displayName, userId }: { displayName: string; userId: stri
 		/>
 	);
 }
-

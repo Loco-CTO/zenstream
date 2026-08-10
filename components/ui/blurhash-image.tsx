@@ -100,4 +100,3 @@ function blurHashToDataUrl(blurHash?: string | null) {
 		return null;
 	}
 }
-

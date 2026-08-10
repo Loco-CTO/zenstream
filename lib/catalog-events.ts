@@ -21,12 +21,18 @@ export function parseCatalogEvent(value: string): CatalogEvent | null {
 
 export function catalogStatusChanges(event: CatalogEvent): CatalogEvent[] {
 	if (event.type !== "catalog.status") return [];
-	return (event.libraries ?? []).flatMap((library) => library.id ? [{
-		type: "catalog.updated",
-		libraryId: library.id,
-		generation: library.catalogGeneration,
-		rootEntityId: null,
-	}] : []);
+	return (event.libraries ?? []).flatMap((library) =>
+		library.id
+			? [
+					{
+						type: "catalog.updated",
+						libraryId: library.id,
+						generation: library.catalogGeneration,
+						rootEntityId: null,
+					},
+				]
+			: [],
+	);
 }
 
 function catalogSocketUrl(ticket: string) {
@@ -63,35 +69,40 @@ export function startCatalogEvents(session: AuthSession): () => void {
 			);
 			if (stopped) return;
 			socket = new WebSocket(catalogSocketUrl(ticket));
-			socket.onopen = () => { retryDelay = 1_000; };
-		socket.onmessage = (message) => {
-			const event = parseCatalogEvent(String(message.data));
-			if (event?.type === "catalog.status") {
-				for (const change of catalogStatusChanges(event)) {
-					pendingEvents.set(`status:${change.libraryId}`, change);
+			socket.onopen = () => {
+				retryDelay = 1_000;
+			};
+			socket.onmessage = (message) => {
+				const event = parseCatalogEvent(String(message.data));
+				if (event?.type === "catalog.status") {
+					for (const change of catalogStatusChanges(event)) {
+						pendingEvents.set(`status:${change.libraryId}`, change);
+					}
+				} else if (
+					event?.type === "catalog.updated" ||
+					event?.type === "catalog.changed"
+				) {
+					const eventKey = `${event.libraryId ?? "global"}:${event.rootEntityId ?? "root"}`;
+					pendingEvents.set(eventKey, event);
+				} else {
+					return;
 				}
-			} else if (event?.type === "catalog.updated" || event?.type === "catalog.changed") {
-				const eventKey = `${event.libraryId ?? "global"}:${event.rootEntityId ?? "root"}`;
-				pendingEvents.set(eventKey, event);
-			} else {
-				return;
-			}
-			if (refreshTimer !== null) return;
-			refreshTimer = window.setTimeout(() => {
-				refreshTimer = null;
-				const nextEvents = [...pendingEvents.values()];
-				pendingEvents.clear();
-				for (const nextEvent of nextEvents) {
-					clearMediaClientCache({
-						libraryId: nextEvent.libraryId,
-						rootEntityId: nextEvent.rootEntityId ?? undefined,
-					});
-					window.dispatchEvent(
-						new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
-					);
-				}
-			}, 250);
-		};
+				if (refreshTimer !== null) return;
+				refreshTimer = window.setTimeout(() => {
+					refreshTimer = null;
+					const nextEvents = [...pendingEvents.values()];
+					pendingEvents.clear();
+					for (const nextEvent of nextEvents) {
+						clearMediaClientCache({
+							libraryId: nextEvent.libraryId,
+							rootEntityId: nextEvent.rootEntityId ?? undefined,
+						});
+						window.dispatchEvent(
+							new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
+						);
+					}
+				}, 250);
+			};
 			socket.onclose = scheduleReconnect;
 			socket.onerror = () => socket?.close();
 		} catch {

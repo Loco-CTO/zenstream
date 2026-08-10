@@ -69,7 +69,8 @@ export function AppShell() {
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
-	const [metadataLanguage, setMetadataLanguage] = useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
+	const [metadataLanguage, setMetadataLanguage] =
+		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
@@ -91,8 +92,12 @@ export function AppShell() {
 		void getSubtitlePreference()
 			.then(setSubtitleStyle)
 			.catch(() => undefined);
-		void getMetadataLanguages().then(setMetadataLanguages).catch(() => undefined);
-		void getMetadataLanguagePreference().then(setMetadataLanguage).catch(() => undefined);
+		void getMetadataLanguages()
+			.then(setMetadataLanguages)
+			.catch(() => undefined);
+		void getMetadataLanguagePreference()
+			.then(setMetadataLanguage)
+			.catch(() => undefined);
 	}, []);
 
 	const loadHome = useCallback(
@@ -116,7 +121,7 @@ export function AppShell() {
 						await primeResourceTicket(nextSession);
 						const data = await fetchHomeData(nextSession, (section) => {
 							setHomeData((current) => {
-								const next = ({ ...(current ?? {}), ...section }) as HomeData;
+								const next = { ...(current ?? {}), ...section } as HomeData;
 								homeDataRef.current = next;
 								return next;
 							});
@@ -129,9 +134,7 @@ export function AppShell() {
 						if (homeTrailingRefresh.current) continue;
 						if (!hasExistingHome) {
 							setError(
-								err instanceof Error
-									? err.message
-									: "Could not load your library.",
+								err instanceof Error ? err.message : "Could not load your library.",
 							);
 							setStatus("error");
 						}
@@ -160,12 +163,11 @@ export function AppShell() {
 			return playId
 				? fetchPlayData(nextSession, itemId)
 				: fetchDetailData(
-					nextSession,
-					itemId,
-					new URLSearchParams(window.location.search).get("seasonId") ??
-						undefined,
-					signal,
-				);
+						nextSession,
+						itemId,
+						new URLSearchParams(window.location.search).get("seasonId") ?? undefined,
+						signal,
+					);
 		},
 		[pathname, playId],
 	);
@@ -184,9 +186,7 @@ export function AppShell() {
 				setDetailData(await fetchDetailPayload(nextSession, itemId));
 				setStatus("ready");
 			} catch (err) {
-				setError(
-					err instanceof Error ? err.message : "Could not load this title.",
-				);
+				setError(err instanceof Error ? err.message : "Could not load this title.");
 				setStatus("error");
 			} finally {
 				finishProgress();
@@ -211,7 +211,11 @@ export function AppShell() {
 					const controller = new AbortController();
 					detailRefreshController.current = controller;
 					try {
-						const nextData = await fetchDetailPayload(nextSession, itemId, controller.signal);
+						const nextData = await fetchDetailPayload(
+							nextSession,
+							itemId,
+							controller.signal,
+						);
 						if (generation === detailRefreshGeneration.current && nextData)
 							setDetailData(nextData);
 					} catch (error) {
@@ -256,8 +260,7 @@ export function AppShell() {
 			else if (pathname === "/search" || pathname === "/settings") {
 				if (pathname === "/search") setSearchData(searchQuery);
 				setStatus("ready");
-			}
-			else if (pathname === "/library" || pathname === "/favorites") {
+			} else if (pathname === "/library" || pathname === "/favorites") {
 				await primeResourceTicket(stored);
 				setStatus("ready");
 			} else await loadHome(stored);
@@ -332,12 +335,23 @@ export function AppShell() {
 		if (!session || !detailId || playId) return;
 		const refresh = (rawEvent: Event) => {
 			const event = rawEvent as CustomEvent<{ libraryId?: string }>;
-			if (event.detail?.libraryId && detailData?.item.LibraryId !== event.detail.libraryId) return;
+			if (
+				event.detail?.libraryId &&
+				detailData?.item.LibraryId !== event.detail.libraryId
+			)
+				return;
 			void refreshDetail(session, detailId);
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
-	}, [detailData?.item.LibraryId, detailId, pathname, playId, refreshDetail, session]);
+	}, [
+		detailData?.item.LibraryId,
+		detailId,
+		pathname,
+		playId,
+		refreshDetail,
+		session,
+	]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
 		const previousLocale = locale;
@@ -365,7 +379,10 @@ export function AppShell() {
 
 	const handleMetadataLanguageChange = async (language: string | null) => {
 		const previous = metadataLanguage;
-		setMetadataLanguage({ mode: language ? "explicit" : "auto", language: language ?? locale });
+		setMetadataLanguage({
+			mode: language ? "explicit" : "auto",
+			language: language ?? locale,
+		});
 		try {
 			const updated = await setMetadataLanguagePreference(language);
 			setMetadataLanguage(updated);
@@ -415,14 +432,10 @@ export function AppShell() {
 									<MobileNav />
 									{status === "error" && (
 										<ErrorPanel
-											titleKey={
-												detailId ? "detailLoadFailed" : "libraryLoadFailed"
-											}
+											titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
 											message={error}
 											onRetry={() =>
-												detailId
-													? loadDetail(session, detailId)
-													: loadHome(session)
+												detailId ? loadDetail(session, detailId) : loadHome(session)
 											}
 										/>
 									)}
@@ -434,10 +447,7 @@ export function AppShell() {
 										detailId &&
 										!playId &&
 										(detailData.item.Type === "BoxSet" ? (
-											<CollectionPage
-												initialData={detailData}
-												session={session}
-											/>
+											<CollectionPage initialData={detailData} session={session} />
 										) : (
 											<DetailPage initialData={detailData} session={session} />
 										))}
@@ -448,10 +458,7 @@ export function AppShell() {
 										<FavoritesPage session={session} />
 									)}
 									{status === "ready" && pathname === "/search" && (
-										<SearchPage
-											session={session}
-											query={searchData ?? searchQuery}
-										/>
+										<SearchPage session={session} query={searchData ?? searchQuery} />
 									)}
 									{homeData &&
 										!detailId &&

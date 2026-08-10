@@ -79,9 +79,10 @@ describe("media card sizing", () => {
 			/>,
 		);
 
-		expect(
-			screen.getByRole("link", { name: "Example Series" }),
-		).toHaveAttribute("href", "/show/series-1");
+		expect(screen.getByRole("link", { name: "Example Series" })).toHaveAttribute(
+			"href",
+			"/show/series-1",
+		);
 		expect(screen.getByText("S01E02・Test title")).toHaveAttribute(
 			"href",
 			"/show/series-1/episode/item-1",
@@ -110,10 +111,7 @@ describe("media card sizing", () => {
 	it("uses the enlarged portrait card width", () => {
 		const { container } = render(<PosterCard item={item} />);
 
-		expect(container.firstElementChild).toHaveClass(
-			"w-[148px]",
-			"md:w-[200px]",
-		);
+		expect(container.firstElementChild).toHaveClass("w-[148px]", "md:w-[200px]");
 	});
 
 	it("does not render a hover preview on poster cards", () => {
@@ -210,9 +208,7 @@ describe("media card sizing", () => {
 		const { container, rerender } = render(
 			<PosterCard item={{ ...item, UserData: { PlayedPercentage: 50 } }} />,
 		);
-		expect(
-			container.querySelector('[style="width: 50%;"]'),
-		).toBeInTheDocument();
+		expect(container.querySelector('[style="width: 50%;"]')).toBeInTheDocument();
 
 		rerender(
 			<PosterCard
@@ -228,9 +224,7 @@ describe("media card sizing", () => {
 		const { rerender } = render(
 			<PosterCard item={{ ...item, UserData: { Played: true } }} />,
 		);
-		expect(screen.getByLabelText("All episodes watched")).toHaveClass(
-			"text-xs",
-		);
+		expect(screen.getByLabelText("All episodes watched")).toHaveClass("text-xs");
 
 		rerender(
 			<PosterCard
@@ -276,9 +270,7 @@ describe("media card sizing", () => {
 				active={false}
 			/>,
 		);
-		expect(
-			container.querySelector('[style="width: 25%;"]'),
-		).toBeInTheDocument();
+		expect(container.querySelector('[style="width: 25%;"]')).toBeInTheDocument();
 	});
 
 	it("adds a playable overlay to vertical season episode rows", () => {
@@ -299,9 +291,10 @@ describe("media card sizing", () => {
 		expect(
 			screen.getByRole("button", { name: "Play Test title" }),
 		).toBeInTheDocument();
-		expect(
-			screen.getByRole("link", { name: /1\. Test title/ }),
-		).toHaveAttribute("href", "/show/series-1/episode/item-1");
+		expect(screen.getByRole("link", { name: /1\. Test title/ })).toHaveAttribute(
+			"href",
+			"/show/series-1/episode/item-1",
+		);
 	});
 
 	it.each([

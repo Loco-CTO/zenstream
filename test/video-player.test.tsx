@@ -245,10 +245,22 @@ describe("video player controls", () => {
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						initialSubtitleStreamIndex={3}
-						initialStreams={{
-							source: {
-								Id: "source",
-								MediaStreams: [
+						initialStreams={
+							{
+								source: {
+									Id: "source",
+									MediaStreams: [
+										{
+											Index: 3,
+											Type: "Subtitle",
+											FileId: "subtitle-file",
+											Language: "en",
+											DisplayTitle: "English",
+										},
+									],
+								},
+								audio: [],
+								subtitles: [
 									{
 										Index: 3,
 										Type: "Subtitle",
@@ -257,19 +269,9 @@ describe("video player controls", () => {
 										DisplayTitle: "English",
 									},
 								],
-							},
-							audio: [],
-							subtitles: [
-								{
-									Index: 3,
-									Type: "Subtitle",
-									FileId: "subtitle-file",
-									Language: "en",
-									DisplayTitle: "English",
-								},
-							],
-							qualities: [],
-						} as never}
+								qualities: [],
+							} as never
+						}
 						onClose={vi.fn()}
 					/>
 				</SubtitlePreferencesProvider>
@@ -278,9 +280,7 @@ describe("video player controls", () => {
 
 		const track = container.querySelector("track");
 		expect(track).toHaveAttribute("kind", "subtitles");
-		expect(track?.getAttribute("src")).toContain(
-			"/subtitles/subtitle-file.vtt",
-		);
+		expect(track?.getAttribute("src")).toContain("/subtitles/subtitle-file.vtt");
 	});
 
 	it("requests Picture in Picture when the browser supports it", () => {
@@ -390,8 +390,7 @@ describe("video player controls", () => {
 		expect(
 			toolbarButtons.every(
 				(button) =>
-					button.classList.contains("h-10") &&
-					button.classList.contains("w-10"),
+					button.classList.contains("h-10") && button.classList.contains("w-10"),
 			),
 		).toBe(true);
 	});
@@ -428,9 +427,7 @@ describe("video player controls", () => {
 					>
 						<SubtitlePreferencesProvider>
 							<VideoPlayer
-								item={
-									{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem
-								}
+								item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 								session={{ token: "token", userId: "user", username: "Alex" }}
 								onClose={vi.fn()}
 							/>
@@ -514,9 +511,7 @@ describe("video player controls", () => {
 
 		expect(getByTestId("player-loading")).toBeVisible();
 		fireEvent.canPlay(container.querySelector("video")!);
-		expect(
-			container.querySelector('[data-testid="player-loading"]'),
-		).toBeNull();
+		expect(container.querySelector('[data-testid="player-loading"]')).toBeNull();
 	});
 
 	it("keeps the active skip intro action interactive independently of controls", () => {
@@ -577,9 +572,7 @@ describe("video player controls", () => {
 	});
 
 	it("starts the next episode at the beginning for Syncplay", () => {
-		expect(
-			nextEpisodeSyncplayCommand({ Id: "episode-2" } as MediaItem),
-		).toEqual({
+		expect(nextEpisodeSyncplayCommand({ Id: "episode-2" } as MediaItem)).toEqual({
 			action: "media",
 			itemId: "episode-2",
 			position: 0,
@@ -832,7 +825,9 @@ describe("video player controls", () => {
 		expect(tracks).toEqual([{ mode: "disabled" }, { mode: "disabled" }]);
 		const selected = { mode: "disabled" };
 		disableNativeSubtitleTracks(
-			{ textTracks: [selected, { mode: "showing" }] } as unknown as HTMLVideoElement,
+			{
+				textTracks: [selected, { mode: "showing" }],
+			} as unknown as HTMLVideoElement,
 			selected as unknown as TextTrack,
 		);
 		expect(selected.mode).toBe("showing");
@@ -875,4 +870,3 @@ describe("video player controls", () => {
 			.exitFullscreen;
 	});
 });
-

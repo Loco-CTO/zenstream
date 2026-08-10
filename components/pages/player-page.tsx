@@ -45,7 +45,9 @@ export function PlayerPage({
 		subtitle?: number;
 	}>({});
 	const playerItem =
-		item.Type === "Episode" && !item.SeriesName && initialData.backgroundItem?.Name
+		item.Type === "Episode" &&
+		!item.SeriesName &&
+		initialData.backgroundItem?.Name
 			? { ...item, SeriesName: initialData.backgroundItem.Name }
 			: item;
 	const startPositionSeconds = savedPlaybackPositionSeconds(item);
@@ -80,7 +82,13 @@ export function PlayerPage({
 		return () => {
 			active = false;
 		};
-	}, [item.Id, requestedTracks.audio, requestedTracks.subtitle, session, startPositionSeconds]);
+	}, [
+		item.Id,
+		requestedTracks.audio,
+		requestedTracks.subtitle,
+		session,
+		startPositionSeconds,
+	]);
 
 	return (
 		<VideoPlayer
@@ -106,4 +114,3 @@ export function PlayerPage({
 		/>
 	);
 }
-

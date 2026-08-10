@@ -143,7 +143,8 @@ describe("BlurHashImage", () => {
 		} satisfies CatalogItem);
 
 		expect(item.ImageBlurHashes?.Primary).toEqual({
-			"/api/catalog/items/movie/images/Primary?language=en": "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+			"/api/catalog/items/movie/images/Primary?language=en":
+				"LEHV6nWB2yk8pyo0adR*.7kCMdnj",
 		});
 	});
 });

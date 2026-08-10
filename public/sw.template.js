@@ -15,9 +15,7 @@ self.addEventListener("activate", (event) => {
 			.then((keys) =>
 				Promise.all(
 					keys
-						.filter(
-							(key) => key.startsWith("zenstream-shell-") && key !== CACHE_NAME,
-						)
+						.filter((key) => key.startsWith("zenstream-shell-") && key !== CACHE_NAME)
 						.map((key) => caches.delete(key)),
 				),
 			),

@@ -41,7 +41,10 @@ export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
 	mono: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
 };
 
-let subtitlePreferenceCache: { expiresAt: number; value: SubtitleStyle } | null = null;
+let subtitlePreferenceCache: {
+	expiresAt: number;
+	value: SubtitleStyle;
+} | null = null;
 let subtitlePreferenceInFlight: Promise<SubtitleStyle> | null = null;
 
 export function clearSubtitlePreferenceCache() {
@@ -114,16 +117,16 @@ export async function getSubtitlePreference(): Promise<SubtitleStyle> {
 		return subtitlePreferenceCache.value;
 	if (subtitlePreferenceInFlight) return subtitlePreferenceInFlight;
 	subtitlePreferenceInFlight = (async () => {
-	const response = await fetch(preferenceUrl, {
-		cache: "no-store",
-		headers: preferenceHeaders(),
-	});
-	if (!response.ok) throw new Error("Could not load subtitle preferences.");
-	const data: unknown = await response.json();
-	const style = normalizeSubtitleStyle(data);
-	if (!style) throw new Error("Invalid subtitle preference response.");
-	subtitlePreferenceCache = { expiresAt: Date.now() + 30_000, value: style };
-	return style;
+		const response = await fetch(preferenceUrl, {
+			cache: "no-store",
+			headers: preferenceHeaders(),
+		});
+		if (!response.ok) throw new Error("Could not load subtitle preferences.");
+		const data: unknown = await response.json();
+		const style = normalizeSubtitleStyle(data);
+		if (!style) throw new Error("Invalid subtitle preference response.");
+		subtitlePreferenceCache = { expiresAt: Date.now() + 30_000, value: style };
+		return style;
 	})().finally(() => {
 		subtitlePreferenceInFlight = null;
 	});

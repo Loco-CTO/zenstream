@@ -89,10 +89,7 @@ export function Hero({
 		let cancelled = false;
 		const scheduleFallback = () => {
 			if (!canNavigateSlides) return;
-			fallbackTimer.current = window.setTimeout(
-				goToNextSlide,
-				SLIDE_INTERVAL_MS,
-			);
+			fallbackTimer.current = window.setTimeout(goToNextSlide, SLIDE_INTERVAL_MS);
 		};
 
 		scheduleFallback();
@@ -178,9 +175,7 @@ export function Hero({
 					<p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/35">
 						ZenStream
 					</p>
-					<h1 className="text-5xl font-black text-white">
-						{t("emptyLibrary")}
-					</h1>
+					<h1 className="text-5xl font-black text-white">{t("emptyLibrary")}</h1>
 					<p className="mt-5 max-w-sm text-sm leading-6 text-white/45">
 						{t("emptyLibraryHint")}
 					</p>
@@ -205,11 +200,7 @@ export function Hero({
 			onPointerUp={handlePointerEnd}
 			onPointerCancel={handlePointerEnd}
 			className={`group/hero relative h-[min(72svh,640px)] w-full touch-pan-y select-none overflow-hidden md:h-[85svh] ${
-				canNavigateSlides
-					? isDragging
-						? "cursor-grabbing"
-						: "cursor-grab"
-					: ""
+				canNavigateSlides ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
 			}`}
 		>
 			{slides.length > 0 ? (

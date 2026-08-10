@@ -111,11 +111,7 @@ function ErrorPageFrame({
 function IconOnlyTopbar() {
 	return (
 		<nav className="absolute left-0 right-0 top-0 z-50 flex h-16 items-center px-4 md:h-20 md:px-12">
-			<Link
-				href="/"
-				aria-label="ZenStream"
-				className="flex shrink-0 items-center"
-			>
+			<Link href="/" aria-label="ZenStream" className="flex shrink-0 items-center">
 				<img
 					src="/icon.png"
 					alt="ZenStream"

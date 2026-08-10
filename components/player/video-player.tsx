@@ -78,9 +78,12 @@ export const HLS_TEXT_TRACK_CONFIG = {
 };
 const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
-	const rendered = typeof details === "string" ? details : JSON.stringify(details ?? "");
+	const rendered =
+		typeof details === "string" ? details : JSON.stringify(details ?? "");
 	const safe = rendered.replace(/access=[^&\s"']+/gi, "access=<redacted>");
-	const method = /error|failed|fatal|timeout|fallback/i.test(event) ? "warn" : "info";
+	const method = /error|failed|fatal|timeout|fallback/i.test(event)
+		? "warn"
+		: "info";
 	console[method](`[Player] ${event}`, safe);
 };
 
@@ -369,9 +372,7 @@ export function VideoPlayer({
 		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
-	const sourceRef = useRef<MediaSource | undefined>(
-		initialStreams?.source,
-	);
+	const sourceRef = useRef<MediaSource | undefined>(initialStreams?.source);
 	const transcodeAttemptRef = useRef(false);
 	const resumeTimeRef = useRef<number | null>(null);
 	const resumePlayingRef = useRef<boolean | null>(null);
@@ -399,9 +400,7 @@ export function VideoPlayer({
 	// timestamps. Do not publish that transient state to the Syncplay room.
 	const seekSettlingUntilRef = useRef(0);
 	const [url, setUrl] = useState<string | undefined>(() =>
-		initialStreams?.source
-			? playbackUrl(initialStreams.source)
-			: undefined,
+		initialStreams?.source ? playbackUrl(initialStreams.source) : undefined,
 	);
 	const [info, setInfo] = useState<
 		ReturnType<typeof playbackStreams> | undefined
@@ -434,9 +433,7 @@ export function VideoPlayer({
 		initialAudioStreamId == null ? "" : String(initialAudioStreamId),
 	);
 	const [subtitle, setSubtitle] = useState(
-		initialSubtitleStreamIndex == null
-			? ""
-			: String(initialSubtitleStreamIndex),
+		initialSubtitleStreamIndex == null ? "" : String(initialSubtitleStreamIndex),
 	);
 	const [subtitleCueData, setSubtitleCueData] = useState<{
 		track: string;
@@ -485,7 +482,8 @@ export function VideoPlayer({
 			if (!source?.sessionId || source.mode === "direct") return;
 			const sessionId = source.sessionId;
 			await cancelPlaybackSession(session, sessionId).then(
-				() => playerDebug("HLS session cancellation requested", { sessionId, reason }),
+				() =>
+					playerDebug("HLS session cancellation requested", { sessionId, reason }),
 				(error) =>
 					playerDebug("HLS session cancellation failed", {
 						sessionId,
@@ -521,7 +519,10 @@ export function VideoPlayer({
 		Boolean(nextItem);
 	useEffect(() => {
 		if (!debugOpen) return;
-		const timer = window.setInterval(() => setDebugRefresh((value) => value + 1), 250);
+		const timer = window.setInterval(
+			() => setDebugRefresh((value) => value + 1),
+			250,
+		);
 		return () => window.clearInterval(timer);
 	}, [debugOpen]);
 	useEffect(() => {
@@ -549,7 +550,9 @@ export function VideoPlayer({
 		const timer = window.setInterval(heartbeat, 15_000);
 		const cancelOnPageHide = () => {
 			active = false;
-			void cancelPlaybackSession(session, playbackSessionId).catch(() => undefined);
+			void cancelPlaybackSession(session, playbackSessionId).catch(
+				() => undefined,
+			);
 		};
 		window.addEventListener("pagehide", cancelOnPageHide);
 		return () => {
@@ -557,7 +560,8 @@ export function VideoPlayer({
 			window.clearInterval(timer);
 			window.removeEventListener("pagehide", cancelOnPageHide);
 			void cancelPlaybackSession(session, playbackSessionId).then(
-				() => playerDebug("HLS session cancelled", { sessionId: playbackSessionId }),
+				() =>
+					playerDebug("HLS session cancelled", { sessionId: playbackSessionId }),
 				(error) =>
 					playerDebug("HLS session cancellation failed", {
 						sessionId: playbackSessionId,
@@ -664,9 +668,7 @@ export function VideoPlayer({
 					.sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0))[0];
 				if (!next) {
 					const season = seasons
-						.filter(
-							(entry) => (entry.IndexNumber ?? 0) > item.ParentIndexNumber!,
-						)
+						.filter((entry) => (entry.IndexNumber ?? 0) > item.ParentIndexNumber!)
 						.sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0))[0];
 					if (season?.Id) {
 						episodes = await getEpisodes(session, seriesId, season.Id);
@@ -707,12 +709,7 @@ export function VideoPlayer({
 			setCurrentTime(0);
 			setDuration(0);
 			setUrl(undefined);
-			advanceToNextEpisodeWithSyncplay(
-				target,
-				syncplay.command,
-				onNext,
-				onClose,
-			);
+			advanceToNextEpisodeWithSyncplay(target, syncplay.command, onNext, onClose);
 			return;
 		}
 		advancingToNextRef.current = true;
@@ -765,19 +762,24 @@ export function VideoPlayer({
 			}
 			return playback;
 		};
-		const streams = (initialStreams
-			? Promise.resolve(initialStreams)
-			: getPlaybackInfo(session, item.Id, {
-					audioStreamId: initialAudioStreamId,
-					startPositionSeconds: savedPositionSeconds,
-					// Keep subtitles out of the media pipeline; the selected track is
-					// fetched as VTT and rendered by CustomSubtitleCue below.
-				})
-				).then(resolvePlaybackReady).then(playbackStreams);
+		const streams = (
+			initialStreams
+				? Promise.resolve(initialStreams)
+				: getPlaybackInfo(session, item.Id, {
+						audioStreamId: initialAudioStreamId,
+						startPositionSeconds: savedPositionSeconds,
+						// Keep subtitles out of the media pipeline; the selected track is
+						// fetched as VTT and rendered by CustomSubtitleCue below.
+					})
+		)
+			.then(resolvePlaybackReady)
+			.then(playbackStreams);
 		streams
 			.then(async (parsed) => {
 				const markerData = parsed.source?.Id
-					? await getPlaybackMarkers(session, item.Id, parsed.source.Id).catch(() => null)
+					? await getPlaybackMarkers(session, item.Id, parsed.source.Id).catch(
+							() => null,
+						)
 					: null;
 				const trickplay = parsed.source?.Id
 					? await getTrickplayInfo(session, item.Id, parsed.source.Id).catch(
@@ -815,9 +817,7 @@ export function VideoPlayer({
 				const initialAudio =
 					initialAudioStreamId == null
 						? (next.audio.find((track) => track.IsDefault) ?? next.audio[0])
-						: next.audio.find(
-							(track) => track.Index === initialAudioStreamId,
-							);
+						: next.audio.find((track) => track.Index === initialAudioStreamId);
 				if (initialAudio?.Index != null) setAudio(String(initialAudio.Index));
 			})
 			.catch((error) => {
@@ -848,11 +848,7 @@ export function VideoPlayer({
 		// A reused <video> can still report the previous episode's readyState while
 		// Next Up is replacing its source. Never count that stale media as readiness
 		// for the new item/generation.
-		const loading = syncplayItemIsLoading(
-			readyItemIdRef.current,
-			item.Id,
-			video,
-		);
+		const loading = syncplayItemIsLoading(readyItemIdRef.current, item.Id, video);
 		// Keep this in the same meaning as reportBuffering(): it stores the last
 		// loading state sent to the server, not whether the video is buffered.
 		// Otherwise a later canplay event can be incorrectly deduplicated.
@@ -920,8 +916,7 @@ export function VideoPlayer({
 				return;
 			}
 			applyingSyncRef.current = true;
-			if (forceSeek || Math.abs(error) > 2)
-				video.currentTime = timeline.position;
+			if (forceSeek || Math.abs(error) > 2) video.currentTime = timeline.position;
 			else if (Math.abs(error) <= 0.25) video.playbackRate = 1;
 			else video.playbackRate = Math.max(0.95, Math.min(1.05, 1 - error / 12));
 			if (timeline.shouldPlay && video.paused) startSyncedPlayback(video);
@@ -945,12 +940,7 @@ export function VideoPlayer({
 			window.clearTimeout(startTimer);
 			video.playbackRate = 1;
 		};
-	}, [
-		syncplayActive,
-		item.Id,
-		syncplayServerNow,
-		cancelPendingBufferingReport,
-	]);
+	}, [syncplayActive, item.Id, syncplayServerNow, cancelPendingBufferingReport]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -1002,9 +992,7 @@ export function VideoPlayer({
 					return;
 				}
 				if (groupState) return;
-				const mediaDuration = Number.isFinite(video.duration)
-					? video.duration
-					: 0;
+				const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
 				const negotiatedPosition = sourceRef.current?.startPositionSeconds ?? 0;
 				const requestedPosition =
 					resumeTimeRef.current ??
@@ -1061,7 +1049,7 @@ export function VideoPlayer({
 				networkState: video.networkState,
 				code: video.error?.code,
 				message: video.error?.message,
-			},);
+			});
 		};
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
 		video.addEventListener("canplay", onCanPlay);
@@ -1094,7 +1082,7 @@ export function VideoPlayer({
 					lastRequest: safePlayerUrl(data.frag?.url),
 				}));
 			});
-				hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
+			hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
 				if (!active) return;
 				playerDebug("HLS fragment buffered", {
 					url: data.frag?.url,
@@ -1109,7 +1097,7 @@ export function VideoPlayer({
 				updateBufferedRanges(video);
 				setBuffering(false);
 			});
-				hls.on(Hls.Events.ERROR, (_event, data) => {
+			hls.on(Hls.Events.ERROR, (_event, data) => {
 				playerDebug(data.fatal ? "HLS fatal error" : "HLS error", {
 					type: data.type,
 					details: data.details,
@@ -1215,9 +1203,7 @@ export function VideoPlayer({
 		if (!settingsOpen && !trackMenu) return;
 		const closeMenus = (event: PointerEvent) => {
 			const target = event.target as Element | null;
-			if (
-				target?.closest("[data-player-context], [data-player-context-trigger]")
-			)
+			if (target?.closest("[data-player-context], [data-player-context-trigger]"))
 				return;
 			suppressNextClickRef.current = true;
 			setSettingsOpen(false);
@@ -1229,8 +1215,7 @@ export function VideoPlayer({
 
 	useEffect(
 		() => () => {
-			if (controlsTimerRef.current)
-				window.clearTimeout(controlsTimerRef.current);
+			if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
 			if (bufferingTimerRef.current !== undefined)
 				window.clearTimeout(bufferingTimerRef.current);
 			bufferingTimerRef.current = undefined;
@@ -1262,8 +1247,7 @@ export function VideoPlayer({
 		syncFullscreenState();
 		return () => {
 			document.removeEventListener("fullscreenchange", syncFullscreenState);
-			if (document.fullscreenElement === player)
-				exitFullscreenSafely();
+			if (document.fullscreenElement === player) exitFullscreenSafely();
 		};
 	}, []);
 
@@ -1336,8 +1320,7 @@ export function VideoPlayer({
 						loading,
 						...report,
 						currentGeneration: current?.mediaGeneration,
-						currentTimelineRevision:
-							current?.timelineRevision ?? current?.revision,
+						currentTimelineRevision: current?.timelineRevision ?? current?.revision,
 					});
 					return;
 				}
@@ -1367,8 +1350,7 @@ export function VideoPlayer({
 				sourceId: previousSource?.Id ?? sourceRef.current?.Id,
 				audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
 				requestedMode: "video-transcode",
-				startPositionSeconds:
-					resumeTimeRef.current ?? savedPositionSeconds,
+				startPositionSeconds: resumeTimeRef.current ?? savedPositionSeconds,
 			});
 			if (playback.sessionId && playback.source?.sessionState === "starting") {
 				const status = await waitForPlaybackReady(session, playback.sessionId);
@@ -1396,7 +1378,9 @@ export function VideoPlayer({
 				playback?.sessionId &&
 				playback.sessionId !== sourceRef.current?.sessionId
 			) {
-				await cancelPlaybackSession(session, playback.sessionId).catch(() => undefined);
+				await cancelPlaybackSession(session, playback.sessionId).catch(
+					() => undefined,
+				);
 				playerDebug("canceled uncommitted fallback session", {
 					sessionId: playback.sessionId,
 					reason: error instanceof Error ? error.message : String(error),
@@ -1409,13 +1393,11 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		const source = sourceRef.current;
 		if (!video || !source) return;
-		const mediaDuration = Number.isFinite(video.duration) && video.duration > 0
-			? video.duration
-			: duration || knownDuration;
-		const boundedTarget = Math.max(
-			0,
-			Math.min(mediaDuration || target, target),
-		);
+		const mediaDuration =
+			Number.isFinite(video.duration) && video.duration > 0
+				? video.duration
+				: duration || knownDuration;
+		const boundedTarget = Math.max(0, Math.min(mediaDuration || target, target));
 		playerDebug("native media seek", {
 			target: boundedTarget,
 			currentTime: video.currentTime,
@@ -1437,8 +1419,7 @@ export function VideoPlayer({
 		transcodeAttemptRef.current = true;
 		const video = videoRef.current;
 		if (video && Number.isFinite(video.currentTime))
-		resumeTimeRef.current =
-			video.currentTime;
+			resumeTimeRef.current = video.currentTime;
 		setError("");
 		setBuffering(true);
 		try {
@@ -1524,22 +1505,21 @@ export function VideoPlayer({
 			return;
 		}
 		if (document.pictureInPictureElement === video) {
-			void document.exitPictureInPicture().catch(() =>
-				setError(t("pictureInPictureUnavailable")),
-			);
+			void document
+				.exitPictureInPicture()
+				.catch(() => setError(t("pictureInPictureUnavailable")));
 			return;
 		}
-		void video.requestPictureInPicture().catch(() =>
-			setError(t("pictureInPictureUnavailable")),
-		);
+		void video
+			.requestPictureInPicture()
+			.catch(() => setError(t("pictureInPictureUnavailable")));
 	}
 	function handleVideoPointerDown(event: React.PointerEvent<HTMLVideoElement>) {
 		if (event.pointerType !== "touch") return;
 		touchVideoInteractionRef.current = true;
 		event.stopPropagation();
 		if (controlsVisible) {
-			if (controlsTimerRef.current)
-				window.clearTimeout(controlsTimerRef.current);
+			if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
 			setControlsVisible(false);
 		} else {
 			showControls();
@@ -1570,9 +1550,10 @@ export function VideoPlayer({
 	function seek(delta: number) {
 		const video = videoRef.current;
 		if (!video) return;
-		const previewTarget = seekPreviewRef.current?.itemId === item.Id
-			? seekPreviewRef.current.value
-			: video.currentTime;
+		const previewTarget =
+			seekPreviewRef.current?.itemId === item.Id
+				? seekPreviewRef.current.value
+				: video.currentTime;
 		const target = Math.max(
 			0,
 			Math.min(duration || video.duration || Infinity, previewTarget + delta),
@@ -1599,12 +1580,7 @@ export function VideoPlayer({
 	function commitPendingSeek() {
 		const pending = seekPreviewRef.current;
 		const video = videoRef.current;
-		if (
-			!pending ||
-			pending.itemId !== item.Id ||
-			!video
-		)
-			return;
+		if (!pending || pending.itemId !== item.Id || !video) return;
 		const target = pending.value;
 		if (!syncplay.active) {
 			// Keep the selected value rendered until the media element confirms the
@@ -1684,7 +1660,9 @@ export function VideoPlayer({
 				pendingSessionId = playback.sessionId;
 				if (request !== qualityRequestRef.current) {
 					if (pendingSessionId && pendingSessionId !== info?.source?.sessionId)
-						await cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
+						await cancelPlaybackSession(session, pendingSessionId).catch(
+							() => undefined,
+						);
 					return;
 				}
 				if (playback.sessionId && playback.source?.sessionState === "starting") {
@@ -1712,7 +1690,9 @@ export function VideoPlayer({
 			})
 			.catch((error) => {
 				if (pendingSessionId && pendingSessionId !== info?.source?.sessionId)
-					void cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
+					void cancelPlaybackSession(session, pendingSessionId).catch(
+						() => undefined,
+					);
 				playerDebug("quality change failed", {
 					error: error instanceof Error ? error.message : String(error),
 				});
@@ -1731,7 +1711,9 @@ export function VideoPlayer({
 		}
 		const video = videoRef.current;
 		const position =
-			video && Number.isFinite(video.currentTime) ? video.currentTime : currentTime;
+			video && Number.isFinite(video.currentTime)
+				? video.currentTime
+				: currentTime;
 		const nextAudio = value;
 		setAudio(value);
 		if (!info?.source) return;
@@ -1748,7 +1730,9 @@ export function VideoPlayer({
 				pendingSessionId = playback.sessionId;
 				if (request !== qualityRequestRef.current) {
 					if (pendingSessionId && pendingSessionId !== info.source?.sessionId)
-						await cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
+						await cancelPlaybackSession(session, pendingSessionId).catch(
+							() => undefined,
+						);
 					return;
 				}
 				if (playback.sessionId && playback.source?.sessionState === "starting") {
@@ -1776,7 +1760,9 @@ export function VideoPlayer({
 			})
 			.catch(() => {
 				if (pendingSessionId && pendingSessionId !== info.source?.sessionId)
-					void cancelPlaybackSession(session, pendingSessionId).catch(() => undefined);
+					void cancelPlaybackSession(session, pendingSessionId).catch(
+						() => undefined,
+					);
 				if (request === qualityRequestRef.current) {
 					setBuffering(false);
 					setError("This track could not be loaded.");
@@ -1830,9 +1816,7 @@ export function VideoPlayer({
 			}}
 			tabIndex={0}
 		>
-			{style.renderer === "native" && (
-				<style>{nativeSubtitleCueCss(style)}</style>
-			)}
+			{style.renderer === "native" && <style>{nativeSubtitleCueCss(style)}</style>}
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
@@ -1845,9 +1829,7 @@ export function VideoPlayer({
 				muted={muted}
 				onLoadedMetadata={() => {
 					const value = videoRef.current?.duration ?? 0;
-					setDuration(
-						Math.max(knownDuration, Number.isFinite(value) ? value : 0),
-					);
+					setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0));
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
@@ -1918,50 +1900,45 @@ export function VideoPlayer({
 					)
 						startSyncedPlayback(video);
 				}}
-					onDurationChange={() => {
+				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
 					if (Number.isFinite(value) && value > 0)
 						setDuration(Math.max(knownDuration, value));
 				}}
-					onSeeking={(event) => {
-						playerDebug("media seeking", {
-							currentTime: event.currentTarget.currentTime,
-							readyState: event.currentTarget.readyState,
-						});
-					}}
-					onSeeked={(event) => {
-						const value = event.currentTarget.currentTime;
-						setCurrentTime(Number.isFinite(value) ? value : 0);
-						const pending = seekPreviewRef.current;
-						if (
-							pending?.itemId === item.Id &&
-							Math.abs(pending.value - value) < 1.5
-						) {
-							seekPreviewRef.current = null;
-							setSeekPreview(null);
-						}
-						playerDebug("media seeked", {
-							currentTime: value,
-							readyState: event.currentTarget.readyState,
-						});
-						const syncState = syncplayStateRef.current;
-						if (
-							syncState?.itemId === item.Id &&
-							syncState.pauseReason === "seek" &&
-							syncplayMediaIsReady(event.currentTarget)
-						) {
-							bufferedRef.current = false;
-							void syncplayApiRef.current
-								.presence(true, false, syncState.mediaGeneration ?? 0)
-								.catch(() => undefined);
-						}
-					}}
-						 onTimeUpdate={() => {
+				onSeeking={(event) => {
+					playerDebug("media seeking", {
+						currentTime: event.currentTarget.currentTime,
+						readyState: event.currentTarget.readyState,
+					});
+				}}
+				onSeeked={(event) => {
+					const value = event.currentTarget.currentTime;
+					setCurrentTime(Number.isFinite(value) ? value : 0);
+					const pending = seekPreviewRef.current;
+					if (pending?.itemId === item.Id && Math.abs(pending.value - value) < 1.5) {
+						seekPreviewRef.current = null;
+						setSeekPreview(null);
+					}
+					playerDebug("media seeked", {
+						currentTime: value,
+						readyState: event.currentTarget.readyState,
+					});
+					const syncState = syncplayStateRef.current;
+					if (
+						syncState?.itemId === item.Id &&
+						syncState.pauseReason === "seek" &&
+						syncplayMediaIsReady(event.currentTarget)
+					) {
+						bufferedRef.current = false;
+						void syncplayApiRef.current
+							.presence(true, false, syncState.mediaGeneration ?? 0)
+							.catch(() => undefined);
+					}
+				}}
+				onTimeUpdate={() => {
 					const value = videoRef.current?.currentTime ?? 0;
 					setCurrentTime(
-						Number.isFinite(value)
-							? Math.min(value, duration || value)
-							: 0,
+						Number.isFinite(value) ? Math.min(value, duration || value) : 0,
 					);
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
@@ -1969,7 +1946,7 @@ export function VideoPlayer({
 					if (nextChecked && nextItem) void playNext();
 					else onClose();
 				}}
-				 onPlay={(e) => {
+				onPlay={(e) => {
 					const logicalTime = e.currentTarget.currentTime;
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
@@ -2002,7 +1979,7 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-					onPlaying={(event) => {
+				onPlaying={(event) => {
 					disableNativeSubtitleTracks(
 						event.currentTarget,
 						nativeSubtitleTrackRef.current?.track,
@@ -2013,9 +1990,9 @@ export function VideoPlayer({
 					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}
-					onPause={(e) => {
+				onPause={(e) => {
 					const logicalTime = e.currentTarget.currentTime;
-						reportCurrentProgress(e.currentTarget);
+					reportCurrentProgress(e.currentTarget);
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
 						syncState?.playing || syncState?.playbackState === "playing",
@@ -2058,17 +2035,13 @@ export function VideoPlayer({
 				}}
 				onError={() => {
 					const video = videoRef.current;
-					if (
-						!transcodeAttemptRef.current &&
-							sourceRef.current?.mode === "direct"
-					) {
+					if (!transcodeAttemptRef.current && sourceRef.current?.mode === "direct") {
 						void requestTranscodedPlayback();
 						return;
 					}
 					// Do not replace an already playable source with an error overlay
 					// when the browser has recovered and can play it.
-					if (video && video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA)
-						return;
+					if (video && video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return;
 					setBuffering(false);
 					setError(t("mediaPlaybackFailed"));
 				}}
@@ -2092,12 +2065,12 @@ export function VideoPlayer({
 			{style.renderer === "overlay" &&
 				subtitle &&
 				subtitleCueData?.track === subtitle && (
-				<CustomSubtitleCue
-					cues={subtitleCueData.cues}
-					time={currentTime + offset}
-					style={style}
-				/>
-			)}
+					<CustomSubtitleCue
+						cues={subtitleCueData.cues}
+						time={currentTime + offset}
+						style={style}
+					/>
+				)}
 			<div
 				className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`}
 			/>
@@ -2138,22 +2111,73 @@ export function VideoPlayer({
 					data-testid="player-debug-panel"
 					className="pointer-events-none absolute left-3 top-[calc(4.5rem+env(safe-area-inset-top))] z-40 w-[min(29rem,calc(100vw-1.5rem))] rounded-lg border border-white/10 bg-[#10151bcc] px-3 py-2 font-mono text-[10px] leading-[1.35] text-white/85 shadow-2xl backdrop-blur-md sm:left-5 sm:top-24 md:left-10"
 				>
-					<div className="mb-1 text-[11px] font-semibold text-white">Playback diagnostics</div>
+					<div className="mb-1 text-[11px] font-semibold text-white">
+						Playback diagnostics
+					</div>
 					<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-						<span className="text-white/50">Mode</span><span>{debugSource?.mode ?? "negotiating"}</span>
-						<span className="text-white/50">Session</span><span>{debugSource?.sessionId ?? "direct/no session"}</span>
-						<span className="text-white/50">State</span><span>{debugSource?.sessionState ?? "ready"}</span>
-						<span className="text-white/50">Stream</span><span className="truncate" title={safePlayerUrl(url)}>{safePlayerUrl(url)}</span>
-						<span className="text-white/50">Source</span><span>{debugSource?.Container ?? "-"} / {debugSource?.Bitrate ? `${Math.round(debugSource.Bitrate / 1000)} kbps` : "bitrate -"}</span>
-						<span className="text-white/50">Video</span><span>{debugVideoStream?.Codec ?? "-"} {debugVideoStream?.Width ?? "?"}x{debugVideoStream?.Height ?? "?"}</span>
-						<span className="text-white/50">Audio</span><span>{debugAudioStream?.Codec ?? "-"} / {debugAudioStream?.Channels ?? "?"}ch</span>
-						<span className="text-white/50">Position</span><span>{displayedCurrentTime.toFixed(2)} / {(duration || knownDuration || 0).toFixed(2)}s</span>
-						<span className="text-white/50">Buffered</span><span>{bufferedRanges.ranges.length ? bufferedRanges.ranges.map(([start, end]) => `${start.toFixed(1)}-${end.toFixed(1)}`).join(" ") : "none"} ({debugBufferAhead.toFixed(1)}s ahead)</span>
-						<span className="text-white/50">Native</span><span>{debugVideo?.paused ? "paused" : "playing"} / ready {debugVideo?.readyState ?? 0} / network {debugVideo?.networkState ?? 0}</span>
-						<span className="text-white/50">HLS</span><span>manifest {debugStats.manifestParsed ? "yes" : "no"} / requested {debugStats.fragmentsRequested} / buffered {debugStats.fragmentsBuffered}</span>
-						<span className="text-white/50">Request</span><span className="truncate" title={debugStats.lastRequest || undefined}>{debugStats.lastRequest || "-"}</span>
-						<span className="text-white/50">Last segment</span><span className="truncate" title={debugStats.lastFragment || undefined}>{debugStats.lastFragment || "-"}</span>
-						<span className="text-white/50">Errors</span><span>{debugStats.hlsErrors}{debugStats.lastHlsError ? ` / ${debugStats.lastHlsError}` : ""}</span>
+						<span className="text-white/50">Mode</span>
+						<span>{debugSource?.mode ?? "negotiating"}</span>
+						<span className="text-white/50">Session</span>
+						<span>{debugSource?.sessionId ?? "direct/no session"}</span>
+						<span className="text-white/50">State</span>
+						<span>{debugSource?.sessionState ?? "ready"}</span>
+						<span className="text-white/50">Stream</span>
+						<span className="truncate" title={safePlayerUrl(url)}>
+							{safePlayerUrl(url)}
+						</span>
+						<span className="text-white/50">Source</span>
+						<span>
+							{debugSource?.Container ?? "-"} /{" "}
+							{debugSource?.Bitrate
+								? `${Math.round(debugSource.Bitrate / 1000)} kbps`
+								: "bitrate -"}
+						</span>
+						<span className="text-white/50">Video</span>
+						<span>
+							{debugVideoStream?.Codec ?? "-"} {debugVideoStream?.Width ?? "?"}x
+							{debugVideoStream?.Height ?? "?"}
+						</span>
+						<span className="text-white/50">Audio</span>
+						<span>
+							{debugAudioStream?.Codec ?? "-"} / {debugAudioStream?.Channels ?? "?"}ch
+						</span>
+						<span className="text-white/50">Position</span>
+						<span>
+							{displayedCurrentTime.toFixed(2)} /{" "}
+							{(duration || knownDuration || 0).toFixed(2)}s
+						</span>
+						<span className="text-white/50">Buffered</span>
+						<span>
+							{bufferedRanges.ranges.length
+								? bufferedRanges.ranges
+										.map(([start, end]) => `${start.toFixed(1)}-${end.toFixed(1)}`)
+										.join(" ")
+								: "none"}{" "}
+							({debugBufferAhead.toFixed(1)}s ahead)
+						</span>
+						<span className="text-white/50">Native</span>
+						<span>
+							{debugVideo?.paused ? "paused" : "playing"} / ready{" "}
+							{debugVideo?.readyState ?? 0} / network {debugVideo?.networkState ?? 0}
+						</span>
+						<span className="text-white/50">HLS</span>
+						<span>
+							manifest {debugStats.manifestParsed ? "yes" : "no"} / requested{" "}
+							{debugStats.fragmentsRequested} / buffered {debugStats.fragmentsBuffered}
+						</span>
+						<span className="text-white/50">Request</span>
+						<span className="truncate" title={debugStats.lastRequest || undefined}>
+							{debugStats.lastRequest || "-"}
+						</span>
+						<span className="text-white/50">Last segment</span>
+						<span className="truncate" title={debugStats.lastFragment || undefined}>
+							{debugStats.lastFragment || "-"}
+						</span>
+						<span className="text-white/50">Errors</span>
+						<span>
+							{debugStats.hlsErrors}
+							{debugStats.lastHlsError ? ` / ${debugStats.lastHlsError}` : ""}
+						</span>
 					</div>
 				</div>
 			)}
@@ -2295,10 +2319,7 @@ export function VideoPlayer({
 						min="0"
 						max={duration}
 						step="0.1"
-						value={Math.min(
-							displayedCurrentTime,
-							duration || displayedCurrentTime,
-						)}
+						value={Math.min(displayedCurrentTime, duration || displayedCurrentTime)}
 						className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 						onPointerMove={previewTimeline}
 						onPointerLeave={() => {
@@ -2306,12 +2327,8 @@ export function VideoPlayer({
 							setPreviewUnavailable(false);
 						}}
 						onPointerDown={previewTimeline}
-						onPointerUp={(event) =>
-							commitTimelineSeek(event.currentTarget.value)
-						}
-						onBlur={(event) =>
-							commitTimelineSeek(event.currentTarget.value)
-						}
+						onPointerUp={(event) => commitTimelineSeek(event.currentTarget.value)}
+						onBlur={(event) => commitTimelineSeek(event.currentTarget.value)}
 						onKeyUp={(event) => {
 							if (
 								[
@@ -2434,9 +2451,7 @@ export function VideoPlayer({
 					{pipSupported && (
 						<button
 							aria-label={
-								isPictureInPicture
-									? t("exitPictureInPicture")
-									: t("pictureInPicture")
+								isPictureInPicture ? t("exitPictureInPicture") : t("pictureInPicture")
 							}
 							onClick={togglePictureInPicture}
 							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
@@ -2467,8 +2482,7 @@ export function VideoPlayer({
 								{ value: "", label: t("subtitlesOff") },
 								...info!.subtitles.map((track) => ({
 									value: String(track.Index),
-									label:
-										track.DisplayTitle ?? track.Language ?? t("subtitleTrack"),
+									label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack"),
 								})),
 							]}
 							value={subtitle}
@@ -2516,9 +2530,7 @@ export function VideoPlayer({
 										floating={false}
 										options={(info?.qualities ?? [0]).map((value) => ({
 											value: String(value),
-											label: value
-												? `${Math.round(value / 1_000_000)} Mbps`
-												: "Auto",
+											label: value ? `${Math.round(value / 1_000_000)} Mbps` : "Auto",
 										}))}
 										value={quality}
 										onChange={chooseQuality}
@@ -2539,8 +2551,7 @@ export function VideoPlayer({
 										value={speed}
 										onChange={(value) => {
 											setSpeed(value);
-											if (videoRef.current)
-												videoRef.current.playbackRate = Number(value);
+											if (videoRef.current) videoRef.current.playbackRate = Number(value);
 										}}
 									/>
 								</SettingsSubmenu>
@@ -2562,9 +2573,7 @@ export function VideoPlayer({
 											max="5"
 											step="0.1"
 											value={offset}
-											onChange={(event) =>
-												setOffset(Number(event.target.value))
-											}
+											onChange={(event) => setOffset(Number(event.target.value))}
 											className="accent-violet-400"
 										/>
 									</div>

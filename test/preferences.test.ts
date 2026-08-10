@@ -37,16 +37,16 @@ afterEach(() => {
 
 describe("locale preferences", () => {
 	it("loads a valid locale", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ locale: "ja" })),
-		);
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify({ locale: "ja" })));
 		await expect(getLocalePreference()).resolves.toBe("ja");
 	});
 
 	it("rejects invalid responses", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify({ locale: "fr" })),
-		);
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify({ locale: "fr" })));
 		await expect(getLocalePreference()).rejects.toThrow("Invalid locale");
 	});
 
@@ -87,9 +87,9 @@ describe("subtitle preferences", () => {
 	};
 
 	it("loads and validates an account style", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify(style)),
-		);
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(style)));
 		await expect(getSubtitlePreference()).resolves.toEqual(style);
 		expect(isSubtitleStyle({ ...style, textScale: 201 })).toBe(false);
 	});
@@ -103,9 +103,9 @@ describe("subtitle preferences", () => {
 			backgroundColor: style.backgroundColor,
 			backgroundOpacity: style.backgroundOpacity,
 		};
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify(legacyStyle)),
-		);
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(legacyStyle)));
 		await expect(getSubtitlePreference()).resolves.toEqual({
 			...legacyStyle,
 			renderer: "native",
@@ -127,9 +127,7 @@ describe("subtitle preferences", () => {
 
 	it("parses unstyled and authored-style WebVTT cues for the custom renderer", () => {
 		expect(
-			parseWebVttCues(
-				"WEBVTT\n\n00:00:01.000 --> 00:00:03.500\nHello<br>world",
-			),
+			parseWebVttCues("WEBVTT\n\n00:00:01.000 --> 00:00:03.500\nHello<br>world"),
 		).toEqual([{ start: 1, end: 3.5, text: "Hello\nworld" }]);
 		expect(
 			parseWebVttCues(

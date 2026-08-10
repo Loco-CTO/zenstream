@@ -96,9 +96,7 @@ describe("SyncplayGroupMenu", () => {
 		render(<SyncplayGroupMenu userId="viewer" />);
 		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
 		expect(screen.getByText("Public group")).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "Join view" }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Join view" })).toBeInTheDocument();
 		expect(screen.queryByText("Viewer")).not.toBeInTheDocument();
 		expect(screen.queryByText("Viewing together")).not.toBeInTheDocument();
 		expect(

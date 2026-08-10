@@ -84,9 +84,7 @@ describe("MediaRow scrolling", () => {
 			});
 		const scroller = renderRow();
 
-		fireEvent.click(
-			screen.getByRole("button", { name: "Scroll Popular right" }),
-		);
+		fireEvent.click(screen.getByRole("button", { name: "Scroll Popular right" }));
 		expect(scroller.scrollLeft).toBe(0);
 		act(() => animationFrames.shift()?.(0));
 		expect(scroller.scrollLeft).toBeCloseTo(57.6);
@@ -264,4 +262,3 @@ describe("MediaRow scrolling", () => {
 		expect(dragStart.defaultPrevented).toBe(true);
 	});
 });
-

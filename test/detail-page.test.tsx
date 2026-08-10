@@ -44,9 +44,7 @@ describe("detail views", () => {
 		expect(playbackPath("movie", { audio: 2, subtitle: 4 })).toBe(
 			"/play/movie?audio=2&subtitle=4",
 		);
-		expect(playbackPath("movie", { subtitle: 4 })).toBe(
-			"/play/movie?subtitle=4",
-		);
+		expect(playbackPath("movie", { subtitle: 4 })).toBe("/play/movie?subtitle=4");
 		expect(playbackPath("movie", { subtitle: null })).toBe(
 			"/play/movie?subtitle=off",
 		);
@@ -253,8 +251,7 @@ describe("detail views", () => {
 			"/show/series/episode/ep-1",
 		);
 		expect(
-			screen.getByRole("img", { name: "Episode 1" }).parentElement
-				?.parentElement,
+			screen.getByRole("img", { name: "Episode 1" }).parentElement?.parentElement,
 		).toHaveClass("h-[120px]", "w-[213px]");
 		expect(screen.getByText("1. Episode 1")).toHaveClass("text-sm");
 		expect(screen.getByText("Episode overview")).toHaveClass("text-xs");
@@ -360,10 +357,7 @@ describe("detail views", () => {
 		expect(
 			card?.parentElement?.querySelector(".lucide-play")?.parentElement
 				?.parentElement,
-		).toHaveClass(
-			"group-hover/card:bg-black/15",
-			"group-hover/card:opacity-100",
-		);
+		).toHaveClass("group-hover/card:bg-black/15", "group-hover/card:opacity-100");
 		expect(container.querySelectorAll(".lucide-play")).toHaveLength(2);
 	});
 
@@ -410,9 +404,7 @@ describe("detail views", () => {
 				screen.getByRole("button", { name: "Scroll More Like This right" }),
 			).toBeInTheDocument();
 		});
-		fireEvent.click(
-			screen.getByRole("button", { name: "Scroll Cast right" }),
-		);
+		fireEvent.click(screen.getByRole("button", { name: "Scroll Cast right" }));
 		fireEvent.click(
 			screen.getByRole("button", { name: "Scroll More Like This right" }),
 		);
@@ -480,4 +472,3 @@ function episode(id: string, number: number): MediaItem {
 		ImageTags: { Thumb: "thumb" },
 	};
 }
-

@@ -88,7 +88,7 @@ describe("LibraryPage", () => {
 				session,
 				expect.objectContaining({
 					parentId: "shows",
-				sortBy: "added",
+					sortBy: "added",
 					sortOrder: "Ascending",
 				}),
 			),
@@ -121,9 +121,9 @@ describe("LibraryPage", () => {
 		expect(window.localStorage.getItem("zenstream:user:sort:library:shows")).toBe(
 			JSON.stringify({ sortBy: "added", sortOrder: "Ascending" }),
 		);
-		expect(window.localStorage.getItem("zenstream:user:sort:library:movies")).toBe(
-			JSON.stringify({ sortBy: "runtime", sortOrder: "Ascending" }),
-		);
+		expect(
+			window.localStorage.getItem("zenstream:user:sort:library:movies"),
+		).toBe(JSON.stringify({ sortBy: "runtime", sortOrder: "Ascending" }));
 	});
 
 	it("keeps rendered cards bounded and appends the next page near the end", async () => {
@@ -240,7 +240,7 @@ describe("LibraryPage", () => {
 				options.parentId === "shows"
 					? new Promise((_resolve, reject) => {
 							rejectShows = reject;
-					})
+						})
 					: Promise.resolve({
 							items: makeItems(1),
 							totalRecordCount: 1,
@@ -253,7 +253,9 @@ describe("LibraryPage", () => {
 		rejectShows(new Error("stale request failed"));
 
 		await screen.findByText("Title 0");
-		expect(screen.queryByText("Could not load this library")).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("Could not load this library"),
+		).not.toBeInTheDocument();
 		expect(getLibraryItems).toHaveBeenCalledWith(
 			session,
 			expect.objectContaining({ parentId: "movies" }),

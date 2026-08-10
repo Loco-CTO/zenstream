@@ -65,11 +65,11 @@ export function browserDeviceProfile(
 ): BrowserDeviceProfile {
 	const mp4Video = [
 		...(supports(video, 'video/mp4; codecs="hvc1"') ||
-			supports(video, 'video/mp4; codecs="hvc1.1.L120"') ||
-			supports(video, 'video/mp4; codecs="hvc1.1.0.L120"') ||
-			supports(video, 'video/mp4; codecs="hev1"') ||
-			supports(video, 'video/mp4; codecs="hev1.1.L120"') ||
-			supports(video, 'video/mp4; codecs="hev1.1.0.L120"')
+		supports(video, 'video/mp4; codecs="hvc1.1.L120"') ||
+		supports(video, 'video/mp4; codecs="hvc1.1.0.L120"') ||
+		supports(video, 'video/mp4; codecs="hev1"') ||
+		supports(video, 'video/mp4; codecs="hev1.1.L120"') ||
+		supports(video, 'video/mp4; codecs="hev1.1.0.L120"')
 			? ["hevc"]
 			: []),
 		...(supports(video, 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"')

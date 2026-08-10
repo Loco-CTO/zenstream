@@ -35,10 +35,16 @@ class SyncplaySocket {
 				this.ws.readyState === WebSocket.CONNECTING)
 		)
 			return;
-		const httpOrigin = this.url.replace(/^ws:/, "http:").replace(/^wss:/, "https:").replace(/\/api\/ws\/syncplay$/, "");
+		const httpOrigin = this.url
+			.replace(/^ws:/, "http:")
+			.replace(/^wss:/, "https:")
+			.replace(/\/api\/ws\/syncplay$/, "");
 		let ticket: string;
 		try {
-			const response = await fetch(`${httpOrigin}/api/auth/socket-ticket`, { method: "POST", headers: { Authorization: `Bearer ${this.auth.token}` } });
+			const response = await fetch(`${httpOrigin}/api/auth/socket-ticket`, {
+				method: "POST",
+				headers: { Authorization: `Bearer ${this.auth.token}` },
+			});
 			if (!response.ok) throw new Error("Socket ticket request failed");
 			ticket = String((await response.json()).ticket ?? "");
 			if (!ticket) throw new Error("Socket ticket was empty");
@@ -46,7 +52,9 @@ class SyncplaySocket {
 			this.fire("connect_error", error as Error);
 			return;
 		}
-		const ws = new WebSocket(`${this.url}?ticket=${encodeURIComponent(ticket)}&participantId=${encodeURIComponent(this.auth.participantId)}`);
+		const ws = new WebSocket(
+			`${this.url}?ticket=${encodeURIComponent(ticket)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
+		);
 		this.ws = ws;
 		ws.onopen = () => this.fire("connect");
 		ws.onclose = (event) => {
@@ -83,9 +91,7 @@ class SyncplaySocket {
 				callback(value);
 				this.listeners.set(
 					event,
-					(this.listeners.get(event) ?? []).filter(
-						(entry) => entry !== listener,
-					),
+					(this.listeners.get(event) ?? []).filter((entry) => entry !== listener),
 				);
 			};
 			this.on(event, listener);
@@ -398,9 +404,7 @@ export function SyncplayProvider({
 						member.participantId !== currentParticipantId &&
 						!before.has(member.participantId)
 					)
-						toast.success(
-							t("syncplayMemberJoined", { member: member.username }),
-						);
+						toast.success(t("syncplayMemberJoined", { member: member.username }));
 				for (const member of previous.members)
 					if (
 						member.participantId !== currentParticipantId &&
@@ -505,8 +509,7 @@ export function SyncplayProvider({
 			const isMember = group.members.some((member) =>
 				isCurrentParticipant(member, currentParticipantId),
 			);
-			if (activeRef.current?.id === group.id)
-				reconcile(isMember ? group : null);
+			if (activeRef.current?.id === group.id) reconcile(isMember ? group : null);
 			// All users receive group broadcasts so they can discover public groups.
 			// A broadcast for a group someone else joined must never turn that group
 			// into this user's active session.
@@ -559,10 +562,7 @@ export function SyncplayProvider({
 					if (rtt <= bestRttRef.current) {
 						bestRttRef.current = rtt;
 						clockOffsetRef.current =
-							(reply.serverReceivedAt +
-								reply.serverSentAt -
-								(sent + received)) /
-							2;
+							(reply.serverReceivedAt + reply.serverSentAt - (sent + received)) / 2;
 					}
 				},
 			);
@@ -798,8 +798,7 @@ export function SyncplayProvider({
 			announcePlayback(itemId);
 		}
 		const groupId = group.id;
-		const seekVersion =
-			value.action === "seek" ? ++latestSeekRef.current : null;
+		const seekVersion = value.action === "seek" ? ++latestSeekRef.current : null;
 		const run = async () => {
 			syncplayDebug("command queued", { groupId, value, seekVersion });
 			// Arrow-key seeks can arrive faster than a round trip. Older queued
@@ -928,13 +927,9 @@ export function SyncplayProvider({
 		serverNow,
 	};
 	return (
-		<SyncplayContext.Provider value={value}>
-			{children}
-		</SyncplayContext.Provider>
+		<SyncplayContext.Provider value={value}>{children}</SyncplayContext.Provider>
 	);
 }
 export function useSyncplay() {
 	return useContext(SyncplayContext);
 }
-
-

@@ -20,9 +20,9 @@ describe("service worker generator", () => {
 			'const CACHE_NAME = \\"__CACHE_NAME__\\";',
 		);
 		await generateServiceWorker({ rootDir: root });
-		await expect(
-			readFile(join(root, "public/sw.js"), "utf8"),
-		).resolves.toContain("zenstream-shell-v9.8.7-main.42");
+		await expect(readFile(join(root, "public/sw.js"), "utf8")).resolves.toContain(
+			"zenstream-shell-v9.8.7-main.42",
+		);
 	});
 
 	it("omits the main suffix from the cache name when the counter is zero", async () => {

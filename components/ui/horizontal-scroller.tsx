@@ -97,13 +97,9 @@ export function HorizontalScroller({
 		if (!scroller || initialScrollIndex == null || initialScrollIndex <= 0)
 			return;
 		const target = scroller.children[initialScrollIndex] as
-			| HTMLElement
-			| undefined;
+			HTMLElement | undefined;
 		if (target)
-			scroller.scrollLeft = Math.max(
-				0,
-				target.offsetLeft - scroller.offsetLeft,
-			);
+			scroller.scrollLeft = Math.max(0, target.offsetLeft - scroller.offsetLeft);
 	}, [initialScrollIndex]);
 
 	const animateTowardTarget = useCallback(() => {
@@ -140,8 +136,7 @@ export function HorizontalScroller({
 			0,
 			Math.min(
 				maxScrollLeft,
-				scroller.scrollLeft +
-					(direction === "right" ? SCROLL_STEP : -SCROLL_STEP),
+				scroller.scrollLeft + (direction === "right" ? SCROLL_STEP : -SCROLL_STEP),
 			),
 		);
 		if (typeof scroller.scrollTo === "function") {

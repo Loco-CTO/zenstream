@@ -1,6 +1,11 @@
 import type { AuthSession } from "@/lib/session";
 import { browserDeviceProfile } from "@/lib/browser-device-profile";
-import { catalogRequest, toMediaItem, toMediaStreams, type CatalogItem } from "@/lib/catalog";
+import {
+	catalogRequest,
+	toMediaItem,
+	toMediaStreams,
+	type CatalogItem,
+} from "@/lib/catalog";
 
 export interface AuthResponse {
 	token?: string;
@@ -58,7 +63,9 @@ export interface MediaItem {
 	ChildIds?: string[];
 }
 
-export function savedPlaybackPositionSeconds(item: Pick<MediaItem, "UserData">) {
+export function savedPlaybackPositionSeconds(
+	item: Pick<MediaItem, "UserData">,
+) {
 	const ticks = item.UserData?.PlaybackPositionTicks;
 	return typeof ticks === "number" && Number.isFinite(ticks) && ticks > 0
 		? ticks / 10_000_000
@@ -175,7 +182,10 @@ const clientInFlight = new Map<
 	{ promise: Promise<unknown>; controller: AbortController }
 >();
 
-function combinedSignal(external: AbortSignal | undefined, internal: AbortSignal) {
+function combinedSignal(
+	external: AbortSignal | undefined,
+	internal: AbortSignal,
+) {
 	if (!external) return internal;
 	return AbortSignal.any([external, internal]);
 }
@@ -189,16 +199,17 @@ async function cachedClientRequest<T>(
 	const cached = clientCache.get(key);
 	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
 	const pending = clientInFlight.get(key);
-	if (reuseInFlight && pending)
-		return pending.promise as Promise<T>;
+	if (reuseInFlight && pending) return pending.promise as Promise<T>;
 	if (pending) pending.controller.abort();
 	const controller = new AbortController();
-	const request = Promise.resolve().then(() => loader(controller.signal)).then((value) => {
-		if (clientInFlight.get(key)?.controller === controller) {
-			clientCache.set(key, { expiresAt: Date.now() + ttl, value });
-		}
-		return value;
-	});
+	const request = Promise.resolve()
+		.then(() => loader(controller.signal))
+		.then((value) => {
+			if (clientInFlight.get(key)?.controller === controller) {
+				clientCache.set(key, { expiresAt: Date.now() + ttl, value });
+			}
+			return value;
+		});
 	const trackedRequest = request.finally(() => {
 		if (clientInFlight.get(key)?.promise === trackedRequest) {
 			clientInFlight.delete(key);
@@ -208,15 +219,24 @@ async function cachedClientRequest<T>(
 	return trackedRequest;
 }
 
-export function clearMediaClientCache(scope?: { libraryId?: string; rootEntityId?: string }) {
+export function clearMediaClientCache(scope?: {
+	libraryId?: string;
+	rootEntityId?: string;
+}) {
 	const affected = (key: string, value?: unknown) => {
 		if (!scope?.libraryId && !scope?.rootEntityId) return true;
 		if (/^(home|search|libraries|favorites):/.test(key)) return true;
 		if (scope.libraryId && key.includes(`:${scope.libraryId}:`)) return true;
-		if (scope.rootEntityId && (key.includes(`:${scope.rootEntityId}:`) || key.endsWith(`:${scope.rootEntityId}`))) return true;
-		const item = value && typeof value === "object" && "item" in value
-			? (value as DetailData).item
-			: value as MediaItem | undefined;
+		if (
+			scope.rootEntityId &&
+			(key.includes(`:${scope.rootEntityId}:`) ||
+				key.endsWith(`:${scope.rootEntityId}`))
+		)
+			return true;
+		const item =
+			value && typeof value === "object" && "item" in value
+				? (value as DetailData).item
+				: (value as MediaItem | undefined);
 		return Boolean(scope.libraryId && item?.LibraryId === scope.libraryId);
 	};
 	for (const [key, cached] of clientCache) {
@@ -286,12 +306,7 @@ export interface HomeGenreSection {
 }
 
 export type LibrarySortBy =
-	| "title"
-	| "added"
-	| "lastAdded"
-	| "release"
-	| "rating"
-	| "runtime";
+	"title" | "added" | "lastAdded" | "release" | "rating" | "runtime";
 
 export interface LibraryView extends MediaItem {
 	CollectionType?: string;
@@ -315,7 +330,11 @@ export async function getSearchItems(
 	return cachedClientRequest(
 		`search:${session.userId}:${term.toLocaleLowerCase()}`,
 		async (signal) => {
-			const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`, { signal: combinedSignal(options.signal, signal) });
+			const result = await catalogRequest<{ items: CatalogItem[] }>(
+				session,
+				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`,
+				{ signal: combinedSignal(options.signal, signal) },
+			);
 			return result.items.map(toMediaItem);
 		},
 	).then((items) => items.slice(0, limit));
@@ -334,21 +353,39 @@ export function orchestratorBaseUrl() {
 	return "http://127.0.0.1:9090";
 }
 
-let resourceTicket: { value: string; expiresAt: number; token: string } | null = null;
+let resourceTicket: { value: string; expiresAt: number; token: string } | null =
+	null;
 
-export async function primeResourceTicket(session: AuthSession): Promise<string | null> {
-	if (resourceTicket && resourceTicket.token === session.token && resourceTicket.expiresAt > Date.now() + 30_000)
+export async function primeResourceTicket(
+	session: AuthSession,
+): Promise<string | null> {
+	if (
+		resourceTicket &&
+		resourceTicket.token === session.token &&
+		resourceTicket.expiresAt > Date.now() + 30_000
+	)
 		return resourceTicket.value;
 	try {
-		const response = await fetch(`${orchestratorBaseUrl()}/api/auth/resource-ticket`, {
-			headers: { Authorization: `Bearer ${session.token}` },
-			cache: "no-store",
-		});
+		const response = await fetch(
+			`${orchestratorBaseUrl()}/api/auth/resource-ticket`,
+			{
+				headers: { Authorization: `Bearer ${session.token}` },
+				cache: "no-store",
+			},
+		);
 		if (!response.ok) return null;
-		const payload = (await response.json()) as { ticket?: unknown; expiresAt?: unknown };
+		const payload = (await response.json()) as {
+			ticket?: unknown;
+			expiresAt?: unknown;
+		};
 		if (typeof payload.ticket !== "string") return null;
 		const responseValue = payload as { expiresIn?: unknown };
-		const expiresAt = typeof payload.expiresAt === "number" ? payload.expiresAt * 1000 : typeof responseValue.expiresIn === "number" ? Date.now() + responseValue.expiresIn * 1000 : Date.now() + 10 * 60_000;
+		const expiresAt =
+			typeof payload.expiresAt === "number"
+				? payload.expiresAt * 1000
+				: typeof responseValue.expiresIn === "number"
+					? Date.now() + responseValue.expiresIn * 1000
+					: Date.now() + 10 * 60_000;
 		resourceTicket = { value: payload.ticket, expiresAt, token: session.token };
 		return payload.ticket;
 	} catch {
@@ -357,21 +394,22 @@ export async function primeResourceTicket(session: AuthSession): Promise<string 
 }
 
 function addResourceTicket(params: URLSearchParams) {
-	if (resourceTicket && resourceTicket.expiresAt > Date.now()) params.set("access", resourceTicket.value);
+	if (resourceTicket && resourceTicket.expiresAt > Date.now())
+		params.set("access", resourceTicket.value);
 }
 
 export async function authenticateByName(
 	username: string,
 	password: string,
 ): Promise<AuthResponse> {
-	const response = await fetch(
-		`${orchestratorBaseUrl()}/api/auth/login`,
-		{
-			method: "POST",
-			headers: { Accept: "application/json", "Content-Type": "application/json" },
-			body: JSON.stringify({ username: username.trim(), password: password.trim() }),
-		},
-	);
+	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/login`, {
+		method: "POST",
+		headers: { Accept: "application/json", "Content-Type": "application/json" },
+		body: JSON.stringify({
+			username: username.trim(),
+			password: password.trim(),
+		}),
+	});
 
 	if (!response.ok) {
 		throw new Error(`Login failed with ${response.status}.`);
@@ -384,29 +422,37 @@ export async function fetchHomeData(
 	session: AuthSession,
 	onSection?: (section: Partial<HomeData>) => void,
 ): Promise<HomeData> {
-	const data = await cachedClientRequest(`home:${session.userId}`, async (signal) => {
-	const result = await catalogRequest<{
-		latestItems: CatalogItem[];
-		continueWatching: CatalogItem[];
-		nextUp: CatalogItem[];
-		myList: CatalogItem[];
-		recentlyPlayed: CatalogItem[];
-		genreRows: Array<{ genre: string; items: CatalogItem[] }>;
-		libraryRows: Array<Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }>;
-	}>(session, "/api/catalog/home", { signal });
-	return {
-		latestItems: result.latestItems.map(toMediaItem),
-		continueWatching: result.continueWatching.map(toMediaItem),
-		nextUp: result.nextUp.map(toMediaItem),
-		myList: result.myList.map(toMediaItem),
-		recentlyPlayed: result.recentlyPlayed.map(toMediaItem),
-		genreRows: result.genreRows.map((row) => ({
-			...row,
-			items: row.items.map(toMediaItem),
-		})),
-		libraryRows: result.libraryRows.map((row) => ({ ...row, items: row.items.map(toMediaItem) })),
-	};
-	});
+	const data = await cachedClientRequest(
+		`home:${session.userId}`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				latestItems: CatalogItem[];
+				continueWatching: CatalogItem[];
+				nextUp: CatalogItem[];
+				myList: CatalogItem[];
+				recentlyPlayed: CatalogItem[];
+				genreRows: Array<{ genre: string; items: CatalogItem[] }>;
+				libraryRows: Array<
+					Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }
+				>;
+			}>(session, "/api/catalog/home", { signal });
+			return {
+				latestItems: result.latestItems.map(toMediaItem),
+				continueWatching: result.continueWatching.map(toMediaItem),
+				nextUp: result.nextUp.map(toMediaItem),
+				myList: result.myList.map(toMediaItem),
+				recentlyPlayed: result.recentlyPlayed.map(toMediaItem),
+				genreRows: result.genreRows.map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
+				libraryRows: result.libraryRows.map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
+			};
+		},
+	);
 	onSection?.(data);
 	return data;
 }
@@ -422,32 +468,42 @@ export function getFavoriteItems(
 	const params = new URLSearchParams({ pageSize: "100" });
 	if (options.sortBy) params.set("sortBy", options.sortBy);
 	if (options.sortOrder) params.set("sortOrder", options.sortOrder);
-	return cachedClientRequest(`favorites:${session.userId}:${params}`, async () => {
-		const result = await catalogRequest<{ items: CatalogItem[] }>(session, `/api/catalog/favorites?${params}`);
-		return result.items.map(toMediaItem);
-	});
+	return cachedClientRequest(
+		`favorites:${session.userId}:${params}`,
+		async () => {
+			const result = await catalogRequest<{ items: CatalogItem[] }>(
+				session,
+				`/api/catalog/favorites?${params}`,
+			);
+			return result.items.map(toMediaItem);
+		},
+	);
 }
 
-export async function getLibraryViews(
-	session: AuthSession,
-) {
+export async function getLibraryViews(session: AuthSession) {
 	return cachedClientRequest(`libraries:${session.userId}`, async () => {
-	const result = await catalogRequest<{
-		libraries: Array<{ id: string; name: string; type: string; supportsLastAdded?: boolean; catalogGeneration?: number }>;
-	}>(session, "/api/catalog/libraries");
-	return result.libraries.map((library) => ({
-		Id: library.id,
-		Name: library.name,
-		Type: "CollectionFolder",
-		CollectionType:
-			library.type === "tv_series"
-				? "tvshows"
-				: library.type === "movies"
-					? "movies"
-					: "boxsets",
-		SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
-		CatalogGeneration: library.catalogGeneration ?? 0,
-	})) as LibraryView[];
+		const result = await catalogRequest<{
+			libraries: Array<{
+				id: string;
+				name: string;
+				type: string;
+				supportsLastAdded?: boolean;
+				catalogGeneration?: number;
+			}>;
+		}>(session, "/api/catalog/libraries");
+		return result.libraries.map((library) => ({
+			Id: library.id,
+			Name: library.name,
+			Type: "CollectionFolder",
+			CollectionType:
+				library.type === "tv_series"
+					? "tvshows"
+					: library.type === "movies"
+						? "movies"
+						: "boxsets",
+			SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
+			CatalogGeneration: library.catalogGeneration ?? 0,
+		})) as LibraryView[];
 	});
 }
 
@@ -471,16 +527,23 @@ export async function getLibraryItems(
 		sortBy: catalogSort(options.sortBy),
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
-	return cachedClientRequest(`library:${session.userId}:${options.parentId}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`, async (signal) => {
-	const result = await catalogRequest<{
-		items: CatalogItem[];
-		total: number;
-	}>(session, `/api/catalog/items?${params}`, { signal: combinedSignal(options.signal, signal) });
-	return {
-		items: result.items.map(toMediaItem),
-		totalRecordCount: result.total,
-	};
-	}, LIST_CACHE_TTL_MS, false);
+	return cachedClientRequest(
+		`library:${session.userId}:${options.parentId}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				items: CatalogItem[];
+				total: number;
+			}>(session, `/api/catalog/items?${params}`, {
+				signal: combinedSignal(options.signal, signal),
+			});
+			return {
+				items: result.items.map(toMediaItem),
+				totalRecordCount: result.total,
+			};
+		},
+		LIST_CACHE_TTL_MS,
+		false,
+	);
 }
 
 function catalogSort(value: LibrarySortBy) {
@@ -493,60 +556,70 @@ export async function fetchDetailData(
 	requestedSeasonId?: string,
 	requestSignal?: AbortSignal,
 ): Promise<DetailData> {
-	return cachedClientRequest(`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`, async (signal) => {
-	const params = new URLSearchParams();
-	if (requestedSeasonId) params.set("seasonId", requestedSeasonId);
-	try {
-		const response = await catalogRequest<{
-			item: CatalogItem;
-			backgroundItem?: CatalogItem | null;
-			seasons: CatalogItem[];
-			episodes: CatalogItem[];
-			similar: CatalogItem[];
-			collectionItems?: CatalogItem[] | null;
-		}>(
-			session,
-			`/api/catalog/items/${encodeURIComponent(itemId)}/detail${params.size ? `?${params}` : ""}`,
-			{ signal: combinedSignal(requestSignal, signal) },
-		);
-		return {
-			item: toMediaItem(response.item),
-			backgroundItem: response.backgroundItem ? toMediaItem(response.backgroundItem) : undefined,
-			seasons: response.seasons.map(toMediaItem),
-			episodes: response.episodes.map(toMediaItem),
-			similar: response.similar.map(toMediaItem),
-			collectionItems: response.collectionItems?.map(toMediaItem),
-		};
-	} catch (error) {
-		const status = error instanceof Error ? error.message.match(/Request failed with (\d+)/)?.[1] : undefined;
-		if (status !== "404" && status !== "405") throw error;
-	}
-	const item = await getItem(session, itemId);
-	const seriesId = item.Type === "Episode" ? item.SeriesId : item.Id;
-	const backgroundItem =
-		item.Type === "Episode" && !item.BackdropImageTags?.length && seriesId
-			? await getItem(session, seriesId)
-			: undefined;
-	const seasons =
-		(item.Type === "Series" || item.Type === "Episode") && seriesId
-			? await getSeasons(session, seriesId)
-			: [];
-	const selectedSeason = getInitialSeason(item, seasons, requestedSeasonId);
-	const episodes =
-		seriesId && selectedSeason
-			? await getEpisodes(session, seriesId, selectedSeason.Id)
-			: [];
-	const similar =
-		item.Type === "Episode" ? [] : await getSimilarItems(session, item.Id);
-	const collectionItems =
-		item.Type === "BoxSet"
-			? await getChildren(session, item)
-			: undefined;
-	return { item, backgroundItem, seasons, episodes, similar, collectionItems };
-	}, DETAIL_CACHE_TTL_MS);
+	return cachedClientRequest(
+		`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`,
+		async (signal) => {
+			const params = new URLSearchParams();
+			if (requestedSeasonId) params.set("seasonId", requestedSeasonId);
+			try {
+				const response = await catalogRequest<{
+					item: CatalogItem;
+					backgroundItem?: CatalogItem | null;
+					seasons: CatalogItem[];
+					episodes: CatalogItem[];
+					similar: CatalogItem[];
+					collectionItems?: CatalogItem[] | null;
+				}>(
+					session,
+					`/api/catalog/items/${encodeURIComponent(itemId)}/detail${params.size ? `?${params}` : ""}`,
+					{ signal: combinedSignal(requestSignal, signal) },
+				);
+				return {
+					item: toMediaItem(response.item),
+					backgroundItem: response.backgroundItem
+						? toMediaItem(response.backgroundItem)
+						: undefined,
+					seasons: response.seasons.map(toMediaItem),
+					episodes: response.episodes.map(toMediaItem),
+					similar: response.similar.map(toMediaItem),
+					collectionItems: response.collectionItems?.map(toMediaItem),
+				};
+			} catch (error) {
+				const status =
+					error instanceof Error
+						? error.message.match(/Request failed with (\d+)/)?.[1]
+						: undefined;
+				if (status !== "404" && status !== "405") throw error;
+			}
+			const item = await getItem(session, itemId);
+			const seriesId = item.Type === "Episode" ? item.SeriesId : item.Id;
+			const backgroundItem =
+				item.Type === "Episode" && !item.BackdropImageTags?.length && seriesId
+					? await getItem(session, seriesId)
+					: undefined;
+			const seasons =
+				(item.Type === "Series" || item.Type === "Episode") && seriesId
+					? await getSeasons(session, seriesId)
+					: [];
+			const selectedSeason = getInitialSeason(item, seasons, requestedSeasonId);
+			const episodes =
+				seriesId && selectedSeason
+					? await getEpisodes(session, seriesId, selectedSeason.Id)
+					: [];
+			const similar =
+				item.Type === "Episode" ? [] : await getSimilarItems(session, item.Id);
+			const collectionItems =
+				item.Type === "BoxSet" ? await getChildren(session, item) : undefined;
+			return { item, backgroundItem, seasons, episodes, similar, collectionItems };
+		},
+		DETAIL_CACHE_TTL_MS,
+	);
 }
 
-export async function fetchPlayData(session: AuthSession, itemId: string): Promise<DetailData> {
+export async function fetchPlayData(
+	session: AuthSession,
+	itemId: string,
+): Promise<DetailData> {
 	const item = await getItem(session, itemId);
 	const seriesId = item.Type === "Episode" ? item.SeriesId : undefined;
 	const backgroundItem = seriesId ? await getItem(session, seriesId) : undefined;
@@ -600,37 +673,35 @@ export async function getPlaybackInfo(
 	const response = await catalogRequest<{
 		mode: "direct" | "remux" | "audio-transcode" | "video-transcode";
 		sessionState?: string;
-		source: Record<string, unknown> & { streams?: Array<Record<string, unknown>> };
+		source: Record<string, unknown> & {
+			streams?: Array<Record<string, unknown>>;
+		};
 		sessionId?: string;
 		startPositionSeconds?: number;
 		url: string;
-	}>(
-		session,
-		`/api/playback/items/${encodeURIComponent(itemId)}/negotiate`,
-		{
-			method: "POST",
-			body: JSON.stringify({
-				engine: "web",
-				sourceId: options.sourceId,
-				forceTranscoding: options.forceTranscoding === true,
-				requestedMode: options.requestedMode,
-				directPlayOnly: options.directPlayOnly === true,
-				containers: profile.directPlayProfiles.flatMap((entry) =>
-					String(entry.Container ?? "").split(","),
-				),
-				videoCodecs: profile.directPlayProfiles.flatMap((entry) =>
-					String(entry.VideoCodec ?? "").split(","),
-				),
-				audioCodecs: profile.directPlayProfiles.flatMap((entry) =>
-					String(entry.AudioCodec ?? "").split(","),
-				),
-				maxAudioChannels: profile.maxAudioChannels,
-				maxStreamingBitrate: options.maxStreamingBitrate,
-				startPositionSeconds: options.startPositionSeconds,
-				audioStreamId: options.audioStreamId,
-			}),
-		},
-	);
+	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/negotiate`, {
+		method: "POST",
+		body: JSON.stringify({
+			engine: "web",
+			sourceId: options.sourceId,
+			forceTranscoding: options.forceTranscoding === true,
+			requestedMode: options.requestedMode,
+			directPlayOnly: options.directPlayOnly === true,
+			containers: profile.directPlayProfiles.flatMap((entry) =>
+				String(entry.Container ?? "").split(","),
+			),
+			videoCodecs: profile.directPlayProfiles.flatMap((entry) =>
+				String(entry.VideoCodec ?? "").split(","),
+			),
+			audioCodecs: profile.directPlayProfiles.flatMap((entry) =>
+				String(entry.AudioCodec ?? "").split(","),
+			),
+			maxAudioChannels: profile.maxAudioChannels,
+			maxStreamingBitrate: options.maxStreamingBitrate,
+			startPositionSeconds: options.startPositionSeconds,
+			audioStreamId: options.audioStreamId,
+		}),
+	});
 	const source = mediaSourceFromPayload(response.source, itemId, {
 		url: response.url,
 		mode: response.mode,
@@ -638,7 +709,11 @@ export async function getPlaybackInfo(
 		sessionId: response.sessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
 	});
-	return { source, sessionId: response.sessionId, startPositionSeconds: response.startPositionSeconds ?? 0 };
+	return {
+		source,
+		sessionId: response.sessionId,
+		startPositionSeconds: response.startPositionSeconds ?? 0,
+	};
 }
 
 export async function getPlaybackSource(
@@ -662,13 +737,8 @@ function mediaSourceFromPayload(
 	return {
 		Id: String(source.id ?? itemId),
 		Container:
-			typeof source.container === "string"
-				? source.container
-				: undefined,
-		Bitrate:
-			typeof source.bitrate === "number"
-				? source.bitrate
-				: undefined,
+			typeof source.container === "string" ? source.container : undefined,
+		Bitrate: typeof source.bitrate === "number" ? source.bitrate : undefined,
 		SupportsDirectPlay: playback.mode === "direct",
 		SupportsDirectStream:
 			playback.mode === "remux" || playback.mode === "audio-transcode",
@@ -721,7 +791,8 @@ export async function waitForPlaybackReady(
 		await new Promise((resolve) => setTimeout(resolve, intervalMs));
 	}
 	throw new Error(
-		latest?.errorCode ?? "Playback session did not become ready before the deadline.",
+		latest?.errorCode ??
+			"Playback session did not become ready before the deadline.",
 	);
 }
 
@@ -739,10 +810,13 @@ export async function getTrickplayInfo(
 	if (!isRecord(response)) return undefined;
 	const nested = isRecord(response.trickplay)
 		? response.trickplay
-		: isRecord(response.sources) && sourceId && isRecord(response.sources[sourceId])
+		: isRecord(response.sources) &&
+			  sourceId &&
+			  isRecord(response.sources[sourceId])
 			? response.sources[sourceId]
 			: response;
-	if (nested.state !== "ready" || !Array.isArray(nested.sheets)) return undefined;
+	if (nested.state !== "ready" || !Array.isArray(nested.sheets))
+		return undefined;
 	const sheets = nested.sheets.flatMap((sheet): TrickplaySheet[] => {
 		if (!isRecord(sheet)) return [];
 		const index = Number(sheet.index);
@@ -755,7 +829,13 @@ export async function getTrickplayInfo(
 		}
 		if (!Number.isInteger(index) || index < 0 || !url) return [];
 		const frameCount = Number(sheet.frameCount);
-		return [{ index, url, ...(Number.isFinite(frameCount) && frameCount > 0 ? { frameCount } : {}) }];
+		return [
+			{
+				index,
+				url,
+				...(Number.isFinite(frameCount) && frameCount > 0 ? { frameCount } : {}),
+			},
+		];
 	});
 	if (!sheets.length) return undefined;
 	return {
@@ -815,9 +895,7 @@ export function preserveTrickplay(
 	return { ...source, Trickplay: previousSource.Trickplay };
 }
 
-export function playbackUrl(
-	source?: MediaSource,
-) {
+export function playbackUrl(source?: MediaSource) {
 	const negotiatedUrl = source?.url;
 	if (negotiatedUrl) {
 		const gatewayUrl = new URL(orchestratorBaseUrl());
@@ -880,16 +958,22 @@ export function trickplayPreview(
 		details.Height ??
 		details.height ??
 		Math.round((thumbnailWidth * 9) / 16);
-	const columns = details.columns ?? details.TileWidth ?? details.tileWidth ?? 10;
+	const columns =
+		details.columns ?? details.TileWidth ?? details.tileWidth ?? 10;
 	const rows = details.rows ?? details.TileHeight ?? details.tileHeight ?? 10;
 	const intervalSeconds =
 		details.intervalSeconds ??
-		((details.Interval ?? details.interval ?? 0) / 1_000);
+		(details.Interval ?? details.interval ?? 0) / 1_000;
 	const frameCount = details.frameCount ?? details.ThumbnailCount ?? 0;
 	if (
-		![thumbnailWidth, thumbnailHeight, columns, rows, intervalSeconds, frameCount].every(
-			Number.isFinite,
-		)
+		![
+			thumbnailWidth,
+			thumbnailHeight,
+			columns,
+			rows,
+			intervalSeconds,
+			frameCount,
+		].every(Number.isFinite)
 	)
 		return null;
 	if (
@@ -928,15 +1012,21 @@ export async function reportPlayback(
 	durationSeconds?: number,
 ) {
 	void isPaused;
-	await catalogRequest(session, `/api/catalog/items/${encodeURIComponent(itemId)}/state`, {
-		method: "PATCH",
-		body: JSON.stringify({
-			positionSeconds: Math.max(0, positionSeconds),
-			...(durationSeconds != null && Number.isFinite(durationSeconds) && durationSeconds > 0
-				? { durationSeconds }
-				: {}),
-		}),
-	});
+	await catalogRequest(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({
+				positionSeconds: Math.max(0, positionSeconds),
+				...(durationSeconds != null &&
+				Number.isFinite(durationSeconds) &&
+				durationSeconds > 0
+					? { durationSeconds }
+					: {}),
+			}),
+		},
+	);
 }
 
 export async function getPlaybackMarkers(
@@ -945,12 +1035,17 @@ export async function getPlaybackMarkers(
 	sourceId?: string,
 ): Promise<{ intro?: PlaybackMarker; outro?: PlaybackMarker } | null> {
 	const query = sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : "";
-	const value = await catalogRequest(session, `/api/playback/items/${encodeURIComponent(itemId)}/segments${query}`);
+	const value = await catalogRequest(
+		session,
+		`/api/playback/items/${encodeURIComponent(itemId)}/segments${query}`,
+	);
 	const segments = Array.isArray((value as { segments?: unknown }).segments)
 		? (value as { segments: Array<Record<string, unknown>> }).segments
 		: [];
 	const marker = (type: "intro" | "outro") => {
-		const match = segments.find((segment) => String(segment.type).toLowerCase() === type);
+		const match = segments.find(
+			(segment) => String(segment.type).toLowerCase() === type,
+		);
 		return match ? toMarker(match.startSeconds, match.endSeconds) : undefined;
 	};
 	const intro = marker("intro");
@@ -1054,7 +1149,9 @@ export function getEpisodes(
 /** Loads every episode in display order so series playback can resume at the first unwatched item. */
 export function getSeriesEpisodes(session: AuthSession, seriesId: string) {
 	return getSeasons(session, seriesId).then(async (seasons) =>
-		(await Promise.all(seasons.map((season) => getChildren(session, season)))).flat(),
+		(
+			await Promise.all(seasons.map((season) => getChildren(session, season)))
+		).flat(),
 	);
 }
 
@@ -1084,10 +1181,14 @@ export async function setFavorite(
 	itemId: string,
 	favorite: boolean,
 ) {
-	await catalogRequest(session, `/api/catalog/items/${encodeURIComponent(itemId)}/state`, {
-		method: "PATCH",
-		body: JSON.stringify({ favorite }),
-	});
+	await catalogRequest(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ favorite }),
+		},
+	);
 	clearMediaClientCache();
 }
 
@@ -1096,10 +1197,14 @@ export async function setPlayed(
 	itemId: string,
 	played: boolean,
 ) {
-	await catalogRequest(session, `/api/catalog/items/${encodeURIComponent(itemId)}/state`, {
-		method: "PATCH",
-		body: JSON.stringify({ played }),
-	});
+	await catalogRequest(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ played }),
+		},
+	);
 	clearMediaClientCache();
 }
 
@@ -1213,9 +1318,7 @@ function imageData(
 		return {
 			src: url.toString(),
 			blurHash:
-				imageType === "Logo"
-					? undefined
-					: item.ImageBlurHashes?.[imageType]?.[tag],
+				imageType === "Logo" ? undefined : item.ImageBlurHashes?.[imageType]?.[tag],
 		};
 	}
 
@@ -1231,8 +1334,6 @@ function imageData(
 	return {
 		src: `${orchestratorBaseUrl()}/api/assets/items/${item.Id}/images/${imageType}?${params.toString()}${index ? `&index=${index.slice(1)}` : ""}`,
 		blurHash:
-			imageType === "Logo"
-				? undefined
-				: item.ImageBlurHashes?.[imageType]?.[tag],
+			imageType === "Logo" ? undefined : item.ImageBlurHashes?.[imageType]?.[tag],
 	};
 }

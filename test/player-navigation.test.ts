@@ -17,9 +17,7 @@ describe("player navigation", () => {
 	});
 
 	it("remembers the latest non-player route", () => {
-		rememberLastNonPlayerPath(
-			"/show/series/episode/episode-1?seasonId=season-1",
-		);
+		rememberLastNonPlayerPath("/show/series/episode/episode-1?seasonId=season-1");
 
 		expect(getLastNonPlayerPath()).toBe(
 			"/show/series/episode/episode-1?seasonId=season-1",

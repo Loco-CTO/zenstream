@@ -84,9 +84,7 @@ describe("home screen", () => {
 			movies: [item("movie-1", "Movie")],
 			myList: [item("list-1", "Favorite")],
 			recentlyPlayed: [item("recent-1", "Recently Played Title")],
-			genreRows: [
-				{ genre: "Drama", items: [item("drama-1", "Drama Title")] },
-			],
+			genreRows: [{ genre: "Drama", items: [item("drama-1", "Drama Title")] }],
 		});
 
 		render(
@@ -112,10 +110,9 @@ describe("home screen", () => {
 		expect(screen.getByText("Newly Added on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
 		expect(
-			within(screen.getByText("Newly Added on Anime").closest("section")!).queryByRole(
-				"link",
-				{ name: /all/i },
-			),
+			within(
+				screen.getByText("Newly Added on Anime").closest("section")!,
+			).queryByRole("link", { name: /all/i }),
 		).not.toBeInTheDocument();
 		expect(screen.getByText("Continue Watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
@@ -125,10 +122,10 @@ describe("home screen", () => {
 		expect(screen.getByText("Favorite")).toBeInTheDocument();
 		expect(screen.getByText("Recently Played Title")).toBeInTheDocument();
 		expect(
-		within(screen.getByText("My List").closest("section")!).getByRole("link", {
-			name: /all/i,
-		}),
-	).toHaveAttribute("href", "/favorites");
+			within(screen.getByText("My List").closest("section")!).getByRole("link", {
+				name: /all/i,
+			}),
+		).toHaveAttribute("href", "/favorites");
 
 		const sectionHeadings = screen
 			.getAllByRole("heading")
@@ -147,9 +144,9 @@ describe("home screen", () => {
 		);
 
 		const resumeCard = screen.getByText("Resume Show").closest("article");
-		expect(
-			screen.getByText("Continue Watching").closest("section"),
-		).toHaveClass("select-none");
+		expect(screen.getByText("Continue Watching").closest("section")).toHaveClass(
+			"select-none",
+		);
 		expect(resumeCard).toHaveClass("select-none");
 		expect(screen.getByRole("img", { name: "Resume Show" })).toHaveAttribute(
 			"draggable",
@@ -283,9 +280,7 @@ describe("home screen", () => {
 			myList: [],
 		});
 
-		expect(
-			await screen.findByText("Your library is empty"),
-		).toBeInTheDocument();
+		expect(await screen.findByText("Your library is empty")).toBeInTheDocument();
 	});
 });
 

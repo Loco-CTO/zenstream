@@ -6,21 +6,27 @@ import reactHooks from "eslint-plugin-react-hooks";
 const compat = new FlatCompat();
 
 const config = [
-  {
-    ignores: [".next/**", "node_modules/**", "coverage/**", "design/**", "next-env.d.ts"],
-  },
-  ...compat.config(nextVitals),
-  ...compat.config(nextTypescript),
-  {
-    plugins: {
-      "react-hooks": reactHooks,
-    },
-  },
-  {
-    rules: {
-      "@next/next/no-img-element": "off",
-    },
-  },
+	{
+		ignores: [
+			".next/**",
+			"node_modules/**",
+			"coverage/**",
+			"design/**",
+			"next-env.d.ts",
+		],
+	},
+	...compat.config(nextVitals),
+	...compat.config(nextTypescript),
+	{
+		plugins: {
+			"react-hooks": reactHooks,
+		},
+	},
+	{
+		rules: {
+			"@next/next/no-img-element": "off",
+		},
+	},
 ];
 
 export default config;

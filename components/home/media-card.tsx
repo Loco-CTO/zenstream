@@ -148,20 +148,14 @@ export function StackedPosterCard({
 							{image && (
 								<BlurHashImage
 									image={image}
-									alt={
-										stacked || episode
-											? (item.SeriesName ?? item.Name)
-											: item.Name
-									}
+									alt={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 									draggable={false}
 									className={`${MEDIA_CARD_IMAGE_CLASS}`}
 								/>
 							)}
 							{!image && <MediaPlaceholder />}
 							{stacked && (
-								<span
-									className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}
-								>
+								<span className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}>
 									{items.length} EP
 								</span>
 							)}
@@ -179,9 +173,7 @@ export function StackedPosterCard({
 						</p>
 						<p className="mt-0.5 truncate text-xs text-white/30">
 							{stacked
-								? (item.SeriesProductionYear ??
-									item.ProductionYear ??
-									item.Type)
+								? (item.SeriesProductionYear ?? item.ProductionYear ?? item.Type)
 								: episode
 									? episodeLabel(item)
 									: subtitle(item)}
@@ -190,9 +182,7 @@ export function StackedPosterCard({
 				</Link>
 				<MediaCardOverlay
 					href={detailHref(item)}
-					title={
-						stacked || episode ? (item.SeriesName ?? item.Name) : item.Name
-					}
+					title={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 					item={item}
 					session={session}
 					className="inset-x-0 top-0 aspect-[2/3]"
@@ -279,9 +269,7 @@ export function WatchedIndicator({
 	return (
 		<div
 			aria-label={
-				allWatched
-					? t("allEpisodesWatched")
-					: `${count} ${t("unwatchedEpisodes")}`
+				allWatched ? t("allEpisodesWatched") : `${count} ${t("unwatchedEpisodes")}`
 			}
 			className={`absolute right-2 top-2 flex items-center gap-1 ${MEDIA_CARD_TAG_CLASS}`}
 		>

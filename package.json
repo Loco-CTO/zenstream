@@ -9,6 +9,9 @@
     "prebuild": "node scripts/generate-service-worker.mjs",
     "build": "next build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,css,md}\"",
     "test": "vitest run"
   },
   "dependencies": {

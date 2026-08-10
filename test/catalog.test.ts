@@ -137,6 +137,22 @@ describe("catalog client", () => {
 		]);
 	});
 
+	it("restores a missing YouTube trailer URL from its video key", () => {
+		const item = toMediaItem({
+			id: "movie-1",
+			libraryId: "movies",
+			type: "movie",
+			name: "Example Movie",
+			metadata: {
+				trailers: [{ provider: "YouTube", videoId: "youtube-trailer" }],
+			},
+		} satisfies CatalogItem);
+
+		expect(item.RemoteTrailers).toEqual([
+			{ Url: "https://www.youtube.com/watch?v=youtube-trailer" },
+		]);
+	});
+
 	it("prefers season 1 over specials when opening a series", () => {
 		const seasons = [
 			toMediaItem({

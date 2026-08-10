@@ -128,11 +128,16 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		}),
 	);
 	const trailers = (item.metadata.trailers ?? []).flatMap((trailer) => {
-		const site = String(trailer.site ?? "").toLowerCase();
-		if (site === "youtube" && trailer.key) {
-			return [{ Url: `https://www.youtube.com/watch?v=${trailer.key}` }];
+		const site = String(
+			trailer.site ?? trailer.provider ?? trailer.source ?? "",
+		).toLowerCase();
+		const key = trailer.key ?? trailer.videoId;
+		if (site === "youtube" && key) {
+			return [{ Url: `https://www.youtube.com/watch?v=${String(key)}` }];
 		}
-		const url = typeof trailer.url === "string" ? trailer.url.trim() : "";
+		const url = [trailer.url, trailer.link, trailer.videoUrl, trailer.youtubeUrl].find(
+			(value): value is string => typeof value === "string" && /^https?:\/\//i.test(value.trim()),
+		)?.trim() ?? "";
 		return /^https?:\/\//i.test(url) ? [{ Url: url }] : [];
 	});
 	const productionYear = metadataYear(item.metadata.year, item.metadata.date);

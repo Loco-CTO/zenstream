@@ -181,6 +181,7 @@ const clientInFlight = new Map<
 	string,
 	{ promise: Promise<unknown>; controller: AbortController }
 >();
+const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();
 
 function combinedSignal(
 	external: AbortSignal | undefined,
@@ -247,6 +248,7 @@ export function clearMediaClientCache(scope?: {
 		pending.controller.abort();
 		clientInFlight.delete(key);
 	}
+	heroTrailerCache.clear();
 }
 
 export type ImageBlurHashes = Partial<
@@ -1061,8 +1063,6 @@ function toMarker(start: unknown, end: unknown): PlaybackMarker | undefined {
 		end: end > 1_000_000 ? end / 10_000_000 : end,
 	};
 }
-
-const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();
 
 export function getHeroTrailer(
 	session: AuthSession,

@@ -364,6 +364,7 @@ export function AppShell() {
 				const updated = await getMetadataLanguagePreference();
 				setMetadataLanguage(updated);
 				if (session) {
+					clearMediaClientCache();
 					if (detailId) await loadDetail(session, detailId);
 					else await loadHome(session);
 				}
@@ -387,6 +388,7 @@ export function AppShell() {
 			const updated = await setMetadataLanguagePreference(language);
 			setMetadataLanguage(updated);
 			if (session) {
+				clearMediaClientCache();
 				if (detailId) await loadDetail(session, detailId);
 				else await loadHome(session);
 			}

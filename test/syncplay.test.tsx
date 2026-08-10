@@ -167,7 +167,7 @@ describe("SyncplayProvider", () => {
 	});
 	it("normalizes a trailing slash in the public Socket.IO origin", () => {
 		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
-		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.amai.space/";
+		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.domain.com/";
 		const socketFactory = vi.mocked(io);
 		const initialCalls = socketFactory.mock.calls.length;
 		const view = render(
@@ -176,7 +176,7 @@ describe("SyncplayProvider", () => {
 			</SyncplayTestProvider>,
 		);
 		expect(socketFactory.mock.calls[initialCalls]?.[0]).toBe(
-			"https://zso.amai.space/syncplay",
+			"https://zso.domain.com/syncplay",
 		);
 		view.unmount();
 		if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_ZSO_URL;

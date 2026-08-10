@@ -229,63 +229,63 @@ export function SettingsPage({
 					<SettingsSection title={t("playback")}>
 						<UnsupportedSetting />
 						{false && (
-						<>
-						<SettingsRow
-							label={t("audioLanguage")}
-							right={
-								<SettingsSelect
+							<>
+								<SettingsRow
 									label={t("audioLanguage")}
-									value={audioLanguage}
-									options={[
-										["ja", t("japanese")],
-										["en", t("english")],
-										["es", t("spanish")],
-										["fr", t("french")],
-									]}
-									onChange={setAudioLanguage}
+									right={
+										<SettingsSelect
+											label={t("audioLanguage")}
+											value={audioLanguage}
+											options={[
+												["ja", t("japanese")],
+												["en", t("english")],
+												["es", t("spanish")],
+												["fr", t("french")],
+											]}
+											onChange={setAudioLanguage}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleLanguage")}
-							right={
-								<SettingsSelect
+								<SettingsRow
 									label={t("subtitleLanguage")}
-									value={subtitleLanguage}
-									options={[
-										["en", t("english")],
-										["ja", t("japanese")],
-										["es", t("spanish")],
-										["fr", t("french")],
-										["off", t("off")],
-									]}
-									onChange={setSubtitleLanguage}
+									right={
+										<SettingsSelect
+											label={t("subtitleLanguage")}
+											value={subtitleLanguage}
+											options={[
+												["en", t("english")],
+												["ja", t("japanese")],
+												["es", t("spanish")],
+												["fr", t("french")],
+												["off", t("off")],
+											]}
+											onChange={setSubtitleLanguage}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("autoplayNextEpisode")}
-							right={
-								<Toggle
+								<SettingsRow
 									label={t("autoplayNextEpisode")}
-									checked={autoplayNext}
-									onChange={setAutoplayNext}
+									right={
+										<Toggle
+											label={t("autoplayNextEpisode")}
+											checked={autoplayNext}
+											onChange={setAutoplayNext}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("autoplayBrowse")}
-							sub={t("autoplayBrowseDescription")}
-							border={false}
-							right={
-								<Toggle
+								<SettingsRow
 									label={t("autoplayBrowse")}
-									checked={autoplayBrowse}
-									onChange={setAutoplayBrowse}
+									sub={t("autoplayBrowseDescription")}
+									border={false}
+									right={
+										<Toggle
+											label={t("autoplayBrowse")}
+											checked={autoplayBrowse}
+											onChange={setAutoplayBrowse}
+										/>
+									}
 								/>
-							}
-						/>
-						</>
+							</>
 						)}
 					</SettingsSection>
 				)}
@@ -461,51 +461,51 @@ export function SettingsPage({
 					<SettingsSection title={t("notifications")}>
 						<UnsupportedSetting />
 						{false && (
-						<>
-						<SettingsRow
-							label={t("newEpisodes")}
-							sub={t("newEpisodesDescription")}
-							right={
-								<Toggle
+							<>
+								<SettingsRow
 									label={t("newEpisodes")}
-									checked={newEpisodes}
-									onChange={setNewEpisodes}
+									sub={t("newEpisodesDescription")}
+									right={
+										<Toggle
+											label={t("newEpisodes")}
+											checked={newEpisodes}
+											onChange={setNewEpisodes}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("newSeasons")}
-							right={
-								<Toggle
+								<SettingsRow
 									label={t("newSeasons")}
-									checked={newSeasons}
-									onChange={setNewSeasons}
+									right={
+										<Toggle
+											label={t("newSeasons")}
+											checked={newSeasons}
+											onChange={setNewSeasons}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("watchReminders")}
-							sub={t("watchRemindersDescription")}
-							right={
-								<Toggle
+								<SettingsRow
 									label={t("watchReminders")}
-									checked={reminders}
-									onChange={setReminders}
+									sub={t("watchRemindersDescription")}
+									right={
+										<Toggle
+											label={t("watchReminders")}
+											checked={reminders}
+											onChange={setReminders}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("appUpdates")}
-							border={false}
-							right={
-								<Toggle
+								<SettingsRow
 									label={t("appUpdates")}
-									checked={updates}
-									onChange={setUpdates}
+									border={false}
+									right={
+										<Toggle
+											label={t("appUpdates")}
+											checked={updates}
+											onChange={setUpdates}
+										/>
+									}
 								/>
-							}
-						/>
-						</>
+							</>
 						)}
 					</SettingsSection>
 				)}
@@ -514,39 +514,39 @@ export function SettingsPage({
 					<SettingsSection title={t("privacyData")}>
 						<UnsupportedSetting />
 						{false && (
-						<>
-						<SettingsRow
-							label={t("watchHistory")}
-							sub={t("watchHistoryDescription")}
-							right={
-								<Toggle
+							<>
+								<SettingsRow
 									label={t("watchHistory")}
-									checked={watchHistory}
-									onChange={setWatchHistory}
+									sub={t("watchHistoryDescription")}
+									right={
+										<Toggle
+											label={t("watchHistory")}
+											checked={watchHistory}
+											onChange={setWatchHistory}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("dataSaver")}
-							sub={t("dataSaverDescription")}
-							right={
-								<Toggle
+								<SettingsRow
 									label={t("dataSaver")}
-									checked={dataSaver}
-									onChange={setDataSaver}
+									sub={t("dataSaverDescription")}
+									right={
+										<Toggle
+											label={t("dataSaver")}
+											checked={dataSaver}
+											onChange={setDataSaver}
+										/>
+									}
 								/>
-							}
-						/>
-						<SettingsRow
-							label={t("clearWatchHistory")}
-							border={false}
-							right={
-								<button className="text-xs font-medium text-red-400/70 transition hover:text-red-400">
-									{t("clear")}
-								</button>
-							}
-						/>
-						</>
+								<SettingsRow
+									label={t("clearWatchHistory")}
+									border={false}
+									right={
+										<button className="text-xs font-medium text-red-400/70 transition hover:text-red-400">
+											{t("clear")}
+										</button>
+									}
+								/>
+							</>
 						)}
 					</SettingsSection>
 				)}

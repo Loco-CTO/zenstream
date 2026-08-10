@@ -51,7 +51,10 @@ export function LoginPage({
 				<p className="mt-2 text-sm leading-6 text-white/40">
 					{t("loginDescription")}
 				</p>
-				<label htmlFor="login-username" className="mt-7 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35">
+				<label
+					htmlFor="login-username"
+					className="mt-7 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35"
+				>
 					{t("username")}
 				</label>
 				<input
@@ -62,7 +65,10 @@ export function LoginPage({
 					autoComplete="username"
 					required
 				/>
-				<label htmlFor="login-password" className="mt-4 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35">
+				<label
+					htmlFor="login-password"
+					className="mt-4 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35"
+				>
 					{t("password")}
 				</label>
 				<input

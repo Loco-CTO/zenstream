@@ -133,7 +133,15 @@ export function Hero({
 				fallbackTimer.current = null;
 			}
 		};
-	}, [canNavigateSlides, canPlayTrailers, goToNextSlide, isPaused, reduceMotion, item, session]);
+	}, [
+		canNavigateSlides,
+		canPlayTrailers,
+		goToNextSlide,
+		isPaused,
+		reduceMotion,
+		item,
+		session,
+	]);
 
 	const handleTrailerFailure = useCallback(() => {
 		setTrailer(null);
@@ -295,7 +303,9 @@ export function Hero({
 			{canNavigateSlides && !reduceMotion && (
 				<button
 					type="button"
-					aria-label={isPaused ? "Resume featured carousel" : "Pause featured carousel"}
+					aria-label={
+						isPaused ? "Resume featured carousel" : "Pause featured carousel"
+					}
 					aria-pressed={isPaused}
 					onClick={() => setIsPaused((paused) => !paused)}
 					className="absolute bottom-14 right-16 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xs text-white/75 backdrop-blur transition hover:bg-black/75 hover:text-white md:right-24"

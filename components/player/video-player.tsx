@@ -862,10 +862,7 @@ export function VideoPlayer({
 						void cancelSessionOnce(pendingSessionId, "stale_initial_failure");
 					return;
 				}
-				if (
-					pendingSessionId &&
-					pendingSessionId !== sourceRef.current?.sessionId
-				)
+				if (pendingSessionId && pendingSessionId !== sourceRef.current?.sessionId)
 					void cancelSessionOnce(pendingSessionId, "failed_initial_negotiation");
 				playerDebug("playback negotiation or readiness failed", {
 					error: error instanceof Error ? error.message : String(error),

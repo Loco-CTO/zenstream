@@ -355,8 +355,11 @@ export function orchestratorBaseUrl() {
 	return "http://127.0.0.1:9090";
 }
 
-let resourceTicket: { value: string; expiresAt: number; sessionKey: string } | null =
-	null;
+let resourceTicket: {
+	value: string;
+	expiresAt: number;
+	sessionKey: string;
+} | null = null;
 
 function resourceSessionKey(session: AuthSession | null | undefined) {
 	return session ? `${session.userId}:${session.token || "browser-cookie"}` : "";
@@ -370,7 +373,9 @@ export function clearMediaClientSession() {
 export async function revokeAuthSession(session: AuthSession): Promise<void> {
 	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/logout`, {
 		method: "POST",
-		headers: session.token ? { Authorization: `Bearer ${session.token}` } : undefined,
+		headers: session.token
+			? { Authorization: `Bearer ${session.token}` }
+			: undefined,
 		credentials: "include",
 		cache: "no-store",
 		keepalive: true,
@@ -394,7 +399,9 @@ export async function primeResourceTicket(
 		const response = await fetch(
 			`${orchestratorBaseUrl()}/api/auth/resource-ticket`,
 			{
-				headers: session.token ? { Authorization: `Bearer ${session.token}` } : undefined,
+				headers: session.token
+					? { Authorization: `Bearer ${session.token}` }
+					: undefined,
 				credentials: "include",
 				cache: "no-store",
 			},
@@ -426,7 +433,10 @@ export async function primeResourceTicket(
 function addResourceTicket(params: URLSearchParams, sessionToken?: string) {
 	const activeSession = getAuthSession();
 	const activeKey = sessionToken
-		? resourceSessionKey({ ...(activeSession ?? { userId: "", username: "" }), token: sessionToken })
+		? resourceSessionKey({
+				...(activeSession ?? { userId: "", username: "" }),
+				token: sessionToken,
+			})
 		: resourceSessionKey(activeSession);
 	if (
 		resourceTicket &&
@@ -440,15 +450,18 @@ export async function authenticateByName(
 	username: string,
 	password: string,
 ): Promise<AuthResponse> {
-	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/browser-login`, {
-		method: "POST",
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
-		body: JSON.stringify({
-			username: username.trim(),
-			password,
-		}),
-		credentials: "include",
-	});
+	const response = await fetch(
+		`${orchestratorBaseUrl()}/api/auth/browser-login`,
+		{
+			method: "POST",
+			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: username.trim(),
+				password,
+			}),
+			credentials: "include",
+		},
+	);
 
 	if (!response.ok) {
 		throw new Error(`Login failed with ${response.status}.`);
@@ -1328,7 +1341,11 @@ export function personImage(person: MediaPerson) {
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
 		const url = new URL(tag, orchestratorBaseUrl());
-		if (resourceTicket && resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) && resourceTicket.expiresAt > Date.now())
+		if (
+			resourceTicket &&
+			resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
+			resourceTicket.expiresAt > Date.now()
+		)
 			url.searchParams.set("access", resourceTicket.value);
 		return {
 			src: url.toString(),
@@ -1351,7 +1368,11 @@ function imageData(
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
 		const url = new URL(tag, orchestratorBaseUrl());
-		if (resourceTicket && resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) && resourceTicket.expiresAt > Date.now())
+		if (
+			resourceTicket &&
+			resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
+			resourceTicket.expiresAt > Date.now()
+		)
 			url.searchParams.set("access", resourceTicket.value);
 		return {
 			src: url.toString(),

@@ -227,7 +227,9 @@ function isCurrentParticipant(
 	member: { participantId?: string },
 	currentId: string,
 ) {
-	return typeof member.participantId === "string" && member.participantId === currentId;
+	return (
+		typeof member.participantId === "string" && member.participantId === currentId
+	);
 }
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;

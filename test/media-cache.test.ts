@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearMediaClientCache, getLibraryItems } from "@/lib/media-api";
+import {
+	clearMediaClientCache,
+	getHeroTrailer,
+	getLibraryItems,
+	type MediaItem,
+} from "@/lib/media-api";
 
 const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 
@@ -9,6 +14,24 @@ afterEach(() => {
 });
 
 describe("media client cache", () => {
+	it("clears the resolved hero trailer cache with media caches", async () => {
+		const item: MediaItem = {
+			Id: "movie-1",
+			Name: "Movie",
+			RemoteTrailers: [{ Url: "https://www.youtube.com/watch?v=english" }],
+		};
+		const first = await getHeroTrailer(session, item);
+		expect(first?.videoId).toBe("english");
+
+		clearMediaClientCache();
+		const localized: MediaItem = {
+			...item,
+			RemoteTrailers: [{ Url: "https://www.youtube.com/watch?v=japanese" }],
+		};
+		const second = await getHeroTrailer(session, localized);
+		expect(second?.videoId).toBe("japanese");
+	});
+
 	it("does not reuse an invalidated in-flight library request", async () => {
 		const firstController = new AbortController();
 		const fetchMock = vi.spyOn(globalThis, "fetch");

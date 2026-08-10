@@ -5,42 +5,42 @@ import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-regis
 import "./globals.css";
 
 export const viewport = {
-	themeColor: "#070707",
-	width: "device-width",
-	initialScale: 1,
-	viewportFit: "cover",
+  themeColor: "#070707",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 } as const;
 
 const notoSans = Noto_Sans({
-	subsets: ["latin"],
-	variable: "--font-noto-sans",
+  subsets: ["latin"],
+  variable: "--font-noto-sans",
 });
 
 export const metadata: Metadata = {
-	title: "ZenStream",
-	description: "ZenStream home",
-	icons: {
-		icon: "/icon.png",
-		apple: "/icon.png",
-	},
-	appleWebApp: {
-		capable: true,
-		statusBarStyle: "black-translucent",
-		title: "ZenStream",
-	},
+  title: "ZenStream",
+  description: "ZenStream home",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ZenStream",
+  },
 };
 
 export default function RootLayout({
-	children,
+  children,
 }: Readonly<{
-	children: React.ReactNode;
+  children: React.ReactNode;
 }>) {
-	return (
-		<html lang="en" className={`dark ${notoSans.variable}`}>
-			<body>
-				<ServiceWorkerRegistration />
-				<ProgressProvider>{children}</ProgressProvider>
-			</body>
-		</html>
-	);
+  return (
+    <html lang="en" className={`dark ${notoSans.variable}`}>
+      <body>
+        <ServiceWorkerRegistration />
+        <ProgressProvider>{children}</ProgressProvider>
+      </body>
+    </html>
+  );
 }

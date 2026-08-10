@@ -490,7 +490,7 @@ function YouTubeTrailer({
 	}, [onEnded, onError]);
 
 	const params = new URLSearchParams({
-		autoplay: paused ? "0" : "1",
+		autoplay: "1",
 		mute: "1",
 		controls: "0",
 		cc_load_policy: "0",

@@ -175,6 +175,7 @@ type Context = {
 		viewing: boolean,
 		loading: boolean,
 		mediaGeneration?: number,
+		timelineRevision?: number,
 	) => Promise<void>;
 	canControl: boolean;
 	serverNow: () => number;
@@ -311,7 +312,15 @@ export function SyncplayProvider({
 	const socketRef = useRef<Socket | null>(null);
 	const commandChainRef = useRef(Promise.resolve());
 	const latestSeekRef = useRef(0);
-	const presenceChainRef = useRef(Promise.resolve());
+	const presencePendingRef = useRef<{
+		groupId: string;
+		viewing: boolean;
+		loading: boolean;
+		generation: number;
+		timelineRevision: number;
+		sequence: number;
+	} | null>(null);
+	const presenceWorkerRef = useRef<Promise<void> | null>(null);
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
 	const tombstonesRef = useRef(new Map<string, number>());
@@ -854,55 +863,59 @@ export function SyncplayProvider({
 		commandChainRef.current = next;
 		return next;
 	};
-	const presence = async (
+	const startPresenceWorker = () => {
+		if (presenceWorkerRef.current) return;
+		presenceWorkerRef.current = (async () => {
+			while (presencePendingRef.current) {
+				const report = presencePendingRef.current;
+				presencePendingRef.current = null;
+				if (activeRef.current?.id !== report.groupId) continue;
+				try {
+					syncplayDebug("presence send", report);
+					adopt(
+						(await call(`groups/${report.groupId}/presence`, "POST", {
+							viewing: report.viewing,
+							loading: report.loading,
+							mediaGeneration: report.generation,
+							timelineRevision: report.timelineRevision,
+							presenceSequence: report.sequence,
+							operationId: operationId(),
+						})) as SyncplayGroup,
+					);
+				} catch (error) {
+					syncplayDebug("presence failed", { ...report, error });
+					toast.error(t("syncplayPresenceFailed"));
+				}
+			}
+		})().finally(() => {
+			presenceWorkerRef.current = null;
+			// A report can be queued in the same turn that the worker drains its
+			// last item. Start a replacement so it cannot be stranded.
+			if (presencePendingRef.current) startPresenceWorker();
+		});
+	};
+	const presence = (
 		viewing: boolean,
 		loading: boolean,
 		mediaGeneration?: number,
-	) => {
+		timelineRevision?: number,
+	): Promise<void> => {
 		const group = activeRef.current;
-		if (!group) return;
+		if (!group) return Promise.resolve();
 		const groupId = group.id;
 		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
-		const timelineRevision = group.timelineRevision ?? group.revision;
+		const revision = timelineRevision ?? group.timelineRevision ?? group.revision;
 		const sequence = ++presenceSequenceRef.current;
-		const send = async () => {
-			if (activeRef.current?.id !== groupId) return;
-			try {
-				syncplayDebug("presence send", {
-					groupId,
-					viewing,
-					loading,
-					generation,
-					timelineRevision,
-					sequence,
-				});
-				adopt(
-					(await call(`groups/${groupId}/presence`, "POST", {
-						viewing,
-						loading,
-						mediaGeneration: generation,
-						timelineRevision,
-						presenceSequence: sequence,
-						operationId: operationId(),
-					})) as SyncplayGroup,
-				);
-			} catch (error) {
-				syncplayDebug("presence failed", {
-					groupId,
-					viewing,
-					loading,
-					generation,
-					timelineRevision,
-					sequence,
-					error,
-				});
-				toast.error(t("syncplayPresenceFailed"));
-				throw error;
-			}
+		presencePendingRef.current = {
+			groupId,
+			viewing,
+			loading,
+			generation,
+			timelineRevision: revision,
+			sequence,
 		};
-		const next = presenceChainRef.current.catch(() => undefined).then(send);
-		presenceChainRef.current = next;
-		return next;
+		startPresenceWorker();
+		return presenceWorkerRef.current ?? Promise.resolve();
 	};
 	const value = {
 		groups,

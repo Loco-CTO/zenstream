@@ -88,12 +88,21 @@ describe("video player controls", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());
 
-	it("detects when Syncplay is waiting for other members", () => {
+	it("detects when an active Syncplay member is waiting", () => {
 		const group = {
 			itemId: "movie",
 			resumeWhenReady: true,
 			mediaGeneration: 2,
-			members: [],
+			members: [
+				{
+					userId: "other",
+					username: "Other",
+					viewing: true,
+					loading: true,
+					readyGeneration: -1,
+					role: "viewer",
+				},
+			],
 		} as SyncplayGroup;
 		expect(syncplayWaitingForMembers(group, "movie")).toBe(true);
 		expect(
@@ -580,7 +589,7 @@ describe("video player controls", () => {
 		});
 	});
 
-	it("navigates locally before the Syncplay media command resolves", async () => {
+	it("navigates only after the Syncplay media command resolves", async () => {
 		let resolveCommand!: (value: unknown) => void;
 		const command = vi.fn(
 			() => new Promise<unknown>((resolve) => (resolveCommand = resolve)),
@@ -595,11 +604,14 @@ describe("video player controls", () => {
 
 		advanceToNextEpisodeWithSyncplay(next, command, onNext, onClose);
 
-		expect(onNext).toHaveBeenCalledWith(next);
+		expect(onNext).not.toHaveBeenCalled();
 		expect(onClose).not.toHaveBeenCalled();
 		expect(command).toHaveBeenCalledWith(nextEpisodeSyncplayCommand(next));
-		resolveCommand({});
-		await Promise.resolve();
+		await act(async () => {
+			resolveCommand({});
+			await Promise.resolve();
+		});
+		expect(onNext).toHaveBeenCalledWith(next);
 	});
 
 	it("holds a scheduled Syncplay start until its server timestamp", () => {

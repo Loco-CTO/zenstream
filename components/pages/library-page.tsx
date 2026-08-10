@@ -12,7 +12,10 @@ import {
 } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
-import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
+import {
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import {
 	getLibraryItems,
@@ -80,10 +83,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		activeLibrary?.SupportsLastAdded ??
 		activeLibrary?.CollectionType !== "movies";
 	const availableSorts = useMemo(
-		() =>
-			SORTS.filter(
-				(item) => item.value !== "lastAdded" || supportsLastAdded,
-			),
+		() => SORTS.filter((item) => item.value !== "lastAdded" || supportsLastAdded),
 		[supportsLastAdded],
 	);
 	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
@@ -110,9 +110,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		} catch (nextError) {
 			if (!controller.signal.aborted) {
 				setError(
-					nextError instanceof Error
-						? nextError.message
-						: "Library request failed.",
+					nextError instanceof Error ? nextError.message : "Library request failed.",
 				);
 				setLoading(false);
 			}
@@ -284,7 +282,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		const refresh = (event: Event) => {
-			const libraryId = (event as CustomEvent<{ libraryId?: string }>).detail?.libraryId;
+			const libraryId = (event as CustomEvent<{ libraryId?: string }>).detail
+				?.libraryId;
 			if (libraryId && libraryId !== activeLibrary?.Id) return;
 			void loadFirstPage(true);
 		};
@@ -336,9 +335,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				itemRequestGenerationRef.current === requestGeneration
 			) {
 				setError(
-					nextError instanceof Error
-						? nextError.message
-						: "Library request failed.",
+					nextError instanceof Error ? nextError.message : "Library request failed.",
 				);
 			}
 		} finally {
@@ -404,15 +401,12 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					<button
 						type="button"
 						aria-label={
-							sortOrder === "Ascending"
-								? t("sortAscending")
-								: t("sortDescending")
+							sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")
 						}
 						onClick={() =>
 							setSort((value) => ({
 								...value,
-								sortOrder:
-									value.sortOrder === "Ascending" ? "Descending" : "Ascending",
+								sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending",
 							}))
 						}
 						className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition hover:border-white/20 hover:text-white"

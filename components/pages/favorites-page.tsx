@@ -65,15 +65,12 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 					<button
 						type="button"
 						aria-label={
-							sortOrder === "Ascending"
-								? t("sortAscending")
-								: t("sortDescending")
+							sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")
 						}
 						onClick={() =>
 							setSort((value) => ({
 								...value,
-								sortOrder:
-									value.sortOrder === "Ascending" ? "Descending" : "Ascending",
+								sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending",
 							}))
 						}
 						className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white"
@@ -105,9 +102,7 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 				/>
 			) : loading ? null : items.length === 0 ? (
 				<div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center">
-					<h2 className="text-lg font-semibold text-white/80">
-						{t("noFavorites")}
-					</h2>
+					<h2 className="text-lg font-semibold text-white/80">{t("noFavorites")}</h2>
 				</div>
 			) : (
 				<>

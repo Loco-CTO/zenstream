@@ -77,9 +77,7 @@ describe("SyncplayPlaybackFollower", () => {
 		const view = render(<SyncplayPlaybackFollower />);
 		state.pathname = "/library";
 		view.rerender(<SyncplayPlaybackFollower />);
-		await waitFor(() =>
-			expect(setWatchingTogether).toHaveBeenCalledWith(false),
-		);
+		await waitFor(() => expect(setWatchingTogether).toHaveBeenCalledWith(false));
 		expect(router.push).not.toHaveBeenCalled();
 	});
 

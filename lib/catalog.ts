@@ -33,7 +33,12 @@ export type CatalogItem = {
 			crew?: Array<Record<string, unknown>>;
 		};
 		trailers?: Array<Record<string, unknown>>;
-		images?: Partial<Record<"Primary" | "Backdrop" | "Logo" | "Banner", { url?: string; blurHash?: string }>>;
+		images?: Partial<
+			Record<
+				"Primary" | "Backdrop" | "Logo" | "Banner",
+				{ url?: string; blurHash?: string }
+			>
+		>;
 	};
 	userState?: {
 		favorite?: boolean;
@@ -48,12 +53,17 @@ export type CatalogItem = {
 };
 
 export function orchestratorBaseUrl() {
-	if (process.env.NEXT_PUBLIC_ZSO_URL) return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
+	if (process.env.NEXT_PUBLIC_ZSO_URL)
+		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
 	if (typeof window !== "undefined") return window.location.origin;
 	return "http://127.0.0.1:9090";
 }
 
-export async function catalogRequest<T>(session: AuthSession, path: string, init: RequestInit = {}): Promise<T> {
+export async function catalogRequest<T>(
+	session: AuthSession,
+	path: string,
+	init: RequestInit = {},
+): Promise<T> {
 	const controller = new AbortController();
 	const timeout = window.setTimeout(() => controller.abort(), 20_000);
 	const abort = () => controller.abort();
@@ -79,7 +89,8 @@ export async function catalogRequest<T>(session: AuthSession, path: string, init
 		window.clearTimeout(timeout);
 		init.signal?.removeEventListener("abort", abort);
 	}
-	if (response.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("zenstream:auth-expired"));
+	if (response.status === 401 && typeof window !== "undefined")
+		window.dispatchEvent(new Event("zenstream:auth-expired"));
 	if (!response.ok) throw new Error(`Request failed with ${response.status}.`);
 	if (response.status === 204) return null as T;
 	return response.json() as Promise<T>;
@@ -107,23 +118,29 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		(item.metadata.credits?.[creditType] ?? []).map((person) => {
 			const image = person.image;
 			const imageUrl =
-				image && typeof image === "object" && typeof (image as Record<string, unknown>).url === "string"
+				image &&
+				typeof image === "object" &&
+				typeof (image as Record<string, unknown>).url === "string"
 					? String((image as Record<string, unknown>).url)
 					: undefined;
 			const blurHash =
-				image && typeof image === "object" && typeof (image as Record<string, unknown>).blurHash === "string"
+				image &&
+				typeof image === "object" &&
+				typeof (image as Record<string, unknown>).blurHash === "string"
 					? String((image as Record<string, unknown>).blurHash)
 					: undefined;
 			return {
 				Id: typeof person.id === "string" ? person.id : undefined,
 				Name: String(person.name ?? ""),
-				Role: typeof (creditType === "cast" ? person.character : person.job) === "string"
-					? String(creditType === "cast" ? person.character : person.job)
-					: undefined,
+				Role:
+					typeof (creditType === "cast" ? person.character : person.job) === "string"
+						? String(creditType === "cast" ? person.character : person.job)
+						: undefined,
 				Type: typeof person.department === "string" ? person.department : undefined,
 				CreditType: creditType,
 				PrimaryImageTag: imageUrl,
-				ImageBlurHashes: imageUrl && blurHash ? { Primary: { [imageUrl]: blurHash } } : undefined,
+				ImageBlurHashes:
+					imageUrl && blurHash ? { Primary: { [imageUrl]: blurHash } } : undefined,
 			};
 		}),
 	);
@@ -135,9 +152,13 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		if (site === "youtube" && key) {
 			return [{ Url: `https://www.youtube.com/watch?v=${String(key)}` }];
 		}
-		const url = [trailer.url, trailer.link, trailer.videoUrl, trailer.youtubeUrl].find(
-			(value): value is string => typeof value === "string" && /^https?:\/\//i.test(value.trim()),
-		)?.trim() ?? "";
+		const url =
+			[trailer.url, trailer.link, trailer.videoUrl, trailer.youtubeUrl]
+				.find(
+					(value): value is string =>
+						typeof value === "string" && /^https?:\/\//i.test(value.trim()),
+				)
+				?.trim() ?? "";
 		return /^https?:\/\//i.test(url) ? [{ Url: url }] : [];
 	});
 	const productionYear = metadataYear(item.metadata.year, item.metadata.date);
@@ -154,12 +175,14 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		ParentIndexNumber: item.seasonNumber ?? undefined,
 		IndexNumber:
 			item.type === "season"
-				? item.seasonNumber ?? undefined
-				: item.episodeNumber ?? undefined,
+				? (item.seasonNumber ?? undefined)
+				: (item.episodeNumber ?? undefined),
 		Overview: item.metadata.overview ?? item.metadata.description,
 		ProductionYear: productionYear,
 		PremiereDate: item.metadata.date,
-		RunTimeTicks: item.metadata.runtimeMinutes ? item.metadata.runtimeMinutes * 60 * 10_000_000 : undefined,
+		RunTimeTicks: item.metadata.runtimeMinutes
+			? item.metadata.runtimeMinutes * 60 * 10_000_000
+			: undefined,
 		CommunityRating: item.metadata.communityRating,
 		OfficialRating: item.metadata.officialRating,
 		Genres: item.metadata.tags,
@@ -171,16 +194,27 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		},
 		BackdropImageTags: images.Backdrop?.url ? [images.Backdrop.url] : [],
 		ImageBlurHashes: {
-			Primary: images.Primary?.url && images.Primary.blurHash ? { [images.Primary.url]: images.Primary.blurHash } : undefined,
-			Backdrop: images.Backdrop?.url && images.Backdrop.blurHash ? { [images.Backdrop.url]: images.Backdrop.blurHash } : undefined,
-			Banner: images.Banner?.url && images.Banner.blurHash ? { [images.Banner.url]: images.Banner.blurHash } : undefined,
+			Primary:
+				images.Primary?.url && images.Primary.blurHash
+					? { [images.Primary.url]: images.Primary.blurHash }
+					: undefined,
+			Backdrop:
+				images.Backdrop?.url && images.Backdrop.blurHash
+					? { [images.Backdrop.url]: images.Backdrop.blurHash }
+					: undefined,
+			Banner:
+				images.Banner?.url && images.Banner.blurHash
+					? { [images.Banner.url]: images.Banner.blurHash }
+					: undefined,
 		},
 		UserData: {
 			IsFavorite: item.userState?.favorite,
 			Played: item.userState?.played,
 			UnplayedItemCount: item.userState?.unplayedItemCount,
 			PlayedPercentage: item.userState?.playedPercentage,
-			PlaybackPositionTicks: item.userState?.positionSeconds ? item.userState.positionSeconds * 10_000_000 : 0,
+			PlaybackPositionTicks: item.userState?.positionSeconds
+				? item.userState.positionSeconds * 10_000_000
+				: 0,
 			PlayCount: item.userState?.playCount,
 			DurationSeconds: item.userState?.durationSeconds,
 			LastPlayedAt: item.userState?.lastPlayedAt ?? undefined,
@@ -193,15 +227,25 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 	};
 }
 
-export function toMediaStreams(streams: Array<Record<string, unknown>>): MediaStream[] {
+export function toMediaStreams(
+	streams: Array<Record<string, unknown>>,
+): MediaStream[] {
 	return streams.map((stream, index) => ({
 		Index: typeof stream.index === "number" ? stream.index : index,
 		Type: (() => {
 			const value = String(stream.codec_type ?? stream.type ?? "").toLowerCase();
 			return value ? `${value[0].toUpperCase()}${value.slice(1)}` : "";
 		})(),
-		Language: typeof (stream.tags as Record<string, unknown> | undefined)?.language === "string" ? String((stream.tags as Record<string, unknown>).language) : undefined,
-		DisplayTitle: typeof (stream.tags as Record<string, unknown> | undefined)?.title === "string" && String((stream.tags as Record<string, unknown>).title) ? String((stream.tags as Record<string, unknown>).title) : undefined,
+		Language:
+			typeof (stream.tags as Record<string, unknown> | undefined)?.language ===
+			"string"
+				? String((stream.tags as Record<string, unknown>).language)
+				: undefined,
+		DisplayTitle:
+			typeof (stream.tags as Record<string, unknown> | undefined)?.title ===
+				"string" && String((stream.tags as Record<string, unknown>).title)
+				? String((stream.tags as Record<string, unknown>).title)
+				: undefined,
 		Codec: typeof stream.codec_name === "string" ? stream.codec_name : undefined,
 		Width: typeof stream.width === "number" ? stream.width : undefined,
 		Height: typeof stream.height === "number" ? stream.height : undefined,

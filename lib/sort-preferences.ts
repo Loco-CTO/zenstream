@@ -54,8 +54,7 @@ export function useSortPreference<T extends string>(
 	const updatePreference = useCallback(
 		(
 			value:
-				| SortPreference<T>
-				| ((current: SortPreference<T>) => SortPreference<T>),
+				SortPreference<T> | ((current: SortPreference<T>) => SortPreference<T>),
 		) => {
 			setPreference((current) => {
 				const next = typeof value === "function" ? value(current) : value;

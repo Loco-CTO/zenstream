@@ -81,9 +81,8 @@ export function HomePage({
 								? undefined
 								: libraryHref({
 										libraryId: section.libraryId,
-										sortBy:
-											section.titleKey === "topRated" ? "rating" : "release",
-									sortOrder: "Descending",
+										sortBy: section.titleKey === "topRated" ? "rating" : "release",
+										sortOrder: "Descending",
 									})
 						}
 					/>
@@ -111,9 +110,7 @@ export function HomePage({
 						alt=""
 						className="h-4 w-4 object-contain opacity-50"
 					/>
-					<span className="text-xs text-white/25">
-						ZenStream {zenstreamVersion}
-					</span>
+					<span className="text-xs text-white/25">ZenStream {zenstreamVersion}</span>
 				</div>
 			</footer>
 		</main>

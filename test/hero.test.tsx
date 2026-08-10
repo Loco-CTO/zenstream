@@ -151,9 +151,7 @@ describe("Hero", () => {
 			screen.getByRole("button", { name: /show next featured slide/i }),
 		);
 
-		expect(container.querySelectorAll("img[aria-hidden='true']")).toHaveLength(
-			1,
-		);
+		expect(container.querySelectorAll("img[aria-hidden='true']")).toHaveLength(1);
 		expect(container.querySelector("img[aria-hidden='true']")).toHaveClass(
 			"opacity-100",
 		);
@@ -218,9 +216,7 @@ describe("Hero", () => {
 		render(<Hero items={[first, second]} session={session} />);
 
 		act(() => vi.advanceTimersByTime(6999));
-		expect(
-			screen.getByRole("heading", { name: first.Name }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
 		act(() => vi.advanceTimersByTime(1));
 		expect(
 			screen.getByRole("heading", { name: second.Name }),
@@ -300,4 +296,3 @@ function heroItem(id: string, name: string): MediaItem {
 		LocalTrailerCount: 0,
 	};
 }
-

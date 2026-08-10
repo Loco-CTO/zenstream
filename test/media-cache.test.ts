@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-	clearMediaClientCache,
-	getLibraryItems,
-} from "@/lib/media-api";
+import { clearMediaClientCache, getLibraryItems } from "@/lib/media-api";
 
 const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 
@@ -15,14 +12,15 @@ describe("media client cache", () => {
 	it("does not reuse an invalidated in-flight library request", async () => {
 		const firstController = new AbortController();
 		const fetchMock = vi.spyOn(globalThis, "fetch");
-		fetchMock.mockImplementationOnce((_input, init) =>
-			new Promise<Response>((_resolve, reject) => {
-				init?.signal?.addEventListener(
-					"abort",
-					() => reject(new DOMException("Aborted", "AbortError")),
-					{ once: true },
-				);
-			}),
+		fetchMock.mockImplementationOnce(
+			(_input, init) =>
+				new Promise<Response>((_resolve, reject) => {
+					init?.signal?.addEventListener(
+						"abort",
+						() => reject(new DOMException("Aborted", "AbortError")),
+						{ once: true },
+					);
+				}),
 		);
 		fetchMock.mockResolvedValueOnce(
 			new Response(
@@ -70,14 +68,15 @@ describe("media client cache", () => {
 	it("does not reuse an aborted in-flight library request", async () => {
 		const firstController = new AbortController();
 		const fetchMock = vi.spyOn(globalThis, "fetch");
-		fetchMock.mockImplementationOnce((_input, init) =>
-			new Promise<Response>((_resolve, reject) => {
-				init?.signal?.addEventListener(
-					"abort",
-					() => reject(new DOMException("Aborted", "AbortError")),
-					{ once: true },
-				);
-			}),
+		fetchMock.mockImplementationOnce(
+			(_input, init) =>
+				new Promise<Response>((_resolve, reject) => {
+					init?.signal?.addEventListener(
+						"abort",
+						() => reject(new DOMException("Aborted", "AbortError")),
+						{ once: true },
+					);
+				}),
 		);
 		fetchMock.mockResolvedValueOnce(
 			new Response(

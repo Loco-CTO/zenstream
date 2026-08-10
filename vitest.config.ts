@@ -4,24 +4,24 @@ import path from "node:path";
 import { parse } from "yaml";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: "yaml",
-      transform(source, id) {
-        if (!/\.ya?ml$/.test(id)) return;
-        return `export default ${JSON.stringify(parse(source))};`;
-      },
-    },
-  ],
-  test: {
-    environment: "jsdom",
-    setupFiles: ["./test/vitest.setup.ts"],
-    globals: true,
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname),
-    },
-  },
+	plugins: [
+		react(),
+		{
+			name: "yaml",
+			transform(source, id) {
+				if (!/\.ya?ml$/.test(id)) return;
+				return `export default ${JSON.stringify(parse(source))};`;
+			},
+		},
+	],
+	test: {
+		environment: "jsdom",
+		setupFiles: ["./test/vitest.setup.ts"],
+		globals: true,
+	},
+	resolve: {
+		alias: {
+			"@": path.resolve(__dirname),
+		},
+	},
 });

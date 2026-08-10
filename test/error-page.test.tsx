@@ -26,9 +26,7 @@ describe("error pages", () => {
 			/>,
 		);
 
-		expect(
-			await screen.findByRole("link", { name: "Home" }),
-		).toBeInTheDocument();
+		expect(await screen.findByRole("link", { name: "Home" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: "Return home" })).toHaveAttribute(
@@ -53,9 +51,7 @@ describe("error pages", () => {
 			"href",
 			"/",
 		);
-		expect(
-			screen.queryByRole("link", { name: "Home" }),
-		).not.toBeInTheDocument();
+		expect(screen.queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
 		expect(
 			screen.queryByRole("button", { name: "Search" }),
 		).not.toBeInTheDocument();

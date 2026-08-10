@@ -124,9 +124,7 @@ export function SyncplayGroupMenu({
 								{groups.length === 0 ? (
 									<div className="px-3 py-8 text-center">
 										<Users className="mx-auto mb-2 h-6 w-6 text-white/20" />
-										<p className="text-xs text-white/45">
-											{t("noSyncplayGroups")}
-										</p>
+										<p className="text-xs text-white/45">{t("noSyncplayGroups")}</p>
 									</div>
 								) : (
 									groups.map((group) => {
@@ -219,9 +217,7 @@ export function SyncplayGroupMenu({
 																		member.userId !== userId && (
 																			<button
 																				onClick={() =>
-																					void removeMember(
-																						member.userId,
-																					).catch(() => undefined)
+																					void removeMember(member.userId).catch(() => undefined)
 																				}
 																				aria-label={t("syncplayRemoveMember", {
 																					member: member.username,
@@ -323,14 +319,10 @@ function ActiveGroupView({
 					<ChevronLeft className="h-4 w-4" />
 				</button>
 				<div className="min-w-0 flex-1">
-					<p className="truncate text-sm font-semibold text-white">
-						{group.name}
-					</p>
+					<p className="truncate text-sm font-semibold text-white">{group.name}</p>
 					<p className="mt-0.5 text-xs text-white/40">
 						{group.members.length}{" "}
-						{t(
-							group.members.length === 1 ? "syncplayMember" : "syncplayMembers",
-						)}
+						{t(group.members.length === 1 ? "syncplayMember" : "syncplayMembers")}
 					</p>
 				</div>
 			</div>
@@ -405,4 +397,3 @@ function ActiveGroupView({
 		</>
 	);
 }
-

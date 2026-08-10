@@ -45,4 +45,3 @@ export function useSyncplayPlayback(session?: AuthSession) {
 
 	return { active, canStartPlayback, startPlayback };
 }
-

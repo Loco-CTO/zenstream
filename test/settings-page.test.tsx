@@ -36,13 +36,23 @@ describe("SettingsPage", () => {
 		);
 
 		expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
-		expect(screen.getByRole("navigation", { name: "Settings" })).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Appearance" })).toBeInTheDocument();
-		expect(screen.queryByRole("region", { name: "Playback" })).not.toBeInTheDocument();
+		expect(
+			screen.getByRole("navigation", { name: "Settings" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Appearance" }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("region", { name: "Playback" }),
+		).not.toBeInTheDocument();
 
 		openSection("Appearance");
-		expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
-		expect(screen.getByRole("region", { name: "Appearance" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Appearance" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("region", { name: "Appearance" }),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("combobox", { name: "Language" }));
 		fireEvent.click(screen.getByRole("option", { name: "Japanese" }));
 		await waitFor(() => expect(onLocaleChange).toHaveBeenCalledWith("ja"));
@@ -61,11 +71,15 @@ describe("SettingsPage", () => {
 		);
 
 		openSection("Playback");
-		const autoplay = screen.getByRole("switch", { name: "Autoplay Next Episode" });
+		const autoplay = screen.getByRole("switch", {
+			name: "Autoplay Next Episode",
+		});
 		fireEvent.click(autoplay);
 		expect(autoplay).toHaveAttribute("aria-checked", "false");
 		fireEvent.click(screen.getByRole("button", { name: "Back" }));
-		expect(screen.getByRole("navigation", { name: "Settings" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("navigation", { name: "Settings" }),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 		expect(onLogout).toHaveBeenCalledOnce();
 	});
@@ -82,14 +96,24 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(style)));
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(style)));
 		render(
 			<SubtitlePreferencesProvider initialStyle={style}>
-				<SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} />
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="en"
+					onLocaleChange={vi.fn()}
+					onLogout={() => undefined}
+				/>
 			</SubtitlePreferencesProvider>,
 		);
 
-		expect(screen.queryByRole("combobox", { name: "Subtitle font" })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("combobox", { name: "Subtitle font" }),
+		).not.toBeInTheDocument();
 		openSection("Subtitles");
 		fireEvent.click(screen.getByRole("combobox", { name: "Subtitle font" }));
 		fireEvent.click(screen.getByRole("option", { name: "Noto Sans" }));
@@ -117,10 +141,20 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ...style, renderer: "overlay" })));
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(JSON.stringify({ ...style, renderer: "overlay" })),
+			);
 		render(
 			<SubtitlePreferencesProvider initialStyle={style}>
-				<SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} />
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="en"
+					onLocaleChange={vi.fn()}
+					onLogout={() => undefined}
+				/>
 			</SubtitlePreferencesProvider>,
 		);
 
@@ -150,30 +184,53 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ...style, fontColor: "#818cf8" })));
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(JSON.stringify({ ...style, fontColor: "#818cf8" })),
+			);
 		render(
 			<SubtitlePreferencesProvider initialStyle={style}>
-				<SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} />
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="en"
+					onLocaleChange={vi.fn()}
+					onLogout={() => undefined}
+				/>
 			</SubtitlePreferencesProvider>,
 		);
 
 		openSection("Subtitles");
-		const fontColorControl = screen.getByRole("button", { name: "Subtitle font color" });
+		const fontColorControl = screen.getByRole("button", {
+			name: "Subtitle font color",
+		});
 		expect(fontColorControl).toHaveAttribute("aria-haspopup", "dialog");
 		fireEvent.click(fontColorControl);
-		const colorDialog = screen.getByRole("dialog", { name: "Subtitle font color" });
+		const colorDialog = screen.getByRole("dialog", {
+			name: "Subtitle font color",
+		});
 		expect(colorDialog).toBeInTheDocument();
 		expect(colorDialog.closest(".overflow-hidden")).toBeNull();
-		const hexInput = screen.getByRole("textbox", { name: "Subtitle font color hex" });
+		const hexInput = screen.getByRole("textbox", {
+			name: "Subtitle font color hex",
+		});
 		const callsBeforeEdit = fetchMock.mock.calls.length;
 		fireEvent.change(hexInput, { target: { value: "#818cf8" } });
 		expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit);
 		fireEvent.blur(hexInput);
-		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit + 1));
-		await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
-			"/api/preferences/subtitles",
-			expect.objectContaining({ method: "PATCH", body: JSON.stringify({ ...style, fontColor: "#818cf8" }) }),
-		));
+		await waitFor(() =>
+			expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit + 1),
+		);
+		await waitFor(() =>
+			expect(fetchMock).toHaveBeenLastCalledWith(
+				"/api/preferences/subtitles",
+				expect.objectContaining({
+					method: "PATCH",
+					body: JSON.stringify({ ...style, fontColor: "#818cf8" }),
+				}),
+			),
+		);
 	});
 
 	it("localizes the settings index and category controls", () => {
@@ -183,7 +240,13 @@ describe("SettingsPage", () => {
 		const autoplay = translate("ja", "autoplayNextEpisode");
 		render(
 			<I18nProvider locale="ja">
-				<SettingsPage displayName="Alex" userId="user-1" locale="ja" onLocaleChange={vi.fn()} onLogout={() => undefined} />
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="ja"
+					onLocaleChange={vi.fn()}
+					onLogout={() => undefined}
+				/>
 			</I18nProvider>,
 		);
 
@@ -198,7 +261,15 @@ describe("SettingsPage", () => {
 	it("uses browser history when leaving the settings index", () => {
 		window.history.pushState({}, "", "/show/item-1");
 		window.history.pushState({}, "", "/settings");
-		render(<SettingsPage displayName="Alex" userId="user-1" locale="en" onLocaleChange={vi.fn()} onLogout={() => undefined} />);
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				locale="en"
+				onLocaleChange={vi.fn()}
+				onLogout={() => undefined}
+			/>,
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Back" }));
 		expect(router.back).toHaveBeenCalledOnce();
 		expect(router.push).not.toHaveBeenCalled();

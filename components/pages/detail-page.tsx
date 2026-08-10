@@ -51,7 +51,8 @@ function useLocalOverride<T>(initialValue: T) {
 		source: T;
 		value: T;
 	} | null>(null);
-	const value = override?.source === initialValue ? override.value : initialValue;
+	const value =
+		override?.source === initialValue ? override.value : initialValue;
 	const setValue = useCallback(
 		(next: T | ((current: T) => T)) => {
 			setOverride((currentOverride) => {
@@ -130,14 +131,15 @@ export function DetailPage({
 			: null);
 	const titleLogo = titleLogoImage(item);
 	const returnTitle = isEpisode
-		? initialData.backgroundItem?.Name ?? item.SeriesName ?? t("back")
+		? (initialData.backgroundItem?.Name ?? item.SeriesName ?? t("back"))
 		: t("back");
-	const structuredCredits = item.People?.some((person) => person.CreditType) ?? false;
+	const structuredCredits =
+		item.People?.some((person) => person.CreditType) ?? false;
 	const cast = structuredCredits
-		? item.People?.filter((person) => person.CreditType === "cast") ?? []
-		: item.People ?? [];
+		? (item.People?.filter((person) => person.CreditType === "cast") ?? [])
+		: (item.People ?? []);
 	const crew = structuredCredits
-		? item.People?.filter((person) => person.CreditType === "crew") ?? []
+		? (item.People?.filter((person) => person.CreditType === "crew") ?? [])
 		: [];
 	const currentTrackChoices =
 		trackChoices?.itemId === item.Id ? trackChoices.streams : undefined;
@@ -155,8 +157,7 @@ export function DetailPage({
 				const audio =
 					parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
 				const subtitle =
-					parsed.subtitles.find((track) => track.IsDefault) ??
-					parsed.subtitles[0];
+					parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
 				setSelectedTracks({ audio: audio?.Index, subtitle: subtitle?.Index });
 			})
 			.catch(() => undefined);
@@ -247,11 +248,7 @@ export function DetailPage({
 		// briefly tear down the current page; if navigation happens first, the host
 		// socket may be treated as disconnected before the room receives the media
 		// command.
-		const mediaCommand = syncplayMediaStartCommand(
-			active,
-			canControl,
-			target.Id,
-		);
+		const mediaCommand = syncplayMediaStartCommand(active, canControl, target.Id);
 		if (mediaCommand) {
 			try {
 				// Complete the host's media transition before leaving this route. The
@@ -264,10 +261,7 @@ export function DetailPage({
 			}
 		}
 		router.push(
-			playbackPath(
-				target.Id,
-				target.Id === item.Id ? selectedTracks : undefined,
-			),
+			playbackPath(target.Id, target.Id === item.Id ? selectedTracks : undefined),
 		);
 	}, [
 		active,
@@ -310,8 +304,8 @@ export function DetailPage({
 						<div className="min-w-0 flex-1">
 							{isEpisode && (
 								<p className="mb-2 text-xs uppercase tracking-[.18em] text-white/40">
-									{t("season")} {item.ParentIndexNumber ?? 0} ·{" "}
-									{t("episodesLabel")} {item.IndexNumber ?? 0}
+									{t("season")} {item.ParentIndexNumber ?? 0} · {t("episodesLabel")}{" "}
+									{item.IndexNumber ?? 0}
 								</p>
 							)}
 							<h1 className="mb-3 text-[clamp(2rem,5vw,3.5rem)] font-black leading-none tracking-normal text-white">
@@ -344,17 +338,13 @@ export function DetailPage({
 							</PrimaryActionButton>
 							<ActionButton
 								active={Boolean(item.UserData?.Played)}
-								label={t(
-									item.UserData?.Played ? "markUnwatched" : "markWatched",
-								)}
+								label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
 								onClick={togglePlayed}
 								icon={<Check className="h-4 w-4" />}
 							/>
 							<ActionButton
 								active={Boolean(item.UserData?.IsFavorite)}
-								label={t(
-									item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite",
-								)}
+								label={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
 								onClick={toggleFavorite}
 								icon={
 									<Heart
@@ -409,7 +399,9 @@ export function DetailPage({
 							onSeasonChange={selectSeason}
 						/>
 					)}
-					{(cast.length > 0 || crew.length > 0) && <PeopleSection cast={cast} crew={crew} />}
+					{(cast.length > 0 || crew.length > 0) && (
+						<PeopleSection cast={cast} crew={crew} />
+					)}
 					{!isEpisode && initialData.similar.length > 0 && (
 						<SimilarSection items={initialData.similar} session={session} />
 					)}
@@ -457,15 +449,12 @@ function InlineTrackChoices({
 			{tracks.subtitles.length > 0 && (
 				<TrackSelect
 					label={t("subtitleTrack")}
-					options={[
-						{ value: "", label: t("subtitlesOff") },
-						...options("subtitle"),
-					]}
+					options={[{ value: "", label: t("subtitlesOff") }, ...options("subtitle")]}
 					value={selected.subtitle ?? undefined}
 					onChange={(subtitle) =>
 						onChange({
 							...selected,
-						subtitle: subtitle ? Number(subtitle) : null,
+							subtitle: subtitle ? Number(subtitle) : null,
 						})
 					}
 				/>
@@ -598,9 +587,7 @@ function EpisodeSection({
 		const previous = Boolean(season.UserData?.[field]);
 		setSeasonItems((items) =>
 			items.map((item) =>
-				item.Id === season.Id
-					? updateUserData(item, { [field]: !previous })
-					: item,
+				item.Id === season.Id ? updateUserData(item, { [field]: !previous }) : item,
 			),
 		);
 		try {
@@ -609,9 +596,7 @@ function EpisodeSection({
 		} catch {
 			setSeasonItems((items) =>
 				items.map((item) =>
-					item.Id === season.Id
-						? updateUserData(item, { [field]: previous })
-						: item,
+					item.Id === season.Id ? updateUserData(item, { [field]: previous }) : item,
 				),
 			);
 		}
@@ -766,17 +751,12 @@ export function EpisodeCard({
 					item={currentEpisode}
 					onToggle={async (field) => {
 						const previous = Boolean(currentEpisode.UserData?.[field]);
-						setCurrentEpisode(
-							updateUserData(currentEpisode, { [field]: !previous }),
-						);
+						setCurrentEpisode(updateUserData(currentEpisode, { [field]: !previous }));
 						try {
-							if (field === "Played")
-								await setPlayed(session!, episode.Id, !previous);
+							if (field === "Played") await setPlayed(session!, episode.Id, !previous);
 							else await setFavorite(session!, episode.Id, !previous);
 						} catch {
-							setCurrentEpisode(
-								updateUserData(currentEpisode, { [field]: previous }),
-							);
+							setCurrentEpisode(updateUserData(currentEpisode, { [field]: previous }));
 						}
 					}}
 				/>
@@ -812,9 +792,7 @@ function ItemActionButtons({
 			</button>
 			<button
 				type="button"
-				aria-label={t(
-					item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite",
-				)}
+				aria-label={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
 				title={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
 				className={`${buttonClass} ${item.UserData?.IsFavorite ? "text-violet-300" : ""}`}
 				onClick={(event) => {
@@ -853,31 +831,31 @@ function PeopleSection({
 					<div key={kind} className="mb-6 last:mb-0">
 						<h3 className="mb-3 text-sm font-medium text-white/70">{sectionTitle}</h3>
 						<HorizontalScroller title={sectionTitle} className="gap-4">
-				{people.map((person) => {
-					const image = personImage(person);
-					return (
-						<div
-							key={`${person.Name}-${person.Role}`}
-							className="w-[120px] shrink-0 text-center"
-						>
-							<div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">
-								{image && (
-									<BlurHashImage
-										image={image}
-										alt={person.Name}
-										className="h-full w-full object-cover brightness-90"
-									/>
-								)}
-							</div>
-							<p className="mt-2 truncate text-xs font-medium text-white/70">
-								{person.Name}
-							</p>
-							<p className="truncate text-xs text-white/30">
-								{person.Role ?? person.Type}
-							</p>
-						</div>
-					);
-				})}
+							{people.map((person) => {
+								const image = personImage(person);
+								return (
+									<div
+										key={`${person.Name}-${person.Role}`}
+										className="w-[120px] shrink-0 text-center"
+									>
+										<div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">
+											{image && (
+												<BlurHashImage
+													image={image}
+													alt={person.Name}
+													className="h-full w-full object-cover brightness-90"
+												/>
+											)}
+										</div>
+										<p className="mt-2 truncate text-xs font-medium text-white/70">
+											{person.Name}
+										</p>
+										<p className="truncate text-xs text-white/30">
+											{person.Role ?? person.Type}
+										</p>
+									</div>
+								);
+							})}
 						</HorizontalScroller>
 					</div>
 				);

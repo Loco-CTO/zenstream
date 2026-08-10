@@ -88,9 +88,7 @@ export function SearchPage({
 						<h2 className="text-lg font-semibold text-white/80">
 							{t("noSearchResults")}
 						</h2>
-						<p className="mt-2 text-sm text-white/30">
-							{t("searchPlaceholder")}
-						</p>
+						<p className="mt-2 text-sm text-white/30">{t("searchPlaceholder")}</p>
 					</div>
 				) : (
 					<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
@@ -143,4 +141,3 @@ function SearchGridSkeleton() {
 		</div>
 	);
 }
-

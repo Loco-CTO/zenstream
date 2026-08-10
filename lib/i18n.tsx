@@ -228,9 +228,7 @@ function validateDictionary(
 ): Dictionary {
 	const expected = new Set<string>(TRANSLATION_KEYS);
 	const missing = TRANSLATION_KEYS.filter((key) => !(key in dictionary));
-	const unexpected = Object.keys(dictionary).filter(
-		(key) => !expected.has(key),
-	);
+	const unexpected = Object.keys(dictionary).filter((key) => !expected.has(key));
 	if (missing.length || unexpected.length) {
 		throw new Error(
 			`Invalid ${language} language dictionary (missing: ${missing.join(", ") || "none"}; unexpected: ${unexpected.join(", ") || "none"}).`,

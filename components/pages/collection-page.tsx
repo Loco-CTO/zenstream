@@ -1,11 +1,10 @@
 "use client";
 import Link from "next/link";
-import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import {
-	posterImage,
-	type DetailData,
-	type MediaItem,
-} from "@/lib/media-api";
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
+import { posterImage, type DetailData, type MediaItem } from "@/lib/media-api";
 import { progressPercent } from "@/lib/media";
 import { WatchedIndicator, WatchProgress } from "@/components/home/media-card";
 import type { AuthSession } from "@/lib/session";
@@ -72,4 +71,3 @@ function CollectionCard({ item }: { item: MediaItem }) {
 		</article>
 	);
 }
-

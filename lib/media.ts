@@ -61,11 +61,7 @@ export function releaseDateLabel(item: MediaItem, locale: Locale = "en") {
 		// so users west of UTC do not see the previous calendar day.
 		const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(item.PremiereDate);
 		const date = dateOnly
-			? new Date(
-					Number(dateOnly[1]),
-					Number(dateOnly[2]) - 1,
-					Number(dateOnly[3]),
-				)
+			? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
 			: new Date(item.PremiereDate);
 		if (!Number.isNaN(date.getTime())) {
 			return new Intl.DateTimeFormat(locale === "ja" ? "ja-JP" : "en-GB", {
@@ -142,7 +138,11 @@ function areBatchEpisodes(a: MediaItem, b: MediaItem) {
 function addedWithinOneHour(a?: string, b?: string) {
 	const aTime = a ? Date.parse(a) : Number.NaN;
 	const bTime = b ? Date.parse(b) : Number.NaN;
-	return Number.isFinite(aTime) && Number.isFinite(bTime) && Math.abs(aTime - bTime) <= 3_600_000;
+	return (
+		Number.isFinite(aTime) &&
+		Number.isFinite(bTime) &&
+		Math.abs(aTime - bTime) <= 3_600_000
+	);
 }
 
 function hasVisualImage(item: MediaItem) {

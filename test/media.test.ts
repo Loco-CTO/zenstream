@@ -43,10 +43,7 @@ describe("release date labels", () => {
 
 	it("falls back to the production year", () => {
 		expect(
-			releaseDateLabel(
-				{ Id: "movie", Name: "Film", ProductionYear: 2025 },
-				"en",
-			),
+			releaseDateLabel({ Id: "movie", Name: "Film", ProductionYear: 2025 }, "en"),
 		).toBe("2025");
 	});
 
@@ -76,7 +73,12 @@ describe("media subtitles", () => {
 	});
 });
 
-function episode(id: string, seriesId: string, index: number, lastAddedAt: string): MediaItem {
+function episode(
+	id: string,
+	seriesId: string,
+	index: number,
+	lastAddedAt: string,
+): MediaItem {
 	return {
 		Id: id,
 		Name: id,
@@ -88,4 +90,3 @@ function episode(id: string, seriesId: string, index: number, lastAddedAt: strin
 		LastAddedAt: lastAddedAt,
 	};
 }
-

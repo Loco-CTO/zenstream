@@ -21,9 +21,9 @@ describe("settings route", () => {
 			userId: "user",
 			username: "Alex",
 		});
-		vi.spyOn(jellyfin, "fetchHomeData").mockReturnValue(
-			new Promise(() => undefined),
-		);
+		vi
+			.spyOn(jellyfin, "fetchHomeData")
+			.mockReturnValue(new Promise(() => undefined));
 
 		render(
 			<ProgressProvider>
@@ -37,4 +37,3 @@ describe("settings route", () => {
 		expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 	});
 });
-

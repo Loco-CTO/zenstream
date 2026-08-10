@@ -119,6 +119,7 @@ export async function getSubtitlePreference(): Promise<SubtitleStyle> {
 	subtitlePreferenceInFlight = (async () => {
 		const response = await fetch(preferenceUrl, {
 			cache: "no-store",
+			credentials: "include",
 			headers: preferenceHeaders(),
 		});
 		if (!response.ok) throw new Error("Could not load subtitle preferences.");
@@ -138,6 +139,7 @@ export async function setSubtitlePreference(
 ): Promise<SubtitleStyle> {
 	const response = await fetch(preferenceUrl, {
 		method: "PATCH",
+		credentials: "include",
 		headers: { ...preferenceHeaders(), "Content-Type": "application/json" },
 		body: JSON.stringify(style),
 	});

@@ -224,7 +224,7 @@ export function MediaCardOverlay({
 
 	return (
 		<div
-			className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 ${className}`}
+			className={`pointer-events-none absolute z-10 flex items-center justify-center bg-black/0 opacity-0 transition group-hover/card:bg-black/15 group-hover/card:opacity-100 focus-within:pointer-events-auto focus-within:bg-black/15 focus-within:opacity-100 ${className}`}
 		>
 			<button
 				type="button"

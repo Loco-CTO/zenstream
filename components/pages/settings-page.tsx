@@ -54,6 +54,8 @@ export function SettingsPage({
 	} = useSubtitlePreferences();
 	const [localeError, setLocaleError] = useState(false);
 	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
+	// Legacy controls remain type-safe but are intentionally not rendered until
+	// their server-backed behavior exists.
 	const [audioLanguage, setAudioLanguage] = useState("ja");
 	const [subtitleLanguage, setSubtitleLanguage] = useState("en");
 	const [autoplayNext, setAutoplayNext] = useState(true);
@@ -225,6 +227,9 @@ export function SettingsPage({
 
 				{section === "playback" && (
 					<SettingsSection title={t("playback")}>
+						<UnsupportedSetting />
+						{false && (
+						<>
 						<SettingsRow
 							label={t("audioLanguage")}
 							right={
@@ -280,6 +285,8 @@ export function SettingsPage({
 								/>
 							}
 						/>
+						</>
+						)}
 					</SettingsSection>
 				)}
 
@@ -452,6 +459,9 @@ export function SettingsPage({
 
 				{section === "notifications" && (
 					<SettingsSection title={t("notifications")}>
+						<UnsupportedSetting />
+						{false && (
+						<>
 						<SettingsRow
 							label={t("newEpisodes")}
 							sub={t("newEpisodesDescription")}
@@ -495,11 +505,16 @@ export function SettingsPage({
 								/>
 							}
 						/>
+						</>
+						)}
 					</SettingsSection>
 				)}
 
 				{section === "privacy" && (
 					<SettingsSection title={t("privacyData")}>
+						<UnsupportedSetting />
+						{false && (
+						<>
 						<SettingsRow
 							label={t("watchHistory")}
 							sub={t("watchHistoryDescription")}
@@ -531,6 +546,8 @@ export function SettingsPage({
 								</button>
 							}
 						/>
+						</>
+						)}
 					</SettingsSection>
 				)}
 
@@ -572,6 +589,14 @@ function SettingsSection({
 				{children}
 			</div>
 		</section>
+	);
+}
+
+function UnsupportedSetting() {
+	return (
+		<p className="px-4 py-4 text-sm text-white/45">
+			This setting is not available yet.
+		</p>
 	);
 }
 

@@ -1,4 +1,4 @@
-import type { AuthSession } from "@/lib/session";
+import { getAuthSession, type AuthSession } from "@/lib/session";
 import { browserDeviceProfile } from "@/lib/browser-device-profile";
 import {
 	catalogRequest,
@@ -355,15 +355,38 @@ export function orchestratorBaseUrl() {
 	return "http://127.0.0.1:9090";
 }
 
-let resourceTicket: { value: string; expiresAt: number; token: string } | null =
+let resourceTicket: { value: string; expiresAt: number; sessionKey: string } | null =
 	null;
+
+function resourceSessionKey(session: AuthSession | null | undefined) {
+	return session ? `${session.userId}:${session.token || "browser-cookie"}` : "";
+}
+
+export function clearMediaClientSession() {
+	clearMediaClientCache();
+	resourceTicket = null;
+}
+
+export async function revokeAuthSession(session: AuthSession): Promise<void> {
+	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/logout`, {
+		method: "POST",
+		headers: session.token ? { Authorization: `Bearer ${session.token}` } : undefined,
+		credentials: "include",
+		cache: "no-store",
+		keepalive: true,
+	});
+	// An expired token is already effectively revoked.
+	if (!response.ok && response.status !== 401) {
+		throw new Error(`Logout failed with ${response.status}.`);
+	}
+}
 
 export async function primeResourceTicket(
 	session: AuthSession,
 ): Promise<string | null> {
 	if (
 		resourceTicket &&
-		resourceTicket.token === session.token &&
+		resourceTicket.sessionKey === resourceSessionKey(session) &&
 		resourceTicket.expiresAt > Date.now() + 30_000
 	)
 		return resourceTicket.value;
@@ -371,7 +394,8 @@ export async function primeResourceTicket(
 		const response = await fetch(
 			`${orchestratorBaseUrl()}/api/auth/resource-ticket`,
 			{
-				headers: { Authorization: `Bearer ${session.token}` },
+				headers: session.token ? { Authorization: `Bearer ${session.token}` } : undefined,
+				credentials: "include",
 				cache: "no-store",
 			},
 		);
@@ -388,15 +412,27 @@ export async function primeResourceTicket(
 				: typeof responseValue.expiresIn === "number"
 					? Date.now() + responseValue.expiresIn * 1000
 					: Date.now() + 10 * 60_000;
-		resourceTicket = { value: payload.ticket, expiresAt, token: session.token };
+		resourceTicket = {
+			value: payload.ticket,
+			expiresAt,
+			sessionKey: resourceSessionKey(session),
+		};
 		return payload.ticket;
 	} catch {
 		return null;
 	}
 }
 
-function addResourceTicket(params: URLSearchParams) {
-	if (resourceTicket && resourceTicket.expiresAt > Date.now())
+function addResourceTicket(params: URLSearchParams, sessionToken?: string) {
+	const activeSession = getAuthSession();
+	const activeKey = sessionToken
+		? resourceSessionKey({ ...(activeSession ?? { userId: "", username: "" }), token: sessionToken })
+		: resourceSessionKey(activeSession);
+	if (
+		resourceTicket &&
+		resourceTicket.sessionKey === activeKey &&
+		resourceTicket.expiresAt > Date.now()
+	)
 		params.set("access", resourceTicket.value);
 }
 
@@ -404,13 +440,14 @@ export async function authenticateByName(
 	username: string,
 	password: string,
 ): Promise<AuthResponse> {
-	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/login`, {
+	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/browser-login`, {
 		method: "POST",
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
 		body: JSON.stringify({
 			username: username.trim(),
-			password: password.trim(),
+			password,
 		}),
+		credentials: "include",
 	});
 
 	if (!response.ok) {
@@ -918,7 +955,7 @@ export function subtitleUrl(
 	)?.FileId;
 	if (!mediaFileId) return "";
 	const params = new URLSearchParams();
-	addResourceTicket(params);
+	addResourceTicket(params, session.token);
 	return `${orchestratorBaseUrl()}/api/playback/items/${encodeURIComponent(itemId)}/subtitles/${encodeURIComponent(mediaFileId)}.vtt?${params}`;
 }
 
@@ -1029,6 +1066,7 @@ export async function reportPlayback(
 			}),
 		},
 	);
+	clearMediaClientCache({ rootEntityId: itemId });
 }
 
 export async function getPlaybackMarkers(
@@ -1290,7 +1328,7 @@ export function personImage(person: MediaPerson) {
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
 		const url = new URL(tag, orchestratorBaseUrl());
-		if (resourceTicket && resourceTicket.expiresAt > Date.now())
+		if (resourceTicket && resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) && resourceTicket.expiresAt > Date.now())
 			url.searchParams.set("access", resourceTicket.value);
 		return {
 			src: url.toString(),
@@ -1313,7 +1351,7 @@ function imageData(
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
 		const url = new URL(tag, orchestratorBaseUrl());
-		if (resourceTicket && resourceTicket.expiresAt > Date.now())
+		if (resourceTicket && resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) && resourceTicket.expiresAt > Date.now())
 			url.searchParams.set("access", resourceTicket.value);
 		return {
 			src: url.toString(),

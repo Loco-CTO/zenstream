@@ -51,6 +51,7 @@ export async function getMetadataLanguages(): Promise<string[]> {
 		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
 		const response = await fetch(`${base}/api/metadata/languages`, {
 			cache: "no-store",
+			credentials: "include",
 			headers: preferenceHeaders(),
 		});
 		if (!response.ok) throw new Error("Could not load metadata languages.");
@@ -68,6 +69,7 @@ export async function getMetadataLanguagePreference(): Promise<MetadataLanguageP
 	return cachedPreference("metadata-language", async () => {
 		const response = await fetch(preferencesUrl("metadata-language"), {
 			cache: "no-store",
+			credentials: "include",
 			headers: preferenceHeaders(),
 		});
 		if (!response.ok)
@@ -87,6 +89,7 @@ export async function setMetadataLanguagePreference(
 ): Promise<MetadataLanguagePreference> {
 	const response = await fetch(preferencesUrl("metadata-language"), {
 		method: "PATCH",
+		credentials: "include",
 		headers: { ...preferenceHeaders(), "Content-Type": "application/json" },
 		body: JSON.stringify({ language }),
 	});
@@ -127,6 +130,7 @@ export async function getLocalePreference(): Promise<Locale> {
 	return cachedPreference("locale", async () => {
 		const response = await fetch(preferencesUrl("locale"), {
 			cache: "no-store",
+			credentials: "include",
 			headers: preferenceHeaders(),
 		});
 		if (!response.ok) throw new Error("Could not load locale preference.");
@@ -141,6 +145,7 @@ export async function getLocalePreference(): Promise<Locale> {
 export async function setLocalePreference(locale: Locale): Promise<Locale> {
 	const response = await fetch(preferencesUrl("locale"), {
 		method: "PATCH",
+		credentials: "include",
 		headers: { ...preferenceHeaders(), "Content-Type": "application/json" },
 		body: JSON.stringify({ locale }),
 	});

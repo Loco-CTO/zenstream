@@ -63,7 +63,7 @@ type Props = {
 	item: MediaItem;
 	session: AuthSession;
 	initialAudioStreamId?: number;
-	initialSubtitleStreamIndex?: number;
+	initialSubtitleStreamIndex?: number | null;
 	initialStreams?: ReturnType<typeof playbackStreams>;
 	onClose: () => void;
 	onNext?: (item: MediaItem) => void;
@@ -363,6 +363,15 @@ export function VideoPlayer({
 	const suppressSyncPlayRef = useRef(false);
 	const suppressSyncPauseRef = useRef(false);
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const startSyncedPlaybackRef = useRef<(video: HTMLVideoElement) => void>(
+		() => undefined,
+	);
+	const requestTranscodedPlaybackRef = useRef<() => Promise<boolean>>(
+		async () => false,
+	);
+	const updateBufferedRangesRef = useRef<(video: HTMLVideoElement) => void>(
+		() => undefined,
+	);
 	const nativeSubtitleTrackRef = useRef<HTMLTrackElement>(null);
 	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
@@ -372,6 +381,7 @@ export function VideoPlayer({
 		serverNow: syncplay.serverNow,
 	});
 	const qualityRequestRef = useRef(0);
+	const cancelledSessionIdsRef = useRef(new Set<string>());
 	const sourceRef = useRef<MediaSource | undefined>(initialStreams?.source);
 	const transcodeAttemptRef = useRef(false);
 	const resumeTimeRef = useRef<number | null>(null);
@@ -461,7 +471,7 @@ export function VideoPlayer({
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
-	const debugSource = sourceRef.current ?? info?.source;
+	const debugSource = info?.source;
 	const playbackSessionId = info?.source?.sessionId;
 	const selectedSubtitleStream = info?.subtitles.find(
 		(stream) => stream.Index === Number(subtitle),
@@ -470,23 +480,32 @@ export function VideoPlayer({
 		style.renderer === "native" && subtitle && info?.source
 			? subtitleUrl(session, item.Id, info.source, Number(subtitle))
 			: "";
+	const cancelSessionOnce = useCallback(
+		async (sessionId: string, reason: string) => {
+			if (cancelledSessionIdsRef.current.has(sessionId)) return;
+			cancelledSessionIdsRef.current.add(sessionId);
+			try {
+				await cancelPlaybackSession(session, sessionId);
+				playerDebug("HLS session cancellation requested", { sessionId, reason });
+			} catch (error) {
+				// A failed request can be retried by a later lifecycle path.
+				cancelledSessionIdsRef.current.delete(sessionId);
+				playerDebug("HLS session cancellation failed", {
+					sessionId,
+					reason,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		},
+		[session],
+	);
 	const cancelActiveSession = useCallback(
 		async (reason: string) => {
-			const source = sourceRef.current ?? info?.source;
+			const source = sourceRef.current;
 			if (!source?.sessionId || source.mode === "direct") return;
-			const sessionId = source.sessionId;
-			await cancelPlaybackSession(session, sessionId).then(
-				() =>
-					playerDebug("HLS session cancellation requested", { sessionId, reason }),
-				(error) =>
-					playerDebug("HLS session cancellation failed", {
-						sessionId,
-						reason,
-						error: error instanceof Error ? error.message : String(error),
-					}),
-			);
+			await cancelSessionOnce(source.sessionId, reason);
 		},
-		[info?.source, session],
+		[cancelSessionOnce],
 	);
 	const handleClose = useCallback(() => {
 		if (document.pictureInPictureElement === videoRef.current)
@@ -544,26 +563,16 @@ export function VideoPlayer({
 		const timer = window.setInterval(heartbeat, 15_000);
 		const cancelOnPageHide = () => {
 			active = false;
-			void cancelPlaybackSession(session, playbackSessionId).catch(
-				() => undefined,
-			);
+			void cancelSessionOnce(playbackSessionId, "page_hide");
 		};
 		window.addEventListener("pagehide", cancelOnPageHide);
 		return () => {
 			active = false;
 			window.clearInterval(timer);
 			window.removeEventListener("pagehide", cancelOnPageHide);
-			void cancelPlaybackSession(session, playbackSessionId).then(
-				() =>
-					playerDebug("HLS session cancelled", { sessionId: playbackSessionId }),
-				(error) =>
-					playerDebug("HLS session cancellation failed", {
-						sessionId: playbackSessionId,
-						error: error instanceof Error ? error.message : String(error),
-					}),
-			);
+			void cancelSessionOnce(playbackSessionId, "source_replaced_or_unmounted");
 		};
-	}, [info?.source?.mode, playbackSessionId, session]);
+	}, [cancelSessionOnce, info?.source?.mode, playbackSessionId, session]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
@@ -619,6 +628,7 @@ export function VideoPlayer({
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
 		cancelPendingBufferingReport("item changed");
+		qualityRequestRef.current += 1;
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
 		resumeTimeRef.current = null;
@@ -690,57 +700,63 @@ export function VideoPlayer({
 		session,
 	]);
 
-	const playNext = useCallback(async (automatic = false) => {
-		const target = nextItem;
-		if (advancingToNextRef.current) return;
-		if (target && syncplay.active) {
-			if (
-				!syncplay.canControl ||
-				(automatic && syncplay.active.hostUserId !== session.userId)
-			)
+	const playNext = useCallback(
+		async (automatic = false) => {
+			const target = nextItem;
+			if (advancingToNextRef.current) return;
+			if (target && syncplay.active) {
+				if (
+					!syncplay.canControl ||
+					(automatic && syncplay.active.hostUserId !== session.userId)
+				)
+					return;
+				advancingToNextRef.current = true;
+				// Move the initiating player immediately. Waiting for the command response
+				// leaves the old player mounted while the new readiness barrier is created,
+				// allowing old cleanup/presence events to race with the transition.
+				setNextItem(null);
+				setNextChecked(false);
+				setCurrentTime(0);
+				setDuration(0);
+				setUrl(undefined);
+				void syncplay
+					.command(nextEpisodeSyncplayCommand(target))
+					.then(() => advanceToNextEpisode(target, onNext, onClose))
+					.catch(() => {
+						advancingToNextRef.current = false;
+					});
 				return;
+			}
 			advancingToNextRef.current = true;
-			// Move the initiating player immediately. Waiting for the command response
-			// leaves the old player mounted while the new readiness barrier is created,
-			// allowing old cleanup/presence events to race with the transition.
 			setNextItem(null);
 			setNextChecked(false);
 			setCurrentTime(0);
 			setDuration(0);
 			setUrl(undefined);
-			void syncplay
-				.command(nextEpisodeSyncplayCommand(target))
-				.then(() => advanceToNextEpisode(target, onNext, onClose))
-				.catch(() => {
-					advancingToNextRef.current = false;
-				});
-			return;
-		}
-		advancingToNextRef.current = true;
-		setNextItem(null);
-		setNextChecked(false);
-		setCurrentTime(0);
-		setDuration(0);
-		setUrl(undefined);
-		advanceToNextEpisode(target, onNext, onClose);
-	}, [
-		nextItem,
-		onClose,
-		onNext,
-		syncplay.active,
-		syncplay.canControl,
-		syncplay.command,
-		session.userId,
-	]);
+			advanceToNextEpisode(target, onNext, onClose);
+		},
+		[nextItem, onClose, onNext, session.userId, syncplay],
+	);
 
 	useEffect(() => {
 		void refreshSubtitleStyle();
 	}, [refreshSubtitleStyle]);
 
+	// Media and Syncplay listeners are intentionally installed only when their
+	// source/timeline changes. Keep the callbacks they invoke current without
+	// tearing down those listeners on every render.
+	useEffect(() => {
+		startSyncedPlaybackRef.current = startSyncedPlayback;
+		requestTranscodedPlaybackRef.current = requestTranscodedPlayback;
+		updateBufferedRangesRef.current = updateBufferedRanges;
+	});
+
 	useEffect(() => {
 		let active = true;
+		let pendingSessionId = initialStreams?.source?.sessionId;
 		const resolvePlaybackReady = async (playback: PlaybackInfo) => {
-			const sessionId = playback.source?.sessionId;
+			const sessionId = playback.source?.sessionId ?? playback.sessionId;
+			pendingSessionId = sessionId;
 			playerDebug("negotiation complete", {
 				mode: playback.source?.mode,
 				sessionId,
@@ -794,7 +810,11 @@ export function VideoPlayer({
 				return { parsed, markerData, trickplay };
 			})
 			.then(({ parsed, markerData, trickplay }) => {
-				if (!active) return;
+				if (!active) {
+					if (pendingSessionId)
+						void cancelSessionOnce(pendingSessionId, "stale_initial_negotiation");
+					return;
+				}
 				const source =
 					parsed.source && !parsed.source.Trickplay && trickplay
 						? {
@@ -823,10 +843,30 @@ export function VideoPlayer({
 					initialAudioStreamId == null
 						? (next.audio.find((track) => track.IsDefault) ?? next.audio[0])
 						: next.audio.find((track) => track.Index === initialAudioStreamId);
-				if (initialAudio?.Index != null) setAudio(String(initialAudio.Index));
+				setAudio(initialAudio?.Index == null ? "" : String(initialAudio.Index));
+				const initialSubtitle =
+					initialSubtitleStreamIndex === null
+						? undefined
+						: initialSubtitleStreamIndex === undefined
+							? (next.subtitles.find((track) => track.IsDefault) ?? next.subtitles[0])
+							: next.subtitles.find(
+									(track) => track.Index === initialSubtitleStreamIndex,
+								);
+				setSubtitle(
+					initialSubtitle?.Index == null ? "" : String(initialSubtitle.Index),
+				);
 			})
 			.catch((error) => {
-				if (!active) return;
+				if (!active) {
+					if (pendingSessionId)
+						void cancelSessionOnce(pendingSessionId, "stale_initial_failure");
+					return;
+				}
+				if (
+					pendingSessionId &&
+					pendingSessionId !== sourceRef.current?.sessionId
+				)
+					void cancelSessionOnce(pendingSessionId, "failed_initial_negotiation");
 				playerDebug("playback negotiation or readiness failed", {
 					error: error instanceof Error ? error.message : String(error),
 				});
@@ -843,6 +883,7 @@ export function VideoPlayer({
 		initialSubtitleStreamIndex,
 		initialStreams,
 		savedPositionSeconds,
+		cancelSessionOnce,
 	]);
 	useEffect(() => {
 		if (!syncplayGroupId || syncplayItemId !== item.Id) return;
@@ -918,7 +959,8 @@ export function VideoPlayer({
 			if (forceSeek || Math.abs(error) > 2) video.currentTime = timeline.position;
 			else if (Math.abs(error) <= 0.25) video.playbackRate = 1;
 			else video.playbackRate = Math.max(0.95, Math.min(1.05, 1 - error / 12));
-			if (timeline.shouldPlay && video.paused) startSyncedPlayback(video);
+			if (timeline.shouldPlay && video.paused)
+				startSyncedPlaybackRef.current(video);
 			if (!timeline.shouldPlay && !video.paused) {
 				suppressSyncPauseRef.current = true;
 				video.pause();
@@ -980,7 +1022,7 @@ export function VideoPlayer({
 						timeline.position < video.duration
 					)
 						video.currentTime = timeline.position;
-					if (timeline.shouldPlay) startSyncedPlayback(video);
+					if (timeline.shouldPlay) startSyncedPlaybackRef.current(video);
 					else if (!video.paused) {
 						suppressSyncPauseRef.current = true;
 						video.pause();
@@ -1093,7 +1135,7 @@ export function VideoPlayer({
 					lastFragment: safePlayerUrl(data.frag?.url),
 				}));
 				setError("");
-				updateBufferedRanges(video);
+				updateBufferedRangesRef.current(video);
 				setBuffering(false);
 			});
 			hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -1111,7 +1153,7 @@ export function VideoPlayer({
 				}));
 				if (!active || !data.fatal) return;
 				setBuffering(false);
-				void requestTranscodedPlayback();
+				void requestTranscodedPlaybackRef.current();
 			});
 			hls.loadSource(url);
 			hls.attachMedia(video);
@@ -1383,9 +1425,7 @@ export function VideoPlayer({
 				playback?.sessionId &&
 				playback.sessionId !== sourceRef.current?.sessionId
 			) {
-				await cancelPlaybackSession(session, playback.sessionId).catch(
-					() => undefined,
-				);
+				await cancelSessionOnce(playback.sessionId, "uncommitted_fallback");
 				playerDebug("canceled uncommitted fallback session", {
 					sessionId: playback.sessionId,
 					reason: error instanceof Error ? error.message : String(error),
@@ -1641,9 +1681,7 @@ export function VideoPlayer({
 				pendingSessionId = playback.sessionId;
 				if (request !== qualityRequestRef.current) {
 					if (pendingSessionId && pendingSessionId !== info?.source?.sessionId)
-						await cancelPlaybackSession(session, pendingSessionId).catch(
-							() => undefined,
-						);
+						await cancelSessionOnce(pendingSessionId, "stale_quality_change");
 					return;
 				}
 				if (playback.sessionId && playback.source?.sessionState === "starting") {
@@ -1671,9 +1709,7 @@ export function VideoPlayer({
 			})
 			.catch((error) => {
 				if (pendingSessionId && pendingSessionId !== info?.source?.sessionId)
-					void cancelPlaybackSession(session, pendingSessionId).catch(
-						() => undefined,
-					);
+					void cancelSessionOnce(pendingSessionId, "failed_quality_change");
 				playerDebug("quality change failed", {
 					error: error instanceof Error ? error.message : String(error),
 				});
@@ -1711,9 +1747,7 @@ export function VideoPlayer({
 				pendingSessionId = playback.sessionId;
 				if (request !== qualityRequestRef.current) {
 					if (pendingSessionId && pendingSessionId !== info.source?.sessionId)
-						await cancelPlaybackSession(session, pendingSessionId).catch(
-							() => undefined,
-						);
+						await cancelSessionOnce(pendingSessionId, "stale_audio_change");
 					return;
 				}
 				if (playback.sessionId && playback.source?.sessionState === "starting") {
@@ -1741,9 +1775,7 @@ export function VideoPlayer({
 			})
 			.catch(() => {
 				if (pendingSessionId && pendingSessionId !== info.source?.sessionId)
-					void cancelPlaybackSession(session, pendingSessionId).catch(
-						() => undefined,
-					);
+					void cancelSessionOnce(pendingSessionId, "failed_audio_change");
 				if (request === qualityRequestRef.current) {
 					setBuffering(false);
 					setError("This track could not be loaded.");
@@ -1977,15 +2009,14 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-					onPlaying={(event) => {
+				onPlaying={(event) => {
 					disableNativeSubtitleTracks(
 						event.currentTarget,
 						nativeSubtitleTrackRef.current?.track,
 					);
 					setBuffering(false);
 					cancelPendingBufferingReport("playing");
-					if (settlingTimelineRef.current == null)
-						seekSettlingUntilRef.current = 0;
+					if (settlingTimelineRef.current == null) seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}

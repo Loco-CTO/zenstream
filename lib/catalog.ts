@@ -72,10 +72,11 @@ export async function catalogRequest<T>(
 	try {
 		response = await fetch(`${orchestratorBaseUrl()}${path}`, {
 			...init,
+			credentials: "include",
 			signal: controller.signal,
 			headers: {
 				Accept: "application/json",
-				Authorization: `Bearer ${session.token}`,
+				...(session.token ? { Authorization: `Bearer ${session.token}` } : {}),
 				...(init.body ? { "Content-Type": "application/json" } : {}),
 				...init.headers,
 			},

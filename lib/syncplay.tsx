@@ -43,7 +43,10 @@ class SyncplaySocket {
 		try {
 			const response = await fetch(`${httpOrigin}/api/auth/socket-ticket`, {
 				method: "POST",
-				headers: { Authorization: `Bearer ${this.auth.token}` },
+				headers: this.auth.token
+					? { Authorization: `Bearer ${this.auth.token}` }
+					: undefined,
+				credentials: "include",
 			});
 			if (!response.ok) throw new Error("Socket ticket request failed");
 			ticket = String((await response.json()).ticket ?? "");
@@ -104,8 +107,9 @@ class SyncplaySocket {
 	}
 }
 function normalizeSyncplayOrigin(origin: string) {
-	const websocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-	return `${origin.replace(/^https?:/, websocketProtocol).replace(/\/+$/, "")}/api/ws/syncplay`;
+	const parsed = new URL(origin, window.location.origin);
+	parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+	return `${parsed.toString().replace(/\/+$/, "")}/api/ws/syncplay`;
 }
 const io = (
 	origin: string,
@@ -223,9 +227,7 @@ function isCurrentParticipant(
 	member: { participantId?: string },
 	currentId: string,
 ) {
-	return member.participantId == null
-		? true
-		: member.participantId === currentId;
+	return typeof member.participantId === "string" && member.participantId === currentId;
 }
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
@@ -253,12 +255,10 @@ async function call(path: string, method = "GET", body?: unknown) {
 		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
 		response = await fetch(`${base}/api/syncplay/${path}`, {
 			method,
+			credentials: "include",
 			headers: {
 				...(getAuthSession()?.token
 					? { Authorization: `Bearer ${getAuthSession()!.token}` }
-					: {}),
-				...(getAuthSession()?.username
-					? { "X-ZenStream-Username": getAuthSession()!.username }
 					: {}),
 				"X-ZenStream-Participant": participantId(),
 				...(body ? { "Content-Type": "application/json" } : {}),
@@ -536,6 +536,8 @@ export function SyncplayProvider({
 	}, [adopt, setCurrent, t, toast]);
 	useEffect(() => {
 		let disposed = false;
+		let reconnectTimer: number | null = null;
+		let reconnectAttempt = 0;
 		// The HTTP snapshot is the source of truth when the WebSocket upgrade is
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
@@ -549,6 +551,14 @@ export function SyncplayProvider({
 			autoConnect: false,
 		});
 		socketRef.current = socket;
+		const scheduleReconnect = () => {
+			if (disposed || reconnectTimer !== null) return;
+			const delay = Math.min(30_000, 500 * 2 ** reconnectAttempt++);
+			reconnectTimer = window.setTimeout(() => {
+				reconnectTimer = null;
+				if (!disposed) socket.connect();
+			}, delay);
+		};
 		syncplayDebug("socket created", { socketOrigin, path: "/api/socket.io" });
 		queueMicrotask(() => {
 			if (!disposed) socket.connect();
@@ -577,20 +587,21 @@ export function SyncplayProvider({
 			);
 		};
 		socket.on("connect", () => {
+			reconnectAttempt = 0;
 			syncplayDebug("socket connected", { id: socket.id });
 			void refreshRef
 				.current()
 				.catch((error) => syncplayDebug("socket refresh failed", error));
 			syncClock();
 		});
-		socket.on<Error>("connect_error", (error) =>
-			syncplayDebug("socket connect error", {
-				message: error.message,
-			}),
-		);
-		socket.on<string>("disconnect", (reason) =>
-			syncplayDebug("socket disconnected", { reason }),
-		);
+		socket.on<Error>("connect_error", (error) => {
+			syncplayDebug("socket connect error", { message: error.message });
+			scheduleReconnect();
+		});
+		socket.on<string>("disconnect", (reason) => {
+			syncplayDebug("socket disconnected", { reason });
+			scheduleReconnect();
+		});
 		const clockTimer = window.setInterval(syncClock, 30_000);
 		socket.on("syncplay:groups", (message: { groups?: SyncplayGroup[] }) => {
 			syncplayDebug("socket groups", message);
@@ -650,6 +661,7 @@ export function SyncplayProvider({
 		});
 		return () => {
 			window.clearInterval(clockTimer);
+			if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
 			disposed = true;
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;

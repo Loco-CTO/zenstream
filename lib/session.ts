@@ -9,23 +9,27 @@ const COOKIE_USER_ID = "userId";
 const COOKIE_USERNAME = "username";
 
 export function getAuthSession(): AuthSession | null {
-	const token = readCookie(COOKIE_TOKEN);
+	// Legacy token cookies are intentionally ignored; browser auth now uses the
+	// Orchestrator's HttpOnly session cookie.
+	const token = null;
 	const userId = readCookie(COOKIE_USER_ID);
 	const username = readCookie(COOKIE_USERNAME);
 
-	if (!token || !userId) {
+	if (!userId) {
 		return null;
 	}
 
 	return {
-		token,
+		token: token ?? "",
 		userId,
 		username: username || "ZenStream",
 	};
 }
 
 export function setAuthCookies(session: AuthSession) {
-	writeCookie(COOKIE_TOKEN, session.token);
+	// The browser bearer is issued by the Orchestrator as an HttpOnly cookie.
+	// Keep only non-sensitive identity metadata client-readable for hydration.
+	deleteCookie(COOKIE_TOKEN);
 	writeCookie(COOKIE_USER_ID, session.userId);
 	writeCookie(COOKIE_USERNAME, session.username);
 }

@@ -284,6 +284,7 @@ describe("SyncplayProvider", () => {
 									members: [
 										{
 											userId: "user",
+											participantId: "test-participant",
 											username: "Alex",
 											viewing: false,
 											loading: false,
@@ -345,6 +346,7 @@ describe("SyncplayProvider", () => {
 							members: [
 								{
 									userId: "user",
+									participantId: "test-participant",
 									username: "Alex",
 									viewing: false,
 									loading: false,
@@ -468,6 +470,7 @@ describe("SyncplayProvider", () => {
 							members: [
 								{
 									userId: "user",
+									participantId: "test-participant",
 									username: "Alex",
 									viewing: false,
 									loading: false,
@@ -494,6 +497,7 @@ describe("SyncplayProvider", () => {
 					members: [
 						{
 							userId: "user",
+							participantId: "test-participant",
 							username: "Alex",
 							viewing: true,
 							loading: false,
@@ -509,9 +513,7 @@ describe("SyncplayProvider", () => {
 	});
 
 	it("keeps another user's broadcast discoverable without joining it", async () => {
-		vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(JSON.stringify({ groups: [] })));
+		mockFetch(() => new Response(JSON.stringify({ groups: [] })));
 		render(
 			<SyncplayTestProvider>
 				<Controls />
@@ -545,7 +547,7 @@ describe("SyncplayProvider", () => {
 	});
 
 	it("clears a stale group when leaving it is rejected because membership changed", async () => {
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		mockFetch(async (input, init) => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 				return new Response(JSON.stringify({ groups: [] }));
@@ -579,6 +581,7 @@ describe("SyncplayProvider", () => {
 			members: [
 				{
 					userId: "user",
+					participantId: "test-participant",
 					username: "Alex",
 					viewing: true,
 					loading: false,
@@ -586,9 +589,7 @@ describe("SyncplayProvider", () => {
 				},
 			],
 		};
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockImplementation(async (input, init) => {
+		const fetchMock = mockFetch(async (input, init) => {
 				const url = String(input);
 				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 					return new Response(JSON.stringify({ groups: [latest] }));
@@ -602,7 +603,7 @@ describe("SyncplayProvider", () => {
 				if (url.endsWith("/groups/group"))
 					return new Response(JSON.stringify(latest));
 				throw new Error(`Unexpected request: ${url}`);
-			});
+		});
 
 		render(
 			<SyncplayTestProvider>
@@ -628,13 +629,14 @@ describe("SyncplayProvider", () => {
 		let members: SyncplayGroup["members"] = [
 			{
 				userId: "user",
+				participantId: "test-participant",
 				username: "Alex",
 				viewing: false,
 				loading: false,
 				role: "host",
 			},
 		];
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		mockFetch(async (input, init) => {
 			if (
 				String(input).endsWith("/groups") &&
 				(!init?.method || init.method === "GET")
@@ -678,6 +680,7 @@ describe("SyncplayProvider", () => {
 			members: [
 				{
 					userId: "user",
+					participantId: "test-participant",
 					username: "Alex",
 					viewing: false,
 					loading: false,
@@ -685,7 +688,7 @@ describe("SyncplayProvider", () => {
 				},
 			],
 		};
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		mockFetch(async (input, init) => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 				return new Response(JSON.stringify({ groups: [waiting] }));
@@ -721,16 +724,14 @@ describe("SyncplayProvider", () => {
 			...joinedGroup(2),
 			members: [{ ...joinedGroup(2).members[0], watchingTogether: false }],
 		};
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockImplementation(async (input, init) => {
+		const fetchMock = mockFetch(async (input, init) => {
 				const url = String(input);
 				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
 				if (url.endsWith("/groups/group/participation"))
 					return new Response(JSON.stringify(browsing));
 				throw new Error(`Unexpected request: ${url}`);
-			});
+		});
 		render(
 			<SyncplayTestProvider>
 				<Controls />
@@ -755,6 +756,7 @@ describe("SyncplayProvider", () => {
 			members: [
 				{
 					userId: "user",
+					participantId: "test-participant",
 					username: "Alex",
 					viewing: true,
 					loading: false,
@@ -768,7 +770,7 @@ describe("SyncplayProvider", () => {
 			playing: false,
 			resumeWhenReady: true,
 		};
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		mockFetch(async (input, init) => {
 			const url = String(input);
 			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 				return new Response(JSON.stringify({ groups: [stale] }));

@@ -1,4 +1,5 @@
 import {
+	act,
 	fireEvent,
 	render,
 	screen,
@@ -192,6 +193,60 @@ describe("home screen", () => {
 
 		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
 		expect(await screen.findAllByText("Recovered")).toHaveLength(2);
+	});
+
+	it("retries an invalidated in-flight home load without showing its abort error", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "token",
+			userId: "user",
+			username: "Alex",
+		});
+		let rejectFirst!: (reason: unknown) => void;
+		const fetchHomeData = vi
+			.spyOn(jellyfin, "fetchHomeData")
+			.mockImplementationOnce(
+				() =>
+					new Promise((_resolve, reject) => {
+						rejectFirst = reject;
+					}),
+			)
+			.mockResolvedValueOnce({
+				latestItems: [],
+				libraryRows: [
+					{
+						libraryId: "anime",
+						libraryName: "Anime",
+						titleKey: "topRated",
+						items: [item("fresh", "Fresh Home")],
+					},
+				],
+				continueWatching: [],
+				nextUp: [],
+			});
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(1));
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "anime" },
+				}),
+			);
+			rejectFirst(
+				new DOMException("This signal is aborted without reason", "AbortError"),
+			);
+		});
+
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
+		expect(await screen.findByText("Fresh Home")).toBeInTheDocument();
+		expect(
+			screen.queryByText("This signal is aborted without reason"),
+		).not.toBeInTheDocument();
 	});
 
 	it("does not show the empty-library state while home data is loading", async () => {

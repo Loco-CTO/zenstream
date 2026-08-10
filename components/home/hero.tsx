@@ -274,6 +274,11 @@ export function Hero({
 						autoPlay={!reduceMotion && !isPaused}
 						muted={isTrailerMuted}
 						playsInline
+						onCanPlay={(event) => {
+							if (!reduceMotion && !isPaused) {
+								void event.currentTarget.play().catch(() => undefined);
+							}
+						}}
 						onLoadedMetadata={(event) => {
 							for (const track of Array.from(event.currentTarget.textTracks)) {
 								track.mode = "disabled";

@@ -97,7 +97,10 @@ export function AppShell() {
 
 	const loadHome = useCallback(
 		async (nextSession: AuthSession) => {
-			if (homeLoadInFlight.current) return;
+			if (homeLoadInFlight.current) {
+				homeTrailingRefresh.current = true;
+				return;
+			}
 			homeLoadInFlight.current = true;
 			const hasExistingHome = homeDataRef.current !== null;
 			const finishProgress = start();
@@ -107,27 +110,33 @@ export function AppShell() {
 			}
 			setError(null);
 			try {
-				await primeResourceTicket(nextSession);
-				const data = await fetchHomeData(nextSession, (section) => {
-					setHomeData(
-						(current) => {
-							const next = ({ ...(current ?? {}), ...section }) as HomeData;
-							homeDataRef.current = next;
-							return next;
-						},
-					);
-					if (sectionHasContent(section)) setStatus("ready");
-				});
-				homeDataRef.current = data;
-				setHomeData(data);
-				setStatus("ready");
-			} catch (err) {
-				if (!hasExistingHome) {
-					setError(
-						err instanceof Error ? err.message : "Could not load your library.",
-					);
-					setStatus("error");
-				}
+				do {
+					homeTrailingRefresh.current = false;
+					try {
+						await primeResourceTicket(nextSession);
+						const data = await fetchHomeData(nextSession, (section) => {
+							setHomeData((current) => {
+								const next = ({ ...(current ?? {}), ...section }) as HomeData;
+								homeDataRef.current = next;
+								return next;
+							});
+							if (sectionHasContent(section)) setStatus("ready");
+						});
+						homeDataRef.current = data;
+						setHomeData(data);
+						setStatus("ready");
+					} catch (err) {
+						if (homeTrailingRefresh.current) continue;
+						if (!hasExistingHome) {
+							setError(
+								err instanceof Error
+									? err.message
+									: "Could not load your library.",
+							);
+							setStatus("error");
+						}
+					}
+				} while (homeTrailingRefresh.current);
 			} finally {
 				homeLoadInFlight.current = false;
 				finishProgress();
@@ -308,15 +317,8 @@ export function AppShell() {
 
 	useEffect(() => {
 		if (!session || pathname !== "/") return;
-		const refresh = async () => {
-			if (homeLoadInFlight.current) {
-				homeTrailingRefresh.current = true;
-				return;
-			}
-			do {
-				homeTrailingRefresh.current = false;
-				await loadHome(session);
-			} while (homeTrailingRefresh.current);
+		const refresh = () => {
+			void loadHome(session);
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);

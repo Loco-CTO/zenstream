@@ -239,7 +239,6 @@ describe("catalog client", () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(
 				JSON.stringify({
-					token: "token",
 					user: { id: "u", username: "alex" },
 				}),
 				{ status: 200 },
@@ -247,7 +246,7 @@ describe("catalog client", () => {
 		);
 		await authenticateByName(" alex ", "password-123");
 		expect(fetchMock).toHaveBeenCalledWith(
-			expect.stringContaining("/api/auth/login"),
+			expect.stringContaining("/api/auth/browser-login"),
 			expect.objectContaining({
 				method: "POST",
 				body: JSON.stringify({ username: "alex", password: "password-123" }),

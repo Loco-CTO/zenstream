@@ -370,7 +370,12 @@ describe("SyncplayProvider", () => {
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
 		expect(fetchMock).toHaveBeenCalledWith(
 			"/api/syncplay/groups",
-			expect.any(Object),
+			expect.objectContaining({
+				credentials: "include",
+				headers: expect.objectContaining({
+					"X-ZenStream-Participant": "test-participant",
+				}),
+			}),
 		);
 	});
 
@@ -701,8 +706,16 @@ describe("SyncplayProvider", () => {
 						revision: 2,
 					}),
 				);
-			if (url.endsWith("/api/content/items/movie"))
-				return new Response(JSON.stringify({ Id: "movie", Name: "Movie Name" }));
+			if (url.endsWith("/api/catalog/items/movie"))
+				return new Response(
+					JSON.stringify({
+						id: "movie",
+						libraryId: "library",
+						type: "movie",
+						name: "Movie Name",
+						metadata: {},
+					}),
+				);
 			throw new Error(`Unexpected request: ${url}`);
 		});
 		render(

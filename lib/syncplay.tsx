@@ -16,7 +16,7 @@ class SyncplaySocket {
 	id = "syncplay";
 	constructor(
 		private readonly url: string,
-		private readonly auth: { token: string; participantId: string },
+		private readonly auth: { session: AuthSession; participantId: string },
 	) {}
 	on<T = SyncplayEvent>(event: string, listener: (value: T) => void) {
 		this.listeners.set(event, [
@@ -35,16 +35,13 @@ class SyncplaySocket {
 				this.ws.readyState === WebSocket.CONNECTING)
 		)
 			return;
-		const httpOrigin = this.url
-			.replace(/^ws:/, "http:")
-			.replace(/^wss:/, "https:")
-			.replace(/\/api\/ws\/syncplay$/, "");
 		let ticket: string;
 		try {
-			const response = await fetch(`${httpOrigin}/api/auth/socket-ticket`, {
-				method: "POST",
-				headers: { Authorization: `Bearer ${this.auth.token}` },
-			});
+			const response = await authenticatedFetch(
+				this.auth.session,
+				"/api/auth/socket-ticket",
+				{ method: "POST" },
+			);
 			if (!response.ok) throw new Error("Socket ticket request failed");
 			ticket = String((await response.json()).ticket ?? "");
 			if (!ticket) throw new Error("Socket ticket was empty");
@@ -110,7 +107,7 @@ function normalizeSyncplayOrigin(origin: string) {
 const io = (
 	origin: string,
 	options: {
-		auth: { token: string; participantId: string };
+		auth: { session: AuthSession; participantId: string };
 		path?: string;
 		autoConnect?: boolean;
 	},
@@ -119,7 +116,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { getItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
-import { getAuthSession } from "@/lib/session";
+import { authenticatedFetch } from "@/lib/authenticated-request";
 
 export type SyncplayGroup = {
 	id: string;
@@ -240,7 +237,12 @@ class SyncplayRequestError extends Error {
 		super(message);
 	}
 }
-async function call(path: string, method = "GET", body?: unknown) {
+async function call(
+	session: AuthSession,
+	path: string,
+	method = "GET",
+	body?: unknown,
+) {
 	const started = performance.now();
 	syncplayDebug("HTTP request", { path, method, body });
 	const controller = new AbortController();
@@ -250,18 +252,13 @@ async function call(path: string, method = "GET", body?: unknown) {
 	);
 	let response: Response;
 	try {
-		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
-		response = await fetch(`${base}/api/syncplay/${path}`, {
+		response = await authenticatedFetch(session, `/api/syncplay/${path}`, {
 			method,
 			headers: {
-				...(getAuthSession()?.token
-					? { Authorization: `Bearer ${getAuthSession()!.token}` }
-					: {}),
-				...(getAuthSession()?.username
-					? { "X-ZenStream-Username": getAuthSession()!.username }
+				...(session.username
+					? { "X-ZenStream-Username": session.username }
 					: {}),
 				"X-ZenStream-Participant": participantId(),
-				...(body ? { "Content-Type": "application/json" } : {}),
 			},
 			body: body ? JSON.stringify(body) : undefined,
 			cache: "no-store",
@@ -439,7 +436,7 @@ export function SyncplayProvider({
 		[announcePlayback, currentParticipantId, setCurrent, t, toast],
 	);
 	const refresh = useCallback(async () => {
-		const data = (await call("groups")) as { groups: SyncplayGroup[] };
+		const data = (await call(session, "groups")) as { groups: SyncplayGroup[] };
 		syncplayDebug(
 			"groups refreshed",
 			JSON.stringify(
@@ -545,7 +542,7 @@ export function SyncplayProvider({
 		).replace(/\/+$/, "");
 		const socket = io(socketOrigin, {
 			path: "/api/socket.io",
-			auth: { token: session.token, participantId: currentParticipantId },
+			auth: { session, participantId: currentParticipantId },
 			autoConnect: false,
 		});
 		socketRef.current = socket;
@@ -659,7 +656,7 @@ export function SyncplayProvider({
 		if (activeRef.current || membershipActionRef.current) return;
 		membershipActionRef.current = true;
 		try {
-			const group = (await call("groups", "POST")) as SyncplayGroup;
+			const group = (await call(session, "groups", "POST")) as SyncplayGroup;
 			adopt(group);
 			toast.success(t("syncplayGroupCreated"));
 		} catch (error) {
@@ -682,7 +679,7 @@ export function SyncplayProvider({
 		membershipActionRef.current = true;
 		try {
 			const known = groups.find((entry) => entry.id === id);
-			const group = (await call(`groups/${id}/join`, "POST", {
+			const group = (await call(session, `groups/${id}/join`, "POST", {
 				expectedRevision: known?.revision,
 				operationId: operationId(),
 			})) as SyncplayGroup;
@@ -705,7 +702,7 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return;
 		try {
-			await call(`groups/${group.id}`, "DELETE", {
+			await call(session, `groups/${group.id}`, "DELETE", {
 				expectedRevision: group.revision,
 				operationId: operationId(),
 			});
@@ -731,7 +728,7 @@ export function SyncplayProvider({
 		if (!group) return;
 		try {
 			adopt(
-				(await call(`groups/${group.id}`, "PATCH", {
+				(await call(session, `groups/${group.id}`, "PATCH", {
 					allowViewerControls: value,
 					expectedRevision: group.revision,
 					operationId: operationId(),
@@ -747,7 +744,7 @@ export function SyncplayProvider({
 		if (!group) return;
 		try {
 			adopt(
-				(await call(
+				(await call(session,
 					`groups/${group.id}/members/${encodeURIComponent(userId)}`,
 					"DELETE",
 					{ expectedRevision: group.revision, operationId: operationId() },
@@ -781,13 +778,13 @@ export function SyncplayProvider({
 		);
 		try {
 			adopt(
-				(await call(`groups/${group.id}/participation`, "POST", {
+				(await call(session, `groups/${group.id}/participation`, "POST", {
 					watchingTogether: value,
 					operationId: operationId(),
 				})) as SyncplayGroup,
 			);
 		} catch (error) {
-			adopt((await call(`groups/${group.id}`)) as SyncplayGroup);
+			adopt((await call(session, `groups/${group.id}`)) as SyncplayGroup);
 			toast.error(t("syncplayPresenceFailed"));
 			throw error;
 		}
@@ -817,7 +814,7 @@ export function SyncplayProvider({
 			if (!current || current.id !== groupId) return;
 			const id = operationId();
 			const send = (revision: number) =>
-				call(`groups/${groupId}/command`, "POST", {
+				call(session, `groups/${groupId}/command`, "POST", {
 					...value,
 					expectedRevision: revision,
 					operationId: id,
@@ -835,7 +832,7 @@ export function SyncplayProvider({
 					if (!(error instanceof SyncplayRequestError) || error.status !== 409)
 						throw error;
 					const latest = (error.group ??
-						(await call(`groups/${groupId}`))) as SyncplayGroup;
+						(await call(session, `groups/${groupId}`))) as SyncplayGroup;
 					syncplayDebug("command stale; retrying", {
 						groupId,
 						latestRevision: latest.revision,
@@ -850,7 +847,7 @@ export function SyncplayProvider({
 							retryError.status !== 409
 						)
 							throw retryError;
-						adopt((await call(`groups/${groupId}`)) as SyncplayGroup);
+						adopt((await call(session, `groups/${groupId}`)) as SyncplayGroup);
 					}
 				}
 			} catch (error) {
@@ -873,7 +870,7 @@ export function SyncplayProvider({
 				try {
 					syncplayDebug("presence send", report);
 					adopt(
-						(await call(`groups/${report.groupId}/presence`, "POST", {
+						(await call(session, `groups/${report.groupId}/presence`, "POST", {
 							viewing: report.viewing,
 							loading: report.loading,
 							mediaGeneration: report.generation,

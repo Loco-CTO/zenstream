@@ -13,6 +13,7 @@ import {
 	setSubtitlePreference,
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
+import type { AuthSession } from "@/lib/session";
 
 const Context = createContext<{
 	style: SubtitleStyle;
@@ -27,36 +28,40 @@ const Context = createContext<{
 });
 
 export function SubtitlePreferencesProvider({
+	session,
 	initialStyle,
 	children,
 }: {
+	session: AuthSession | null;
 	initialStyle?: SubtitleStyle;
 	children: ReactNode;
 }) {
 	const [style, setStyle] = useState(initialStyle ?? DEFAULT_SUBTITLE_STYLE);
 	const [error, setError] = useState(false);
 	const refresh = useCallback(async () => {
+		if (!session) return;
 		try {
-			setStyle(await getSubtitlePreference());
+			setStyle(await getSubtitlePreference(session));
 			setError(false);
 		} catch {
 			// Retain the most recently known appearance if the preference service is unavailable.
 		}
-	}, []);
+	}, [session]);
 	const update = useCallback(
 		async (change: Partial<SubtitleStyle>) => {
 			const previous = style;
 			const next = { ...style, ...change };
 			setStyle(next);
-			setError(false);
-			try {
-				setStyle(await setSubtitlePreference(next));
+		setError(false);
+		if (!session) return;
+		try {
+			setStyle(await setSubtitlePreference(session, next));
 			} catch {
 				setStyle(previous);
 				setError(true);
 			}
 		},
-		[style],
+		[session, style],
 	);
 	return (
 		<Context.Provider value={{ style, update, refresh, error }}>

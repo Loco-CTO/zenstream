@@ -12,6 +12,7 @@ import {
 	clearMediaClientSession,
 	primeResourceTicket,
 	revokeAuthSession,
+	validateBrowserSession,
 	type DetailData,
 	type HomeData,
 } from "@/lib/media-api";
@@ -43,11 +44,13 @@ import {
 	setLocalePreference,
 	setMetadataLanguagePreference,
 	storeLocale,
+	clearPreferenceCache,
 	type MetadataLanguagePreference,
 } from "@/lib/preferences";
 import {
 	DEFAULT_SUBTITLE_STYLE,
 	getSubtitlePreference,
+	clearSubtitlePreferenceCache,
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
@@ -57,7 +60,13 @@ import { ToastProvider } from "@/components/ui/toast";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 
-type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
+type AppStatus =
+	| "checking"
+	| "login"
+	| "loading"
+	| "ready"
+	| "error"
+	| "bootstrap-error";
 
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
@@ -77,6 +86,11 @@ export function AppShell() {
 		DEFAULT_SUBTITLE_STYLE,
 	);
 	const loadedPreferencesToken = useRef<string | null>(null);
+	const sessionRef = useRef<AuthSession | null>(null);
+	const routeLoadGeneration = useRef(0);
+	const preferencesGeneration = useRef(0);
+	const bootstrapInFlight = useRef<Promise<AuthSession | null> | null>(null);
+	const authExpiryHandled = useRef<AuthSession | null>(null);
 	const homeLoadInFlight = useRef(false);
 	const homeTrailingRefresh = useRef(false);
 	const homeDataRef = useRef<HomeData | null>(null);
@@ -84,26 +98,39 @@ export function AppShell() {
 	const detailRefreshInFlight = useRef(false);
 	const detailTrailingRefresh = useRef(false);
 	const detailRefreshController = useRef<AbortController | null>(null);
-	const loadPreferences = useCallback(() => {
-		void getLocalePreference()
+	const loadPreferences = useCallback((nextSession: AuthSession) => {
+		const generation = ++preferencesGeneration.current;
+		const commit = (callback: () => void) => {
+			if (
+				generation === preferencesGeneration.current &&
+				sessionRef.current === nextSession
+			)
+				callback();
+		};
+		void getLocalePreference(nextSession)
 			.then((remoteLocale) => {
-				storeLocale(remoteLocale);
-				setLocale(remoteLocale);
+				commit(() => {
+					storeLocale(remoteLocale);
+					setLocale(remoteLocale);
+				});
 			})
 			.catch(() => undefined);
-		void getSubtitlePreference()
-			.then(setSubtitleStyle)
+		void getSubtitlePreference(nextSession)
+			.then((value) => commit(() => setSubtitleStyle(value)))
 			.catch(() => undefined);
-		void getMetadataLanguages()
-			.then(setMetadataLanguages)
+		void getMetadataLanguages(nextSession)
+			.then((value) => commit(() => setMetadataLanguages(value)))
 			.catch(() => undefined);
-		void getMetadataLanguagePreference()
-			.then(setMetadataLanguage)
+		void getMetadataLanguagePreference(nextSession)
+			.then((value) => commit(() => setMetadataLanguage(value)))
 			.catch(() => undefined);
 	}, []);
 
 	const loadHome = useCallback(
-		async (nextSession: AuthSession) => {
+		async (nextSession: AuthSession, requestedGeneration = routeLoadGeneration.current) => {
+			const isCurrent = () =>
+				sessionRef.current === nextSession &&
+				requestedGeneration === routeLoadGeneration.current;
 			if (homeLoadInFlight.current) {
 				homeTrailingRefresh.current = true;
 				return;
@@ -112,16 +139,17 @@ export function AppShell() {
 			const hasExistingHome = homeDataRef.current !== null;
 			const finishProgress = start();
 			if (!hasExistingHome) {
-				setStatus("loading");
+				if (isCurrent()) setStatus("loading");
 				setHomeData(null);
 			}
-			setError(null);
+			if (isCurrent()) setError(null);
 			try {
 				do {
 					homeTrailingRefresh.current = false;
 					try {
 						await primeResourceTicket(nextSession);
 						const data = await fetchHomeData(nextSession, (section) => {
+							if (!isCurrent()) return;
 							setHomeData((current) => {
 								const next = { ...(current ?? {}), ...section } as HomeData;
 								homeDataRef.current = next;
@@ -130,11 +158,13 @@ export function AppShell() {
 							if (sectionHasContent(section)) setStatus("ready");
 						});
 						homeDataRef.current = data;
-						setHomeData(data);
-						setStatus("ready");
+						if (isCurrent()) {
+							setHomeData(data);
+							setStatus("ready");
+						}
 					} catch (err) {
 						if (homeTrailingRefresh.current) continue;
-						if (!hasExistingHome) {
+						if (!hasExistingHome && isCurrent()) {
 							setError(
 								err instanceof Error ? err.message : "Could not load your library.",
 							);
@@ -174,22 +204,38 @@ export function AppShell() {
 		[pathname, playId],
 	);
 	const loadDetail = useCallback(
-		async (nextSession: AuthSession, itemId: string) => {
+		async (
+			nextSession: AuthSession,
+			itemId: string,
+			requestedGeneration = routeLoadGeneration.current,
+		) => {
+			const isCurrent = () =>
+				sessionRef.current === nextSession &&
+				requestedGeneration === routeLoadGeneration.current;
 			const finishProgress = start();
-			setStatus("loading");
-			setError(null);
-			setDetailData(null);
+			if (isCurrent()) {
+				setStatus("loading");
+				setError(null);
+				setDetailData(null);
+			}
 			try {
 				if (pathname === "/search") {
-					setSearchData(searchQuery);
-					setStatus("ready");
+					if (isCurrent()) {
+						setSearchData(searchQuery);
+						setStatus("ready");
+					}
 					return;
 				}
-				setDetailData(await fetchDetailPayload(nextSession, itemId));
-				setStatus("ready");
+				const nextData = await fetchDetailPayload(nextSession, itemId);
+				if (isCurrent()) {
+					setDetailData(nextData);
+					setStatus("ready");
+				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : "Could not load this title.");
-				setStatus("error");
+				if (isCurrent()) {
+					setError(err instanceof Error ? err.message : "Could not load this title.");
+					setStatus("error");
+				}
 			} finally {
 				finishProgress();
 			}
@@ -240,32 +286,75 @@ export function AppShell() {
 	}, [currentSearch, pathname]);
 
 	useEffect(() => {
+		let disposed = false;
 		const finishProgress = start();
 		const stored = getAuthSession();
 		const storedLocale = getStoredLocale();
-		// Apply both hydrated preferences before revealing the authenticated UI.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (storedLocale) setLocale(storedLocale);
 		if (!stored) {
-			// Cookie-backed auth is only available after hydration.
 			setStatus("login");
 			finishProgress();
-			return;
+			return () => {
+				disposed = true;
+			};
 		}
-		setSession(stored);
-		if (loadedPreferencesToken.current !== stored.token) {
-			loadedPreferencesToken.current = stored.token;
-			loadPreferences();
+		const validation =
+			bootstrapInFlight.current ??
+			(validateBrowserSession(stored).finally(() => {
+				bootstrapInFlight.current = null;
+			}) as Promise<AuthSession | null>);
+		bootstrapInFlight.current = validation;
+		void validation
+			.then((verified) => {
+				if (disposed) return;
+				if (!verified) {
+					clearAuthCookies();
+					clearMediaClientSession();
+					clearPreferenceCache();
+					clearSubtitlePreferenceCache();
+					setStatus("login");
+					return;
+				}
+				setAuthCookies(verified);
+				sessionRef.current = verified;
+				setSession(verified);
+				setStatus("checking");
+			})
+			.catch((validationError) => {
+				if (disposed) return;
+				setError(
+					validationError instanceof Error
+						? validationError.message
+						: "Could not reach the Orchestrator.",
+				);
+				setStatus("bootstrap-error");
+			})
+			.finally(finishProgress);
+		return () => {
+			disposed = true;
+		};
+	}, [start]);
+
+	useEffect(() => {
+		if (!session) return;
+		const generation = ++routeLoadGeneration.current;
+		if (loadedPreferencesToken.current !== session.userId) {
+			loadedPreferencesToken.current = session.userId;
+			loadPreferences(session);
 		}
+		const finishProgress = start();
 		void (async () => {
-			if (detailId || playId) await loadDetail(stored, detailId ?? playId!);
+			if (detailId || playId)
+				await loadDetail(session, detailId ?? playId!, generation);
 			else if (pathname === "/search" || pathname === "/settings") {
-				if (pathname === "/search") setSearchData(searchQuery);
-				setStatus("ready");
+				if (generation === routeLoadGeneration.current) {
+					if (pathname === "/search") setSearchData(searchQuery);
+					setStatus("ready");
+				}
 			} else if (pathname === "/library" || pathname === "/favorites") {
-				await primeResourceTicket(stored);
-				setStatus("ready");
-			} else await loadHome(stored);
+				await primeResourceTicket(session);
+				if (generation === routeLoadGeneration.current) setStatus("ready");
+			} else await loadHome(session, generation);
 			finishProgress();
 		})();
 	}, [
@@ -276,6 +365,7 @@ export function AppShell() {
 		loadPreferences,
 		pathname,
 		searchQuery,
+		session,
 		start,
 	]);
 
@@ -283,23 +373,39 @@ export function AppShell() {
 		const response = await authenticateByName(username, password);
 		const nextSession = sessionFromAuth(response);
 		setAuthCookies(nextSession);
+		sessionRef.current = nextSession;
+		authExpiryHandled.current = null;
 		setSession(nextSession);
-		loadPreferences();
+		const generation = ++routeLoadGeneration.current;
+		loadPreferences(nextSession);
 		await primeResourceTicket(nextSession);
-		if (detailId || playId) await loadDetail(nextSession, detailId ?? playId!);
+		if (detailId || playId)
+			await loadDetail(nextSession, detailId ?? playId!, generation);
 		else if (pathname === "/search") {
-			setSearchData(searchQuery);
-			setStatus("ready");
+			if (generation === routeLoadGeneration.current) {
+				setSearchData(searchQuery);
+				setStatus("ready");
+			}
 		} else if (pathname === "/library" || pathname === "/favorites")
-			setStatus("ready");
-		else await loadHome(nextSession);
+			{
+				if (generation === routeLoadGeneration.current) setStatus("ready");
+			}
+		else await loadHome(nextSession, generation);
 	};
 
-	const handleLogout = useCallback(() => {
+	const clearLocalSession = useCallback((expiredSession?: AuthSession) => {
+		if (expiredSession && sessionRef.current !== expiredSession) return;
 		const activeSession = session;
 		clearAuthCookies();
 		clearMediaClientSession();
+		clearPreferenceCache();
+		clearSubtitlePreferenceCache();
 		clearMediaClientCache();
+		routeLoadGeneration.current += 1;
+		preferencesGeneration.current += 1;
+		detailRefreshGeneration.current += 1;
+		detailRefreshController.current?.abort();
+		sessionRef.current = null;
 		setSession(null);
 		loadedPreferencesToken.current = null;
 		homeDataRef.current = null;
@@ -308,16 +414,27 @@ export function AppShell() {
 		setSearchData(null);
 		setError(null);
 		setStatus("login");
-		if (activeSession)
-			void revokeAuthSession(activeSession).catch(() => undefined);
+		return activeSession;
 	}, [session]);
 
+	const handleLogout = useCallback(() => {
+		const activeSession = clearLocalSession();
+		if (activeSession) void revokeAuthSession(activeSession).catch(() => undefined);
+	}, [clearLocalSession]);
+
 	useEffect(() => {
-		const handleAuthExpired = () => handleLogout();
+		const handleAuthExpired = (event: Event) => {
+			const expiredSession = (event as CustomEvent<{ session?: AuthSession }>).detail
+				?.session;
+			if (expiredSession && sessionRef.current !== expiredSession) return;
+			if (authExpiryHandled.current === expiredSession) return;
+			authExpiryHandled.current = expiredSession ?? sessionRef.current;
+			clearLocalSession(expiredSession);
+		};
 		window.addEventListener("zenstream:auth-expired", handleAuthExpired);
 		return () =>
 			window.removeEventListener("zenstream:auth-expired", handleAuthExpired);
-	}, [handleLogout]);
+	}, [clearLocalSession]);
 
 	useEffect(() => {
 		if (!session || process.env.NODE_ENV === "test") return;
@@ -365,9 +482,10 @@ export function AppShell() {
 		setLocale(nextLocale);
 		storeLocale(nextLocale);
 		try {
-			await setLocalePreference(nextLocale);
+			if (!session) return;
+			await setLocalePreference(session, nextLocale);
 			if (metadataLanguage.mode === "auto") {
-				const updated = await getMetadataLanguagePreference();
+				const updated = await getMetadataLanguagePreference(session);
 				setMetadataLanguage(updated);
 				if (session) {
 					clearMediaClientCache();
@@ -391,7 +509,8 @@ export function AppShell() {
 			language: language ?? locale,
 		});
 		try {
-			const updated = await setMetadataLanguagePreference(language);
+			if (!session) return;
+			const updated = await setMetadataLanguagePreference(session, language);
 			setMetadataLanguage(updated);
 			if (session) {
 				clearMediaClientCache();
@@ -409,10 +528,21 @@ export function AppShell() {
 			<ToastProvider>
 				<SubtitlePreferencesProvider
 					key={JSON.stringify(subtitleStyle)}
+					session={session}
 					initialStyle={subtitleStyle}
 				>
 					{status === "checking" ? (
 						<div className="min-h-screen bg-background" />
+					) : status === "bootstrap-error" ? (
+						<ErrorPanel
+							title="Could not connect to ZenStream"
+							message={error}
+							onRetry={() => {
+								setStatus("checking");
+								setError(null);
+								window.location.reload();
+							}}
+						/>
 					) : status === "login" || !session ? (
 						<LoginPage onLogin={handleLogin} />
 					) : (

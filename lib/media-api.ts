@@ -1,6 +1,10 @@
 import { getAuthSession, type AuthSession } from "@/lib/session";
 import { browserDeviceProfile } from "@/lib/browser-device-profile";
 import {
+	authenticatedFetch,
+	orchestratorBaseUrl as sharedOrchestratorBaseUrl,
+} from "@/lib/authenticated-request";
+import {
 	catalogRequest,
 	toMediaItem,
 	toMediaStreams,
@@ -349,10 +353,7 @@ export interface NewlyAddedSection {
 }
 
 export function orchestratorBaseUrl() {
-	if (process.env.NEXT_PUBLIC_ZSO_URL)
-		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
-	if (typeof window !== "undefined") return window.location.origin;
-	return "http://127.0.0.1:9090";
+	return sharedOrchestratorBaseUrl();
 }
 
 let resourceTicket: {
@@ -371,15 +372,11 @@ export function clearMediaClientSession() {
 }
 
 export async function revokeAuthSession(session: AuthSession): Promise<void> {
-	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/logout`, {
+	const response = await authenticatedFetch(session, "/api/auth/logout", {
 		method: "POST",
-		headers: session.token
-			? { Authorization: `Bearer ${session.token}` }
-			: undefined,
-		credentials: "include",
 		cache: "no-store",
 		keepalive: true,
-	});
+	}, { notifyOnUnauthorized: false });
 	// An expired token is already effectively revoked.
 	if (!response.ok && response.status !== 401) {
 		throw new Error(`Logout failed with ${response.status}.`);
@@ -396,15 +393,10 @@ export async function primeResourceTicket(
 	)
 		return resourceTicket.value;
 	try {
-		const response = await fetch(
-			`${orchestratorBaseUrl()}/api/auth/resource-ticket`,
-			{
-				headers: session.token
-					? { Authorization: `Bearer ${session.token}` }
-					: undefined,
-				credentials: "include",
-				cache: "no-store",
-			},
+		const response = await authenticatedFetch(
+			session,
+			"/api/auth/resource-ticket",
+			{ cache: "no-store" },
 		);
 		if (!response.ok) return null;
 		const payload = (await response.json()) as {
@@ -468,6 +460,32 @@ export async function authenticateByName(
 	}
 
 	return (await response.json()) as AuthResponse;
+}
+
+export async function validateBrowserSession(
+	session: AuthSession,
+): Promise<AuthSession | null> {
+	const response = await authenticatedFetch(
+		session,
+		"/api/auth/me",
+		{ cache: "no-store" },
+		{ notifyOnUnauthorized: false },
+	);
+	if (response.status === 401) return null;
+	if (!response.ok) throw new Error(`Session validation failed with ${response.status}.`);
+	const payload = (await response.json()) as {
+		user?: { id?: unknown; username?: unknown };
+	};
+	if (typeof payload.user?.id !== "string")
+		throw new Error("Server did not return a complete session response.");
+	return {
+		token: "",
+		userId: payload.user.id,
+		username:
+			typeof payload.user.username === "string"
+				? payload.user.username
+				: "ZenStream",
+	};
 }
 
 export async function fetchHomeData(

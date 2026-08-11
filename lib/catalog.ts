@@ -1,6 +1,8 @@
 import type { MediaItem, MediaStream } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
-import { getAuthSession } from "@/lib/session";
+import { authenticatedFetch } from "@/lib/authenticated-request";
+
+export { orchestratorBaseUrl } from "@/lib/authenticated-request";
 
 export type CatalogItem = {
 	id: string;
@@ -53,13 +55,6 @@ export type CatalogItem = {
 	};
 };
 
-export function orchestratorBaseUrl() {
-	if (process.env.NEXT_PUBLIC_ZSO_URL)
-		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
-	if (typeof window !== "undefined") return window.location.origin;
-	return "http://127.0.0.1:9090";
-}
-
 export async function catalogRequest<T>(
 	session: AuthSession,
 	path: string,
@@ -71,16 +66,9 @@ export async function catalogRequest<T>(
 	init.signal?.addEventListener("abort", abort, { once: true });
 	let response: Response;
 	try {
-		response = await fetch(`${orchestratorBaseUrl()}${path}`, {
+		response = await authenticatedFetch(session, path, {
 			...init,
-			credentials: "include",
 			signal: controller.signal,
-			headers: {
-				Accept: "application/json",
-				...(session.token ? { Authorization: `Bearer ${session.token}` } : {}),
-				...(init.body ? { "Content-Type": "application/json" } : {}),
-				...init.headers,
-			},
 		});
 	} catch (error) {
 		if (controller.signal.aborted && !init.signal?.aborted) {
@@ -90,15 +78,6 @@ export async function catalogRequest<T>(
 	} finally {
 		window.clearTimeout(timeout);
 		init.signal?.removeEventListener("abort", abort);
-	}
-	if (response.status === 401 && typeof window !== "undefined") {
-		// A request from an older route/session must not log out a newer one.
-		const active = getAuthSession();
-		const sameSession =
-			active &&
-			active.userId === session.userId &&
-			(active.token || "") === (session.token || "");
-		if (sameSession) window.dispatchEvent(new Event("zenstream:auth-expired"));
 	}
 	if (!response.ok) throw new Error(`Request failed with ${response.status}.`);
 	if (response.status === 204) return null as T;

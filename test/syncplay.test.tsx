@@ -58,11 +58,13 @@ type FetchHandler = (
 ) => Response | Promise<Response>;
 
 function mockFetch(handler: FetchHandler) {
-	return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-		if (String(input).endsWith("/api/auth/socket-ticket"))
-			return new Response(JSON.stringify({ ticket: "socket-ticket" }));
-		return handler(input, init);
-	});
+	return vi
+		.spyOn(globalThis, "fetch")
+		.mockImplementation(async (input, init) => {
+			if (String(input).endsWith("/api/auth/socket-ticket"))
+				return new Response(JSON.stringify({ ticket: "socket-ticket" }));
+			return handler(input, init);
+		});
 }
 
 vi.mock("next/navigation", () => ({
@@ -242,23 +244,23 @@ describe("SyncplayProvider", () => {
 		mockFetch(
 			() =>
 				new Response(
-				JSON.stringify({
-					groups: [
-						{
-							...group(1),
-							hostUserId: "alex",
-							members: [
-								{
-									userId: "alex",
-									username: "Alex",
-									viewing: false,
-									loading: false,
-									role: "host",
-								},
-							],
-						},
-					],
-				}),
+					JSON.stringify({
+						groups: [
+							{
+								...group(1),
+								hostUserId: "alex",
+								members: [
+									{
+										userId: "alex",
+										username: "Alex",
+										viewing: false,
+										loading: false,
+										role: "host",
+									},
+								],
+							},
+						],
+					}),
 				),
 		);
 		render(
@@ -274,41 +276,41 @@ describe("SyncplayProvider", () => {
 
 	it("refreshes the revision and retries a stale playback command once", async () => {
 		const fetchMock = mockFetch(async (input, init) => {
-				const url = String(input);
-				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-					return new Response(
-						JSON.stringify({
-							groups: [
-								{
-									...group(1),
-									members: [
-										{
-											userId: "user",
-											participantId: "test-participant",
-											username: "Alex",
-											viewing: false,
-											loading: false,
-											role: "host",
-										},
-									],
-								},
-							],
-						}),
-					);
-				if (url.endsWith("/groups/group/join"))
-					return new Response(JSON.stringify(joinedGroup(1)));
-				if (url.endsWith("/groups/group/command")) {
-					const revision = JSON.parse(String(init?.body)).expectedRevision;
-					return revision === 1
-						? new Response(
-								JSON.stringify({ message: "Playback state is out of date." }),
-								{ status: 409 },
-							)
-						: new Response(JSON.stringify(joinedGroup(3)));
-				}
-				if (url.endsWith("/groups/group"))
-					return new Response(JSON.stringify(joinedGroup(2)));
-				throw new Error(`Unexpected request: ${url}`);
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(
+					JSON.stringify({
+						groups: [
+							{
+								...group(1),
+								members: [
+									{
+										userId: "user",
+										participantId: "test-participant",
+										username: "Alex",
+										viewing: false,
+										loading: false,
+										role: "host",
+									},
+								],
+							},
+						],
+					}),
+				);
+			if (url.endsWith("/groups/group/join"))
+				return new Response(JSON.stringify(joinedGroup(1)));
+			if (url.endsWith("/groups/group/command")) {
+				const revision = JSON.parse(String(init?.body)).expectedRevision;
+				return revision === 1
+					? new Response(
+							JSON.stringify({ message: "Playback state is out of date." }),
+							{ status: 409 },
+						)
+					: new Response(JSON.stringify(joinedGroup(3)));
+			}
+			if (url.endsWith("/groups/group"))
+				return new Response(JSON.stringify(joinedGroup(2)));
+			throw new Error(`Unexpected request: ${url}`);
 		});
 
 		render(
@@ -339,23 +341,23 @@ describe("SyncplayProvider", () => {
 		const fetchMock = mockFetch(
 			() =>
 				new Response(
-				JSON.stringify({
-					groups: [
-						{
-							...group(1),
-							members: [
-								{
-									userId: "user",
-									participantId: "test-participant",
-									username: "Alex",
-									viewing: false,
-									loading: false,
-									role: "host",
-								},
-							],
-						},
-					],
-				}),
+					JSON.stringify({
+						groups: [
+							{
+								...group(1),
+								members: [
+									{
+										userId: "user",
+										participantId: "test-participant",
+										username: "Alex",
+										viewing: false,
+										loading: false,
+										role: "host",
+									},
+								],
+							},
+						],
+					}),
 				),
 		);
 		function ActiveGroup() {
@@ -381,8 +383,7 @@ describe("SyncplayProvider", () => {
 
 	it("blocks creating or joining another group while already active", async () => {
 		const fetchMock = mockFetch(
-			() =>
-				new Response(JSON.stringify({ groups: [{ ...joinedGroup(1) }] })),
+			() => new Response(JSON.stringify({ groups: [{ ...joinedGroup(1) }] })),
 		);
 		render(
 			<SyncplayTestProvider>
@@ -404,12 +405,12 @@ describe("SyncplayProvider", () => {
 
 	it("keeps only the latest queued seek", async () => {
 		const fetchMock = mockFetch(async (input, init) => {
-				const url = String(input);
-				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
-				if (url.endsWith("/groups/group/command"))
-					return new Response(JSON.stringify(joinedGroup(2)));
-				throw new Error(`Unexpected request: ${url}`);
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(JSON.stringify(joinedGroup(2)));
+			throw new Error(`Unexpected request: ${url}`);
 		});
 
 		render(
@@ -438,12 +439,12 @@ describe("SyncplayProvider", () => {
 			timelineRevision: 7,
 		};
 		const fetchMock = mockFetch(async (input, init) => {
-				const url = String(input);
-				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-					return new Response(JSON.stringify({ groups: [active] }));
-				if (url.endsWith("/groups/group/presence"))
-					return new Response(JSON.stringify(active));
-				throw new Error(`Unexpected request: ${url}`);
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [active] }));
+			if (url.endsWith("/groups/group/presence"))
+				return new Response(JSON.stringify(active));
+			throw new Error(`Unexpected request: ${url}`);
 		});
 
 		render(
@@ -468,23 +469,23 @@ describe("SyncplayProvider", () => {
 		mockFetch(
 			() =>
 				new Response(
-				JSON.stringify({
-					groups: [
-						{
-							...group(1),
-							members: [
-								{
-									userId: "user",
-									participantId: "test-participant",
-									username: "Alex",
-									viewing: false,
-									loading: false,
-									role: "host",
-								},
-							],
-						},
-					],
-				}),
+					JSON.stringify({
+						groups: [
+							{
+								...group(1),
+								members: [
+									{
+										userId: "user",
+										participantId: "test-participant",
+										username: "Alex",
+										viewing: false,
+										loading: false,
+										role: "host",
+									},
+								],
+							},
+						],
+					}),
 				),
 		);
 		render(
@@ -595,19 +596,19 @@ describe("SyncplayProvider", () => {
 			],
 		};
 		const fetchMock = mockFetch(async (input, init) => {
-				const url = String(input);
-				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-					return new Response(JSON.stringify({ groups: [latest] }));
-				if (url.endsWith("/groups/group/join"))
-					return new Response(JSON.stringify(latest));
-				if (url.endsWith("/groups/group/command"))
-					return new Response(
-						JSON.stringify({ message: "Playback state is out of date." }),
-						{ status: 409 },
-					);
-				if (url.endsWith("/groups/group"))
-					return new Response(JSON.stringify(latest));
-				throw new Error(`Unexpected request: ${url}`);
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [latest] }));
+			if (url.endsWith("/groups/group/join"))
+				return new Response(JSON.stringify(latest));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(
+					JSON.stringify({ message: "Playback state is out of date." }),
+					{ status: 409 },
+				);
+			if (url.endsWith("/groups/group"))
+				return new Response(JSON.stringify(latest));
+			throw new Error(`Unexpected request: ${url}`);
 		});
 
 		render(
@@ -738,12 +739,12 @@ describe("SyncplayProvider", () => {
 			members: [{ ...joinedGroup(2).members[0], watchingTogether: false }],
 		};
 		const fetchMock = mockFetch(async (input, init) => {
-				const url = String(input);
-				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
-					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
-				if (url.endsWith("/groups/group/participation"))
-					return new Response(JSON.stringify(browsing));
-				throw new Error(`Unexpected request: ${url}`);
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+			if (url.endsWith("/groups/group/participation"))
+				return new Response(JSON.stringify(browsing));
+			throw new Error(`Unexpected request: ${url}`);
 		});
 		render(
 			<SyncplayTestProvider>

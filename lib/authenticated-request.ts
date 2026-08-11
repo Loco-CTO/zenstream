@@ -9,17 +9,6 @@ export function orchestratorBaseUrl() {
 
 export type AuthExpiredDetail = { session: AuthSession };
 
-export function authSessionMatches(
-	left: AuthSession | null | undefined,
-	right: AuthSession,
-) {
-	return Boolean(
-		left &&
-		left.userId === right.userId &&
-		(left.token || "") === (right.token || ""),
-	);
-}
-
 export function dispatchAuthExpired(session: AuthSession) {
 	if (typeof window === "undefined") return;
 	window.dispatchEvent(

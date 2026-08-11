@@ -32,36 +32,37 @@ export function SubtitlePreferencesProvider({
 	initialStyle,
 	children,
 }: {
-	session: AuthSession | null;
+	session?: AuthSession | null;
 	initialStyle?: SubtitleStyle;
 	children: ReactNode;
 }) {
+	const activeSession = session ?? null;
 	const [style, setStyle] = useState(initialStyle ?? DEFAULT_SUBTITLE_STYLE);
 	const [error, setError] = useState(false);
 	const refresh = useCallback(async () => {
-		if (!session) return;
+		if (!activeSession) return;
 		try {
-			setStyle(await getSubtitlePreference(session));
+			setStyle(await getSubtitlePreference(activeSession));
 			setError(false);
 		} catch {
 			// Retain the most recently known appearance if the preference service is unavailable.
 		}
-	}, [session]);
+	}, [activeSession]);
 	const update = useCallback(
 		async (change: Partial<SubtitleStyle>) => {
 			const previous = style;
 			const next = { ...style, ...change };
 			setStyle(next);
 		setError(false);
-		if (!session) return;
+		if (!activeSession) return;
 		try {
-			setStyle(await setSubtitlePreference(session, next));
+			setStyle(await setSubtitlePreference(activeSession, next));
 			} catch {
 				setStyle(previous);
 				setError(true);
 			}
 		},
-		[session, style],
+		[activeSession, style],
 	);
 	return (
 		<Context.Provider value={{ style, update, refresh, error }}>

@@ -93,6 +93,13 @@ export function AppShell() {
 	const authExpiryHandled = useRef<AuthSession | null>(null);
 	const homeLoadInFlight = useRef(false);
 	const homeTrailingRefresh = useRef(false);
+	const homeTrailingRequest = useRef<{
+		session: AuthSession;
+		generation: number;
+	} | null>(null);
+	const loadHomeRef = useRef<
+		((nextSession: AuthSession, requestedGeneration?: number) => Promise<void>) | null
+	>(null);
 	const homeDataRef = useRef<HomeData | null>(null);
 	const detailRefreshGeneration = useRef(0);
 	const detailRefreshInFlight = useRef(false);
@@ -132,15 +139,23 @@ export function AppShell() {
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
 			if (homeLoadInFlight.current) {
-				homeTrailingRefresh.current = true;
+				if (sessionRef.current === nextSession)
+					homeTrailingRefresh.current = true;
+				else
+					homeTrailingRequest.current = {
+						session: nextSession,
+						generation: requestedGeneration,
+					};
 				return;
 			}
 			homeLoadInFlight.current = true;
 			const hasExistingHome = homeDataRef.current !== null;
 			const finishProgress = start();
 			if (!hasExistingHome) {
-				if (isCurrent()) setStatus("loading");
-				setHomeData(null);
+				if (isCurrent()) {
+					setStatus("loading");
+					setHomeData(null);
+				}
 			}
 			if (isCurrent()) setError(null);
 			try {
@@ -157,8 +172,8 @@ export function AppShell() {
 							});
 							if (sectionHasContent(section)) setStatus("ready");
 						});
-						homeDataRef.current = data;
 						if (isCurrent()) {
+							homeDataRef.current = data;
 							setHomeData(data);
 							setStatus("ready");
 						}
@@ -175,10 +190,19 @@ export function AppShell() {
 			} finally {
 				homeLoadInFlight.current = false;
 				finishProgress();
+				const trailing = homeTrailingRequest.current;
+				homeTrailingRequest.current = null;
+				if (trailing && sessionRef.current === trailing.session)
+					queueMicrotask(() => {
+						void loadHomeRef.current?.(trailing.session, trailing.generation);
+					});
 			}
 		},
 		[start],
 	);
+	useEffect(() => {
+		loadHomeRef.current = loadHome;
+	}, [loadHome]);
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
@@ -290,6 +314,8 @@ export function AppShell() {
 		const finishProgress = start();
 		const stored = getAuthSession();
 		const storedLocale = getStoredLocale();
+		// Hydrate the locally cached interface language before authenticated content renders.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (storedLocale) setLocale(storedLocale);
 		if (!stored) {
 			setStatus("login");
@@ -395,7 +421,7 @@ export function AppShell() {
 
 	const clearLocalSession = useCallback((expiredSession?: AuthSession) => {
 		if (expiredSession && sessionRef.current !== expiredSession) return;
-		const activeSession = session;
+		const activeSession = sessionRef.current ?? session;
 		clearAuthCookies();
 		clearMediaClientSession();
 		clearPreferenceCache();
@@ -409,6 +435,8 @@ export function AppShell() {
 		setSession(null);
 		loadedPreferencesToken.current = null;
 		homeDataRef.current = null;
+		homeTrailingRefresh.current = false;
+		homeTrailingRequest.current = null;
 		setHomeData(null);
 		setDetailData(null);
 		setSearchData(null);
@@ -418,7 +446,9 @@ export function AppShell() {
 	}, [session]);
 
 	const handleLogout = useCallback(() => {
-		const activeSession = clearLocalSession();
+		const currentSession = sessionRef.current;
+		if (!currentSession) return;
+		const activeSession = clearLocalSession(currentSession);
 		if (activeSession) void revokeAuthSession(activeSession).catch(() => undefined);
 	}, [clearLocalSession]);
 

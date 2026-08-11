@@ -15,6 +15,9 @@ import * as session from "@/lib/session";
 describe("home screen", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		vi.spyOn(jellyfin, "validateBrowserSession").mockImplementation(
+			async (value) => value,
+		);
 	});
 
 	it("shows login when no session exists", async () => {
@@ -36,6 +39,50 @@ describe("home screen", () => {
 		expect(
 			screen.getByRole("button", { name: /login/i }).className,
 		).not.toContain("bg-gradient");
+	});
+
+	it("validates a restored session before loading authenticated data", async () => {
+		const hinted = { token: "", userId: "user", username: "Alex" };
+		vi.spyOn(session, "getAuthSession").mockReturnValue(hinted);
+		const validate = vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockResolvedValue(null);
+		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData");
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		expect(
+			await screen.findByRole("heading", { name: /welcome back/i }),
+		).toBeInTheDocument();
+		expect(validate).toHaveBeenCalledWith(hinted);
+		expect(fetchHomeData).not.toHaveBeenCalled();
+	});
+
+	it("shows a retryable bootstrap error without mounting authenticated services", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "",
+			userId: "user",
+			username: "Alex",
+		});
+		vi.spyOn(jellyfin, "validateBrowserSession").mockRejectedValue(
+			new Error("Orchestrator unavailable"),
+		);
+		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData");
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		expect(
+			await screen.findByText("Orchestrator unavailable"),
+		).toBeInTheDocument();
+		expect(fetchHomeData).not.toHaveBeenCalled();
 	});
 
 	it("loads and renders populated home rows", async () => {

@@ -11,6 +11,7 @@ const COOKIE_USERNAME = "username";
 export function getAuthSession(): AuthSession | null {
 	// Legacy token cookies are intentionally ignored; browser auth now uses the
 	// Orchestrator's HttpOnly session cookie.
+	deleteCookie(COOKIE_TOKEN);
 	const token = null;
 	const userId = readCookie(COOKIE_USER_ID);
 	const username = readCookie(COOKIE_USERNAME);
@@ -57,5 +58,6 @@ function writeCookie(name: string, value: string) {
 }
 
 function deleteCookie(name: string) {
+	if (typeof document === "undefined") return;
 	document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
 }

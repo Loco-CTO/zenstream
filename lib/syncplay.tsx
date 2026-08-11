@@ -471,7 +471,7 @@ export function SyncplayProvider({
 						),
 					) ?? null),
 		);
-	}, [currentParticipantId, reconcile]);
+	}, [currentParticipantId, reconcile, session]);
 	const reconcileRef = useRef(reconcile);
 	const refreshRef = useRef(refresh);
 	useEffect(() => {
@@ -651,7 +651,7 @@ export function SyncplayProvider({
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
 		};
-	}, [currentParticipantId, session.token]);
+	}, [currentParticipantId, session]);
 	const create = async () => {
 		if (activeRef.current || membershipActionRef.current) return;
 		membershipActionRef.current = true;

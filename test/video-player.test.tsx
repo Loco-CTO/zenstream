@@ -233,7 +233,7 @@ describe("video player controls", () => {
 	it("contains player overlays without creating a scrollbar", () => {
 		const { container } = render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
+				<SubtitlePreferencesProvider session={null}>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
@@ -330,7 +330,7 @@ describe("video player controls", () => {
 		vi.mocked(getPlaybackInfo).mockClear();
 		render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
+				<SubtitlePreferencesProvider session={null}>
 					<VideoPlayer
 						item={
 							{
@@ -709,7 +709,9 @@ describe("video player controls", () => {
 			.mockResolvedValue(new Response(JSON.stringify(style)));
 		render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
+				<SubtitlePreferencesProvider
+					session={{ token: "token", userId: "user", username: "Alex" }}
+				>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
@@ -719,9 +721,21 @@ describe("video player controls", () => {
 			</I18nProvider>,
 		);
 
-		expect(fetchMock).toHaveBeenCalledWith("/api/preferences/subtitles", {
-			cache: "no-store",
+		await act(async () => {
+			await Promise.resolve();
 		});
+		expect(fetchMock).toHaveBeenCalled();
+		const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [
+			string,
+			RequestInit,
+		];
+		expect(requestUrl).toContain("/api/preferences/subtitles");
+		expect(requestInit).toEqual(
+			expect.objectContaining({
+				cache: "no-store",
+				credentials: "include",
+			}),
+		);
 	});
 
 	it("stacks active cues and applies the saved custom appearance", () => {
@@ -761,9 +775,19 @@ describe("video player controls", () => {
 		expect(cues[0].getAttribute("style")).toContain(
 			'font-family: Georgia, "Times New Roman", serif',
 		);
-		expect(cues[0].getAttribute("style")).toContain(
-			"font-size: clamp(16px, 8vh, 72px)",
-		);
+		expect(
+			nativeSubtitleCueCss({
+				renderer: "native",
+				fontFamily: "serif",
+				bold: true,
+				textScale: 160,
+				fontColor: "#aabbcc",
+				borderSize: 2,
+				borderColor: "#112233",
+				backgroundColor: "#445566",
+				backgroundOpacity: 40,
+			}),
+		).toContain("font-size: clamp(16px, 8vh, 72px)");
 		expect(cues[0].getAttribute("style")).not.toContain("-webkit-text-stroke");
 		expect(cues[0].getAttribute("style")).toContain(
 			"text-shadow: -2px -2px 0 #112233",

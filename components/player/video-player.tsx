@@ -690,48 +690,51 @@ export function VideoPlayer({
 		session,
 	]);
 
-	const playNext = useCallback(async (automatic = false) => {
-		const target = nextItem;
-		if (advancingToNextRef.current) return;
-		if (target && syncplay.active) {
-			if (
-				!syncplay.canControl ||
-				(automatic && syncplay.active.hostUserId !== session.userId)
-			)
+	const playNext = useCallback(
+		async (automatic = false) => {
+			const target = nextItem;
+			if (advancingToNextRef.current) return;
+			if (target && syncplay.active) {
+				if (
+					!syncplay.canControl ||
+					(automatic && syncplay.active.hostUserId !== session.userId)
+				)
+					return;
+				advancingToNextRef.current = true;
+				// Move the initiating player immediately. Waiting for the command response
+				// leaves the old player mounted while the new readiness barrier is created,
+				// allowing old cleanup/presence events to race with the transition.
+				setNextItem(null);
+				setNextChecked(false);
+				setCurrentTime(0);
+				setDuration(0);
+				setUrl(undefined);
+				void syncplay
+					.command(nextEpisodeSyncplayCommand(target))
+					.then(() => advanceToNextEpisode(target, onNext, onClose))
+					.catch(() => {
+						advancingToNextRef.current = false;
+					});
 				return;
+			}
 			advancingToNextRef.current = true;
-			// Move the initiating player immediately. Waiting for the command response
-			// leaves the old player mounted while the new readiness barrier is created,
-			// allowing old cleanup/presence events to race with the transition.
 			setNextItem(null);
 			setNextChecked(false);
 			setCurrentTime(0);
 			setDuration(0);
 			setUrl(undefined);
-			void syncplay
-				.command(nextEpisodeSyncplayCommand(target))
-				.then(() => advanceToNextEpisode(target, onNext, onClose))
-				.catch(() => {
-					advancingToNextRef.current = false;
-				});
-			return;
-		}
-		advancingToNextRef.current = true;
-		setNextItem(null);
-		setNextChecked(false);
-		setCurrentTime(0);
-		setDuration(0);
-		setUrl(undefined);
-		advanceToNextEpisode(target, onNext, onClose);
-	}, [
-		nextItem,
-		onClose,
-		onNext,
-		syncplay.active,
-		syncplay.canControl,
-		syncplay.command,
-		session.userId,
-	]);
+			advanceToNextEpisode(target, onNext, onClose);
+		},
+		[
+			nextItem,
+			onClose,
+			onNext,
+			syncplay.active,
+			syncplay.canControl,
+			syncplay.command,
+			session.userId,
+		],
+	);
 
 	useEffect(() => {
 		void refreshSubtitleStyle();
@@ -1977,15 +1980,14 @@ export function VideoPlayer({
 							})
 							.catch(() => undefined);
 				}}
-					onPlaying={(event) => {
+				onPlaying={(event) => {
 					disableNativeSubtitleTracks(
 						event.currentTarget,
 						nativeSubtitleTrackRef.current?.track,
 					);
 					setBuffering(false);
 					cancelPendingBufferingReport("playing");
-					if (settlingTimelineRef.current == null)
-						seekSettlingUntilRef.current = 0;
+					if (settlingTimelineRef.current == null) seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}

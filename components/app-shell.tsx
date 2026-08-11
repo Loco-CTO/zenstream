@@ -308,7 +308,8 @@ export function AppShell() {
 		setSearchData(null);
 		setError(null);
 		setStatus("login");
-		if (activeSession) void revokeAuthSession(activeSession).catch(() => undefined);
+		if (activeSession)
+			void revokeAuthSession(activeSession).catch(() => undefined);
 	}, [session]);
 
 	useEffect(() => {

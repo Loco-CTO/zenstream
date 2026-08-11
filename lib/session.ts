@@ -53,7 +53,7 @@ function readCookie(name: string) {
 }
 
 function writeCookie(name: string, value: string) {
-	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=2592000; samesite=lax`;
+	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=604800; samesite=strict`;
 }
 
 function deleteCookie(name: string) {

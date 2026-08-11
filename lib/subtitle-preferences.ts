@@ -47,7 +47,14 @@ const subtitlePreferenceInFlight = new Map<
 >();
 
 export function clearSubtitlePreferenceCache(session?: AuthSession) {
-	const targets = session ? [session] : [...subtitlePreferenceInFlight.keys()];
+	const targets = session
+		? [session]
+		: [
+				...new Set([
+					...subtitlePreferenceCache.keys(),
+					...subtitlePreferenceInFlight.keys(),
+				]),
+			];
 	for (const target of targets) {
 		subtitlePreferenceCache.delete(target);
 		const pending = subtitlePreferenceInFlight.get(target);

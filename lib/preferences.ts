@@ -50,7 +50,14 @@ async function cachedPreference<T>(
 }
 
 export function clearPreferenceCache(session?: AuthSession) {
-	const targets = session ? [session] : [...preferenceInFlight.keys()];
+	const targets = session
+		? [session]
+		: [
+				...new Set([
+					...preferenceCache.keys(),
+					...preferenceInFlight.keys(),
+				]),
+			];
 	for (const target of targets) {
 		preferenceCache.delete(target);
 		const inFlight = preferenceInFlight.get(target);

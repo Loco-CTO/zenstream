@@ -43,8 +43,6 @@ export function Hero({
 	const [isDragging, setIsDragging] = useState(false);
 	const [trailer, setTrailer] = useState<HeroTrailer | null>(null);
 	const [isTrailerMuted, setIsTrailerMuted] = useState(true);
-	const [isPaused, setIsPaused] = useState(false);
-	const [reduceMotion, setReduceMotion] = useState(false);
 	const [canPlayTrailers, setCanPlayTrailers] = useState(false);
 	const [titleLogoFailedSrc, setTitleLogoFailedSrc] = useState<string | null>(
 		null,
@@ -61,13 +59,6 @@ export function Hero({
 		updateTrailerSupport();
 		mediaQuery.addEventListener("change", updateTrailerSupport);
 		return () => mediaQuery.removeEventListener("change", updateTrailerSupport);
-	}, []);
-	useEffect(() => {
-		const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-		const update = () => setReduceMotion(mediaQuery.matches);
-		update();
-		mediaQuery.addEventListener("change", update);
-		return () => mediaQuery.removeEventListener("change", update);
 	}, []);
 
 	const showSlide = useCallback(
@@ -97,7 +88,7 @@ export function Hero({
 
 		let cancelled = false;
 		const scheduleFallback = () => {
-			if (!canNavigateSlides || isPaused || reduceMotion) return;
+			if (!canNavigateSlides) return;
 			fallbackTimer.current = window.setTimeout(goToNextSlide, SLIDE_INTERVAL_MS);
 		};
 
@@ -133,15 +124,7 @@ export function Hero({
 				fallbackTimer.current = null;
 			}
 		};
-	}, [
-		canNavigateSlides,
-		canPlayTrailers,
-		goToNextSlide,
-		isPaused,
-		reduceMotion,
-		item,
-		session,
-	]);
+	}, [canNavigateSlides, canPlayTrailers, goToNextSlide, item, session]);
 
 	const handleTrailerFailure = useCallback(() => {
 		setTrailer(null);
@@ -263,7 +246,6 @@ export function Hero({
 						trailer={trailer}
 						title={`${item.Name} trailer`}
 						muted={isTrailerMuted}
-						paused={isPaused || reduceMotion}
 						onEnded={goToNextSlide}
 						onError={handleTrailerFailure}
 					/>
@@ -271,14 +253,9 @@ export function Hero({
 					<video
 						key={`${item.Id}-local`}
 						src={trailer.url}
-						autoPlay={!reduceMotion && !isPaused}
+						autoPlay
 						muted={isTrailerMuted}
 						playsInline
-						onCanPlay={(event) => {
-							if (!reduceMotion && !isPaused) {
-								void event.currentTarget.play().catch(() => undefined);
-							}
-						}}
 						onLoadedMetadata={(event) => {
 							for (const track of Array.from(event.currentTarget.textTracks)) {
 								track.mode = "disabled";
@@ -303,19 +280,6 @@ export function Hero({
 					) : (
 						<Volume2 className="h-4 w-4" />
 					)}
-				</button>
-			)}
-			{canNavigateSlides && !reduceMotion && (
-				<button
-					type="button"
-					aria-label={
-						isPaused ? "Resume featured carousel" : "Pause featured carousel"
-					}
-					aria-pressed={isPaused}
-					onClick={() => setIsPaused((paused) => !paused)}
-					className="absolute bottom-14 right-16 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/55 text-xs text-white/75 backdrop-blur transition hover:bg-black/75 hover:text-white md:right-24"
-				>
-					{isPaused ? "▶" : "Ⅱ"}
 				</button>
 			)}
 			{canNavigateSlides && (
@@ -425,14 +389,12 @@ function YouTubeTrailer({
 	trailer,
 	title,
 	muted,
-	paused,
 	onEnded,
 	onError,
 }: {
 	trailer: Extract<HeroTrailer, { kind: "youtube" }>;
 	title: string;
 	muted: boolean;
-	paused: boolean;
 	onEnded: () => void;
 	onError: () => void;
 }) {
@@ -459,10 +421,6 @@ function YouTubeTrailer({
 	useEffect(() => {
 		sendCommand(muted ? "mute" : "unMute");
 	}, [muted, sendCommand]);
-
-	useEffect(() => {
-		sendCommand(paused ? "pauseVideo" : "playVideo");
-	}, [paused, sendCommand]);
 
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
@@ -520,7 +478,7 @@ function YouTubeTrailer({
 				);
 				subscribeToEvent("onStateChange");
 				subscribeToEvent("onError");
-				if (!paused) sendCommand("playVideo");
+				sendCommand("playVideo");
 				sendCommand(muted ? "mute" : "unMute");
 			}}
 			onError={onError}

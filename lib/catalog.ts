@@ -1,5 +1,6 @@
 import type { MediaItem, MediaStream } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
+import { getAuthSession } from "@/lib/session";
 
 export type CatalogItem = {
 	id: string;
@@ -90,8 +91,15 @@ export async function catalogRequest<T>(
 		window.clearTimeout(timeout);
 		init.signal?.removeEventListener("abort", abort);
 	}
-	if (response.status === 401 && typeof window !== "undefined")
-		window.dispatchEvent(new Event("zenstream:auth-expired"));
+	if (response.status === 401 && typeof window !== "undefined") {
+		// A request from an older route/session must not log out a newer one.
+		const active = getAuthSession();
+		const sameSession =
+			active &&
+			active.userId === session.userId &&
+			(active.token || "") === (session.token || "");
+		if (sameSession) window.dispatchEvent(new Event("zenstream:auth-expired"));
+	}
 	if (!response.ok) throw new Error(`Request failed with ${response.status}.`);
 	if (response.status === 204) return null as T;
 	return response.json() as Promise<T>;

@@ -51,28 +51,20 @@ export function LoginPage({
 				<p className="mt-2 text-sm leading-6 text-white/40">
 					{t("loginDescription")}
 				</p>
-				<label
-					htmlFor="login-username"
-					className="mt-7 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35"
-				>
+				<label className="mt-7 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35">
 					{t("username")}
 				</label>
 				<input
-					id="login-username"
 					value={username}
 					onChange={(event) => setUsername(event.target.value)}
 					className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.06] px-3 text-sm text-white outline-none transition focus:border-violet-400/70"
 					autoComplete="username"
 					required
 				/>
-				<label
-					htmlFor="login-password"
-					className="mt-4 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35"
-				>
+				<label className="mt-4 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35">
 					{t("password")}
 				</label>
 				<input
-					id="login-password"
 					value={password}
 					onChange={(event) => setPassword(event.target.value)}
 					type="password"

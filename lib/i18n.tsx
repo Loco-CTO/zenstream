@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import en from "@/locale/en.yaml";
 import ja from "@/locale/ja.yaml";
 
@@ -262,9 +262,6 @@ export function I18nProvider({
 	locale: Locale;
 	children: ReactNode;
 }) {
-	useEffect(() => {
-		document.documentElement.lang = locale;
-	}, [locale]);
 	return <I18nContext.Provider value={locale}>{children}</I18nContext.Provider>;
 }
 

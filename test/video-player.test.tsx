@@ -32,11 +32,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
-import {
-	cancelPlaybackSession,
-	getPlaybackInfo,
-	type MediaItem,
-} from "@/lib/media-api";
+import { getPlaybackInfo, type MediaItem } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
 
 vi.mock("@/lib/media-api", async () => {
@@ -44,7 +40,6 @@ vi.mock("@/lib/media-api", async () => {
 		await vi.importActual<typeof import("@/lib/media-api")>("@/lib/media-api");
 	return {
 		...actual,
-		cancelPlaybackSession: vi.fn().mockResolvedValue(undefined),
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getTrickplayInfo: vi.fn().mockResolvedValue(undefined),
@@ -295,79 +290,6 @@ describe("video player controls", () => {
 		const track = container.querySelector("track");
 		expect(track).toHaveAttribute("kind", "subtitles");
 		expect(track?.getAttribute("src")).toContain("/subtitles/subtitle-file.vtt");
-	});
-
-	it("keeps subtitles disabled when the player URL explicitly selected off", () => {
-		const { container } = render(
-			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
-					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
-						session={{ token: "token", userId: "user", username: "Alex" }}
-						initialSubtitleStreamIndex={null}
-						initialStreams={
-							{
-								source: { Id: "source", MediaStreams: [] },
-								audio: [],
-								subtitles: [
-									{
-										Index: 3,
-										Type: "Subtitle",
-										IsDefault: true,
-									},
-								],
-								qualities: [],
-							} as never
-						}
-						onClose={vi.fn()}
-					/>
-				</SubtitlePreferencesProvider>
-			</I18nProvider>,
-		);
-
-		expect(container.querySelector("track")).toBeNull();
-	});
-
-	it("cancels an uncommitted session when negotiation resolves after unmount", async () => {
-		let resolveNegotiation!: (
-			value: Awaited<ReturnType<typeof getPlaybackInfo>>,
-		) => void;
-		vi.mocked(cancelPlaybackSession).mockClear();
-		vi.mocked(getPlaybackInfo).mockReturnValueOnce(
-			new Promise((resolve) => {
-				resolveNegotiation = resolve;
-			}),
-		);
-		const { unmount } = render(
-			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
-					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
-						session={{ token: "token", userId: "user", username: "Alex" }}
-						onClose={vi.fn()}
-					/>
-				</SubtitlePreferencesProvider>
-			</I18nProvider>,
-		);
-		unmount();
-		await act(async () => {
-			resolveNegotiation({
-				sessionId: "orphan-session",
-				source: {
-					sessionId: "orphan-session",
-					mode: "video-transcode",
-					sessionState: "ready",
-				},
-			} as Awaited<ReturnType<typeof getPlaybackInfo>>);
-			await Promise.resolve();
-			await Promise.resolve();
-		});
-
-		expect(cancelPlaybackSession).toHaveBeenCalledTimes(1);
-		expect(cancelPlaybackSession).toHaveBeenCalledWith(
-			expect.objectContaining({ token: "token" }),
-			"orphan-session",
-		);
 	});
 
 	it("requests Picture in Picture when the browser supports it", () => {

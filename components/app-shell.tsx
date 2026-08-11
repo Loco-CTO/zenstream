@@ -77,56 +77,33 @@ export function AppShell() {
 		DEFAULT_SUBTITLE_STYLE,
 	);
 	const loadedPreferencesToken = useRef<string | null>(null);
-	const preferencesGeneration = useRef(0);
-	const routeLoadGeneration = useRef(0);
 	const homeLoadInFlight = useRef(false);
 	const homeTrailingRefresh = useRef(false);
-	const homeLoadRequest = useRef<{
-		session: AuthSession;
-		generation: number;
-	} | null>(null);
 	const homeDataRef = useRef<HomeData | null>(null);
 	const detailRefreshGeneration = useRef(0);
 	const detailRefreshInFlight = useRef(false);
 	const detailTrailingRefresh = useRef(false);
 	const detailRefreshController = useRef<AbortController | null>(null);
-	const loadPreferences = useCallback((token: string) => {
-		const generation = ++preferencesGeneration.current;
-		const commit = (callback: () => void) => {
-			if (
-				generation === preferencesGeneration.current &&
-				getAuthSession()?.token === token
-			)
-				callback();
-		};
+	const loadPreferences = useCallback(() => {
 		void getLocalePreference()
 			.then((remoteLocale) => {
-				commit(() => {
-					storeLocale(remoteLocale);
-					setLocale(remoteLocale);
-				});
+				storeLocale(remoteLocale);
+				setLocale(remoteLocale);
 			})
 			.catch(() => undefined);
 		void getSubtitlePreference()
-			.then((value) => commit(() => setSubtitleStyle(value)))
+			.then(setSubtitleStyle)
 			.catch(() => undefined);
 		void getMetadataLanguages()
-			.then((value) => commit(() => setMetadataLanguages(value)))
+			.then(setMetadataLanguages)
 			.catch(() => undefined);
 		void getMetadataLanguagePreference()
-			.then((value) => commit(() => setMetadataLanguage(value)))
+			.then(setMetadataLanguage)
 			.catch(() => undefined);
 	}, []);
 
 	const loadHome = useCallback(
-		async (
-			nextSession: AuthSession,
-			requestedGeneration = routeLoadGeneration.current,
-		) => {
-			homeLoadRequest.current = {
-				session: nextSession,
-				generation: requestedGeneration,
-			};
+		async (nextSession: AuthSession) => {
 			if (homeLoadInFlight.current) {
 				homeTrailingRefresh.current = true;
 				return;
@@ -142,13 +119,9 @@ export function AppShell() {
 			try {
 				do {
 					homeTrailingRefresh.current = false;
-					const request = homeLoadRequest.current;
-					if (!request) break;
-					const isCurrent = () => request.generation === routeLoadGeneration.current;
 					try {
-						await primeResourceTicket(request.session);
-						const data = await fetchHomeData(request.session, (section) => {
-							if (!isCurrent()) return;
+						await primeResourceTicket(nextSession);
+						const data = await fetchHomeData(nextSession, (section) => {
 							setHomeData((current) => {
 								const next = { ...(current ?? {}), ...section } as HomeData;
 								homeDataRef.current = next;
@@ -156,14 +129,12 @@ export function AppShell() {
 							});
 							if (sectionHasContent(section)) setStatus("ready");
 						});
-						if (isCurrent()) {
-							homeDataRef.current = data;
-							setHomeData(data);
-							setStatus("ready");
-						}
+						homeDataRef.current = data;
+						setHomeData(data);
+						setStatus("ready");
 					} catch (err) {
 						if (homeTrailingRefresh.current) continue;
-						if (!hasExistingHome && isCurrent()) {
+						if (!hasExistingHome) {
 							setError(
 								err instanceof Error ? err.message : "Could not load your library.",
 							);
@@ -203,39 +174,22 @@ export function AppShell() {
 		[pathname, playId],
 	);
 	const loadDetail = useCallback(
-		async (
-			nextSession: AuthSession,
-			itemId: string,
-			requestedGeneration?: number,
-		) => {
-			const generation = requestedGeneration ?? ++routeLoadGeneration.current;
-			const isCurrent = () => generation === routeLoadGeneration.current;
+		async (nextSession: AuthSession, itemId: string) => {
 			const finishProgress = start();
-			if (isCurrent()) {
-				setStatus("loading");
-				setError(null);
-				setDetailData(null);
-			}
+			setStatus("loading");
+			setError(null);
+			setDetailData(null);
 			try {
 				if (pathname === "/search") {
-					if (isCurrent()) {
-						setSearchData(searchQuery);
-						setStatus("ready");
-					}
+					setSearchData(searchQuery);
+					setStatus("ready");
 					return;
 				}
-				const nextData = await fetchDetailPayload(nextSession, itemId);
-				if (isCurrent()) {
-					setDetailData(nextData);
-					setStatus("ready");
-				}
+				setDetailData(await fetchDetailPayload(nextSession, itemId));
+				setStatus("ready");
 			} catch (err) {
-				if (isCurrent()) {
-					setError(
-						err instanceof Error ? err.message : "Could not load this title.",
-					);
-					setStatus("error");
-				}
+				setError(err instanceof Error ? err.message : "Could not load this title.");
+				setStatus("error");
 			} finally {
 				finishProgress();
 			}
@@ -251,7 +205,6 @@ export function AppShell() {
 				return;
 			}
 			detailRefreshInFlight.current = true;
-			const routeGeneration = routeLoadGeneration.current;
 			const finishProgress = start();
 			try {
 				do {
@@ -265,11 +218,7 @@ export function AppShell() {
 							itemId,
 							controller.signal,
 						);
-						if (
-							generation === detailRefreshGeneration.current &&
-							routeGeneration === routeLoadGeneration.current &&
-							nextData
-						)
+						if (generation === detailRefreshGeneration.current && nextData)
 							setDetailData(nextData);
 					} catch (error) {
 						if (!controller.signal.aborted) throw error;
@@ -291,7 +240,6 @@ export function AppShell() {
 	}, [currentSearch, pathname]);
 
 	useEffect(() => {
-		const generation = ++routeLoadGeneration.current;
 		const finishProgress = start();
 		const stored = getAuthSession();
 		const storedLocale = getStoredLocale();
@@ -307,20 +255,17 @@ export function AppShell() {
 		setSession(stored);
 		if (loadedPreferencesToken.current !== stored.token) {
 			loadedPreferencesToken.current = stored.token;
-			loadPreferences(stored.token);
+			loadPreferences();
 		}
 		void (async () => {
-			if (detailId || playId)
-				await loadDetail(stored, detailId ?? playId!, generation);
+			if (detailId || playId) await loadDetail(stored, detailId ?? playId!);
 			else if (pathname === "/search" || pathname === "/settings") {
-				if (generation === routeLoadGeneration.current) {
-					if (pathname === "/search") setSearchData(searchQuery);
-					setStatus("ready");
-				}
+				if (pathname === "/search") setSearchData(searchQuery);
+				setStatus("ready");
 			} else if (pathname === "/library" || pathname === "/favorites") {
 				await primeResourceTicket(stored);
-				if (generation === routeLoadGeneration.current) setStatus("ready");
-			} else await loadHome(stored, generation);
+				setStatus("ready");
+			} else await loadHome(stored);
 			finishProgress();
 		})();
 	}, [
@@ -339,29 +284,22 @@ export function AppShell() {
 		const nextSession = sessionFromAuth(response);
 		setAuthCookies(nextSession);
 		setSession(nextSession);
-		const generation = ++routeLoadGeneration.current;
-		loadPreferences(nextSession.token);
+		loadPreferences();
 		await primeResourceTicket(nextSession);
-		if (detailId || playId)
-			await loadDetail(nextSession, detailId ?? playId!, generation);
+		if (detailId || playId) await loadDetail(nextSession, detailId ?? playId!);
 		else if (pathname === "/search") {
-			if (generation === routeLoadGeneration.current) {
-				setSearchData(searchQuery);
-				setStatus("ready");
-			}
-		} else if (pathname === "/library" || pathname === "/favorites") {
-			if (generation === routeLoadGeneration.current) setStatus("ready");
-		} else await loadHome(nextSession, generation);
+			setSearchData(searchQuery);
+			setStatus("ready");
+		} else if (pathname === "/library" || pathname === "/favorites")
+			setStatus("ready");
+		else await loadHome(nextSession);
 	};
 
 	const handleLogout = useCallback(() => {
 		const activeSession = session;
 		clearAuthCookies();
 		clearMediaClientSession();
-		routeLoadGeneration.current += 1;
-		preferencesGeneration.current += 1;
-		detailRefreshGeneration.current += 1;
-		detailRefreshController.current?.abort();
+		clearMediaClientCache();
 		setSession(null);
 		loadedPreferencesToken.current = null;
 		homeDataRef.current = null;
@@ -370,8 +308,7 @@ export function AppShell() {
 		setSearchData(null);
 		setError(null);
 		setStatus("login");
-		if (activeSession)
-			void revokeAuthSession(activeSession).catch(() => undefined);
+		if (activeSession) void revokeAuthSession(activeSession).catch(() => undefined);
 	}, [session]);
 
 	useEffect(() => {
@@ -433,9 +370,8 @@ export function AppShell() {
 				setMetadataLanguage(updated);
 				if (session) {
 					clearMediaClientCache();
-					const generation = ++routeLoadGeneration.current;
-					if (detailId) await loadDetail(session, detailId, generation);
-					else await loadHome(session, generation);
+					if (detailId) await loadDetail(session, detailId);
+					else await loadHome(session);
 				}
 			}
 		} catch (saveError) {
@@ -458,9 +394,8 @@ export function AppShell() {
 			setMetadataLanguage(updated);
 			if (session) {
 				clearMediaClientCache();
-				const generation = ++routeLoadGeneration.current;
-				if (detailId) await loadDetail(session, detailId, generation);
-				else await loadHome(session, generation);
+				if (detailId) await loadDetail(session, detailId);
+				else await loadHome(session);
 			}
 		} catch (error) {
 			setMetadataLanguage(previous);

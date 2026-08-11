@@ -25,20 +25,8 @@ export function SearchOverlay({
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
-		const previous = document.activeElement as HTMLElement | null;
 		inputRef.current?.focus();
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") {
-				event.preventDefault();
-				onClose();
-			}
-		};
-		document.addEventListener("keydown", onKeyDown);
-		return () => {
-			document.removeEventListener("keydown", onKeyDown);
-			previous?.focus?.();
-		};
-	}, [onClose]);
+	}, []);
 	useEffect(() => {
 		const value = query.trim();
 		if (value.length < 2) {
@@ -78,9 +66,6 @@ export function SearchOverlay({
 	};
 	return (
 		<div
-			role="dialog"
-			aria-modal="true"
-			aria-label={t("search")}
 			className="fixed inset-0 z-[100] flex flex-col items-center bg-black/80 px-4 pt-24 backdrop-blur-xl"
 			onClick={onClose}
 		>

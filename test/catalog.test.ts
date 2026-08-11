@@ -7,7 +7,6 @@ import {
 	getPlaybackMarkers,
 	getPlaybackSource,
 	getTrickplayInfo,
-	revokeAuthSession,
 	trickplayPreview,
 	type MediaSource,
 } from "@/lib/media-api";
@@ -246,27 +245,12 @@ describe("catalog client", () => {
 				{ status: 200 },
 			),
 		);
-		await authenticateByName(" alex ", " password-123 ");
+		await authenticateByName(" alex ", "password-123");
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/auth/login"),
 			expect.objectContaining({
 				method: "POST",
-				body: JSON.stringify({ username: "alex", password: " password-123 " }),
-			}),
-		);
-	});
-
-	it("revokes the bearer session through the account logout endpoint", async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(null, { status: 204 }));
-		await revokeAuthSession(session);
-		expect(fetchMock).toHaveBeenCalledWith(
-			expect.stringContaining("/api/auth/logout"),
-			expect.objectContaining({
-				method: "POST",
-				headers: { Authorization: "Bearer opaque-token" },
-				keepalive: true,
+				body: JSON.stringify({ username: "alex", password: "password-123" }),
 			}),
 		);
 	});

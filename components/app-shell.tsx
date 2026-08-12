@@ -89,6 +89,19 @@ export function AppShell() {
 	const sessionRef = useRef<AuthSession | null>(null);
 	const routeLoadGeneration = useRef(0);
 	const preferencesGeneration = useRef(0);
+	const localeMutationGeneration = useRef(0);
+	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
+	const confirmedLocale = useRef<Locale>("en");
+	const metadataLanguageMutationGeneration = useRef(0);
+	const metadataLanguageMutationQueue = useRef<Promise<void>>(Promise.resolve());
+	const confirmedMetadataLanguage = useRef<MetadataLanguagePreference>({
+		mode: "auto",
+		language: "en",
+	});
+	const metadataLanguageRef = useRef<MetadataLanguagePreference>({
+		mode: "auto",
+		language: "en",
+	});
 	const bootstrapInFlight = useRef<Promise<AuthSession | null> | null>(null);
 	const authExpiryHandled = useRef<AuthSession | null>(null);
 	const homeLoadInFlight = useRef(false);
@@ -107,6 +120,8 @@ export function AppShell() {
 	const detailRefreshController = useRef<AbortController | null>(null);
 	const loadPreferences = useCallback((nextSession: AuthSession) => {
 		const generation = ++preferencesGeneration.current;
+		const localeGeneration = localeMutationGeneration.current;
+		const metadataLanguageGeneration = metadataLanguageMutationGeneration.current;
 		const commit = (callback: () => void) => {
 			if (
 				generation === preferencesGeneration.current &&
@@ -116,7 +131,9 @@ export function AppShell() {
 		};
 		void getLocalePreference(nextSession)
 			.then((remoteLocale) => {
+				if (localeGeneration !== localeMutationGeneration.current) return;
 				commit(() => {
+					confirmedLocale.current = remoteLocale;
 					storeLocale(remoteLocale);
 					setLocale(remoteLocale);
 				});
@@ -129,7 +146,18 @@ export function AppShell() {
 			.then((value) => commit(() => setMetadataLanguages(value)))
 			.catch(() => undefined);
 		void getMetadataLanguagePreference(nextSession)
-			.then((value) => commit(() => setMetadataLanguage(value)))
+			.then((value) => {
+				if (
+					metadataLanguageGeneration !==
+					metadataLanguageMutationGeneration.current
+				)
+					return;
+				commit(() => {
+					confirmedMetadataLanguage.current = value;
+					metadataLanguageRef.current = value;
+					setMetadataLanguage(value);
+				});
+			})
 			.catch(() => undefined);
 	}, []);
 
@@ -316,7 +344,10 @@ export function AppShell() {
 		const storedLocale = getStoredLocale();
 		// Hydrate the locally cached interface language before authenticated content renders.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
-		if (storedLocale) setLocale(storedLocale);
+		if (storedLocale) {
+			confirmedLocale.current = storedLocale;
+			setLocale(storedLocale);
+		}
 		if (!stored) {
 			setStatus("login");
 			finishProgress();
@@ -429,6 +460,10 @@ export function AppShell() {
 		clearMediaClientCache();
 		routeLoadGeneration.current += 1;
 		preferencesGeneration.current += 1;
+		localeMutationGeneration.current += 1;
+		metadataLanguageMutationGeneration.current += 1;
+		localeMutationQueue.current = Promise.resolve();
+		metadataLanguageMutationQueue.current = Promise.resolve();
 		detailRefreshGeneration.current += 1;
 		detailRefreshController.current?.abort();
 		sessionRef.current = null;
@@ -507,25 +542,58 @@ export function AppShell() {
 	]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
-		const previousLocale = locale;
+		const activeSession = session;
+		const generation = ++localeMutationGeneration.current;
 		const finishProgress = start();
 		setLocale(nextLocale);
 		storeLocale(nextLocale);
+		if (!activeSession) {
+			finishProgress();
+			return;
+		}
+		const mutation = localeMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return setLocalePreference(activeSession, nextLocale);
+		});
+		localeMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
 		try {
-			if (!session) return;
-			await setLocalePreference(session, nextLocale);
-			if (metadataLanguage.mode === "auto") {
-				const updated = await getMetadataLanguagePreference(session);
+			const savedLocale = await mutation;
+			if (savedLocale === null) return;
+			confirmedLocale.current = savedLocale;
+			if (
+				generation !== localeMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			setLocale(savedLocale);
+			storeLocale(savedLocale);
+			if (metadataLanguageRef.current.mode === "auto") {
+				const metadataGeneration = metadataLanguageMutationGeneration.current;
+				const updated = await getMetadataLanguagePreference(activeSession);
+				if (
+					generation !== localeMutationGeneration.current ||
+					metadataGeneration !== metadataLanguageMutationGeneration.current ||
+					sessionRef.current !== activeSession
+				)
+					return;
+				confirmedMetadataLanguage.current = updated;
+				metadataLanguageRef.current = updated;
 				setMetadataLanguage(updated);
-				if (session) {
-					clearMediaClientCache();
-					if (detailId) await loadDetail(session, detailId);
-					else await loadHome(session);
-				}
+				clearMediaClientCache();
+				if (detailId) await loadDetail(activeSession, detailId);
+				else await loadHome(activeSession);
 			}
 		} catch (saveError) {
-			setLocale(previousLocale);
-			storeLocale(previousLocale);
+			if (
+				generation !== localeMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			setLocale(confirmedLocale.current);
+			storeLocale(confirmedLocale.current);
 			throw saveError;
 		} finally {
 			finishProgress();
@@ -533,22 +601,45 @@ export function AppShell() {
 	};
 
 	const handleMetadataLanguageChange = async (language: string | null) => {
-		const previous = metadataLanguage;
-		setMetadataLanguage({
+		const activeSession = session;
+		const generation = ++metadataLanguageMutationGeneration.current;
+		const optimistic = {
 			mode: language ? "explicit" : "auto",
 			language: language ?? locale,
+		} as MetadataLanguagePreference;
+		metadataLanguageRef.current = optimistic;
+		setMetadataLanguage(optimistic);
+		if (!activeSession) return;
+		const mutation = metadataLanguageMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return setMetadataLanguagePreference(activeSession, language);
 		});
+		metadataLanguageMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
 		try {
-			if (!session) return;
-			const updated = await setMetadataLanguagePreference(session, language);
+			const updated = await mutation;
+			if (updated === null) return;
+			confirmedMetadataLanguage.current = updated;
+			if (
+				generation !== metadataLanguageMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			metadataLanguageRef.current = updated;
 			setMetadataLanguage(updated);
-			if (session) {
-				clearMediaClientCache();
-				if (detailId) await loadDetail(session, detailId);
-				else await loadHome(session);
-			}
+			clearMediaClientCache();
+			if (detailId) await loadDetail(activeSession, detailId);
+			else await loadHome(activeSession);
 		} catch (error) {
-			setMetadataLanguage(previous);
+			if (
+				generation !== metadataLanguageMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			metadataLanguageRef.current = confirmedMetadataLanguage.current;
+			setMetadataLanguage(confirmedMetadataLanguage.current);
 			throw error;
 		}
 	};

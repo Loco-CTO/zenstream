@@ -1352,8 +1352,8 @@ export function userImageUrl(userId: string): string | null {
 	return null;
 }
 
-export function userInitial(username: string) {
-	return Array.from(username.trim())[0]?.toLocaleUpperCase() ?? "?";
+export function userInitial(username?: string | null) {
+	return Array.from(username?.trim() ?? "")[0]?.toLocaleUpperCase() ?? "?";
 }
 
 export function personImageUrl(person: MediaPerson) {

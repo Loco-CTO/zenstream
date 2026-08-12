@@ -217,12 +217,14 @@ function participantId() {
 	return generated;
 }
 function isCurrentParticipant(
-	member: { participantId?: string },
-	currentId: string,
+	member: { participantId?: string; userId?: string },
+	currentParticipantId: string,
+	currentUserId: string,
 ) {
-	return member.participantId == null
-		? true
-		: member.participantId === currentId;
+	if (member.participantId) {
+		return member.participantId === currentParticipantId;
+	}
+	return Boolean(member.userId) && member.userId === currentUserId;
 }
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
@@ -465,7 +467,11 @@ export function SyncplayProvider({
 					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
 						group.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId),
+							isCurrentParticipant(
+								member,
+								currentParticipantId,
+								session.userId,
+							),
 						),
 					) ?? null),
 		);
@@ -511,7 +517,7 @@ export function SyncplayProvider({
 			)
 				announcePlayback(group.itemId);
 			const isMember = group.members.some((member) =>
-				isCurrentParticipant(member, currentParticipantId),
+				isCurrentParticipant(member, currentParticipantId, session.userId),
 			);
 			if (activeRef.current?.id === group.id) reconcile(isMember ? group : null);
 			// All users receive group broadcasts so they can discover public groups.
@@ -524,7 +530,15 @@ export function SyncplayProvider({
 				return [group, ...old.filter((entry) => entry.id !== group.id)];
 			});
 		},
-		[announcePlayback, currentParticipantId, reconcile, setCurrent, t, toast],
+		[
+			announcePlayback,
+			currentParticipantId,
+			reconcile,
+			session.userId,
+			setCurrent,
+			t,
+			toast,
+		],
 	);
 	useEffect(() => {
 		socketHandlersRef.current = { adopt, setCurrent, t, toast };
@@ -599,7 +613,11 @@ export function SyncplayProvider({
 				if (candidate && candidate.revision >= current.revision)
 					reconcileRef.current(
 						candidate.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId),
+							isCurrentParticipant(
+								member,
+								currentParticipantId,
+								session.userId,
+							),
 						)
 							? candidate
 							: null,
@@ -608,7 +626,11 @@ export function SyncplayProvider({
 				reconcileRef.current(
 					next.find((group) =>
 						group.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId),
+							isCurrentParticipant(
+								member,
+								currentParticipantId,
+								session.userId,
+							),
 						),
 					) ?? null,
 				);
@@ -760,7 +782,7 @@ export function SyncplayProvider({
 		const update = (state: SyncplayGroup): SyncplayGroup => ({
 			...state,
 			members: state.members.map((member) =>
-				isCurrentParticipant(member, currentParticipantId)
+				isCurrentParticipant(member, currentParticipantId, session.userId)
 					? {
 							...member,
 							watchingTogether: value,
@@ -918,7 +940,7 @@ export function SyncplayProvider({
 		active,
 		currentMember:
 			active?.members.find((member) =>
-				isCurrentParticipant(member, currentParticipantId),
+				isCurrentParticipant(member, currentParticipantId, session.userId),
 			) ?? null,
 		create,
 		join,

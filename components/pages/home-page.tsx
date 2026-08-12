@@ -23,11 +23,16 @@ export function HomePage({
 			: hero
 				? [hero]
 				: [];
-	const libraryRows = [
-		...(data.libraryRows ?? []).filter(
-			(section) => section.titleKey === "newlyAddedOn" && section.items.length > 0,
-		),
-	];
+	const canonicalLibraryRows = (data.libraryRows ?? []).filter(
+		(section) => section.titleKey === "newlyAddedOn" && section.items.length > 0,
+	);
+	const libraryRows =
+		canonicalLibraryRows.length > 0
+			? canonicalLibraryRows
+			: (data.newlyAdded ?? []).filter((section) => section.items.length > 0).map((section) => ({
+				...section,
+				titleKey: "newlyAddedOn" as const,
+			}));
 
 	return (
 		<main className="pb-24 md:pb-0">

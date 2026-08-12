@@ -61,6 +61,7 @@ export const TRANSLATION_KEYS = [
 	"playNext",
 	"stopPlaying",
 	"topRated",
+	"topRatedOn",
 	"newReleases",
 	"movies",
 	"myList",

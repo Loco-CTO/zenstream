@@ -28,16 +28,24 @@ export function HomePage({
 			(section.titleKey === "newlyAddedOn" || section.titleKey === "topRated") &&
 			section.items.length > 0,
 	);
-	const libraryRows =
-		canonicalLibraryRows.length > 0
-			? canonicalLibraryRows
-			: (data.newlyAdded ?? [])
+	const canonicalNewlyAdded = canonicalLibraryRows.filter(
+		(section) => section.titleKey === "newlyAddedOn",
+	);
+	const legacyNewlyAdded =
+		canonicalNewlyAdded.length === 0
+			? (data.newlyAdded ?? [])
 					.filter((section) => section.items.length > 0)
 					.map((section) => ({
 						...section,
 						titleKey: "newlyAddedOn" as const,
 						stackEpisodes: false,
-					}));
+					}))
+			: [];
+	const libraryRows = [
+		...canonicalNewlyAdded,
+		...legacyNewlyAdded,
+		...canonicalLibraryRows.filter((section) => section.titleKey === "topRated"),
+	];
 
 	return (
 		<main className="pb-24 md:pb-0">

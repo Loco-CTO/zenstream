@@ -24,7 +24,9 @@ export function HomePage({
 				? [hero]
 				: [];
 	const canonicalLibraryRows = (data.libraryRows ?? []).filter(
-		(section) => section.titleKey === "newlyAddedOn" && section.items.length > 0,
+		(section) =>
+			(section.titleKey === "newlyAddedOn" || section.titleKey === "topRated") &&
+			section.items.length > 0,
 	);
 	const libraryRows =
 		canonicalLibraryRows.length > 0
@@ -53,7 +55,10 @@ export function HomePage({
 				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}
-						title={t("newlyAddedOn", { library: section.libraryName })}
+						title={t(
+							section.titleKey === "topRated" ? "topRatedOn" : "newlyAddedOn",
+							{ library: section.libraryName },
+						)}
 						items={section.items}
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}

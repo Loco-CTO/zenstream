@@ -111,6 +111,12 @@ describe("home screen", () => {
 					stackEpisodes: true,
 					items: [item("added-1", "Newly Added Movie")],
 				},
+				{
+					libraryId: "anime",
+					libraryName: "Anime",
+					titleKey: "topRated",
+					items: [item("top-1", "Top Rated")],
+				},
 			],
 			continueWatching: [item("resume-1", "Resume Show")],
 			nextUp: [item("next-1", "Next Episode")],
@@ -144,6 +150,8 @@ describe("home screen", () => {
 		expect(screen.queryByText("New Release")).not.toBeInTheDocument();
 		expect(screen.getByText("Newly Added on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
+		expect(screen.getByText("Top Rated on Anime")).toBeInTheDocument();
+		expect(screen.getByText("Top Rated")).toBeInTheDocument();
 		expect(
 			within(
 				screen.getByText("Newly Added on Anime").closest("section")!,
@@ -172,6 +180,9 @@ describe("home screen", () => {
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Newly Added on Anime")).toBeLessThan(
+			sectionHeadings.indexOf("Top Rated on Anime"),
+		);
+		expect(sectionHeadings.indexOf("Top Rated on Anime")).toBeLessThan(
 			sectionHeadings.indexOf("My List"),
 		);
 		expect(sectionHeadings.indexOf("My List")).toBeLessThan(
@@ -263,7 +274,8 @@ describe("home screen", () => {
 
 		expect(await screen.findByText("Newly Added on Movies")).toBeInTheDocument();
 		expect(screen.getByText("Legacy Newly Added")).toBeInTheDocument();
-		expect(screen.queryByText("Legacy Top Rated")).not.toBeInTheDocument();
+		expect(screen.getByText("Top Rated on Movies")).toBeInTheDocument();
+		expect(screen.getByText("Legacy Top Rated")).toBeInTheDocument();
 	});
 
 	it("retries an invalidated in-flight home load without showing its abort error", async () => {

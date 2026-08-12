@@ -57,11 +57,7 @@ export function HomePage({
 				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}
-						title={
-							section.titleKey === "newlyAddedOn"
-								? t("newlyAddedOn", { library: section.libraryName })
-								: `${section.libraryName} ${t(section.titleKey)}`.trim()
-						}
+						title={t("newlyAddedOn", { library: section.libraryName })}
 						items={section.items}
 						variant="poster"
 						stackEpisodes={section.stackEpisodes}

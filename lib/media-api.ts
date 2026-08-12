@@ -302,7 +302,7 @@ export interface HomeData {
 }
 
 export interface HomeLibrarySection extends NewlyAddedSection {
-	titleKey: "topRated" | "newReleases" | "newlyAddedOn";
+	titleKey: "newlyAddedOn";
 	stackEpisodes?: boolean;
 }
 

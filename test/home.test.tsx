@@ -111,18 +111,6 @@ describe("home screen", () => {
 					stackEpisodes: true,
 					items: [item("added-1", "Newly Added Movie")],
 				},
-				{
-					libraryId: "anime",
-					libraryName: "Anime",
-					titleKey: "topRated",
-					items: [item("top-1", "Top Rated")],
-				},
-				{
-					libraryId: "anime",
-					libraryName: "Anime",
-					titleKey: "newReleases",
-					items: [item("new-1", "New Release")],
-				},
 			],
 			continueWatching: [item("resume-1", "Resume Show")],
 			nextUp: [item("next-1", "Next Episode")],
@@ -153,7 +141,7 @@ describe("home screen", () => {
 		expect(
 			screen.getByRole("button", { name: /show slide 2: second feature/i }),
 		).toBeInTheDocument();
-		expect(screen.getByText("New Release")).toBeInTheDocument();
+		expect(screen.queryByText("New Release")).not.toBeInTheDocument();
 		expect(screen.getByText("Newly Added on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
 		expect(
@@ -164,10 +152,10 @@ describe("home screen", () => {
 		expect(screen.getByText("Continue Watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
 		expect(screen.getByText("My List")).toBeInTheDocument();
-		expect(screen.getByText("Recently Played")).toBeInTheDocument();
+		expect(screen.queryByText("Recently Played")).not.toBeInTheDocument();
 		expect(screen.getByText("Drama")).toBeInTheDocument();
 		expect(screen.getByText("Favorite")).toBeInTheDocument();
-		expect(screen.getByText("Recently Played Title")).toBeInTheDocument();
+		expect(screen.queryByText("Recently Played Title")).not.toBeInTheDocument();
 		expect(
 			within(screen.getByText("My List").closest("section")!).getByRole("link", {
 				name: /all/i,
@@ -184,9 +172,9 @@ describe("home screen", () => {
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Newly Added on Anime")).toBeLessThan(
-			sectionHeadings.indexOf("Recently Played"),
+			sectionHeadings.indexOf("My List"),
 		);
-		expect(sectionHeadings.indexOf("Recently Played")).toBeLessThan(
+		expect(sectionHeadings.indexOf("My List")).toBeLessThan(
 			sectionHeadings.indexOf("Drama"),
 		);
 
@@ -214,7 +202,7 @@ describe("home screen", () => {
 					{
 						libraryId: "anime",
 						libraryName: "Anime",
-						titleKey: "topRated",
+						titleKey: "newlyAddedOn",
 						items: [item("top-1", "Recovered")],
 					},
 				],
@@ -260,7 +248,7 @@ describe("home screen", () => {
 					{
 						libraryId: "anime",
 						libraryName: "Anime",
-						titleKey: "topRated",
+						titleKey: "newlyAddedOn",
 						items: [item("fresh", "Fresh Home")],
 					},
 				],

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
-export function buildContentSecurityPolicy(orchestratorUrl) {
+export function buildContentSecurityPolicy(orchestratorUrl, isDevelopment = false) {
 	const configuredOrchestrator = orchestratorUrl
 		? new URL(orchestratorUrl)
 		: null;
@@ -17,12 +17,14 @@ export function buildContentSecurityPolicy(orchestratorUrl) {
 	const orchestratorConnectSources = configuredOrchestratorSocketOrigin
 		? `${orchestratorSources} ${configuredOrchestratorSocketOrigin}`
 		: orchestratorSources;
+	const developmentScriptSources = isDevelopment ? " 'unsafe-eval'" : "";
 
-	return `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:${orchestratorSources}; media-src 'self' blob: https:${orchestratorSources}; connect-src 'self' https: wss:${orchestratorConnectSources}; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'`;
+	return `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:${orchestratorSources}; media-src 'self' blob: https:${orchestratorSources}; connect-src 'self' https: wss:${orchestratorConnectSources}; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'${developmentScriptSources}`;
 }
 
 const contentSecurityPolicy = buildContentSecurityPolicy(
 	process.env.NEXT_PUBLIC_ZSO_URL,
+	process.env.NODE_ENV === "development",
 );
 
 /** @type {import('next').NextConfig} */

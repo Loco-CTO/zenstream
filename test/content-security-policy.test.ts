@@ -17,4 +17,17 @@ describe("Content Security Policy", () => {
 			"connect-src 'self' https: wss: https://media.example.test wss://media.example.test;",
 		);
 	});
+
+	it("permits eval only for the Next.js development runtime", () => {
+		const developmentPolicy = buildContentSecurityPolicy(undefined, true);
+		const productionPolicy = buildContentSecurityPolicy(undefined, false);
+
+		expect(developmentPolicy).toContain(
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+		);
+		expect(productionPolicy).toContain(
+			"script-src 'self' 'unsafe-inline'",
+		);
+		expect(productionPolicy).not.toContain("'unsafe-eval'");
+	});
 });

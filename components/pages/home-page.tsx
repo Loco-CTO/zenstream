@@ -29,10 +29,12 @@ export function HomePage({
 	const libraryRows =
 		canonicalLibraryRows.length > 0
 			? canonicalLibraryRows
-			: (data.newlyAdded ?? []).filter((section) => section.items.length > 0).map((section) => ({
-				...section,
-				titleKey: "newlyAddedOn" as const,
-			}));
+			: (data.newlyAdded ?? [])
+					.filter((section) => section.items.length > 0)
+					.map((section) => ({
+						...section,
+						titleKey: "newlyAddedOn" as const,
+					}));
 
 	return (
 		<main className="pb-24 md:pb-0">

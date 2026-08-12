@@ -342,9 +342,9 @@ export function AppShell() {
 		const stored = getAuthSession();
 		const storedLocale = getStoredLocale();
 		// Hydrate the locally cached interface language before authenticated content renders.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (storedLocale) {
 			confirmedLocale.current = storedLocale;
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setLocale(storedLocale);
 		}
 		if (!stored) {
@@ -562,13 +562,9 @@ export function AppShell() {
 		);
 		try {
 			const savedLocale = await mutation;
-			if (savedLocale === null) return;
+			if (savedLocale === null || sessionRef.current !== activeSession) return;
 			confirmedLocale.current = savedLocale;
-			if (
-				generation !== localeMutationGeneration.current ||
-				sessionRef.current !== activeSession
-			)
-				return;
+			if (generation !== localeMutationGeneration.current) return;
 			setLocale(savedLocale);
 			storeLocale(savedLocale);
 			if (metadataLanguageRef.current.mode === "auto") {
@@ -621,13 +617,9 @@ export function AppShell() {
 		);
 		try {
 			const updated = await mutation;
-			if (updated === null) return;
+			if (updated === null || sessionRef.current !== activeSession) return;
 			confirmedMetadataLanguage.current = updated;
-			if (
-				generation !== metadataLanguageMutationGeneration.current ||
-				sessionRef.current !== activeSession
-			)
-				return;
+			if (generation !== metadataLanguageMutationGeneration.current) return;
 			metadataLanguageRef.current = updated;
 			setMetadataLanguage(updated);
 			clearMediaClientCache();

@@ -34,6 +34,7 @@ export function HomePage({
 					.map((section) => ({
 						...section,
 						titleKey: "newlyAddedOn" as const,
+						stackEpisodes: false,
 					}));
 
 	return (

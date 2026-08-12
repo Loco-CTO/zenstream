@@ -123,12 +123,12 @@ describe("subtitle preferences", () => {
 		await expect(setSubtitlePreference(session, style)).resolves.toEqual(style);
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining("/api/preferences/subtitles"),
-		expect.objectContaining({
-			method: "PATCH",
-			credentials: "include",
-			body: JSON.stringify(style),
-		}),
-	);
+			expect.objectContaining({
+				method: "PATCH",
+				credentials: "include",
+				body: JSON.stringify(style),
+			}),
+		);
 	});
 
 	it("parses unstyled and authored-style WebVTT cues for the custom renderer", () => {

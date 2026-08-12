@@ -53,10 +53,10 @@ export function SubtitlePreferencesProvider({
 			const previous = style;
 			const next = { ...style, ...change };
 			setStyle(next);
-		setError(false);
-		if (!activeSession) return;
-		try {
-			setStyle(await setSubtitlePreference(activeSession, next));
+			setError(false);
+			if (!activeSession) return;
+			try {
+				setStyle(await setSubtitlePreference(activeSession, next));
 			} catch {
 				setStyle(previous);
 				setError(true);

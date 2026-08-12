@@ -161,10 +161,14 @@ export async function setSubtitlePreference(
 	session: AuthSession,
 	style: SubtitleStyle,
 ): Promise<SubtitleStyle> {
-	const response = await authenticatedFetch(session, "/api/preferences/subtitles", {
-		method: "PATCH",
-		body: JSON.stringify(style),
-	});
+	const response = await authenticatedFetch(
+		session,
+		"/api/preferences/subtitles",
+		{
+			method: "PATCH",
+			body: JSON.stringify(style),
+		},
+	);
 	if (!response.ok) throw new Error("Could not save subtitle preferences.");
 	const data: unknown = await response.json();
 	if (!isSubtitleStyle(data))

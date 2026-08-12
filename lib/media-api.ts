@@ -372,11 +372,16 @@ export function clearMediaClientSession() {
 }
 
 export async function revokeAuthSession(session: AuthSession): Promise<void> {
-	const response = await authenticatedFetch(session, "/api/auth/logout", {
-		method: "POST",
-		cache: "no-store",
-		keepalive: true,
-	}, { notifyOnUnauthorized: false });
+	const response = await authenticatedFetch(
+		session,
+		"/api/auth/logout",
+		{
+			method: "POST",
+			cache: "no-store",
+			keepalive: true,
+		},
+		{ notifyOnUnauthorized: false },
+	);
 	// An expired token is already effectively revoked.
 	if (!response.ok && response.status !== 401) {
 		throw new Error(`Logout failed with ${response.status}.`);
@@ -472,7 +477,8 @@ export async function validateBrowserSession(
 		{ notifyOnUnauthorized: false },
 	);
 	if (response.status === 401) return null;
-	if (!response.ok) throw new Error(`Session validation failed with ${response.status}.`);
+	if (!response.ok)
+		throw new Error(`Session validation failed with ${response.status}.`);
 	const payload = (await response.json()) as {
 		user?: { id?: unknown; username?: unknown };
 	};

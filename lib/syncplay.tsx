@@ -255,9 +255,7 @@ async function call(
 		response = await authenticatedFetch(session, `/api/syncplay/${path}`, {
 			method,
 			headers: {
-				...(session.username
-					? { "X-ZenStream-Username": session.username }
-					: {}),
+				...(session.username ? { "X-ZenStream-Username": session.username } : {}),
 				"X-ZenStream-Participant": participantId(),
 			},
 			body: body ? JSON.stringify(body) : undefined,
@@ -744,7 +742,8 @@ export function SyncplayProvider({
 		if (!group) return;
 		try {
 			adopt(
-				(await call(session,
+				(await call(
+					session,
 					`groups/${group.id}/members/${encodeURIComponent(userId)}`,
 					"DELETE",
 					{ expectedRevision: group.revision, operationId: operationId() },

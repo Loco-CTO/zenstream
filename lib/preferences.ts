@@ -1,7 +1,5 @@
 import { isLocale, type Locale } from "@/lib/i18n";
-import {
-	authenticatedFetch,
-} from "@/lib/authenticated-request";
+import { authenticatedFetch } from "@/lib/authenticated-request";
 import type { AuthSession } from "@/lib/session";
 
 export type MetadataLanguagePreference = {
@@ -12,14 +10,8 @@ export type MetadataLanguagePreference = {
 const PREFERENCE_TTL_MS = 30_000;
 type CacheEntry = { expiresAt: number; value: unknown };
 type InFlightEntry = { promise: Promise<unknown>; controller: AbortController };
-const preferenceCache = new Map<
-	AuthSession,
-	Map<string, CacheEntry>
->();
-const preferenceInFlight = new Map<
-	AuthSession,
-	Map<string, InFlightEntry>
->();
+const preferenceCache = new Map<AuthSession, Map<string, CacheEntry>>();
+const preferenceInFlight = new Map<AuthSession, Map<string, InFlightEntry>>();
 
 async function cachedPreference<T>(
 	session: AuthSession,
@@ -52,12 +44,7 @@ async function cachedPreference<T>(
 export function clearPreferenceCache(session?: AuthSession) {
 	const targets = session
 		? [session]
-		: [
-				...new Set([
-					...preferenceCache.keys(),
-					...preferenceInFlight.keys(),
-				]),
-			];
+		: [...new Set([...preferenceCache.keys(), ...preferenceInFlight.keys()])];
 	for (const target of targets) {
 		preferenceCache.delete(target);
 		const inFlight = preferenceInFlight.get(target);
@@ -153,7 +140,9 @@ export function storeLocale(locale: Locale): void {
 	}
 }
 
-export async function getLocalePreference(session: AuthSession): Promise<Locale> {
+export async function getLocalePreference(
+	session: AuthSession,
+): Promise<Locale> {
 	return cachedPreference(session, "locale", async (signal) => {
 		const response = await authenticatedFetch(
 			session,
@@ -173,14 +162,10 @@ export async function setLocalePreference(
 	session: AuthSession,
 	locale: Locale,
 ): Promise<Locale> {
-	const response = await authenticatedFetch(
-		session,
-		"/api/preferences/locale",
-		{
-			method: "PATCH",
-			body: JSON.stringify({ locale }),
-		},
-	);
+	const response = await authenticatedFetch(session, "/api/preferences/locale", {
+		method: "PATCH",
+		body: JSON.stringify({ locale }),
+	});
 	if (!response.ok) throw new Error("Could not save locale preference.");
 	const data: unknown = await response.json();
 	if (!isPreference(data))

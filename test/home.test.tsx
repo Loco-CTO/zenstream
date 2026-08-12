@@ -15,9 +15,9 @@ import * as session from "@/lib/session";
 describe("home screen", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
-		vi.spyOn(jellyfin, "validateBrowserSession").mockImplementation(
-			async (value) => value,
-		);
+		vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockImplementation(async (value) => value);
 	});
 
 	it("shows login when no session exists", async () => {
@@ -68,9 +68,9 @@ describe("home screen", () => {
 			userId: "user",
 			username: "Alex",
 		});
-		vi.spyOn(jellyfin, "validateBrowserSession").mockRejectedValue(
-			new Error("Orchestrator unavailable"),
-		);
+		vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockRejectedValue(new Error("Orchestrator unavailable"));
 		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData");
 
 		render(

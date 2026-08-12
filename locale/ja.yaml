@@ -43,6 +43,7 @@ continueWatching: 視聴を続ける
 newlyAddedOn: "{library} の新着"
 nextUp: 次に見る
 topRated: 高評価のアニメ
+topRatedOn: "{library} の高評価"
 newReleases: 新着作品
 movies: 映画
 myList: マイリスト

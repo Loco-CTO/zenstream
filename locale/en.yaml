@@ -51,6 +51,7 @@ nextUp: Next Up
 playNext: Play next
 stopPlaying: Stop playing
 topRated: Top Rated Anime
+topRatedOn: "Top Rated on {library}"
 newReleases: New Releases
 movies: Movies
 myList: My List

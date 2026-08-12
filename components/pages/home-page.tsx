@@ -8,18 +8,6 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { zenstreamVersion } from "@/lib/version";
 
-export function libraryHref(options: {
-	libraryId?: string;
-	sortBy: string;
-	sortOrder: string;
-}) {
-	const params = new URLSearchParams();
-	if (options.libraryId) params.set("libraryId", options.libraryId);
-	params.set("sortBy", options.sortBy);
-	params.set("sortOrder", options.sortOrder.toLowerCase());
-	return `/library?${params.toString()}`;
-}
-
 export function HomePage({
 	data,
 	session,

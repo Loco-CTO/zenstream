@@ -25,9 +25,7 @@ describe("Content Security Policy", () => {
 		expect(developmentPolicy).toContain(
 			"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
 		);
-		expect(productionPolicy).toContain(
-			"script-src 'self' 'unsafe-inline'",
-		);
+		expect(productionPolicy).toContain("script-src 'self' 'unsafe-inline'");
 		expect(productionPolicy).not.toContain("'unsafe-eval'");
 	});
 });

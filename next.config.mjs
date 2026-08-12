@@ -3,7 +3,10 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
-export function buildContentSecurityPolicy(orchestratorUrl, isDevelopment = false) {
+export function buildContentSecurityPolicy(
+	orchestratorUrl,
+	isDevelopment = false,
+) {
 	const configuredOrchestrator = orchestratorUrl
 		? new URL(orchestratorUrl)
 		: null;

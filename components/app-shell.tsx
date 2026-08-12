@@ -61,12 +61,7 @@ import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 
 type AppStatus =
-	| "checking"
-	| "login"
-	| "loading"
-	| "ready"
-	| "error"
-	| "bootstrap-error";
+	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
 
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
@@ -111,7 +106,8 @@ export function AppShell() {
 		generation: number;
 	} | null>(null);
 	const loadHomeRef = useRef<
-		((nextSession: AuthSession, requestedGeneration?: number) => Promise<void>) | null
+		| ((nextSession: AuthSession, requestedGeneration?: number) => Promise<void>)
+		| null
 	>(null);
 	const homeDataRef = useRef<HomeData | null>(null);
 	const detailRefreshGeneration = useRef(0);
@@ -148,8 +144,7 @@ export function AppShell() {
 		void getMetadataLanguagePreference(nextSession)
 			.then((value) => {
 				if (
-					metadataLanguageGeneration !==
-					metadataLanguageMutationGeneration.current
+					metadataLanguageGeneration !== metadataLanguageMutationGeneration.current
 				)
 					return;
 				commit(() => {
@@ -162,13 +157,15 @@ export function AppShell() {
 	}, []);
 
 	const loadHome = useCallback(
-		async (nextSession: AuthSession, requestedGeneration = routeLoadGeneration.current) => {
+		async (
+			nextSession: AuthSession,
+			requestedGeneration = routeLoadGeneration.current,
+		) => {
 			const isCurrent = () =>
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
 			if (homeLoadInFlight.current) {
-				if (sessionRef.current === nextSession)
-					homeTrailingRefresh.current = true;
+				if (sessionRef.current === nextSession) homeTrailingRefresh.current = true;
 				else
 					homeTrailingRequest.current = {
 						session: nextSession,
@@ -285,7 +282,9 @@ export function AppShell() {
 				}
 			} catch (err) {
 				if (isCurrent()) {
-					setError(err instanceof Error ? err.message : "Could not load this title.");
+					setError(
+						err instanceof Error ? err.message : "Could not load this title.",
+					);
 					setStatus("error");
 				}
 			} finally {
@@ -443,54 +442,56 @@ export function AppShell() {
 				setSearchData(searchQuery);
 				setStatus("ready");
 			}
-		} else if (pathname === "/library" || pathname === "/favorites")
-			{
-				if (generation === routeLoadGeneration.current) setStatus("ready");
-			}
-		else await loadHome(nextSession, generation);
+		} else if (pathname === "/library" || pathname === "/favorites") {
+			if (generation === routeLoadGeneration.current) setStatus("ready");
+		} else await loadHome(nextSession, generation);
 	};
 
-	const clearLocalSession = useCallback((expiredSession?: AuthSession) => {
-		if (expiredSession && sessionRef.current !== expiredSession) return;
-		const activeSession = sessionRef.current ?? session;
-		clearAuthCookies();
-		clearMediaClientSession();
-		clearPreferenceCache();
-		clearSubtitlePreferenceCache();
-		clearMediaClientCache();
-		routeLoadGeneration.current += 1;
-		preferencesGeneration.current += 1;
-		localeMutationGeneration.current += 1;
-		metadataLanguageMutationGeneration.current += 1;
-		localeMutationQueue.current = Promise.resolve();
-		metadataLanguageMutationQueue.current = Promise.resolve();
-		detailRefreshGeneration.current += 1;
-		detailRefreshController.current?.abort();
-		sessionRef.current = null;
-		setSession(null);
-		loadedPreferencesToken.current = null;
-		homeDataRef.current = null;
-		homeTrailingRefresh.current = false;
-		homeTrailingRequest.current = null;
-		setHomeData(null);
-		setDetailData(null);
-		setSearchData(null);
-		setError(null);
-		setStatus("login");
-		return activeSession;
-	}, [session]);
+	const clearLocalSession = useCallback(
+		(expiredSession?: AuthSession) => {
+			if (expiredSession && sessionRef.current !== expiredSession) return;
+			const activeSession = sessionRef.current ?? session;
+			clearAuthCookies();
+			clearMediaClientSession();
+			clearPreferenceCache();
+			clearSubtitlePreferenceCache();
+			clearMediaClientCache();
+			routeLoadGeneration.current += 1;
+			preferencesGeneration.current += 1;
+			localeMutationGeneration.current += 1;
+			metadataLanguageMutationGeneration.current += 1;
+			localeMutationQueue.current = Promise.resolve();
+			metadataLanguageMutationQueue.current = Promise.resolve();
+			detailRefreshGeneration.current += 1;
+			detailRefreshController.current?.abort();
+			sessionRef.current = null;
+			setSession(null);
+			loadedPreferencesToken.current = null;
+			homeDataRef.current = null;
+			homeTrailingRefresh.current = false;
+			homeTrailingRequest.current = null;
+			setHomeData(null);
+			setDetailData(null);
+			setSearchData(null);
+			setError(null);
+			setStatus("login");
+			return activeSession;
+		},
+		[session],
+	);
 
 	const handleLogout = useCallback(() => {
 		const currentSession = sessionRef.current;
 		if (!currentSession) return;
 		const activeSession = clearLocalSession(currentSession);
-		if (activeSession) void revokeAuthSession(activeSession).catch(() => undefined);
+		if (activeSession)
+			void revokeAuthSession(activeSession).catch(() => undefined);
 	}, [clearLocalSession]);
 
 	useEffect(() => {
 		const handleAuthExpired = (event: Event) => {
-			const expiredSession = (event as CustomEvent<{ session?: AuthSession }>).detail
-				?.session;
+			const expiredSession = (event as CustomEvent<{ session?: AuthSession }>)
+				.detail?.session;
 			if (expiredSession && sessionRef.current !== expiredSession) return;
 			if (authExpiryHandled.current === expiredSession) return;
 			authExpiryHandled.current = expiredSession ?? sessionRef.current;

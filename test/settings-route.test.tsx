@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 import { ProgressProvider } from "@/components/status/progress-indicator";
@@ -18,7 +24,9 @@ function deferred<T>() {
 	return { promise, resolve, reject };
 }
 
-function renderSettings(auth = { token: "", userId: "user", username: "Alex" }) {
+function renderSettings(
+	auth = { token: "", userId: "user", username: "Alex" },
+) {
 	vi.spyOn(session, "getAuthSession").mockReturnValue(auth);
 	return render(
 		<ProgressProvider>
@@ -40,9 +48,9 @@ vi.mock("next/navigation", () => ({
 describe("settings route", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
-		vi.spyOn(jellyfin, "validateBrowserSession").mockImplementation(
-			async (value) => value,
-		);
+		vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockImplementation(async (value) => value);
 		vi.spyOn(jellyfin, "fetchHomeData").mockResolvedValue({} as never);
 		vi.spyOn(preferences, "getLocalePreference").mockResolvedValue("en");
 		vi.spyOn(preferences, "getMetadataLanguages").mockResolvedValue(["en", "ja"]);
@@ -50,9 +58,9 @@ describe("settings route", () => {
 			mode: "auto",
 			language: "en",
 		});
-		vi.spyOn(subtitlePreferences, "getSubtitlePreference").mockResolvedValue(
-			DEFAULT_SUBTITLE_STYLE,
-		);
+		vi
+			.spyOn(subtitlePreferences, "getSubtitlePreference")
+			.mockResolvedValue(DEFAULT_SUBTITLE_STYLE);
 	});
 
 	it("does not render the home navigation while home data is loading", async () => {
@@ -74,7 +82,9 @@ describe("settings route", () => {
 		expect(
 			await screen.findByRole("heading", { name: "Settings" }),
 		).toBeInTheDocument();
-		expect(screen.getByRole("navigation", { name: "Settings" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("navigation", { name: "Settings" }),
+		).toBeInTheDocument();
 	});
 
 	it("revokes an explicit browser session only once", async () => {
@@ -152,9 +162,7 @@ describe("settings route", () => {
 		});
 		await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
 		expect(save.mock.calls[1]?.[1]).toBe("en");
-		await act(async () =>
-			second.resolve({ mode: "explicit", language: "en" }),
-		);
+		await act(async () => second.resolve({ mode: "explicit", language: "en" }));
 
 		await waitFor(() =>
 			expect(screen.getAllByRole("combobox")[1]).toHaveTextContent("English"),

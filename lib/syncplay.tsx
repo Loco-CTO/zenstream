@@ -467,11 +467,7 @@ export function SyncplayProvider({
 					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
 						group.members.some((member) =>
-							isCurrentParticipant(
-								member,
-								currentParticipantId,
-								session.userId,
-							),
+							isCurrentParticipant(member, currentParticipantId, session.userId),
 						),
 					) ?? null),
 		);
@@ -613,11 +609,7 @@ export function SyncplayProvider({
 				if (candidate && candidate.revision >= current.revision)
 					reconcileRef.current(
 						candidate.members.some((member) =>
-							isCurrentParticipant(
-								member,
-								currentParticipantId,
-								session.userId,
-							),
+							isCurrentParticipant(member, currentParticipantId, session.userId),
 						)
 							? candidate
 							: null,
@@ -626,11 +618,7 @@ export function SyncplayProvider({
 				reconcileRef.current(
 					next.find((group) =>
 						group.members.some((member) =>
-							isCurrentParticipant(
-								member,
-								currentParticipantId,
-								session.userId,
-							),
+							isCurrentParticipant(member, currentParticipantId, session.userId),
 						),
 					) ?? null,
 				);

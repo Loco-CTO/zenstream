@@ -227,6 +227,45 @@ describe("home screen", () => {
 		expect(await screen.findAllByText("Recovered")).toHaveLength(2);
 	});
 
+	it("falls back to legacy newly added rows when canonical rows are absent", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "token",
+			userId: "user",
+			username: "Alex",
+		});
+		vi.spyOn(jellyfin, "fetchHomeData").mockResolvedValue({
+			latestItems: [],
+			newlyAdded: [
+				{
+					libraryId: "movies",
+					libraryName: "Movies",
+					items: [item("legacy-new", "Legacy Newly Added")],
+				},
+			],
+			libraryRows: [
+				{
+					libraryId: "movies",
+					libraryName: "Movies",
+					titleKey: "topRated",
+					items: [item("legacy-top", "Legacy Top Rated")],
+				},
+			],
+			continueWatching: [],
+			nextUp: [],
+			myList: [],
+		});
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		expect(await screen.findByText("Newly Added on Movies")).toBeInTheDocument();
+		expect(screen.getByText("Legacy Newly Added")).toBeInTheDocument();
+		expect(screen.queryByText("Legacy Top Rated")).not.toBeInTheDocument();
+	});
+
 	it("retries an invalidated in-flight home load without showing its abort error", async () => {
 		vi.spyOn(session, "getAuthSession").mockReturnValue({
 			token: "token",

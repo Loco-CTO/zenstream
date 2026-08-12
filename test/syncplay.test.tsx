@@ -240,14 +240,15 @@ describe("SyncplayProvider", () => {
 							...group(1),
 							hostUserId: null,
 							itemId: null,
-							members: [
-								{
-									role: "host",
-									watchingTogether: true,
-									viewing: false,
-									loading: false,
-								} as unknown as SyncplayGroup["members"][number],
-							],
+						members: [
+						{
+							userId: "alex",
+							username: "Alex",
+							viewing: false,
+							loading: false,
+							role: "host",
+						},
+					],
 						},
 					],
 				}),

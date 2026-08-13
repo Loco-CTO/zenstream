@@ -505,6 +505,7 @@ export async function validateBrowserSession(
 					? payload.resourceTicketExpiresIn * 1000
 					: 10 * 60_000),
 			sessionKey: resourceSessionKey({
+				token: "",
 				userId: payload.user.id,
 				username:
 					typeof payload.user.username === "string"
@@ -718,37 +719,108 @@ function catalogSort(value: LibrarySortBy) {
 export async function fetchDetailData(
 	session: AuthSession,
 	itemId: string,
-	requestedSeasonId?: string,
+	 requestedSeasonId?: string,
 	requestSignal?: AbortSignal,
+	onSection?: (section: Partial<DetailData>) => void,
 ): Promise<DetailData> {
-	return cachedClientRequest(
+	const data = await cachedClientRequest(
 		`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`,
 		async (signal) => {
-			const params = new URLSearchParams();
+			const params = new URLSearchParams({ section: "header" });
 			if (requestedSeasonId) params.set("seasonId", requestedSeasonId);
 			try {
-				const response = await catalogRequest<{
+				const header = await catalogRequest<{
 					item: CatalogItem;
 					backgroundItem?: CatalogItem | null;
 					seasons: CatalogItem[];
-					episodes: CatalogItem[];
-					similar: CatalogItem[];
-					collectionItems?: CatalogItem[] | null;
 				}>(
 					session,
-					`/api/catalog/items/${encodeURIComponent(itemId)}/detail${params.size ? `?${params}` : ""}`,
+					`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${params}`,
 					{ signal: combinedSignal(requestSignal, signal) },
 				);
-				return {
-					item: toMediaItem(response.item),
-					backgroundItem: response.backgroundItem
-						? toMediaItem(response.backgroundItem)
+				const initial: DetailData = {
+					item: toMediaItem(header.item),
+					backgroundItem: header.backgroundItem
+						? toMediaItem(header.backgroundItem)
 						: undefined,
-					seasons: response.seasons.map(toMediaItem),
-					episodes: response.episodes.map(toMediaItem),
-					similar: response.similar.map(toMediaItem),
-					collectionItems: response.collectionItems?.map(toMediaItem),
+					seasons: (header.seasons ?? []).map(toMediaItem),
+					episodes: [],
+					similar: [],
 				};
+				onSection?.(initial);
+				const item = initial.item;
+				const season = getInitialSeason(item, initial.seasons, requestedSeasonId);
+				const episodeParams = new URLSearchParams({
+					section: "episodes",
+					page: "1",
+					pageSize: "40",
+					view: "card",
+				});
+				if (season) episodeParams.set("seasonId", season.Id);
+				const episodesPromise =
+					season && (item.Type === "Series" || item.Type === "Episode")
+						? catalogRequest<{
+							 episodes?: CatalogItem[];
+							 total?: number;
+						 }>(session, `/api/catalog/items/${encodeURIComponent(itemId)}/detail?${episodeParams}`, {
+							 signal: combinedSignal(requestSignal, signal),
+						 })
+						: Promise.resolve({ episodes: [], total: 0 });
+				const similarPromise =
+					item.Type === "Episode"
+						? Promise.resolve({ similar: [] as CatalogItem[] })
+						: catalogRequest<{ similar?: CatalogItem[] }>(
+								session,
+								`/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=similar&view=card`,
+								{ signal: combinedSignal(requestSignal, signal) },
+						  );
+				const creditsPromise = catalogRequest<{
+					credits?: { cast?: unknown[]; crew?: unknown[] };
+				}>(session, `/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=credits`, {
+					signal: combinedSignal(requestSignal, signal),
+				});
+				const [episodes, similar, credits] = await Promise.all([
+					episodesPromise,
+					similarPromise,
+					creditsPromise,
+				]);
+				let episodeItems = (episodes.episodes ?? []).map(toMediaItem);
+				const episodeTotal = Number(episodes.total ?? episodeItems.length);
+				for (
+					let episodePage = 2;
+					episodePage <= Math.ceil(episodeTotal / 40);
+					episodePage += 1
+				) {
+					if (requestSignal?.aborted || signal.aborted) break;
+					const pageParams = new URLSearchParams({
+						section: "episodes",
+						page: String(episodePage),
+						pageSize: "40",
+						view: "card",
+					});
+					if (season) pageParams.set("seasonId", season.Id);
+					const page = await catalogRequest<{ episodes?: CatalogItem[] }>(
+						session,
+						`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${pageParams}`,
+						{ signal: combinedSignal(requestSignal, signal) },
+					);
+					episodeItems = episodeItems.concat((page.episodes ?? []).map(toMediaItem));
+					onSection?.({ episodes: episodeItems });
+				}
+				const similarItems = (similar.similar ?? []).map(toMediaItem);
+				const completed: DetailData = {
+					...initial,
+					episodes: episodeItems,
+					similar: similarItems,
+				};
+				if (credits.credits) {
+					completed.item = toMediaItem({
+						...header.item,
+						metadata: { ...header.item.metadata, credits: credits.credits },
+					} as CatalogItem);
+				}
+				onSection?.({ episodes: episodeItems, similar: similarItems });
+				return completed;
 			} catch (error) {
 				const status =
 					error instanceof Error
@@ -779,6 +851,8 @@ export async function fetchDetailData(
 		},
 		DETAIL_CACHE_TTL_MS,
 	);
+	onSection?.(data);
+	return data;
 }
 
 export async function fetchPlayData(

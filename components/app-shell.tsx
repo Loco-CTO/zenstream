@@ -240,7 +240,12 @@ export function AppShell() {
 	const currentSearch =
 		typeof window !== "undefined" ? window.location.search : "";
 	const fetchDetailPayload = useCallback(
-		async (nextSession: AuthSession, itemId: string, signal?: AbortSignal) => {
+		async (
+			nextSession: AuthSession,
+			itemId: string,
+			signal?: AbortSignal,
+			onSection?: (section: Partial<DetailData>) => void,
+		) => {
 			void primeResourceTicket(nextSession);
 			if (pathname === "/search") return null;
 			return playId
@@ -250,6 +255,7 @@ export function AppShell() {
 						itemId,
 						new URLSearchParams(window.location.search).get("seasonId") ?? undefined,
 						signal,
+						onSection,
 					);
 		},
 		[pathname, playId],
@@ -277,7 +283,16 @@ export function AppShell() {
 					}
 					return;
 				}
-				const nextData = await fetchDetailPayload(nextSession, itemId);
+				const nextData = await fetchDetailPayload(
+					nextSession,
+					itemId,
+					undefined,
+					(section) => {
+						if (!isCurrent()) return;
+						setDetailData((current) => ({ ...(current ?? {}), ...section }) as DetailData);
+						if (section.item) setStatus("ready");
+					},
+				);
 				if (isCurrent()) {
 					setDetailData(nextData);
 					setStatus("ready");

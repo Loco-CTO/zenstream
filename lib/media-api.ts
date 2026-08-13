@@ -338,7 +338,7 @@ export async function getSearchItems(
 		async (signal) => {
 			const result = await catalogRequest<{ items: CatalogItem[] }>(
 				session,
-				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`,
+				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40&view=card`,
 				{ signal: combinedSignal(options.signal, signal) },
 			);
 			return result.items.map(toMediaItem);
@@ -421,6 +421,8 @@ export async function primeResourceTicket(
 			expiresAt,
 			sessionKey: resourceSessionKey(session),
 		};
+		if (typeof window !== "undefined")
+			window.dispatchEvent(new Event("zenstream:resource-ticket"));
 		return payload.ticket;
 	} catch {
 		return null;
@@ -470,20 +472,49 @@ export async function authenticateByName(
 export async function validateBrowserSession(
 	session: AuthSession,
 ): Promise<AuthSession | null> {
-	const response = await authenticatedFetch(
+	let response = await authenticatedFetch(
 		session,
-		"/api/auth/me",
+		"/api/auth/bootstrap",
 		{ cache: "no-store" },
 		{ notifyOnUnauthorized: false },
 	);
+	if (response.status === 404) {
+		response = await authenticatedFetch(
+			session,
+			"/api/auth/me",
+			{ cache: "no-store" },
+			{ notifyOnUnauthorized: false },
+		);
+	}
 	if (response.status === 401) return null;
 	if (!response.ok)
 		throw new Error(`Session validation failed with ${response.status}.`);
 	const payload = (await response.json()) as {
 		user?: { id?: unknown; username?: unknown };
+		resourceTicket?: unknown;
+		resourceTicketExpiresIn?: unknown;
 	};
 	if (typeof payload.user?.id !== "string")
 		throw new Error("Server did not return a complete session response.");
+	if (typeof payload.resourceTicket === "string") {
+		resourceTicket = {
+			value: payload.resourceTicket,
+			expiresAt:
+				Date.now() +
+				(typeof payload.resourceTicketExpiresIn === "number"
+					? payload.resourceTicketExpiresIn * 1000
+					: 10 * 60_000),
+			sessionKey: resourceSessionKey({
+				userId: payload.user.id,
+				username:
+					typeof payload.user.username === "string"
+						? payload.user.username
+						: "ZenStream",
+			}),
+		};
+		if (typeof window !== "undefined")
+			window.dispatchEvent(new Event("zenstream:resource-ticket"));
+	}
 	return {
 		token: "",
 		userId: payload.user.id,
@@ -501,32 +532,89 @@ export async function fetchHomeData(
 	const data = await cachedClientRequest(
 		`home:${session.userId}`,
 		async (signal) => {
-			const result = await catalogRequest<{
-				latestItems: CatalogItem[];
-				continueWatching: CatalogItem[];
-				nextUp: CatalogItem[];
-				myList: CatalogItem[];
-				recentlyPlayed: CatalogItem[];
-				genreRows: Array<{ genre: string; items: CatalogItem[] }>;
-				libraryRows: Array<
-					Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }
-				>;
-			}>(session, "/api/catalog/home", { signal });
-			return {
-				latestItems: result.latestItems.map(toMediaItem),
-				continueWatching: result.continueWatching.map(toMediaItem),
-				nextUp: result.nextUp.map(toMediaItem),
-				myList: result.myList.map(toMediaItem),
-				recentlyPlayed: result.recentlyPlayed.map(toMediaItem),
-				genreRows: result.genreRows.map((row) => ({
-					...row,
-					items: row.items.map(toMediaItem),
-				})),
-				libraryRows: result.libraryRows.map((row) => ({
-					...row,
-					items: row.items.map(toMediaItem),
-				})),
+			const section = async <T>(
+				name: string,
+				limit?: number,
+				extra?: Record<string, string>,
+			) => {
+				const params = new URLSearchParams({ section: name, view: "card" });
+				if (limit !== undefined) params.set("limit", String(limit));
+				for (const [key, value] of Object.entries(extra ?? {}))
+					params.set(key, value);
+				return catalogRequest<T>(session, `/api/catalog/home?${params}`, {
+					signal,
+				});
 			};
+
+			const featured = await section<{ latestItems?: CatalogItem[] }>(
+				"featured",
+				1,
+			);
+			const first = { latestItems: (featured.latestItems ?? []).map(toMediaItem) };
+			onSection?.(first);
+
+			const rest = await Promise.all([
+				section<{ continueWatching?: CatalogItem[] }>("continueWatching", 18),
+				section<{ nextUp?: CatalogItem[] }>("nextUp", 18),
+				section<{
+					myList?: CatalogItem[];
+					recentlyPlayed?: CatalogItem[];
+					genreRows?: Array<{ genre: string; items: CatalogItem[] }>;
+				}>("derived", 18),
+				getLibraryViews(session),
+			]);
+			const continueWatching = (rest[0].continueWatching ?? []).map(toMediaItem);
+			const nextUp = (rest[1].nextUp ?? []).map(toMediaItem);
+			const derived = rest[2];
+			const libraries = rest[3] as LibraryView[];
+			onSection?.({
+				continueWatching,
+				nextUp,
+				myList: (derived.myList ?? []).map(toMediaItem),
+				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
+				genreRows: (derived.genreRows ?? []).map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
+			});
+
+			const libraryRows: HomeLibrarySection[] = [];
+			for (let offset = 0; offset < libraries.length; offset += 3) {
+				const batch = await Promise.all(
+					libraries.slice(offset, offset + 3).map(async (library) => {
+						const result = await section<{
+							libraryRows?: Array<
+								Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }
+							>;
+						}>("library", 18, { libraryId: library.Id });
+						return (result.libraryRows ?? []).map((row) => ({
+							...row,
+							items: row.items.map(toMediaItem),
+						}));
+					}),
+				);
+				libraryRows.push(...batch.flat());
+				onSection?.({ libraryRows: [...libraryRows] });
+			}
+
+			const allFeatured = await section<{ latestItems?: CatalogItem[] }>(
+				"featured",
+				25,
+			);
+			const result: HomeData = {
+				latestItems: (allFeatured.latestItems ?? []).map(toMediaItem),
+				continueWatching,
+				nextUp,
+				myList: (derived.myList ?? []).map(toMediaItem),
+				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
+				genreRows: (derived.genreRows ?? []).map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
+				libraryRows,
+			};
+			onSection?.(result);
+			return result;
 		},
 	);
 	onSection?.(data);
@@ -541,7 +629,7 @@ export function getFavoriteItems(
 		signal?: AbortSignal;
 	} = {},
 ) {
-	const params = new URLSearchParams({ pageSize: "100" });
+	const params = new URLSearchParams({ pageSize: "100", view: "card" });
 	if (options.sortBy) params.set("sortBy", options.sortBy);
 	if (options.sortOrder) params.set("sortOrder", options.sortOrder);
 	return cachedClientRequest(
@@ -600,6 +688,7 @@ export async function getLibraryItems(
 		libraryId: options.parentId,
 		page: String(Math.floor(options.startIndex / limit) + 1),
 		pageSize: String(limit),
+		view: "card",
 		sortBy: catalogSort(options.sortBy),
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
@@ -1233,7 +1322,7 @@ export function getSeriesEpisodes(session: AuthSession, seriesId: string) {
 export function getSimilarItems(session: AuthSession, itemId: string) {
 	return catalogRequest<{ items: CatalogItem[] }>(
 		session,
-		`/api/catalog/items/${encodeURIComponent(itemId)}/similar`,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/similar?view=card`,
 	).then((result) => result.items.map(toMediaItem));
 }
 
@@ -1243,6 +1332,7 @@ async function getChildren(session: AuthSession, parent: MediaItem) {
 		libraryId: parent.LibraryId,
 		parentId: parent.Id,
 		pageSize: "100",
+		view: "card",
 	});
 	const result = await catalogRequest<{ items: CatalogItem[] }>(
 		session,

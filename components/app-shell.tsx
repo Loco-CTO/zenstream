@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import { sessionFromAuth } from "@/lib/auth";
 import {
 	authenticateByName,
@@ -24,15 +25,15 @@ import {
 } from "@/lib/session";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Navbar } from "@/components/layout/navbar";
-import { HomePage } from "@/components/pages/home-page";
-import { LoginPage } from "@/components/pages/login-page";
-import { SettingsPage } from "@/components/pages/settings-page";
-import { DetailPage } from "@/components/pages/detail-page";
-import { PlayerPage } from "@/components/pages/player-page";
-import { LibraryPage } from "@/components/pages/library-page";
-import { FavoritesPage } from "@/components/pages/favorites-page";
-import { SearchPage } from "@/components/pages/search-page";
-import { CollectionPage } from "@/components/pages/collection-page";
+const HomePage = dynamic(() => import("@/components/pages/home-page").then((m) => m.HomePage), { ssr: false });
+const LoginPage = dynamic(() => import("@/components/pages/login-page").then((m) => m.LoginPage), { ssr: false });
+const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((m) => m.SettingsPage), { ssr: false });
+const DetailPage = dynamic(() => import("@/components/pages/detail-page").then((m) => m.DetailPage), { ssr: false });
+const PlayerPage = dynamic(() => import("@/components/pages/player-page").then((m) => m.PlayerPage), { ssr: false });
+const LibraryPage = dynamic(() => import("@/components/pages/library-page").then((m) => m.LibraryPage), { ssr: false });
+const FavoritesPage = dynamic(() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage), { ssr: false });
+const SearchPage = dynamic(() => import("@/components/pages/search-page").then((m) => m.SearchPage), { ssr: false });
+const CollectionPage = dynamic(() => import("@/components/pages/collection-page").then((m) => m.CollectionPage), { ssr: false });
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -80,6 +81,7 @@ export function AppShell() {
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
+	const [, setResourceTicketRevision] = useState(0);
 	const loadedPreferencesToken = useRef<string | null>(null);
 	const sessionRef = useRef<AuthSession | null>(null);
 	const routeLoadGeneration = useRef(0);
@@ -187,7 +189,7 @@ export function AppShell() {
 				do {
 					homeTrailingRefresh.current = false;
 					try {
-						await primeResourceTicket(nextSession);
+						void primeResourceTicket(nextSession);
 						const data = await fetchHomeData(nextSession, (section) => {
 							if (!isCurrent()) return;
 							setHomeData((current) => {
@@ -239,7 +241,7 @@ export function AppShell() {
 		typeof window !== "undefined" ? window.location.search : "";
 	const fetchDetailPayload = useCallback(
 		async (nextSession: AuthSession, itemId: string, signal?: AbortSignal) => {
-			await primeResourceTicket(nextSession);
+			void primeResourceTicket(nextSession);
 			if (pathname === "/search") return null;
 			return playId
 				? fetchPlayData(nextSession, itemId)
@@ -408,7 +410,7 @@ export function AppShell() {
 					setStatus("ready");
 				}
 			} else if (pathname === "/library" || pathname === "/favorites") {
-				await primeResourceTicket(session);
+				void primeResourceTicket(session);
 				if (generation === routeLoadGeneration.current) setStatus("ready");
 			} else await loadHome(session, generation);
 			finishProgress();
@@ -434,7 +436,7 @@ export function AppShell() {
 		setSession(nextSession);
 		const generation = ++routeLoadGeneration.current;
 		loadPreferences(nextSession);
-		await primeResourceTicket(nextSession);
+		void primeResourceTicket(nextSession);
 		if (detailId || playId)
 			await loadDetail(nextSession, detailId ?? playId!, generation);
 		else if (pathname === "/search") {
@@ -506,6 +508,13 @@ export function AppShell() {
 		if (!session || process.env.NODE_ENV === "test") return;
 		return startCatalogEvents(session);
 	}, [session]);
+
+	useEffect(() => {
+		const refreshImageUrls = () => setResourceTicketRevision((value) => value + 1);
+		window.addEventListener("zenstream:resource-ticket", refreshImageUrls);
+		return () =>
+			window.removeEventListener("zenstream:resource-ticket", refreshImageUrls);
+	}, []);
 
 	useEffect(() => {
 		if (!session || pathname !== "/") return;

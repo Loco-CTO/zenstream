@@ -719,7 +719,7 @@ function catalogSort(value: LibrarySortBy) {
 export async function fetchDetailData(
 	session: AuthSession,
 	itemId: string,
-	 requestedSeasonId?: string,
+	requestedSeasonId?: string,
 	requestSignal?: AbortSignal,
 	onSection?: (section: Partial<DetailData>) => void,
 ): Promise<DetailData> {
@@ -779,10 +779,15 @@ export async function fetchDetailData(
 				}>(session, `/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=credits`, {
 					signal: combinedSignal(requestSignal, signal),
 				});
-				const [episodes, similar, credits] = await Promise.all([
+				const collectionPromise =
+					item.Type === "BoxSet"
+						? getChildren(session, item)
+						: Promise.resolve(undefined);
+				const [episodes, similar, credits, collectionItems] = await Promise.all([
 					episodesPromise,
 					similarPromise,
 					creditsPromise,
+					collectionPromise,
 				]);
 				let episodeItems = (episodes.episodes ?? []).map(toMediaItem);
 				const episodeTotal = Number(episodes.total ?? episodeItems.length);
@@ -812,6 +817,7 @@ export async function fetchDetailData(
 					...initial,
 					episodes: episodeItems,
 					similar: similarItems,
+					collectionItems,
 				};
 				if (credits.credits) {
 					completed.item = toMediaItem({

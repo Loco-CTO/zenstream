@@ -25,15 +25,43 @@ import {
 } from "@/lib/session";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Navbar } from "@/components/layout/navbar";
-const HomePage = dynamic(() => import("@/components/pages/home-page").then((m) => m.HomePage), { ssr: false });
-const LoginPage = dynamic(() => import("@/components/pages/login-page").then((m) => m.LoginPage), { ssr: false });
-const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((m) => m.SettingsPage), { ssr: false });
-const DetailPage = dynamic(() => import("@/components/pages/detail-page").then((m) => m.DetailPage), { ssr: false });
-const PlayerPage = dynamic(() => import("@/components/pages/player-page").then((m) => m.PlayerPage), { ssr: false });
-const LibraryPage = dynamic(() => import("@/components/pages/library-page").then((m) => m.LibraryPage), { ssr: false });
-const FavoritesPage = dynamic(() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage), { ssr: false });
-const SearchPage = dynamic(() => import("@/components/pages/search-page").then((m) => m.SearchPage), { ssr: false });
-const CollectionPage = dynamic(() => import("@/components/pages/collection-page").then((m) => m.CollectionPage), { ssr: false });
+const HomePage = dynamic(
+	() => import("@/components/pages/home-page").then((m) => m.HomePage),
+	{ ssr: false },
+);
+const LoginPage = dynamic(
+	() => import("@/components/pages/login-page").then((m) => m.LoginPage),
+	{ ssr: false },
+);
+const SettingsPage = dynamic(
+	() => import("@/components/pages/settings-page").then((m) => m.SettingsPage),
+	{ ssr: false },
+);
+const DetailPage = dynamic(
+	() => import("@/components/pages/detail-page").then((m) => m.DetailPage),
+	{ ssr: false },
+);
+const PlayerPage = dynamic(
+	() => import("@/components/pages/player-page").then((m) => m.PlayerPage),
+	{ ssr: false },
+);
+const LibraryPage = dynamic(
+	() => import("@/components/pages/library-page").then((m) => m.LibraryPage),
+	{ ssr: false },
+);
+const FavoritesPage = dynamic(
+	() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage),
+	{ ssr: false },
+);
+const SearchPage = dynamic(
+	() => import("@/components/pages/search-page").then((m) => m.SearchPage),
+	{ ssr: false },
+);
+const CollectionPage = dynamic(
+	() =>
+		import("@/components/pages/collection-page").then((m) => m.CollectionPage),
+	{ ssr: false },
+);
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -116,6 +144,7 @@ export function AppShell() {
 	const detailRefreshInFlight = useRef(false);
 	const detailTrailingRefresh = useRef(false);
 	const detailRefreshController = useRef<AbortController | null>(null);
+	const detailLoadController = useRef<AbortController | null>(null);
 	const loadPreferences = useCallback((nextSession: AuthSession) => {
 		const generation = ++preferencesGeneration.current;
 		const localeGeneration = localeMutationGeneration.current;
@@ -270,10 +299,12 @@ export function AppShell() {
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
 			const finishProgress = start();
+			detailLoadController.current?.abort();
+			const loadController = new AbortController();
+			detailLoadController.current = loadController;
 			if (isCurrent()) {
 				setStatus("loading");
 				setError(null);
-				setDetailData(null);
 			}
 			try {
 				if (pathname === "/search") {
@@ -286,7 +317,7 @@ export function AppShell() {
 				const nextData = await fetchDetailPayload(
 					nextSession,
 					itemId,
-					undefined,
+					loadController.signal,
 					(section) => {
 						if (!isCurrent()) return;
 						setDetailData((current) => ({ ...(current ?? {}), ...section }) as DetailData);
@@ -298,6 +329,7 @@ export function AppShell() {
 					setStatus("ready");
 				}
 			} catch (err) {
+				if (loadController.signal.aborted) return;
 				if (isCurrent()) {
 					setError(
 						err instanceof Error ? err.message : "Could not load this title.",

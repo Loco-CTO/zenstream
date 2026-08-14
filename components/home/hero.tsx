@@ -42,7 +42,10 @@ type SlideLifecycle = {
 };
 
 function clearLifecycleTimer(lifecycle: SlideLifecycle | null | undefined) {
-	if (lifecycle?.fallbackTimer === null || lifecycle?.fallbackTimer === undefined) {
+	if (
+		lifecycle?.fallbackTimer === null ||
+		lifecycle?.fallbackTimer === undefined
+	) {
 		return;
 	}
 	window.clearTimeout(lifecycle.fallbackTimer);

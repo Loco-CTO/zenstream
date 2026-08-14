@@ -8,7 +8,7 @@ import { setAuthCookies } from "@/lib/session";
 export default function RegisterPage() {
 	const router = useRouter();
 	const usernameRef = useRef<HTMLInputElement>(null);
-	const [invite, setInvite] = useState("");
+	const inviteRef = useRef("");
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [status, setStatus] = useState<"checking" | "ready" | "invalid">(
@@ -19,13 +19,14 @@ export default function RegisterPage() {
 
 	useEffect(() => {
 		const token = new URLSearchParams(window.location.search).get("invite") || "";
-		setInvite(token);
-		if (!token) {
-			setMessage("This registration link is missing its invite token.");
-			setStatus("invalid");
-			return;
-		}
-		void validateInvite(token)
+		inviteRef.current = token;
+		void (
+			token
+				? validateInvite(token)
+				: Promise.reject(
+						new Error("This registration link is missing its invite token."),
+					)
+		)
 			.then(() => {
 				setStatus("ready");
 				window.requestAnimationFrame(() => usernameRef.current?.focus());
@@ -42,7 +43,11 @@ export default function RegisterPage() {
 		setSubmitting(true);
 		setMessage("");
 		try {
-			const response = await registerWithInvite(invite, username, password);
+			const response = await registerWithInvite(
+				inviteRef.current,
+				username,
+				password,
+			);
 			const user = response.user;
 			if (!user?.id || !user.username) throw new Error("Registration failed.");
 			setAuthCookies({ token: "", userId: user.id, username: user.username });

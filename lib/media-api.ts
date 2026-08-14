@@ -493,9 +493,9 @@ export async function registerWithInvite(
 		credentials: "include",
 	});
 	if (!response.ok) {
-		const detail = (await response.json().catch(() => null)) as
-			| { detail?: string }
-			| null;
+		const detail = (await response.json().catch(() => null)) as {
+			detail?: string;
+		} | null;
 		throw new Error(detail?.detail || "Registration failed.");
 	}
 	return (await response.json()) as AuthResponse;

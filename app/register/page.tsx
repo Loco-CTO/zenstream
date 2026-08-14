@@ -60,10 +60,17 @@ export default function RegisterPage() {
 				onSubmit={submit}
 				className="relative w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:p-7"
 			>
-				<img src="/icon.png" alt="ZenStream" className="mb-7 h-12 w-12 object-contain" />
-				<h1 className="text-3xl font-black tracking-normal text-white">Create an account</h1>
+				<img
+					src="/icon.png"
+					alt="ZenStream"
+					className="mb-7 h-12 w-12 object-contain"
+				/>
+				<h1 className="text-3xl font-black tracking-normal text-white">
+					Create an account
+				</h1>
 				<p className="mt-2 text-sm leading-6 text-white/40">
-					Your invitation grants access to the libraries selected by the administrator.
+					Your invitation grants access to the libraries selected by the
+					administrator.
 				</p>
 				{status === "ready" ? (
 					<>
@@ -97,7 +104,9 @@ export default function RegisterPage() {
 					</p>
 				)}
 				{message && status === "ready" && (
-					<p role="alert" className="mt-4 text-sm text-red-300">{message}</p>
+					<p role="alert" className="mt-4 text-sm text-red-300">
+						{message}
+					</p>
 				)}
 				{status === "ready" && (
 					<button

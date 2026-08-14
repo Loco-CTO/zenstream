@@ -3,6 +3,7 @@ import { catalogRequest, toMediaItem, type CatalogItem } from "@/lib/catalog";
 import {
 	authenticateByName,
 	fetchDetailData,
+	fetchHomeData,
 	getInitialSeason,
 	getPlaybackInfo,
 	getPlaybackMarkers,
@@ -17,6 +18,66 @@ const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
+	it("loads full metadata for featured hero items while keeping other home sections compact", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+			async (input) => {
+				const url = String(input);
+				const parsed = new URL(url);
+				if (parsed.pathname === "/api/catalog/home") {
+					if (parsed.searchParams.get("section") === "featured") {
+						return new Response(
+							JSON.stringify({
+								latestItems: [
+									{
+										id: "hero-1",
+										libraryId: "movies",
+										type: "movie",
+										name: "Hero Movie",
+										metadata: {
+											title: "Hero Movie",
+											overview: "Hero synopsis",
+											images: {
+												Backdrop: { url: "/backdrop" },
+												Logo: { url: "/logo" },
+											},
+										},
+									},
+								],
+							}),
+							{ status: 200 },
+						);
+					}
+					return new Response(JSON.stringify({}), { status: 200 });
+				}
+				if (parsed.pathname === "/api/catalog/libraries") {
+					return new Response(JSON.stringify({ libraries: [] }), { status: 200 });
+				}
+				return new Response(null, { status: 404 });
+			},
+		);
+
+		const data = await fetchHomeData(session);
+
+		expect(data.latestItems[0]).toMatchObject({
+			Overview: "Hero synopsis",
+			ImageTags: { Logo: "/logo" },
+			BackdropImageTags: ["/backdrop"],
+		});
+		const homeRequests = fetchMock.mock.calls
+			.map(([input]) => new URL(String(input)))
+			.filter((url) => url.pathname === "/api/catalog/home");
+		expect(
+			homeRequests
+				.filter((url) => url.searchParams.get("section") === "featured")
+				.every((url) => url.searchParams.get("view") === "full"),
+		).toBe(true);
+		expect(
+			homeRequests
+				.filter((url) => url.searchParams.get("section") !== "featured")
+				.every((url) => url.searchParams.get("view") === "card"),
+		).toBe(true);
+	});
+
 	it("loads episode descriptions from the full detail projection", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")

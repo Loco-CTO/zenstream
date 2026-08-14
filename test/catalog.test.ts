@@ -18,8 +18,9 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
 	it("loads episode descriptions from the full detail projection", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
-			async (input) => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
 				const url = String(input);
 				if (url.includes("section=header")) {
 					return new Response(
@@ -78,8 +79,7 @@ describe("catalog client", () => {
 					});
 				}
 				return new Response(null, { status: 404 });
-			},
-		);
+			});
 
 		const data = await fetchDetailData(session, "series-1");
 

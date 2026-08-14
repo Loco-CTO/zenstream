@@ -760,11 +760,15 @@ export async function fetchDetailData(
 				const episodesPromise =
 					season && (item.Type === "Series" || item.Type === "Episode")
 						? catalogRequest<{
-							 episodes?: CatalogItem[];
-							 total?: number;
-						 }>(session, `/api/catalog/items/${encodeURIComponent(itemId)}/detail?${episodeParams}`, {
-							 signal: combinedSignal(requestSignal, signal),
-						 })
+								episodes?: CatalogItem[];
+								total?: number;
+							}>(
+								session,
+								`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${episodeParams}`,
+								{
+									signal: combinedSignal(requestSignal, signal),
+								},
+							)
 						: Promise.resolve({ episodes: [], total: 0 });
 				const similarPromise =
 					item.Type === "Episode"
@@ -773,12 +777,16 @@ export async function fetchDetailData(
 								session,
 								`/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=similar&view=card`,
 								{ signal: combinedSignal(requestSignal, signal) },
-						  );
+							);
 				const creditsPromise = catalogRequest<{
 					credits?: { cast?: unknown[]; crew?: unknown[] };
-				}>(session, `/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=credits`, {
-					signal: combinedSignal(requestSignal, signal),
-				});
+				}>(
+					session,
+					`/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=credits`,
+					{
+						signal: combinedSignal(requestSignal, signal),
+					},
+				);
 				const collectionPromise =
 					item.Type === "BoxSet"
 						? getChildren(session, item)

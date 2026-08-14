@@ -320,7 +320,9 @@ export function AppShell() {
 					loadController.signal,
 					(section) => {
 						if (!isCurrent()) return;
-						setDetailData((current) => ({ ...(current ?? {}), ...section }) as DetailData);
+						setDetailData(
+							(current) => ({ ...(current ?? {}), ...section }) as DetailData,
+						);
 						if (section.item) setStatus("ready");
 					},
 				);
@@ -557,7 +559,8 @@ export function AppShell() {
 	}, [session]);
 
 	useEffect(() => {
-		const refreshImageUrls = () => setResourceTicketRevision((value) => value + 1);
+		const refreshImageUrls = () =>
+			setResourceTicketRevision((value) => value + 1);
 		window.addEventListener("zenstream:resource-ticket", refreshImageUrls);
 		return () =>
 			window.removeEventListener("zenstream:resource-ticket", refreshImageUrls);

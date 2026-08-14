@@ -25,7 +25,7 @@ import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
 const SLIDE_INTERVAL_MS = 7000;
 const TRAILER_DELAY_MS = 0;
-const DRAG_THRESHOLD_PX = 48;
+const DRAG_THRESHOLD_PX = 64;
 type SlideDirection = "next" | "previous";
 type TrailerState = {
 	itemId: string;

@@ -87,9 +87,14 @@ export function Hero({
 	);
 	const visibleIndex = indexedActiveSlide >= 0 ? indexedActiveSlide : 0;
 	const item = slides[visibleIndex] ?? items[0] ?? null;
-	const trailer = trailerState?.itemId === item?.Id ? trailerState.value : null;
+	const trailer =
+		trailerState && item && trailerState.itemId === item.Id
+			? trailerState.value
+			: null;
 	const trailerGeneration =
-		trailerState?.itemId === item?.Id ? trailerState.generation : null;
+		trailerState && item && trailerState.itemId === item.Id
+			? trailerState.generation
+			: null;
 	const trailerMetadataKey = item
 		? item.RemoteTrailers === undefined
 			? "unknown"

@@ -716,8 +716,8 @@ export function EpisodeCard({
 							alt={episode.Name}
 							className={
 								horizontal
-									? `brightness-75 ${MEDIA_CARD_IMAGE_CLASS}`
-									: "h-full w-full object-cover brightness-75"
+									? `${MEDIA_CARD_IMAGE_CLASS}`
+									: "h-full w-full object-cover"
 							}
 						/>
 					)}
@@ -843,7 +843,7 @@ function PeopleSection({
 												<BlurHashImage
 													image={image}
 													alt={person.Name}
-													className="h-full w-full object-cover brightness-90"
+													className="h-full w-full object-cover"
 												/>
 											)}
 										</div>

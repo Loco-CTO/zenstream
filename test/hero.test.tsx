@@ -257,11 +257,7 @@ describe("Hero", () => {
 		const postMessage = vi.spyOn(iframe.contentWindow!, "postMessage");
 		fireEvent.load(iframe);
 		expect(postMessage).toHaveBeenCalledWith(
-			JSON.stringify({
-				event: "command",
-				func: "addEventListener",
-				args: ["onStateChange"],
-			}),
+			JSON.stringify({ event: "listening", id: "trailer-video" }),
 			"https://www.youtube.com",
 		);
 

@@ -24,7 +24,7 @@ import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
 const SLIDE_INTERVAL_MS = 7000;
-const TRAILER_DELAY_MS = 800;
+const TRAILER_DELAY_MS = 0;
 const DRAG_THRESHOLD_PX = 48;
 type SlideDirection = "next" | "previous";
 type TrailerState = {
@@ -70,11 +70,12 @@ export function Hero({
 	const lifecycleGeneration = useRef(0);
 	const lifecycleRef = useRef<SlideLifecycle | null>(null);
 	const canNavigateSlides = slides.length > 1;
-	const indexedActiveSlide = slides.findIndex((slide) => slide.Id === activeItemId);
+	const indexedActiveSlide = slides.findIndex(
+		(slide) => slide.Id === activeItemId,
+	);
 	const visibleIndex = indexedActiveSlide >= 0 ? indexedActiveSlide : 0;
 	const item = slides[visibleIndex] ?? items[0] ?? null;
-	const trailer =
-		trailerState?.itemId === item?.Id ? trailerState.value : null;
+	const trailer = trailerState?.itemId === item?.Id ? trailerState.value : null;
 	const trailerGeneration =
 		trailerState?.itemId === item?.Id ? trailerState.generation : null;
 
@@ -126,9 +127,7 @@ export function Hero({
 		if (currentSlides.length <= 1) return false;
 		const currentIndex = Math.max(
 			0,
-			currentSlides.findIndex(
-				(slide) => slide.Id === activeItemIdRef.current,
-			),
+			currentSlides.findIndex((slide) => slide.Id === activeItemIdRef.current),
 		);
 		const nextItem = currentSlides[(currentIndex + 1) % currentSlides.length];
 		activeItemIdRef.current = nextItem.Id;
@@ -601,6 +600,12 @@ function YouTubeTrailer({
 			try {
 				const data =
 					typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+				if (data?.event === "onReady") {
+					subscribeToEvent("onStateChange");
+					subscribeToEvent("onError");
+					sendCommand("playVideo");
+					sendCommand(muted ? "mute" : "unMute");
+				}
 				if (data?.event === "onStateChange") {
 					if (data.info === 1) hasPlayed.current = true;
 					if (data.info === 0 && hasPlayed.current && !hasEnded.current) {
@@ -616,7 +621,7 @@ function YouTubeTrailer({
 
 		window.addEventListener("message", handleMessage);
 		return () => window.removeEventListener("message", handleMessage);
-	}, [failOnce, onEnded]);
+	}, [failOnce, muted, onEnded, sendCommand, subscribeToEvent]);
 
 	const params = new URLSearchParams({
 		autoplay: "1",
@@ -642,10 +647,6 @@ function YouTubeTrailer({
 					JSON.stringify({ event: "listening", id: trailer.videoId }),
 					"https://www.youtube.com",
 				);
-				subscribeToEvent("onStateChange");
-				subscribeToEvent("onError");
-				sendCommand("playVideo");
-				sendCommand(muted ? "mute" : "unMute");
 			}}
 			onError={failOnce}
 			className="pointer-events-none absolute inset-0 h-full w-full scale-[1.45] border-0"

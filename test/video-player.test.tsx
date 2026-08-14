@@ -32,7 +32,11 @@ import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
-import { getPlaybackInfo, type MediaItem } from "@/lib/media-api";
+import {
+	getPlaybackInfo,
+	playbackStreams,
+	type MediaItem,
+} from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
 
 vi.mock("@/lib/media-api", async () => {
@@ -290,6 +294,84 @@ describe("video player controls", () => {
 		const track = container.querySelector("track");
 		expect(track).toHaveAttribute("kind", "subtitles");
 		expect(track?.getAttribute("src")).toContain("/subtitles/subtitle-file.vtt");
+	});
+
+	it("applies initial audio and subtitle choices that arrive after mount", async () => {
+		const source = {
+			Id: "source",
+			MediaStreams: [
+				{ Index: 2, Type: "Audio", DisplayTitle: "Japanese" },
+				{ Index: 4, Type: "Audio", DisplayTitle: "English" },
+				{ Index: 3, Type: "Subtitle", FileId: "subtitle-file" },
+			],
+		};
+		const streams = {
+			source,
+			audio: [
+				{ Index: 2, Type: "Audio", DisplayTitle: "Japanese" },
+				{ Index: 4, Type: "Audio", DisplayTitle: "English" },
+			],
+			subtitles: [
+				{ Index: 3, Type: "Subtitle", FileId: "subtitle-file" },
+			],
+			qualities: [],
+		} as never;
+		vi.mocked(playbackStreams).mockReturnValueOnce(streams);
+		const props = {
+			item: { Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem,
+			session: { token: "token", userId: "user", username: "Alex" },
+			initialStreams: streams,
+			onClose: vi.fn(),
+		};
+		const view = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer {...props} />
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						{...props}
+						initialAudioStreamId={2}
+						initialSubtitleStreamIndex={3}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		fireEvent.click(view.getByRole("button", { name: "Audio Track" }));
+		const japanese = view.getByRole("button", { name: "Japanese" });
+		expect(japanese.querySelector("svg")).toBeInTheDocument();
+		expect(view.container.querySelector("track")).toHaveAttribute(
+			"src",
+			expect.stringContaining("/subtitles/subtitle-file.vtt"),
+		);
+
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						{...props}
+						initialAudioStreamId={2}
+						initialSubtitleStreamIndex={null}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await act(async () => {
+			await Promise.resolve();
+		});
+		expect(view.container.querySelector("track")).not.toBeInTheDocument();
 	});
 
 	it("requests Picture in Picture when the browser supports it", () => {

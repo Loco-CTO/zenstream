@@ -198,9 +198,17 @@ export function Hero({
 				}
 			};
 		}
+		const hasTrailerMetadata = lifecycleItem.RemoteTrailers !== undefined;
 		const hasListedTrailer = (lifecycleItem.RemoteTrailers?.length ?? 0) > 0;
-		if (!hasListedTrailer) {
+		if (hasTrailerMetadata && !hasListedTrailer) {
 			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
+			return () => {
+				cancelled = true;
+				if (fallbackTimer.current !== null) {
+					window.clearTimeout(fallbackTimer.current);
+					fallbackTimer.current = null;
+				}
+			};
 		}
 
 		const trailerDelay = window.setTimeout(() => {

@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerWithInvite, validateInvite } from "@/lib/media-api";
 
 describe("public registration API", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllEnvs();
+	});
 
 	it("validates an invite through the public endpoint", async () => {
+		vi.stubEnv("NEXT_PUBLIC_ZSO_URL", "http://localhost:9090");
 		const fetchMock = vi
 			.fn()
 			.mockResolvedValue(new Response('{"valid":true}', { status: 200 }));
@@ -18,13 +22,12 @@ describe("public registration API", () => {
 	});
 
 	it("registers through JSON and exposes the created user", async () => {
-		const fetchMock = vi
-			.fn()
-			.mockResolvedValue(
-				new Response('{"user":{"id":"user-1","username":"alice"}}', {
-					status: 201,
-				}),
-			);
+		vi.stubEnv("NEXT_PUBLIC_ZSO_URL", "http://localhost:9090");
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response('{"user":{"id":"user-1","username":"alice"}}', {
+				status: 201,
+			}),
+		);
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(

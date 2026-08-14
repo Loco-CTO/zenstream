@@ -715,9 +715,7 @@ export function EpisodeCard({
 							image={image}
 							alt={episode.Name}
 							className={
-								horizontal
-									? `${MEDIA_CARD_IMAGE_CLASS}`
-									: "h-full w-full object-cover"
+								horizontal ? `${MEDIA_CARD_IMAGE_CLASS}` : "h-full w-full object-cover"
 							}
 						/>
 					)}

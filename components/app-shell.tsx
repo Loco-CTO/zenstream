@@ -235,7 +235,7 @@ export function AppShell() {
 						const data = await fetchHomeData(nextSession, (section) => {
 							if (!isCurrent()) return;
 							setHomeData((current) => {
-								const next = { ...(current ?? {}), ...section } as HomeData;
+								const next = mergeHomeSection(current, section);
 								homeDataRef.current = next;
 								return next;
 							});
@@ -816,6 +816,29 @@ export function AppShell() {
 			</ToastProvider>
 		</I18nProvider>
 	);
+}
+
+function mergeHomeSection(
+	current: HomeData | null,
+	section: Partial<HomeData>,
+): HomeData {
+	const next = { ...(current ?? {}), ...section } as HomeData;
+	const currentLatestItems = current?.latestItems;
+	const sectionLatestItems = section.latestItems;
+
+	// The first featured response is intentionally limited to one item while the
+	// complete hero list loads. Keep an already-rendered full list during that
+	// intermediate refresh so the active slide cannot disappear and fall back to
+	// the first item for a render.
+	if (
+		currentLatestItems &&
+		sectionLatestItems &&
+		currentLatestItems.length > sectionLatestItems.length
+	) {
+		next.latestItems = currentLatestItems;
+	}
+
+	return next;
 }
 
 function sectionHasContent(section: Partial<HomeData>) {

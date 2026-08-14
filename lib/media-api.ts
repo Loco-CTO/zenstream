@@ -469,6 +469,38 @@ export async function authenticateByName(
 	return (await response.json()) as AuthResponse;
 }
 
+export async function validateInvite(token: string): Promise<void> {
+	const response = await fetch(
+		`${orchestratorBaseUrl()}/api/user/check_invite?invite=${encodeURIComponent(token)}`,
+		{ headers: { Accept: "application/json" }, credentials: "include" },
+	);
+	if (!response.ok) throw new Error("Invalid invite.");
+}
+
+export async function registerWithInvite(
+	token: string,
+	username: string,
+	password: string,
+): Promise<AuthResponse> {
+	const response = await fetch(`${orchestratorBaseUrl()}/api/user/register`, {
+		method: "POST",
+		headers: { Accept: "application/json", "Content-Type": "application/json" },
+		body: JSON.stringify({
+			invite: token,
+			username: username.trim(),
+			password,
+		}),
+		credentials: "include",
+	});
+	if (!response.ok) {
+		const detail = (await response.json().catch(() => null)) as
+			| { detail?: string }
+			| null;
+		throw new Error(detail?.detail || "Registration failed.");
+	}
+	return (await response.json()) as AuthResponse;
+}
+
 export async function validateBrowserSession(
 	session: AuthSession,
 ): Promise<AuthSession | null> {

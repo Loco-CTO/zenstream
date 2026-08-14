@@ -71,6 +71,7 @@ appearance: Appearance
 languageDescription: Choose the language used throughout ZenStream
 preferredMetadataLanguage: Preferred Metadata Language
 preferredMetadataLanguageDescription: Choose the language used for titles, descriptions, and artwork
+languageAutomatic: Automatic
 metadataLanguageAutomatic: Automatic (interface language)
 metadataLanguageSaveFailed: Could not save your metadata language setting.
 playback: Playback

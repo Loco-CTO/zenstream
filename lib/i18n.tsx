@@ -81,6 +81,7 @@ export const TRANSLATION_KEYS = [
 	"languageDescription",
 	"preferredMetadataLanguage",
 	"preferredMetadataLanguageDescription",
+	"languageAutomatic",
 	"metadataLanguageAutomatic",
 	"metadataLanguageSaveFailed",
 	"playback",

@@ -63,6 +63,7 @@ appearance: 外観
 languageDescription: ZenStream全体で使用する言語を選択します
 preferredMetadataLanguage: 優先メタデータ言語
 preferredMetadataLanguageDescription: タイトル、説明、アートワークに使用する言語を選択します
+languageAutomatic: 自動
 metadataLanguageAutomatic: 自動（インターフェース言語）
 metadataLanguageSaveFailed: メタデータ言語設定を保存できませんでした。
 playback: 再生

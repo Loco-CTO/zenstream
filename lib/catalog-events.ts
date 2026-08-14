@@ -1,5 +1,6 @@
 import { catalogRequest, orchestratorBaseUrl } from "@/lib/catalog";
 import { clearMediaClientCache } from "@/lib/media-api";
+import { clearPreferenceCache } from "@/lib/preferences";
 import type { AuthSession } from "@/lib/session";
 
 export type CatalogEvent = {
@@ -93,6 +94,7 @@ export function startCatalogEvents(session: AuthSession): () => void {
 					const nextEvents = [...pendingEvents.values()];
 					pendingEvents.clear();
 					for (const nextEvent of nextEvents) {
+						clearPreferenceCache(session);
 						clearMediaClientCache({
 							libraryId: nextEvent.libraryId,
 							rootEntityId: nextEvent.rootEntityId ?? undefined,

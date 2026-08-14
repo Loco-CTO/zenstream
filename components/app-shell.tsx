@@ -69,12 +69,15 @@ import {
 	getLocalePreference,
 	getMetadataLanguagePreference,
 	getMetadataLanguages,
+	getPlaybackPreference,
 	getStoredLocale,
 	setLocalePreference,
 	setMetadataLanguagePreference,
+	setPlaybackPreference as savePlaybackPreference,
 	storeLocale,
 	clearPreferenceCache,
 	type MetadataLanguagePreference,
+	type PlaybackPreference,
 } from "@/lib/preferences";
 import {
 	DEFAULT_SUBTITLE_STYLE,
@@ -106,6 +109,13 @@ export function AppShell() {
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
+	const [playbackPreference, setPlaybackPreference] =
+		useState<PlaybackPreference>({
+			audioLanguage: null,
+			subtitleLanguage: null,
+			audioLanguages: [],
+			subtitleLanguages: [],
+		});
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
@@ -171,6 +181,9 @@ export function AppShell() {
 			.catch(() => undefined);
 		void getMetadataLanguages(nextSession)
 			.then((value) => commit(() => setMetadataLanguages(value)))
+			.catch(() => undefined);
+		void getPlaybackPreference(nextSession)
+			.then((value) => commit(() => setPlaybackPreference(value)))
 			.catch(() => undefined);
 		void getMetadataLanguagePreference(nextSession)
 			.then((value) => {
@@ -696,6 +709,21 @@ export function AppShell() {
 		}
 	};
 
+	const handlePlaybackPreferenceChange = async (
+		value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
+	) => {
+		const activeSession = session;
+		if (!activeSession) return;
+		const previous = playbackPreference;
+		setPlaybackPreference({ ...previous, ...value });
+		try {
+			setPlaybackPreference(await savePlaybackPreference(activeSession, value));
+		} catch (error) {
+			setPlaybackPreference(previous);
+			throw error;
+		}
+	};
+
 	return (
 		<I18nProvider locale={locale}>
 			<ToastProvider>
@@ -730,6 +758,8 @@ export function AppShell() {
 									metadataLanguages={metadataLanguages}
 									metadataLanguage={metadataLanguage}
 									onMetadataLanguageChange={handleMetadataLanguageChange}
+									playbackPreference={playbackPreference}
+									onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
 									onLogout={handleLogout}
 								/>
 							) : (

@@ -7,6 +7,14 @@ export type MetadataLanguagePreference = {
 	language: string;
 };
 
+export type PlaybackLanguageOption = { value: string; label: string };
+export type PlaybackPreference = {
+	audioLanguage: string | null;
+	subtitleLanguage: string | null;
+	audioLanguages: PlaybackLanguageOption[];
+	subtitleLanguages: PlaybackLanguageOption[];
+};
+
 const PREFERENCE_TTL_MS = 30_000;
 type CacheEntry = { expiresAt: number; value: unknown };
 type InFlightEntry = { promise: Promise<unknown>; controller: AbortController };
@@ -117,6 +125,60 @@ export async function setMetadataLanguagePreference(
 		throw new Error("Invalid metadata language preference response.");
 	clearPreferenceCache(session);
 	return data as MetadataLanguagePreference;
+}
+
+function isPlaybackLanguageOption(value: unknown): value is PlaybackLanguageOption {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		typeof (value as { value?: unknown }).value === "string" &&
+		typeof (value as { label?: unknown }).label === "string"
+	);
+}
+
+function isPlaybackPreference(value: unknown): value is PlaybackPreference {
+	if (typeof value !== "object" || value === null) return false;
+	const candidate = value as Partial<PlaybackPreference>;
+	return (
+		(candidate.audioLanguage === null || typeof candidate.audioLanguage === "string") &&
+		(candidate.subtitleLanguage === null || typeof candidate.subtitleLanguage === "string") &&
+		Array.isArray(candidate.audioLanguages) &&
+		candidate.audioLanguages.every(isPlaybackLanguageOption) &&
+		Array.isArray(candidate.subtitleLanguages) &&
+		candidate.subtitleLanguages.every(isPlaybackLanguageOption)
+	);
+}
+
+export async function getPlaybackPreference(
+	session: AuthSession,
+): Promise<PlaybackPreference> {
+	return cachedPreference(session, "playback", async (signal) => {
+		const response = await authenticatedFetch(session, "/api/preferences/playback", {
+			cache: "no-store",
+			signal,
+		});
+		if (!response.ok) throw new Error("Could not load playback preferences.");
+		const value: unknown = await response.json();
+		if (!isPlaybackPreference(value))
+			throw new Error("Invalid playback preference response.");
+		return value;
+	});
+}
+
+export async function setPlaybackPreference(
+	session: AuthSession,
+	value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
+): Promise<PlaybackPreference> {
+	const response = await authenticatedFetch(session, "/api/preferences/playback", {
+		method: "PATCH",
+		body: JSON.stringify(value),
+	});
+	if (!response.ok) throw new Error("Could not save playback preferences.");
+	const next: unknown = await response.json();
+	if (!isPlaybackPreference(next))
+		throw new Error("Invalid playback preference response.");
+	clearPreferenceCache(session);
+	return next;
 }
 
 export const LOCALE_STORAGE_KEY = "zenstream.locale";

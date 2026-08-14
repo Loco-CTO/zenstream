@@ -538,7 +538,10 @@ export async function fetchHomeData(
 				limit?: number,
 				extra?: Record<string, string>,
 			) => {
-				const params = new URLSearchParams({ section: name, view: "card" });
+				const params = new URLSearchParams({
+					section: name,
+					view: name === "featured" ? "full" : "card",
+				});
 				if (limit !== undefined) params.set("limit", String(limit));
 				for (const [key, value] of Object.entries(extra ?? {}))
 					params.set(key, value);

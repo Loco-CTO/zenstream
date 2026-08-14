@@ -57,6 +57,13 @@ vi.mock("@/lib/media-api", async () => {
 	};
 });
 
+const defaultPlaybackStreams = {
+	source: { TranscodingUrl: "/video.m3u8" },
+	audio: [],
+	subtitles: [],
+	qualities: [],
+} as ReturnType<typeof playbackStreams>;
+
 describe("video player controls", () => {
 	it("recognizes the transient decoder window after a seek", () => {
 		expect(syncplayWaitingIsSeekTransition(1500, 1000)).toBe(true);
@@ -89,7 +96,13 @@ describe("video player controls", () => {
 		).toBe(true);
 		expect(syncplayBufferingReportIsCurrent(report, current, 5)).toBe(false);
 	});
-	beforeEach(() => vi.useFakeTimers());
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi
+			.mocked(playbackStreams)
+			.mockReset()
+			.mockReturnValue(defaultPlaybackStreams);
+	});
 	afterEach(() => vi.useRealTimers());
 
 	it("detects when an active Syncplay member is waiting", () => {
@@ -311,12 +324,10 @@ describe("video player controls", () => {
 				{ Index: 2, Type: "Audio", DisplayTitle: "Japanese" },
 				{ Index: 4, Type: "Audio", DisplayTitle: "English" },
 			],
-			subtitles: [
-				{ Index: 3, Type: "Subtitle", FileId: "subtitle-file" },
-			],
+			subtitles: [{ Index: 3, Type: "Subtitle", FileId: "subtitle-file" }],
 			qualities: [],
 		} as never;
-		vi.mocked(playbackStreams).mockReturnValueOnce(streams);
+		vi.mocked(playbackStreams).mockReturnValue(streams);
 		const props = {
 			item: { Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem,
 			session: { token: "token", userId: "user", username: "Alex" },
@@ -349,7 +360,7 @@ describe("video player controls", () => {
 			await Promise.resolve();
 		});
 
-		fireEvent.click(view.getByRole("button", { name: "Audio Track" }));
+		fireEvent.click(view.getByRole("button", { name: "Audio" }));
 		const japanese = view.getByRole("button", { name: "Japanese" });
 		expect(japanese.querySelector("svg")).toBeInTheDocument();
 		expect(view.container.querySelector("track")).toHaveAttribute(
@@ -398,10 +409,16 @@ describe("video player controls", () => {
 
 		fireEvent.click(getByRole("button", { name: "Picture in Picture" }));
 		expect(requestPictureInPicture).toHaveBeenCalledOnce();
-		delete (document as Document & { pictureInPictureEnabled?: boolean })
-			.pictureInPictureEnabled;
 		delete (
-			HTMLVideoElement.prototype as HTMLVideoElement & {
+			document as Omit<Document, "pictureInPictureEnabled"> & {
+				pictureInPictureEnabled?: boolean;
+			}
+		).pictureInPictureEnabled;
+		delete (
+			HTMLVideoElement.prototype as Omit<
+				HTMLVideoElement,
+				"requestPictureInPicture"
+			> & {
 				requestPictureInPicture?: () => Promise<unknown>;
 			}
 		).requestPictureInPicture;
@@ -884,6 +901,7 @@ describe("video player controls", () => {
 					url: "/trickplay.webp",
 					width: 320,
 					height: 180,
+					tileIndex: 0,
 					columns: 1,
 					rows: 1,
 					cellX: 0,
@@ -984,7 +1002,10 @@ describe("video player controls", () => {
 
 		exitFullscreenSafely();
 		await expect(Promise.resolve()).resolves.toBeUndefined();
-		delete (document as Document & { exitFullscreen?: () => Promise<void> })
-			.exitFullscreen;
+		delete (
+			document as Omit<Document, "exitFullscreen"> & {
+				exitFullscreen?: () => Promise<void>;
+			}
+		).exitFullscreen;
 	});
 });

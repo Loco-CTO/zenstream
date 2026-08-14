@@ -458,13 +458,9 @@ export function VideoPlayer({
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
 	useEffect(() => {
-		setAudio(
-			initialAudioStreamId == null ? "" : String(initialAudioStreamId),
-		);
+		setAudio(initialAudioStreamId == null ? "" : String(initialAudioStreamId));
 		setSubtitle(
-			initialSubtitleStreamIndex == null
-				? ""
-				: String(initialSubtitleStreamIndex),
+			initialSubtitleStreamIndex == null ? "" : String(initialSubtitleStreamIndex),
 		);
 	}, [item.Id, initialAudioStreamId, initialSubtitleStreamIndex]);
 	const savedPositionSeconds = savedPlaybackPositionSeconds(item);

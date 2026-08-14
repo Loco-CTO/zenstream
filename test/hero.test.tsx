@@ -224,6 +224,27 @@ describe("Hero", () => {
 		vi.useRealTimers();
 	});
 
+	it("cycles three no-trailer slides in order without skipping", () => {
+		vi.useFakeTimers();
+		const first = heroItem("cycle-first", "Cycle First");
+		const second = heroItem("cycle-second", "Cycle Second");
+		const third = heroItem("cycle-third", "Cycle Third");
+
+		render(<Hero items={[first, second, third]} session={session} />);
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(screen.getByRole("heading", { name: third.Name })).toBeInTheDocument();
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
 	it("starts a muted YouTube trailer after 800ms and advances when it ends", async () => {
 		vi.useFakeTimers();
 		const first = {
@@ -307,6 +328,61 @@ describe("Hero", () => {
 		expect(
 			screen.getByRole("heading", { name: second.Name }),
 		).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
+	it("does not let an ended trailer skip the next slide", async () => {
+		vi.useFakeTimers();
+		const first = {
+			...heroItem("single-advance-first", "Single Advance First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/single-advance-video" }],
+		};
+		const second = heroItem("single-advance-second", "Single Advance Second");
+		const third = heroItem("single-advance-third", "Single Advance Third");
+
+		render(<Hero items={[first, second, third]} session={session} />);
+
+		await act(async () => {
+			vi.advanceTimersByTime(800);
+			await Promise.resolve();
+		});
+		const iframe = screen.getByTitle(
+			"Single Advance First trailer",
+		) as HTMLIFrameElement;
+
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 1 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+		});
+
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+		act(() => vi.advanceTimersByTime(6999));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+		act(() => vi.advanceTimersByTime(1));
+		expect(screen.getByRole("heading", { name: third.Name })).toBeInTheDocument();
 		vi.useRealTimers();
 	});
 

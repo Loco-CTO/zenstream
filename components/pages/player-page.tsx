@@ -62,6 +62,9 @@ export function PlayerPage({
 
 	useEffect(() => {
 		let active = true;
+		setStreams(undefined);
+		setStreamsItemId(undefined);
+		setSelected({});
 		void getPlaybackInfo(session, item.Id, {
 			startPositionSeconds,
 			audioStreamId: requestedTracks.audio,
@@ -79,8 +82,8 @@ export function PlayerPage({
 					subtitle:
 						requestedTracks.subtitle !== undefined
 							? requestedTracks.subtitle
-							: parsed.subtitles.find((track) => track.IsDefault)?.Index ??
-								parsed.subtitles[0]?.Index,
+							: (parsed.subtitles.find((track) => track.IsDefault)?.Index ??
+								parsed.subtitles[0]?.Index),
 				});
 			})
 			.catch(() => undefined);

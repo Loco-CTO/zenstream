@@ -238,7 +238,14 @@ export function toMediaStreams(
 		Width: typeof stream.width === "number" ? stream.width : undefined,
 		Height: typeof stream.height === "number" ? stream.height : undefined,
 		Channels: typeof stream.channels === "number" ? stream.channels : undefined,
+		IsDefault:
+			isRecord(stream.disposition) &&
+			Number(stream.disposition.default) === 1,
 		FileId: typeof stream.fileId === "string" ? stream.fileId : undefined,
 		IsExternal: Boolean(stream.fileId),
 	}));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }

@@ -22,6 +22,11 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { releaseDateLabel, runtimeLabel, progressPercent } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
+import { getPlaybackPreference } from "@/lib/preferences";
+import {
+	preferredSubtitleIndex,
+	preferredTrackIndex,
+} from "@/lib/playback-preferences";
 import { useProgress } from "@/components/status/progress-indicator";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
@@ -149,16 +154,21 @@ export function DetailPage({
 		if (!hasTrackSelection) {
 			return;
 		}
-		void getPlaybackSource(session, item.Id)
-			.then((source) => {
+		void Promise.all([
+			getPlaybackSource(session, item.Id),
+			getPlaybackPreference(session),
+		])
+			.then(([source, preference]) => {
 				if (!active) return;
 				const parsed = playbackStreams({ source });
 				setTrackChoices({ itemId: item.Id, streams: parsed });
-				const audio =
-					parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
-				const subtitle =
-					parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
-				setSelectedTracks({ audio: audio?.Index, subtitle: subtitle?.Index });
+				setSelectedTracks({
+					audio: preferredTrackIndex(parsed.audio, preference.audioLanguage),
+					subtitle: preferredSubtitleIndex(
+						parsed.subtitles,
+						preference.subtitleLanguage,
+					),
+				});
 			})
 			.catch(() => undefined);
 		return () => {

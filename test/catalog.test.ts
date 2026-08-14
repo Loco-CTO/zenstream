@@ -19,8 +19,9 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
 	it("loads full metadata for featured hero items while keeping other home sections compact", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
-			async (input) => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
 				const url = String(input);
 				const parsed = new URL(url);
 				if (parsed.pathname === "/api/catalog/home") {
@@ -53,8 +54,7 @@ describe("catalog client", () => {
 					return new Response(JSON.stringify({ libraries: [] }), { status: 200 });
 				}
 				return new Response(null, { status: 404 });
-			},
-		);
+			});
 
 		const data = await fetchHomeData(session);
 

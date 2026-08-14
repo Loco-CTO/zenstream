@@ -6,10 +6,10 @@ import {
 	setLocalePreference,
 	storeLocale,
 	clearPreferenceCache,
-} from "@/lib/preferences";
-import {
 	getPlaybackPreference,
 	setPlaybackPreference,
+} from "@/lib/preferences";
+import {
 	getSubtitlePreference,
 	isSubtitleStyle,
 	parseWebVttCues,
@@ -164,9 +164,9 @@ describe("playback language preferences", () => {
 	};
 
 	it("loads the permission-filtered language options", async () => {
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(JSON.stringify(preference)),
-		);
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(preference)));
 		await expect(getPlaybackPreference(session)).resolves.toEqual(preference);
 	});
 

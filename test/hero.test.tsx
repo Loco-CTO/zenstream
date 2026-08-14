@@ -403,5 +403,6 @@ function heroItem(id: string, name: string): MediaItem {
 		},
 		BackdropImageTags: ["backdrop-tag"],
 		LocalTrailerCount: 0,
+		RemoteTrailers: [],
 	};
 }

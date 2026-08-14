@@ -13,7 +13,7 @@ import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
 import { getLastNonPlayerPath } from "@/lib/player-navigation";
 
-type TrackChoice = { audio?: number; subtitle?: number };
+type TrackChoice = { audio?: number; subtitle?: number | null };
 
 export function playbackTrackChoices(
 	search: Pick<URLSearchParams, "get">,
@@ -24,7 +24,11 @@ export function playbackTrackChoices(
 		const parsed = Number(value);
 		return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 	};
-	return { audio: trackId("audio"), subtitle: trackId("subtitle") };
+	const subtitle = search.get("subtitle");
+	return {
+		audio: trackId("audio"),
+		subtitle: subtitle === "off" ? null : trackId("subtitle"),
+	};
 }
 
 export function PlayerPage({
@@ -42,7 +46,7 @@ export function PlayerPage({
 	const [streamsItemId, setStreamsItemId] = useState<string>();
 	const [selected, setSelected] = useState<{
 		audio?: number;
-		subtitle?: number;
+		subtitle?: number | null;
 	}>({});
 	const playerItem =
 		item.Type === "Episode" &&
@@ -73,9 +77,10 @@ export function PlayerPage({
 						parsed.audio.find((track) => track.IsDefault)?.Index ??
 						parsed.audio[0]?.Index,
 					subtitle:
-						requestedTracks.subtitle ??
-						parsed.subtitles.find((track) => track.IsDefault)?.Index ??
-						parsed.subtitles[0]?.Index,
+						requestedTracks.subtitle !== undefined
+							? requestedTracks.subtitle
+							: parsed.subtitles.find((track) => track.IsDefault)?.Index ??
+								parsed.subtitles[0]?.Index,
 				});
 			})
 			.catch(() => undefined);
@@ -97,8 +102,17 @@ export function PlayerPage({
 			// These are available as soon as the player mounts. Passing them here as
 			// well as through the initial negotiation prevents the player's fallback
 			// negotiation from briefly restoring the default tracks.
-			initialAudioStreamId={requestedTracks.audio ?? selected.audio}
-			initialSubtitleStreamIndex={requestedTracks.subtitle ?? selected.subtitle}
+			initialAudioStreamId={
+				requestedTracks.audio ??
+				(streamsItemId === item.Id ? selected.audio : undefined)
+			}
+			initialSubtitleStreamIndex={
+				requestedTracks.subtitle !== undefined
+					? requestedTracks.subtitle
+					: streamsItemId === item.Id
+						? selected.subtitle
+						: undefined
+			}
 			// VideoPlayer treats initialStreams as authoritative. Ignore the previous
 			// item's result until playback info for this item has arrived.
 			initialStreams={streamsItemId === item.Id ? streams : undefined}

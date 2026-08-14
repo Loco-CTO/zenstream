@@ -8,6 +8,17 @@ describe("player page track choices", () => {
 		).toEqual({ audio: 2, subtitle: 4 });
 	});
 
+	it("preserves an explicit subtitles-off choice", () => {
+		expect(playbackTrackChoices(new URLSearchParams("subtitle=off"))).toEqual({
+			audio: undefined,
+			subtitle: null,
+		});
+		expect(playbackTrackChoices(new URLSearchParams())).toEqual({
+			audio: undefined,
+			subtitle: undefined,
+		});
+	});
+
 	it("ignores invalid track choices", () => {
 		expect(
 			playbackTrackChoices(new URLSearchParams("audio=two&subtitle=-1")),

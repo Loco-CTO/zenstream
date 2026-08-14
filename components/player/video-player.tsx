@@ -63,7 +63,7 @@ type Props = {
 	item: MediaItem;
 	session: AuthSession;
 	initialAudioStreamId?: number;
-	initialSubtitleStreamIndex?: number;
+	initialSubtitleStreamIndex?: number | null;
 	initialStreams?: ReturnType<typeof playbackStreams>;
 	onClose: () => void;
 	onNext?: (item: MediaItem) => void;
@@ -457,6 +457,16 @@ export function VideoPlayer({
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
+	useEffect(() => {
+		setAudio(
+			initialAudioStreamId == null ? "" : String(initialAudioStreamId),
+		);
+		setSubtitle(
+			initialSubtitleStreamIndex == null
+				? ""
+				: String(initialSubtitleStreamIndex),
+		);
+	}, [item.Id, initialAudioStreamId, initialSubtitleStreamIndex]);
 	const savedPositionSeconds = savedPlaybackPositionSeconds(item);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =

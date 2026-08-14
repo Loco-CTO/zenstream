@@ -754,7 +754,7 @@ export async function fetchDetailData(
 					section: "episodes",
 					page: "1",
 					pageSize: "40",
-					view: "card",
+					view: "full",
 				});
 				if (season) episodeParams.set("seasonId", season.Id);
 				const episodesPromise =
@@ -809,7 +809,7 @@ export async function fetchDetailData(
 						section: "episodes",
 						page: String(episodePage),
 						pageSize: "40",
-						view: "card",
+						view: "full",
 					});
 					if (season) pageParams.set("seasonId", season.Id);
 					const page = await catalogRequest<{ episodes?: CatalogItem[] }>(

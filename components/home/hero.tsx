@@ -35,6 +35,7 @@ type TrailerState = {
 type SlideLifecycle = {
 	itemId: string;
 	generation: number;
+	startedAt: number;
 	advanceRequested: boolean;
 	pendingAdvance: boolean;
 };
@@ -109,7 +110,7 @@ export function Hero({
 			setSlideDirection(direction);
 			setActiveItemId(nextItem.Id);
 		},
-		[canNavigateSlides, slides.length],
+		[canNavigateSlides, slides],
 	);
 
 	const goToPreviousSlide = useCallback(() => {
@@ -185,6 +186,7 @@ export function Hero({
 		lifecycleRef.current = {
 			itemId: activeItemId,
 			generation,
+			startedAt,
 			advanceRequested: false,
 			pendingAdvance: false,
 		};
@@ -199,6 +201,10 @@ export function Hero({
 					fallbackTimer.current = null;
 				}
 			};
+		}
+		const hasListedTrailer = (lifecycleItem.RemoteTrailers?.length ?? 0) > 0;
+		if (!hasListedTrailer) {
+			scheduleAdvance(activeItemId, generation, SLIDE_INTERVAL_MS);
 		}
 
 		const trailerDelay = window.setTimeout(() => {
@@ -262,7 +268,12 @@ export function Hero({
 				return;
 			}
 			setTrailerState(null);
-			scheduleAdvance(itemId, generation, SLIDE_INTERVAL_MS);
+			const startedAt = lifecycleRef.current.startedAt;
+			scheduleAdvance(
+				itemId,
+				generation,
+				Math.max(0, SLIDE_INTERVAL_MS - (Date.now() - startedAt)),
+			);
 		},
 		[scheduleAdvance],
 	);

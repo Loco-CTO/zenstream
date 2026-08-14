@@ -270,13 +270,76 @@ describe("Hero", () => {
 				new MessageEvent("message", {
 					origin: "https://www.youtube.com",
 					source: iframe.contentWindow,
-					data: JSON.stringify({
-						event: "infoDelivery",
-						info: { playerState: 0 },
-					}),
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
 				}),
 			);
 		});
+		expect(
+			screen.getByRole("heading", { name: first.Name }),
+		).toBeInTheDocument();
+
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 1 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+		});
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
+	it("queues a finished trailer until the progressive hero list can advance", async () => {
+		vi.useFakeTimers();
+		const first = {
+			...heroItem("progressive-first", "Progressive First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/progressive-video" }],
+		};
+		const second = heroItem("progressive-second", "Progressive Second");
+		const { rerender } = render(<Hero items={[first]} session={session} />);
+
+		await act(async () => {
+			vi.advanceTimersByTime(800);
+			await Promise.resolve();
+		});
+		const iframe = screen.getByTitle(
+			"Progressive First trailer",
+		) as HTMLIFrameElement;
+
+		act(() => {
+			for (const info of [1, 0, 0]) {
+				window.dispatchEvent(
+					new MessageEvent("message", {
+						origin: "https://www.youtube.com",
+						source: iframe.contentWindow,
+						data: JSON.stringify({ event: "onStateChange", info }),
+					}),
+				);
+			}
+		});
+		expect(
+			screen.getByRole("heading", { name: first.Name }),
+		).toBeInTheDocument();
+
+		rerender(<Hero items={[first, second]} session={session} />);
 		expect(
 			screen.getByRole("heading", { name: second.Name }),
 		).toBeInTheDocument();

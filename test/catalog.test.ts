@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogRequest, toMediaItem, type CatalogItem } from "@/lib/catalog";
 import {
 	authenticateByName,
+	fetchDetailData,
 	getInitialSeason,
 	getPlaybackInfo,
 	getPlaybackMarkers,
@@ -16,6 +17,84 @@ const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
+	it("loads episode descriptions from the full detail projection", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+			async (input) => {
+				const url = String(input);
+				if (url.includes("section=header")) {
+					return new Response(
+						JSON.stringify({
+							item: {
+								id: "series-1",
+								libraryId: "shows",
+								type: "series",
+								name: "Example Show",
+								metadata: { title: "Example Show" },
+							},
+							seasons: [
+								{
+									id: "season-1",
+									libraryId: "shows",
+									type: "season",
+									name: "Season 1",
+									seasonNumber: 1,
+									metadata: { title: "Season 1" },
+								},
+							],
+						}),
+						{ status: 200 },
+					);
+				}
+				if (url.includes("section=episodes")) {
+					const page = new URL(url).searchParams.get("page");
+					return new Response(
+						JSON.stringify({
+							episodes: [
+								{
+									id: page === "2" ? "episode-2" : "episode-1",
+									libraryId: "shows",
+									type: "episode",
+									name: page === "2" ? "Episode 2" : "Episode 1",
+									seasonId: "season-1",
+									seasonNumber: 1,
+									episodeNumber: page === "2" ? 2 : 1,
+									metadata:
+										page === "2"
+											? { title: "Episode 2", description: "Fallback description" }
+											: { title: "Episode 1", overview: "Localized overview" },
+								},
+							],
+							total: 41,
+						}),
+						{ status: 200 },
+					);
+				}
+				if (url.includes("section=similar")) {
+					return new Response(JSON.stringify({ similar: [] }), { status: 200 });
+				}
+				if (url.includes("section=credits")) {
+					return new Response(JSON.stringify({ credits: { cast: [], crew: [] } }), {
+						status: 200,
+					});
+				}
+				return new Response(null, { status: 404 });
+			},
+		);
+
+		const data = await fetchDetailData(session, "series-1");
+
+		expect(data.episodes.map((episode) => episode.Overview)).toEqual([
+			"Localized overview",
+			"Fallback description",
+		]);
+		const episodeRequests = fetchMock.mock.calls
+			.map(([input]) => String(input))
+			.filter((url) => url.includes("section=episodes"));
+		expect(episodeRequests).toHaveLength(2);
+		expect(episodeRequests.every((url) => url.includes("view=full"))).toBe(true);
+		expect(episodeRequests.some((url) => url.includes("page=2"))).toBe(true);
+	});
+
 	it("loads source-specific intro and outro markers from the Orchestrator", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
 			new Response(

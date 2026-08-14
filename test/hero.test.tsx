@@ -279,9 +279,7 @@ describe("Hero", () => {
 				}),
 			);
 		});
-		expect(
-			screen.getByRole("heading", { name: first.Name }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
 
 		act(() => {
 			window.dispatchEvent(
@@ -340,9 +338,7 @@ describe("Hero", () => {
 				);
 			}
 		});
-		expect(
-			screen.getByRole("heading", { name: first.Name }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
 
 		rerender(<Hero items={[first, second]} session={session} />);
 		expect(
@@ -371,9 +367,7 @@ describe("Hero", () => {
 
 		rerender(<Hero items={[second, first, third]} session={session} />);
 		expect(screen.getByTitle("Reorder First trailer")).toBe(iframe);
-		expect(
-			screen.getByRole("heading", { name: first.Name }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
 
 		act(() => {
 			for (const info of [1, 0]) {
@@ -386,9 +380,7 @@ describe("Hero", () => {
 				);
 			}
 		});
-		expect(
-			screen.getByRole("heading", { name: third.Name }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: third.Name })).toBeInTheDocument();
 		vi.useRealTimers();
 	});
 });

@@ -38,7 +38,16 @@ type SlideLifecycle = {
 	startedAt: number;
 	advanceRequested: boolean;
 	pendingAdvance: boolean;
+	fallbackTimer: number | null;
 };
+
+function clearLifecycleTimer(lifecycle: SlideLifecycle | null | undefined) {
+	if (lifecycle?.fallbackTimer === null || lifecycle?.fallbackTimer === undefined) {
+		return;
+	}
+	window.clearTimeout(lifecycle.fallbackTimer);
+	lifecycle.fallbackTimer = null;
+}
 
 export function Hero({
 	items,
@@ -63,7 +72,6 @@ export function Hero({
 	);
 	const dragStartX = useRef<number | null>(null);
 	const dragHandled = useRef(false);
-	const fallbackTimer = useRef<number | null>(null);
 	const slidesRef = useRef(slides);
 	const activeItemIdRef = useRef(activeItemId);
 	const activeItemRef = useRef<MediaItem | null>(null);
@@ -82,6 +90,11 @@ export function Hero({
 	const trailer = trailerState?.itemId === item?.Id ? trailerState.value : null;
 	const trailerGeneration =
 		trailerState?.itemId === item?.Id ? trailerState.generation : null;
+	const trailerMetadataKey = item
+		? item.RemoteTrailers === undefined
+			? "unknown"
+			: item.RemoteTrailers.map((entry) => entry.Url ?? "").join("\u001f")
+		: "none";
 
 	useEffect(() => {
 		slidesRef.current = slides;
@@ -98,18 +111,27 @@ export function Hero({
 		return () => mediaQuery.removeEventListener("change", updateTrailerSupport);
 	}, []);
 
+	const invalidateActiveLifecycle = useCallback(() => {
+		const lifecycle = lifecycleRef.current;
+		if (!lifecycle) return;
+		lifecycle.advanceRequested = true;
+		lifecycle.pendingAdvance = false;
+		clearLifecycleTimer(lifecycle);
+	}, []);
+
 	const showSlide = useCallback(
 		(index: number, direction: SlideDirection) => {
 			if (!canNavigateSlides) return;
 			const nextItem = slides[(index + slides.length) % slides.length];
 			if (!nextItem || nextItem.Id === activeItemIdRef.current) return;
+			invalidateActiveLifecycle();
 			activeItemIdRef.current = nextItem.Id;
 			setTrailerState(null);
 			setIsTrailerMuted(true);
 			setSlideDirection(direction);
 			setActiveItemId(nextItem.Id);
 		},
-		[canNavigateSlides, slides],
+		[canNavigateSlides, invalidateActiveLifecycle, slides],
 	);
 
 	const goToPreviousSlide = useCallback(() => {
@@ -154,6 +176,7 @@ export function Hero({
 			}
 			lifecycle.advanceRequested = true;
 			lifecycle.pendingAdvance = false;
+			clearLifecycleTimer(lifecycle);
 			advanceToNextSlide();
 		},
 		[advanceToNextSlide],
@@ -161,13 +184,22 @@ export function Hero({
 
 	const scheduleAdvance = useCallback(
 		(itemId: string, generation: number, delayMs: number) => {
-			if (fallbackTimer.current !== null) {
-				window.clearTimeout(fallbackTimer.current);
+			const lifecycle = lifecycleRef.current;
+			if (
+				!lifecycle ||
+				lifecycle.itemId !== itemId ||
+				lifecycle.generation !== generation ||
+				lifecycle.advanceRequested
+			) {
+				return;
 			}
-			fallbackTimer.current = window.setTimeout(() => {
-				fallbackTimer.current = null;
+			clearLifecycleTimer(lifecycle);
+			const timer = window.setTimeout(() => {
+				if (lifecycle.fallbackTimer !== timer) return;
+				lifecycle.fallbackTimer = null;
 				requestAdvance(itemId, generation);
 			}, delayMs);
+			lifecycle.fallbackTimer = timer;
 		},
 		[requestAdvance],
 	);
@@ -178,23 +210,26 @@ export function Hero({
 		if (!lifecycleItem || lifecycleItem.Id !== effectiveActiveItemId)
 			return undefined;
 
+		clearLifecycleTimer(lifecycleRef.current);
 		let cancelled = false;
 		const generation = ++lifecycleGeneration.current;
 		const startedAt = Date.now();
-		lifecycleRef.current = {
+		const lifecycle: SlideLifecycle = {
 			itemId: effectiveActiveItemId,
 			generation,
 			startedAt,
 			advanceRequested: false,
 			pendingAdvance: false,
+			fallbackTimer: null,
 		};
+		lifecycleRef.current = lifecycle;
 		if (!canPlayTrailers) {
 			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
 			return () => {
 				cancelled = true;
-				if (fallbackTimer.current !== null) {
-					window.clearTimeout(fallbackTimer.current);
-					fallbackTimer.current = null;
+				if (lifecycleRef.current === lifecycle) {
+					clearLifecycleTimer(lifecycle);
+					lifecycleRef.current = null;
 				}
 			};
 		}
@@ -204,9 +239,9 @@ export function Hero({
 			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
 			return () => {
 				cancelled = true;
-				if (fallbackTimer.current !== null) {
-					window.clearTimeout(fallbackTimer.current);
-					fallbackTimer.current = null;
+				if (lifecycleRef.current === lifecycle) {
+					clearLifecycleTimer(lifecycle);
+					lifecycleRef.current = null;
 				}
 			};
 		}
@@ -216,12 +251,13 @@ export function Hero({
 				.then((nextTrailer: HeroTrailer | null) => {
 					if (
 						cancelled ||
-						lifecycleRef.current?.generation !== generation ||
+						lifecycleRef.current !== lifecycle ||
 						activeItemIdRef.current !== effectiveActiveItemId
 					) {
 						return;
 					}
 					if (nextTrailer) {
+						clearLifecycleTimer(lifecycle);
 						setTrailerState({
 							itemId: effectiveActiveItemId,
 							generation,
@@ -236,7 +272,11 @@ export function Hero({
 					);
 				})
 				.catch(() => {
-					if (!cancelled) {
+					if (
+						!cancelled &&
+						lifecycleRef.current === lifecycle &&
+						activeItemIdRef.current === effectiveActiveItemId
+					) {
 						scheduleAdvance(
 							effectiveActiveItemId,
 							generation,
@@ -249,12 +289,18 @@ export function Hero({
 		return () => {
 			cancelled = true;
 			window.clearTimeout(trailerDelay);
-			if (fallbackTimer.current !== null) {
-				window.clearTimeout(fallbackTimer.current);
-				fallbackTimer.current = null;
+			if (lifecycleRef.current === lifecycle) {
+				clearLifecycleTimer(lifecycle);
+				lifecycleRef.current = null;
 			}
 		};
-	}, [canPlayTrailers, effectiveActiveItemId, scheduleAdvance, session]);
+	}, [
+		canPlayTrailers,
+		effectiveActiveItemId,
+		scheduleAdvance,
+		session,
+		trailerMetadataKey,
+	]);
 
 	useEffect(() => {
 		const lifecycle = lifecycleRef.current;

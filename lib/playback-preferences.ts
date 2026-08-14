@@ -10,7 +10,8 @@ export function preferredTrackIndex(
 					(track) =>
 						track.Language?.toLowerCase() === preferredLanguage.toLowerCase(),
 				)
-			: undefined)?.Index ??
+			: undefined
+		)?.Index ??
 		tracks.find((track) => track.IsDefault)?.Index ??
 		tracks[0]?.Index
 	);

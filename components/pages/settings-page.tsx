@@ -266,10 +266,9 @@ export function SettingsPage({
 									value={playbackPreference.audioLanguage ?? "auto"}
 									options={[
 										["auto", t("languageAutomatic")],
-										...playbackPreference.audioLanguages.map((option) => [
-											option.value,
-											option.label,
-										] as [string, string]),
+										...playbackPreference.audioLanguages.map(
+											(option) => [option.value, option.label] as [string, string],
+										),
 									]}
 									onChange={(value) =>
 										void changePlaybackPreference("audioLanguage", value)
@@ -285,10 +284,9 @@ export function SettingsPage({
 									value={playbackPreference.subtitleLanguage ?? "auto"}
 									options={[
 										["auto", t("languageAutomatic")],
-										...playbackPreference.subtitleLanguages.map((option) => [
-											option.value,
-											option.label,
-										] as [string, string]),
+										...playbackPreference.subtitleLanguages.map(
+											(option) => [option.value, option.label] as [string, string],
+										),
 										["off", t("off")],
 									]}
 									onChange={(value) =>

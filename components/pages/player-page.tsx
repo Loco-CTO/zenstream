@@ -105,10 +105,7 @@ export function PlayerPage({
 					subtitle:
 						requestedTracks.subtitle !== undefined
 							? requestedTracks.subtitle
-							: preferredSubtitleIndex(
-									parsed.subtitles,
-									preference.subtitleLanguage,
-								),
+							: preferredSubtitleIndex(parsed.subtitles, preference.subtitleLanguage),
 				});
 			})
 			.catch(() => undefined);

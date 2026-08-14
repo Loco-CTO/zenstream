@@ -239,8 +239,7 @@ export function toMediaStreams(
 		Height: typeof stream.height === "number" ? stream.height : undefined,
 		Channels: typeof stream.channels === "number" ? stream.channels : undefined,
 		IsDefault:
-			isRecord(stream.disposition) &&
-			Number(stream.disposition.default) === 1,
+			isRecord(stream.disposition) && Number(stream.disposition.default) === 1,
 		FileId: typeof stream.fileId === "string" ? stream.fileId : undefined,
 		IsExternal: Boolean(stream.fileId),
 	}));

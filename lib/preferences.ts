@@ -127,7 +127,9 @@ export async function setMetadataLanguagePreference(
 	return data as MetadataLanguagePreference;
 }
 
-function isPlaybackLanguageOption(value: unknown): value is PlaybackLanguageOption {
+function isPlaybackLanguageOption(
+	value: unknown,
+): value is PlaybackLanguageOption {
 	return (
 		typeof value === "object" &&
 		value !== null &&
@@ -140,8 +142,10 @@ function isPlaybackPreference(value: unknown): value is PlaybackPreference {
 	if (typeof value !== "object" || value === null) return false;
 	const candidate = value as Partial<PlaybackPreference>;
 	return (
-		(candidate.audioLanguage === null || typeof candidate.audioLanguage === "string") &&
-		(candidate.subtitleLanguage === null || typeof candidate.subtitleLanguage === "string") &&
+		(candidate.audioLanguage === null ||
+			typeof candidate.audioLanguage === "string") &&
+		(candidate.subtitleLanguage === null ||
+			typeof candidate.subtitleLanguage === "string") &&
 		Array.isArray(candidate.audioLanguages) &&
 		candidate.audioLanguages.every(isPlaybackLanguageOption) &&
 		Array.isArray(candidate.subtitleLanguages) &&
@@ -153,10 +157,14 @@ export async function getPlaybackPreference(
 	session: AuthSession,
 ): Promise<PlaybackPreference> {
 	return cachedPreference(session, "playback", async (signal) => {
-		const response = await authenticatedFetch(session, "/api/preferences/playback", {
-			cache: "no-store",
-			signal,
-		});
+		const response = await authenticatedFetch(
+			session,
+			"/api/preferences/playback",
+			{
+				cache: "no-store",
+				signal,
+			},
+		);
 		if (!response.ok) throw new Error("Could not load playback preferences.");
 		const value: unknown = await response.json();
 		if (!isPlaybackPreference(value))
@@ -169,10 +177,14 @@ export async function setPlaybackPreference(
 	session: AuthSession,
 	value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
 ): Promise<PlaybackPreference> {
-	const response = await authenticatedFetch(session, "/api/preferences/playback", {
-		method: "PATCH",
-		body: JSON.stringify(value),
-	});
+	const response = await authenticatedFetch(
+		session,
+		"/api/preferences/playback",
+		{
+			method: "PATCH",
+			body: JSON.stringify(value),
+		},
+	);
 	if (!response.ok) throw new Error("Could not save playback preferences.");
 	const next: unknown = await response.json();
 	if (!isPlaybackPreference(next))

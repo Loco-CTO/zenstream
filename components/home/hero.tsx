@@ -188,8 +188,6 @@ export function Hero({
 			advanceRequested: false,
 			pendingAdvance: false,
 		};
-		setTrailerState(null);
-		setIsTrailerMuted(true);
 		if (!canPlayTrailers) {
 			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
 			return () => {

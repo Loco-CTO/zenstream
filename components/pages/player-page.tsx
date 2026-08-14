@@ -6,9 +6,15 @@ import { VideoPlayer } from "@/components/player/video-player";
 import {
 	playbackStreams,
 	savedPlaybackPositionSeconds,
+	getPlaybackSource,
 	type DetailData,
 } from "@/lib/media-api";
 import { getPlaybackInfo } from "@/lib/media-api";
+import { getPlaybackPreference } from "@/lib/preferences";
+import {
+	preferredSubtitleIndex,
+	preferredTrackIndex,
+} from "@/lib/playback-preferences";
 import type { AuthSession } from "@/lib/session";
 import { useSyncplay } from "@/lib/syncplay";
 import { getLastNonPlayerPath } from "@/lib/player-navigation";
@@ -65,11 +71,29 @@ export function PlayerPage({
 		setStreams(undefined);
 		setStreamsItemId(undefined);
 		setSelected({});
-		void getPlaybackInfo(session, item.Id, {
-			startPositionSeconds,
-			audioStreamId: requestedTracks.audio,
-		})
-			.then((playback) => {
+		void Promise.all([
+			getPlaybackSource(session, item.Id),
+			getPlaybackPreference(session),
+		])
+			.then(([source, preference]) => {
+				const sourceStreams = playbackStreams({ source });
+				const preferredAudio =
+					requestedTracks.audio ??
+					preferredTrackIndex(sourceStreams.audio, preference.audioLanguage);
+				const preferredSubtitle =
+					requestedTracks.subtitle !== undefined
+						? requestedTracks.subtitle
+						: preferredSubtitleIndex(
+								sourceStreams.subtitles,
+								preference.subtitleLanguage,
+							);
+				setSelected({ audio: preferredAudio, subtitle: preferredSubtitle });
+				return getPlaybackInfo(session, item.Id, {
+					startPositionSeconds,
+					audioStreamId: preferredAudio,
+				}).then((playback) => ({ playback, preference }));
+			})
+			.then(({ playback, preference }) => {
 				if (!active) return;
 				const parsed = playbackStreams(playback);
 				setStreams(parsed);
@@ -77,13 +101,14 @@ export function PlayerPage({
 				setSelected({
 					audio:
 						requestedTracks.audio ??
-						parsed.audio.find((track) => track.IsDefault)?.Index ??
-						parsed.audio[0]?.Index,
+						preferredTrackIndex(parsed.audio, preference.audioLanguage),
 					subtitle:
 						requestedTracks.subtitle !== undefined
 							? requestedTracks.subtitle
-							: (parsed.subtitles.find((track) => track.IsDefault)?.Index ??
-								parsed.subtitles[0]?.Index),
+							: preferredSubtitleIndex(
+									parsed.subtitles,
+									preference.subtitleLanguage,
+								),
 				});
 			})
 			.catch(() => undefined);

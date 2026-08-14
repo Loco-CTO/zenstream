@@ -8,6 +8,8 @@ import {
 	clearPreferenceCache,
 } from "@/lib/preferences";
 import {
+	getPlaybackPreference,
+	setPlaybackPreference,
 	getSubtitlePreference,
 	isSubtitleStyle,
 	parseWebVttCues,
@@ -150,5 +152,38 @@ describe("subtitle preferences", () => {
 				"WEBVTT\r\n00:00:01,000 --> 00:00:03,500\r\nA &amp; B\r\n\r\nNOTE ignored\r\n",
 			),
 		).toEqual([{ start: 1, end: 3.5, text: "A & B" }]);
+	});
+});
+
+describe("playback language preferences", () => {
+	const preference = {
+		audioLanguage: null,
+		subtitleLanguage: "off",
+		audioLanguages: [{ value: "en", label: "English" }],
+		subtitleLanguages: [{ value: "ja", label: "Japanese" }],
+	};
+
+	it("loads the permission-filtered language options", async () => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(JSON.stringify(preference)),
+		);
+		await expect(getPlaybackPreference(session)).resolves.toEqual(preference);
+	});
+
+	it("persists shared language selections", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(preference)));
+		await setPlaybackPreference(session, {
+			audioLanguage: "en",
+			subtitleLanguage: "ja",
+		});
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/preferences/playback"),
+			expect.objectContaining({
+				method: "PATCH",
+				body: JSON.stringify({ audioLanguage: "en", subtitleLanguage: "ja" }),
+			}),
+		);
 	});
 });

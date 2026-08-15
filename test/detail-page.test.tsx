@@ -305,7 +305,9 @@ describe("detail views", () => {
 		fireEvent.click(screen.getByRole("combobox", { name: "Season" }));
 		fireEvent.click(screen.getByRole("option", { name: "S2: Season 2" }));
 
-		await waitFor(() => expect(window.location.search).toBe(`?seasonId=${seasonId}`));
+		await waitFor(() =>
+			expect(window.location.search).toBe(`?seasonId=${seasonId}`),
+		);
 	});
 
 	it("defaults a series to season one when specials are listed first", () => {

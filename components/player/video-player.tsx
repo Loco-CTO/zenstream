@@ -457,12 +457,6 @@ export function VideoPlayer({
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
-	useEffect(() => {
-		setAudio(initialAudioStreamId == null ? "" : String(initialAudioStreamId));
-		setSubtitle(
-			initialSubtitleStreamIndex == null ? "" : String(initialSubtitleStreamIndex),
-		);
-	}, [item.Id, initialAudioStreamId, initialSubtitleStreamIndex]);
 	const savedPositionSeconds = savedPlaybackPositionSeconds(item);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =
@@ -832,7 +826,12 @@ export function VideoPlayer({
 					initialAudioStreamId == null
 						? (next.audio.find((track) => track.IsDefault) ?? next.audio[0])
 						: next.audio.find((track) => track.Index === initialAudioStreamId);
-				if (initialAudio?.Index != null) setAudio(String(initialAudio.Index));
+				setAudio(initialAudio?.Index != null ? String(initialAudio.Index) : "");
+				setSubtitle(
+					initialSubtitleStreamIndex == null
+						? ""
+						: String(initialSubtitleStreamIndex),
+				);
 			})
 			.catch((error) => {
 				if (!active) return;

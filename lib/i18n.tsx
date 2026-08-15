@@ -31,6 +31,8 @@ export const TRANSLATION_KEYS = [
 	"loginDescription",
 	"username",
 	"password",
+	"confirmPassword",
+	"passwordsDoNotMatch",
 	"login",
 	"loginFailed",
 	"libraryLoadFailed",

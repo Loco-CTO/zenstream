@@ -4,9 +4,11 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerWithInvite, validateInvite } from "@/lib/media-api";
 import { setAuthCookies } from "@/lib/session";
+import { useI18n } from "@/lib/i18n";
 
 export default function RegisterPage() {
 	const router = useRouter();
+	const { t } = useI18n();
 	const usernameRef = useRef<HTMLInputElement>(null);
 	const inviteRef = useRef("");
 	const [username, setUsername] = useState("");
@@ -42,7 +44,7 @@ export default function RegisterPage() {
 		event.preventDefault();
 		if (status !== "ready" || submitting) return;
 		if (password !== confirmPassword) {
-			setMessage("Passwords do not match.");
+			setMessage(t("passwordsDoNotMatch"));
 			return;
 		}
 		setSubmitting(true);
@@ -108,7 +110,7 @@ export default function RegisterPage() {
 			required
 		/>
 		<label className="mt-4 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35">
-			Confirm password
+			{t("confirmPassword")}
 		</label>
 		<input
 			value={confirmPassword}

@@ -23,6 +23,8 @@ welcome: おかえりなさい
 loginDescription: ライブラリにサインインします。
 username: ユーザー名
 password: パスワード
+confirmPassword: パスワード（確認）
+passwordsDoNotMatch: パスワードが一致しません。
 login: ログイン
 loginFailed: ログインできませんでした。ユーザー名とパスワードを確認してください。
 libraryLoadFailed: ライブラリを読み込めませんでした。

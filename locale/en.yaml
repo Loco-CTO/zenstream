@@ -21,6 +21,8 @@ welcome: Welcome back
 loginDescription: Sign in to your library.
 username: Username
 password: Password
+confirmPassword: Confirm password
+passwordsDoNotMatch: Passwords do not match.
 login: Login
 loginFailed: Login failed. Check your username and password.
 libraryLoadFailed: Could not load your library

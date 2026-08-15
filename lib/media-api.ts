@@ -1430,7 +1430,9 @@ export function getEpisodes(
 	seasonId: string,
 ) {
 	void seriesId;
-	return getItem(session, seasonId).then((item) => getChildren(session, item));
+	return getItem(session, seasonId).then((item) =>
+		getChildren(session, item, "full"),
+	);
 }
 
 /** Loads every episode in display order so series playback can resume at the first unwatched item. */
@@ -1449,13 +1451,17 @@ export function getSimilarItems(session: AuthSession, itemId: string) {
 	).then((result) => result.items.map(toMediaItem));
 }
 
-async function getChildren(session: AuthSession, parent: MediaItem) {
+async function getChildren(
+	session: AuthSession,
+	parent: MediaItem,
+	view: "card" | "full" = "card",
+) {
 	if (!parent.LibraryId) return [];
 	const params = new URLSearchParams({
 		libraryId: parent.LibraryId,
 		parentId: parent.Id,
 		pageSize: "100",
-		view: "card",
+		view,
 	});
 	const result = await catalogRequest<{ items: CatalogItem[] }>(
 		session,

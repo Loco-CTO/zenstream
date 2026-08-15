@@ -194,12 +194,14 @@ export function DetailPage({
 		if (!seriesId || nextSeasonId === seasonId) return;
 		const previous = seasonId;
 		setSeasonId(nextSeasonId);
+		setRequestedSeasonId(nextSeasonId);
 		setSeasonLoading(true);
 		const finish = start();
 		try {
 			setEpisodes(await getEpisodes(session, seriesId, nextSeasonId));
 		} catch {
 			setSeasonId(previous);
+			setRequestedSeasonId(previous);
 			setMutationError(t("detailLoadFailed"));
 		} finally {
 			setSeasonLoading(false);
@@ -425,6 +427,18 @@ function getRequestedSeasonId() {
 	if (typeof window === "undefined") return undefined;
 	return (
 		new URLSearchParams(window.location.search).get("seasonId") ?? undefined
+	);
+}
+
+function setRequestedSeasonId(seasonId: string) {
+	if (typeof window === "undefined") return;
+	const url = new URL(window.location.href);
+	if (seasonId) url.searchParams.set("seasonId", seasonId);
+	else url.searchParams.delete("seasonId");
+	window.history.replaceState(
+		window.history.state,
+		"",
+		`${url.pathname}${url.search}${url.hash}`,
 	);
 }
 

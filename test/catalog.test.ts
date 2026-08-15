@@ -4,6 +4,7 @@ import {
 	authenticateByName,
 	fetchDetailData,
 	fetchHomeData,
+	getEpisodes,
 	getInitialSeason,
 	getPlaybackInfo,
 	getPlaybackMarkers,
@@ -154,6 +155,66 @@ describe("catalog client", () => {
 		expect(episodeRequests).toHaveLength(2);
 		expect(episodeRequests.every((url) => url.includes("view=full"))).toBe(true);
 		expect(episodeRequests.some((url) => url.includes("page=2"))).toBe(true);
+	});
+
+	it("loads switched-season episodes with full metadata", async () => {
+		const seasonId = "season-switched-full";
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = new URL(String(input));
+				if (url.pathname === `/api/catalog/items/${seasonId}`) {
+					return new Response(
+						JSON.stringify({
+							id: seasonId,
+							libraryId: "shows",
+							type: "season",
+							name: "Season 2",
+							seasonNumber: 2,
+							metadata: { title: "Season 2" },
+						}),
+						{ status: 200 },
+					);
+				}
+				if (
+					url.pathname === "/api/catalog/items" &&
+					url.searchParams.get("parentId") === seasonId
+				) {
+					return new Response(
+						JSON.stringify({
+							items: [
+								{
+									id: "episode-switched-full",
+									libraryId: "shows",
+									type: "episode",
+									name: "Second Season Premiere",
+									seasonId,
+									seasonNumber: 2,
+									episodeNumber: 1,
+									metadata: {
+										title: "Second Season Premiere",
+										overview: "Second season overview",
+									},
+								},
+							],
+						}),
+						{ status: 200 },
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+		const episodes = await getEpisodes(session, "series-1", seasonId);
+
+		expect(episodes[0]?.Overview).toBe("Second season overview");
+		const childrenRequest = fetchMock.mock.calls
+			.map(([input]) => new URL(String(input)))
+			.find(
+				(url) =>
+					url.pathname === "/api/catalog/items" &&
+					url.searchParams.get("parentId") === seasonId,
+			);
+		expect(childrenRequest?.searchParams.get("view")).toBe("full");
 	});
 
 	it("loads source-specific intro and outro markers from the Orchestrator", async () => {

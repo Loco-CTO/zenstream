@@ -105,7 +105,9 @@ describe("SettingsPage", () => {
 		openSection("Playback");
 		fireEvent.click(screen.getByRole("combobox", { name: "Audio Language" }));
 		expect(screen.getByRole("option", { name: "English" })).toBeInTheDocument();
-		expect(screen.queryByRole("option", { name: "Spanish" })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("option", { name: "Spanish" }),
+		).not.toBeInTheDocument();
 		fireEvent.click(screen.getByRole("option", { name: "English" }));
 		await waitFor(() =>
 			expect(onPlaybackPreferenceChange).toHaveBeenCalledWith({

@@ -11,6 +11,7 @@ export default function RegisterPage() {
 	const inviteRef = useRef("");
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 	const [status, setStatus] = useState<"checking" | "ready" | "invalid">(
 		"checking",
 	);
@@ -40,6 +41,10 @@ export default function RegisterPage() {
 	async function submit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		if (status !== "ready" || submitting) return;
+		if (password !== confirmPassword) {
+			setMessage("Passwords do not match.");
+			return;
+		}
 		setSubmitting(true);
 		setMessage("");
 		try {
@@ -99,10 +104,22 @@ export default function RegisterPage() {
 							type="password"
 							className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.06] px-3 text-sm text-white outline-none transition focus:border-violet-400/70"
 							autoComplete="new-password"
-							minLength={8}
-							required
-						/>
-					</>
+			minLength={8}
+			required
+		/>
+		<label className="mt-4 block text-xs font-semibold uppercase tracking-[0.14em] text-white/35">
+			Confirm password
+		</label>
+		<input
+			value={confirmPassword}
+			onChange={(event) => setConfirmPassword(event.target.value)}
+			type="password"
+			className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.06] px-3 text-sm text-white outline-none transition focus:border-violet-400/70"
+			autoComplete="new-password"
+			minLength={8}
+			required
+		/>
+		</>
 				) : (
 					<p className="mt-7 text-sm text-white/60">
 						{status === "checking" ? "Checking your invite…" : message}

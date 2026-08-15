@@ -49,7 +49,7 @@ export function PlayerPage({
 	const { active, setWatchingTogether } = useSyncplay();
 	const [item, setItem] = useState(initialData.item);
 	const [streams, setStreams] = useState<ReturnType<typeof playbackStreams>>();
-	const [streamsItemId, setStreamsItemId] = useState<string>();
+	const [streamsRequestKey, setStreamsRequestKey] = useState<string>();
 	const [selected, setSelected] = useState<{
 		audio?: number;
 		subtitle?: number | null;
@@ -65,12 +65,14 @@ export function PlayerPage({
 		() => playbackTrackChoices(searchParams),
 		[searchParams],
 	);
+	const playbackRequestKey = `${item.Id}:${requestedTracks.audio ?? "auto"}:${
+		requestedTracks.subtitle === null
+			? "off"
+			: (requestedTracks.subtitle ?? "auto")
+	}`;
 
 	useEffect(() => {
 		let active = true;
-		setStreams(undefined);
-		setStreamsItemId(undefined);
-		setSelected({});
 		void Promise.all([
 			getPlaybackSource(session, item.Id),
 			getPlaybackPreference(session),
@@ -87,7 +89,8 @@ export function PlayerPage({
 								sourceStreams.subtitles,
 								preference.subtitleLanguage,
 							);
-				setSelected({ audio: preferredAudio, subtitle: preferredSubtitle });
+				if (active)
+					setSelected({ audio: preferredAudio, subtitle: preferredSubtitle });
 				return getPlaybackInfo(session, item.Id, {
 					startPositionSeconds,
 					audioStreamId: preferredAudio,
@@ -97,7 +100,7 @@ export function PlayerPage({
 				if (!active) return;
 				const parsed = playbackStreams(playback);
 				setStreams(parsed);
-				setStreamsItemId(item.Id);
+				setStreamsRequestKey(playbackRequestKey);
 				setSelected({
 					audio:
 						requestedTracks.audio ??
@@ -114,6 +117,7 @@ export function PlayerPage({
 		};
 	}, [
 		item.Id,
+		playbackRequestKey,
 		requestedTracks.audio,
 		requestedTracks.subtitle,
 		session,
@@ -122,6 +126,7 @@ export function PlayerPage({
 
 	return (
 		<VideoPlayer
+			key={item.Id}
 			item={playerItem}
 			session={session}
 			// These are available as soon as the player mounts. Passing them here as
@@ -129,18 +134,20 @@ export function PlayerPage({
 			// negotiation from briefly restoring the default tracks.
 			initialAudioStreamId={
 				requestedTracks.audio ??
-				(streamsItemId === item.Id ? selected.audio : undefined)
+				(streamsRequestKey === playbackRequestKey ? selected.audio : undefined)
 			}
 			initialSubtitleStreamIndex={
 				requestedTracks.subtitle !== undefined
 					? requestedTracks.subtitle
-					: streamsItemId === item.Id
+					: streamsRequestKey === playbackRequestKey
 						? selected.subtitle
 						: undefined
 			}
 			// VideoPlayer treats initialStreams as authoritative. Ignore the previous
 			// item's result until playback info for this item has arrived.
-			initialStreams={streamsItemId === item.Id ? streams : undefined}
+			initialStreams={
+				streamsRequestKey === playbackRequestKey ? streams : undefined
+			}
 			onClose={() => {
 				if (active) void setWatchingTogether(false).catch(() => undefined);
 				router.replace(getLastNonPlayerPath());

@@ -552,7 +552,7 @@ export function VideoPlayer({
 		return () => window.clearInterval(timer);
 	}, [debugOpen]);
 	useEffect(() => {
-		const source = sourceRef.current ?? info?.source;
+		const source = sourceRef.current;
 		if (!source?.sessionId || source.mode === "direct") return;
 		let active = true;
 		const heartbeat = () => {
@@ -591,7 +591,6 @@ export function VideoPlayer({
 		if (!viewerSessionId) return;
 		let active = true;
 		let heartbeatInFlight = false;
-		let timer: number | undefined;
 		handledViewerCommandsRef.current.clear();
 		viewerCommandAcksRef.current = [];
 		const applyCommands = async (
@@ -636,7 +635,7 @@ export function VideoPlayer({
 			} catch (error) {
 				if (isPlaybackViewerTerminalError(error)) {
 					active = false;
-					if (timer !== undefined) window.clearInterval(timer);
+					window.clearInterval(timer);
 					return;
 				}
 				viewerCommandAcksRef.current.unshift(...commandAcks);
@@ -649,8 +648,8 @@ export function VideoPlayer({
 				heartbeatInFlight = false;
 			}
 		};
+		const timer = window.setInterval(() => void heartbeat(), 2_000);
 		void heartbeat();
-		timer = window.setInterval(() => void heartbeat(), 2_000);
 		const endOnPageHide = () => {
 			active = false;
 			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
@@ -658,7 +657,7 @@ export function VideoPlayer({
 		window.addEventListener("pagehide", endOnPageHide);
 		return () => {
 			active = false;
-			if (timer !== undefined) window.clearInterval(timer);
+			window.clearInterval(timer);
 			window.removeEventListener("pagehide", endOnPageHide);
 			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
 		};

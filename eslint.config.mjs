@@ -1,6 +1,6 @@
 import { FlatCompat } from "@eslint/eslintrc";
-import nextVitals from "eslint-config-next/core-web-vitals.js";
-import nextTypescript from "eslint-config-next/typescript.js";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 import reactHooks from "eslint-plugin-react-hooks";
 
 const compat = new FlatCompat();

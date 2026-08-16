@@ -8,6 +8,7 @@ export type CatalogEvent = {
 	generation?: number;
 	libraryId?: string;
 	rootEntityId?: string | null;
+	reason?: "scan" | "refresh";
 	libraries?: Array<{ id?: string; catalogGeneration?: number }>;
 };
 
@@ -30,6 +31,7 @@ export function catalogStatusChanges(event: CatalogEvent): CatalogEvent[] {
 						libraryId: library.id,
 						generation: library.catalogGeneration,
 						rootEntityId: null,
+						reason: "refresh",
 					},
 				]
 			: [],
@@ -95,10 +97,13 @@ export function startCatalogEvents(session: AuthSession): () => void {
 					pendingEvents.clear();
 					for (const nextEvent of nextEvents) {
 						clearPreferenceCache(session);
-						clearMediaClientCache({
-							libraryId: nextEvent.libraryId,
-							rootEntityId: nextEvent.rootEntityId ?? undefined,
-						});
+						clearMediaClientCache(
+							{
+								libraryId: nextEvent.libraryId,
+								rootEntityId: nextEvent.rootEntityId ?? undefined,
+							},
+							{ preserveHome: nextEvent.reason === "scan" },
+						);
 						window.dispatchEvent(
 							new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
 						);

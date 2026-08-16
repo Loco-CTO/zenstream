@@ -1117,6 +1117,12 @@ export async function heartbeatPlaybackViewer(
 	);
 }
 
+export function isPlaybackViewerTerminalError(error: unknown) {
+	if (!(error instanceof Error)) return false;
+	const status = error.message.match(/Request failed with (401|404|410)\./)?.[1];
+	return status != null;
+}
+
 export async function endPlaybackViewer(
 	session: AuthSession,
 	viewerSessionId: string,

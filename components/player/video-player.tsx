@@ -24,6 +24,7 @@ import {
 import {
 	getPlaybackInfo,
 	heartbeatPlaybackViewer,
+	isPlaybackViewerTerminalError,
 	endPlaybackViewer,
 	waitForPlaybackReady,
 	cancelPlaybackSession,
@@ -469,6 +470,10 @@ export function VideoPlayer({
 	const debugSource = sourceRef.current ?? info?.source;
 	const playbackSessionId = info?.source?.sessionId;
 	const viewerSessionId = info?.source?.viewerSessionId;
+	const playbackSessionIdRef = useRef(playbackSessionId);
+	useEffect(() => {
+		playbackSessionIdRef.current = playbackSessionId;
+	}, [playbackSessionId]);
 	const selectedSubtitleStream = info?.subtitles.find(
 		(stream) => stream.Index === Number(subtitle),
 	);
@@ -476,9 +481,9 @@ export function VideoPlayer({
 		style.renderer === "native" && subtitle && info?.source
 			? subtitleUrl(session, item.Id, info.source, Number(subtitle))
 			: "";
-	const cancelActiveSession = useCallback(
-		async (reason: string) => {
-			const source = sourceRef.current ?? info?.source;
+	const cancelPlaybackSource = useCallback(
+		async (source: MediaSource | undefined, reason: string) => {
+			if (!source) return;
 			let stopWorker = source?.mode !== "direct";
 			if (source?.viewerSessionId) {
 				try {
@@ -505,7 +510,11 @@ export function VideoPlayer({
 					}),
 			);
 		},
-		[info?.source, session],
+		[session],
+	);
+	const cancelActiveSession = useCallback(
+		(reason: string) => cancelPlaybackSource(sourceRef.current, reason),
+		[cancelPlaybackSource],
 	);
 	const handleClose = useCallback(() => {
 		if (document.pictureInPictureElement === videoRef.current)
@@ -513,6 +522,10 @@ export function VideoPlayer({
 		void cancelActiveSession("player_close");
 		onClose();
 	}, [cancelActiveSession, onClose]);
+	const handleCloseRef = useRef(handleClose);
+	useEffect(() => {
+		handleCloseRef.current = handleClose;
+	}, [handleClose]);
 	const debugVideo = videoRef.current;
 	const debugVideoStream = debugSource?.MediaStreams?.find(
 		(stream) => stream.Type === "Video",
@@ -539,10 +552,11 @@ export function VideoPlayer({
 		return () => window.clearInterval(timer);
 	}, [debugOpen]);
 	useEffect(() => {
-		if (!playbackSessionId || info?.source?.mode === "direct") return;
+		const source = sourceRef.current ?? info?.source;
+		if (!source?.sessionId || source.mode === "direct") return;
 		let active = true;
 		const heartbeat = () => {
-			void getPlaybackSessionStatus(session, playbackSessionId)
+			void getPlaybackSessionStatus(session, source.sessionId as string)
 				.then((status) => {
 					if (!active) return;
 					playerDebug("HLS session heartbeat", {
@@ -555,7 +569,7 @@ export function VideoPlayer({
 				.catch((error) => {
 					if (active)
 						playerDebug("HLS session heartbeat failed", {
-							sessionId: playbackSessionId,
+							sessionId: source.sessionId,
 							error: error instanceof Error ? error.message : String(error),
 						});
 				});
@@ -563,20 +577,21 @@ export function VideoPlayer({
 		const timer = window.setInterval(heartbeat, 15_000);
 		const cancelOnPageHide = () => {
 			active = false;
-			void cancelActiveSession("page_hide");
+			void cancelPlaybackSource(source, "page_hide");
 		};
 		window.addEventListener("pagehide", cancelOnPageHide);
 		return () => {
 			active = false;
 			window.clearInterval(timer);
 			window.removeEventListener("pagehide", cancelOnPageHide);
-			void cancelActiveSession("player_unmount");
+			void cancelPlaybackSource(source, "player_unmount");
 		};
-	}, [cancelActiveSession, info?.source?.mode, playbackSessionId, session]);
+	}, [cancelPlaybackSource, info?.source?.mode, playbackSessionId, session]);
 	useEffect(() => {
 		if (!viewerSessionId) return;
 		let active = true;
 		let heartbeatInFlight = false;
+		let timer: number | undefined;
 		handledViewerCommandsRef.current.clear();
 		viewerCommandAcksRef.current = [];
 		const applyCommands = async (
@@ -592,7 +607,7 @@ export function VideoPlayer({
 					if (!video) throw new Error("Player is not ready.");
 					if (command.action === "pause") video.pause();
 					else if (command.action === "resume") await video.play();
-					else handleClose();
+					else handleCloseRef.current();
 				} catch (caught) {
 					success = false;
 					error = caught instanceof Error ? caught.message : String(caught);
@@ -614,11 +629,16 @@ export function VideoPlayer({
 					positionSeconds: Math.max(0, positionSeconds),
 					durationSeconds: mediaDuration > 0 ? mediaDuration : undefined,
 					paused: video ? video.paused : true,
-					workerSessionId: playbackSessionId,
+					workerSessionId: playbackSessionIdRef.current,
 					commandAcks,
 				});
 				if (active) await applyCommands(response.commands ?? []);
 			} catch (error) {
+				if (isPlaybackViewerTerminalError(error)) {
+					active = false;
+					if (timer !== undefined) window.clearInterval(timer);
+					return;
+				}
 				viewerCommandAcksRef.current.unshift(...commandAcks);
 				if (active)
 					playerDebug("viewer heartbeat failed", {
@@ -630,7 +650,7 @@ export function VideoPlayer({
 			}
 		};
 		void heartbeat();
-		const timer = window.setInterval(() => void heartbeat(), 2_000);
+		timer = window.setInterval(() => void heartbeat(), 2_000);
 		const endOnPageHide = () => {
 			active = false;
 			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
@@ -638,11 +658,11 @@ export function VideoPlayer({
 		window.addEventListener("pagehide", endOnPageHide);
 		return () => {
 			active = false;
-			window.clearInterval(timer);
+			if (timer !== undefined) window.clearInterval(timer);
 			window.removeEventListener("pagehide", endOnPageHide);
 			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
 		};
-	}, [handleClose, playbackSessionId, session, viewerSessionId]);
+	}, [session, viewerSessionId]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)

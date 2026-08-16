@@ -253,11 +253,15 @@ async function cachedClientRequest<T>(
 	return trackedRequest;
 }
 
-export function clearMediaClientCache(scope?: {
-	libraryId?: string;
-	rootEntityId?: string;
-}) {
+export function clearMediaClientCache(
+	scope?: {
+		libraryId?: string;
+		rootEntityId?: string;
+	},
+	options?: { preserveHome?: boolean },
+) {
 	const affected = (key: string, value?: unknown) => {
+		if (options?.preserveHome && key.startsWith("home:")) return false;
 		if (!scope?.libraryId && !scope?.rootEntityId) return true;
 		if (/^(home|search|libraries|favorites):/.test(key)) return true;
 		if (scope.libraryId && key.includes(`:${scope.libraryId}:`)) return true;

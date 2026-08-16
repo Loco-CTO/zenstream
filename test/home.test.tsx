@@ -332,6 +332,45 @@ describe("home screen", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("ignores intermediate scan catalog updates and refreshes when idle", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "token",
+			userId: "user",
+			username: "Alex",
+		});
+		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData").mockResolvedValue({
+			latestItems: [],
+			libraryRows: [],
+			continueWatching: [],
+			nextUp: [],
+		});
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(1));
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "anime", reason: "scan" },
+				}),
+			);
+		});
+		expect(fetchHomeData).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "anime", reason: "refresh" },
+				}),
+			);
+		});
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
+	});
+
 	it("keeps the active hero slide while a refresh publishes its limited featured response", async () => {
 		const auth = { token: "token", userId: "user", username: "Alex" };
 		vi.spyOn(session, "getAuthSession").mockReturnValue(auth);

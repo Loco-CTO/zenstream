@@ -581,7 +581,9 @@ export function AppShell() {
 
 	useEffect(() => {
 		if (!session || pathname !== "/") return;
-		const refresh = () => {
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }>;
+			if (event.detail?.reason === "scan") return;
 			void loadHome(session);
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);

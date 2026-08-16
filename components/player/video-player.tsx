@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import {
 	getPlaybackInfo,
+	heartbeatPlaybackViewer,
+	endPlaybackViewer,
 	waitForPlaybackReady,
 	cancelPlaybackSession,
 	getPlaybackSessionStatus,
@@ -43,6 +45,7 @@ import {
 	type MediaSource,
 	type PlaybackInfo,
 	type PlaybackMarker,
+	type ViewerCommandAck,
 } from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
@@ -366,6 +369,8 @@ export function VideoPlayer({
 	const nativeSubtitleTrackRef = useRef<HTMLTrackElement>(null);
 	const playerRef = useRef<HTMLDivElement>(null);
 	const hlsRef = useRef<Hls | null>(null);
+	const handledViewerCommandsRef = useRef(new Set<string>());
+	const viewerCommandAcksRef = useRef<ViewerCommandAck[]>([]);
 	const syncplayStateRef = useRef(syncplay.active);
 	const syncplayApiRef = useRef({
 		presence: syncplay.presence,
@@ -463,6 +468,7 @@ export function VideoPlayer({
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
 	const debugSource = sourceRef.current ?? info?.source;
 	const playbackSessionId = info?.source?.sessionId;
+	const viewerSessionId = info?.source?.viewerSessionId;
 	const selectedSubtitleStream = info?.subtitles.find(
 		(stream) => stream.Index === Number(subtitle),
 	);
@@ -473,7 +479,20 @@ export function VideoPlayer({
 	const cancelActiveSession = useCallback(
 		async (reason: string) => {
 			const source = sourceRef.current ?? info?.source;
-			if (!source?.sessionId || source.mode === "direct") return;
+			let stopWorker = source?.mode !== "direct";
+			if (source?.viewerSessionId) {
+				try {
+					const result = await endPlaybackViewer(session, source.viewerSessionId);
+					stopWorker = result.stopWorker === true;
+				} catch (error) {
+					playerDebug("viewer session end failed", {
+						viewerSessionId: source.viewerSessionId,
+						reason,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			}
+			if (!source?.sessionId || source.mode === "direct" || !stopWorker) return;
 			const sessionId = source.sessionId;
 			await cancelPlaybackSession(session, sessionId).then(
 				() =>
@@ -544,26 +563,86 @@ export function VideoPlayer({
 		const timer = window.setInterval(heartbeat, 15_000);
 		const cancelOnPageHide = () => {
 			active = false;
-			void cancelPlaybackSession(session, playbackSessionId).catch(
-				() => undefined,
-			);
+			void cancelActiveSession("page_hide");
 		};
 		window.addEventListener("pagehide", cancelOnPageHide);
 		return () => {
 			active = false;
 			window.clearInterval(timer);
 			window.removeEventListener("pagehide", cancelOnPageHide);
-			void cancelPlaybackSession(session, playbackSessionId).then(
-				() =>
-					playerDebug("HLS session cancelled", { sessionId: playbackSessionId }),
-				(error) =>
-					playerDebug("HLS session cancellation failed", {
-						sessionId: playbackSessionId,
-						error: error instanceof Error ? error.message : String(error),
-					}),
-			);
+			void cancelActiveSession("player_unmount");
 		};
-	}, [info?.source?.mode, playbackSessionId, session]);
+	}, [cancelActiveSession, info?.source?.mode, playbackSessionId, session]);
+	useEffect(() => {
+		if (!viewerSessionId) return;
+		let active = true;
+		let heartbeatInFlight = false;
+		handledViewerCommandsRef.current.clear();
+		viewerCommandAcksRef.current = [];
+		const applyCommands = async (
+			commands: Array<{ id: string; action: "pause" | "resume" | "stop" }>,
+		) => {
+			for (const command of commands) {
+				if (!active || handledViewerCommandsRef.current.has(command.id)) continue;
+				handledViewerCommandsRef.current.add(command.id);
+				let success = true;
+				let error: string | undefined;
+				try {
+					const video = videoRef.current;
+					if (!video) throw new Error("Player is not ready.");
+					if (command.action === "pause") video.pause();
+					else if (command.action === "resume") await video.play();
+					else handleClose();
+				} catch (caught) {
+					success = false;
+					error = caught instanceof Error ? caught.message : String(caught);
+				}
+				viewerCommandAcksRef.current.push({ id: command.id, success, error });
+			}
+		};
+		const heartbeat = async () => {
+			if (!active || heartbeatInFlight) return;
+			heartbeatInFlight = true;
+			const video = videoRef.current;
+			const positionSeconds =
+				video && Number.isFinite(video.currentTime) ? video.currentTime : 0;
+			const mediaDuration =
+				video && Number.isFinite(video.duration) ? video.duration : 0;
+			const commandAcks = viewerCommandAcksRef.current.splice(0);
+			try {
+				const response = await heartbeatPlaybackViewer(session, viewerSessionId, {
+					positionSeconds: Math.max(0, positionSeconds),
+					durationSeconds: mediaDuration > 0 ? mediaDuration : undefined,
+					paused: video ? video.paused : true,
+					workerSessionId: playbackSessionId,
+					commandAcks,
+				});
+				if (active) await applyCommands(response.commands ?? []);
+			} catch (error) {
+				viewerCommandAcksRef.current.unshift(...commandAcks);
+				if (active)
+					playerDebug("viewer heartbeat failed", {
+						viewerSessionId,
+						error: error instanceof Error ? error.message : String(error),
+					});
+			} finally {
+				heartbeatInFlight = false;
+			}
+		};
+		void heartbeat();
+		const timer = window.setInterval(() => void heartbeat(), 2_000);
+		const endOnPageHide = () => {
+			active = false;
+			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
+		};
+		window.addEventListener("pagehide", endOnPageHide);
+		return () => {
+			active = false;
+			window.clearInterval(timer);
+			window.removeEventListener("pagehide", endOnPageHide);
+			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
+		};
+	}, [handleClose, playbackSessionId, session, viewerSessionId]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)

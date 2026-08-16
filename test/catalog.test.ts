@@ -450,9 +450,14 @@ describe("catalog client", () => {
 			expect.stringContaining("/api/auth/browser-login"),
 			expect.objectContaining({
 				method: "POST",
-				body: JSON.stringify({ username: "alex", password: "password-123" }),
 			}),
 		);
+		const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+		expect(body).toMatchObject({ username: "alex", password: "password-123" });
+		expect(body.device).toMatchObject({
+			deviceType: "browser",
+			clientName: "ZenStream Web",
+		});
 	});
 
 	it("negotiates playback through the catalog playback endpoint", async () => {

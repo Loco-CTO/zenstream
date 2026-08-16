@@ -1,5 +1,8 @@
 import { getAuthSession, type AuthSession } from "@/lib/session";
-import { browserDeviceProfile } from "@/lib/browser-device-profile";
+import {
+	browserDeviceMetadata,
+	browserDeviceProfile,
+} from "@/lib/browser-device-profile";
 import {
 	authenticatedFetch,
 	orchestratorBaseUrl as sharedOrchestratorBaseUrl,
@@ -118,6 +121,7 @@ export interface MediaSource {
 	mode?: "direct" | "remux" | "audio-transcode" | "video-transcode";
 	sessionState?: string;
 	sessionId?: string;
+	viewerSessionId?: string;
 	startPositionSeconds?: number;
 	actualStartPositionSeconds?: number;
 	MediaStreams?: MediaStream[];
@@ -152,8 +156,33 @@ export interface TrickplaySheet {
 export interface PlaybackInfo {
 	source?: MediaSource;
 	sessionId?: string;
+	viewerSessionId?: string;
 	startPositionSeconds?: number;
 }
+
+export type ViewerCommand = {
+	id: string;
+	action: "pause" | "resume" | "stop";
+	issuedAt?: string;
+};
+
+export type ViewerCommandAck = {
+	id: string;
+	success: boolean;
+	error?: string;
+};
+
+export type ViewerHeartbeatResponse = {
+	viewerSessionId: string;
+	serverTime?: string;
+	commands?: ViewerCommand[];
+};
+
+export type ViewerEndResponse = {
+	viewerSessionId: string;
+	workerSessionId?: string;
+	stopWorker?: boolean;
+};
 
 export interface PlaybackSessionStatus {
 	sessionId: string;
@@ -457,6 +486,7 @@ export async function authenticateByName(
 			body: JSON.stringify({
 				username: username.trim(),
 				password,
+				device: browserDeviceMetadata(),
 			}),
 			credentials: "include",
 		},
@@ -965,12 +995,14 @@ export async function getPlaybackInfo(
 			streams?: Array<Record<string, unknown>>;
 		};
 		sessionId?: string;
+		viewerSessionId?: string;
 		startPositionSeconds?: number;
 		url: string;
 	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/negotiate`, {
 		method: "POST",
 		body: JSON.stringify({
 			engine: "web",
+			device: browserDeviceMetadata(),
 			sourceId: options.sourceId,
 			forceTranscoding: options.forceTranscoding === true,
 			requestedMode: options.requestedMode,
@@ -995,12 +1027,14 @@ export async function getPlaybackInfo(
 		mode: response.mode,
 		sessionState: response.sessionState,
 		sessionId: response.sessionId,
+		viewerSessionId: response.viewerSessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
 	});
 	return {
 		source,
 		sessionId: response.sessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
+		viewerSessionId: response.viewerSessionId,
 	};
 }
 
@@ -1019,7 +1053,12 @@ function mediaSourceFromPayload(
 	itemId: string,
 	playback: Pick<
 		MediaSource,
-		"url" | "mode" | "sessionState" | "sessionId" | "startPositionSeconds"
+		| "url"
+		| "mode"
+		| "sessionState"
+		| "sessionId"
+		| "startPositionSeconds"
+		| "viewerSessionId"
 	> = {},
 ): MediaSource {
 	return {
@@ -1053,6 +1092,38 @@ export async function cancelPlaybackSession(
 	await catalogRequest(
 		session,
 		`/api/playback/sessions/${encodeURIComponent(sessionId)}`,
+		{ method: "DELETE", keepalive: true },
+	);
+}
+
+export async function heartbeatPlaybackViewer(
+	session: AuthSession,
+	viewerSessionId: string,
+	payload: {
+		positionSeconds: number;
+		durationSeconds?: number;
+		paused: boolean;
+		workerSessionId?: string;
+		commandAcks?: ViewerCommandAck[];
+	},
+): Promise<ViewerHeartbeatResponse> {
+	return catalogRequest<ViewerHeartbeatResponse>(
+		session,
+		`/api/playback/viewers/${encodeURIComponent(viewerSessionId)}/heartbeat`,
+		{
+			method: "POST",
+			body: JSON.stringify(payload),
+		},
+	);
+}
+
+export async function endPlaybackViewer(
+	session: AuthSession,
+	viewerSessionId: string,
+): Promise<ViewerEndResponse> {
+	return catalogRequest<ViewerEndResponse>(
+		session,
+		`/api/playback/viewers/${encodeURIComponent(viewerSessionId)}`,
 		{ method: "DELETE", keepalive: true },
 	);
 }

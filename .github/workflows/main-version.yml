@@ -51,6 +51,7 @@ jobs:
             fi
           fi
           printf '{\n  "main": %s\n}\n' "$count" > .main-version.json
+          pnpm exec prettier --write .main-version.json
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else

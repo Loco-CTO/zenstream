@@ -54,7 +54,7 @@ export function WideCard({
 								image={image}
 								alt={item.Name}
 								draggable={false}
-								className={`brightness-[0.82] ${MEDIA_CARD_IMAGE_CLASS}`}
+								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
 						{!image && <MediaPlaceholder />}

@@ -1,5 +1,6 @@
 import { catalogRequest, orchestratorBaseUrl } from "@/lib/catalog";
 import { clearMediaClientCache } from "@/lib/media-api";
+import { clearPreferenceCache } from "@/lib/preferences";
 import type { AuthSession } from "@/lib/session";
 
 export type CatalogEvent = {
@@ -7,6 +8,7 @@ export type CatalogEvent = {
 	generation?: number;
 	libraryId?: string;
 	rootEntityId?: string | null;
+	reason?: "scan" | "refresh";
 	libraries?: Array<{ id?: string; catalogGeneration?: number }>;
 };
 
@@ -29,6 +31,7 @@ export function catalogStatusChanges(event: CatalogEvent): CatalogEvent[] {
 						libraryId: library.id,
 						generation: library.catalogGeneration,
 						rootEntityId: null,
+						reason: "refresh",
 					},
 				]
 			: [],
@@ -93,10 +96,14 @@ export function startCatalogEvents(session: AuthSession): () => void {
 					const nextEvents = [...pendingEvents.values()];
 					pendingEvents.clear();
 					for (const nextEvent of nextEvents) {
-						clearMediaClientCache({
-							libraryId: nextEvent.libraryId,
-							rootEntityId: nextEvent.rootEntityId ?? undefined,
-						});
+						clearPreferenceCache(session);
+						clearMediaClientCache(
+							{
+								libraryId: nextEvent.libraryId,
+								rootEntityId: nextEvent.rootEntityId ?? undefined,
+							},
+							{ preserveHome: nextEvent.reason === "scan" },
+						);
 						window.dispatchEvent(
 							new CustomEvent("zenstream:catalog-changed", { detail: nextEvent }),
 						);

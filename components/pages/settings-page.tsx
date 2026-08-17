@@ -12,7 +12,10 @@ import {
 	subtitleOuterShadow,
 } from "@/lib/subtitle-preferences";
 import { fetchOrchestratorVersion, zenstreamVersion } from "@/lib/version";
-import type { MetadataLanguagePreference } from "@/lib/preferences";
+import type {
+	MetadataLanguagePreference,
+	PlaybackPreference,
+} from "@/lib/preferences";
 
 type SettingsPageProps = {
 	displayName: string;
@@ -22,6 +25,10 @@ type SettingsPageProps = {
 	metadataLanguages?: string[];
 	metadataLanguage?: MetadataLanguagePreference;
 	onMetadataLanguageChange?: (language: string | null) => Promise<void>;
+	playbackPreference?: PlaybackPreference;
+	onPlaybackPreferenceChange?: (
+		value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
+	) => Promise<void>;
 	onLogout: () => void;
 };
 
@@ -43,6 +50,13 @@ export function SettingsPage({
 	metadataLanguages = ["en"],
 	metadataLanguage = { mode: "auto", language: "en" },
 	onMetadataLanguageChange = async () => undefined,
+	playbackPreference = {
+		audioLanguage: null,
+		subtitleLanguage: null,
+		audioLanguages: [],
+		subtitleLanguages: [],
+	},
+	onPlaybackPreferenceChange = async () => undefined,
 	onLogout,
 }: SettingsPageProps) {
 	const router = useRouter();
@@ -54,8 +68,6 @@ export function SettingsPage({
 	} = useSubtitlePreferences();
 	const [localeError, setLocaleError] = useState(false);
 	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
-	const [audioLanguage, setAudioLanguage] = useState("ja");
-	const [subtitleLanguage, setSubtitleLanguage] = useState("en");
 	const [autoplayNext, setAutoplayNext] = useState(true);
 	const [autoplayBrowse, setAutoplayBrowse] = useState(true);
 	const [newEpisodes, setNewEpisodes] = useState(true);
@@ -89,6 +101,27 @@ export function SettingsPage({
 			await onMetadataLanguageChange(value === "auto" ? null : value);
 		} catch {
 			setMetadataLanguageError(true);
+		}
+	};
+
+	const changePlaybackPreference = async (
+		field: "audioLanguage" | "subtitleLanguage",
+		value: string,
+	) => {
+		const next = {
+			audioLanguage: playbackPreference.audioLanguage,
+			subtitleLanguage: playbackPreference.subtitleLanguage,
+			[field]:
+				value === "auto"
+					? null
+					: value === "off" && field === "subtitleLanguage"
+						? "off"
+						: value,
+		};
+		try {
+			await onPlaybackPreferenceChange(next);
+		} catch {
+			// The parent restores the last confirmed value and can surface its own error.
 		}
 	};
 
@@ -230,14 +263,16 @@ export function SettingsPage({
 							right={
 								<SettingsSelect
 									label={t("audioLanguage")}
-									value={audioLanguage}
+									value={playbackPreference.audioLanguage ?? "auto"}
 									options={[
-										["ja", t("japanese")],
-										["en", t("english")],
-										["es", t("spanish")],
-										["fr", t("french")],
+										["auto", t("languageAutomatic")],
+										...playbackPreference.audioLanguages.map(
+											(option) => [option.value, option.label] as [string, string],
+										),
 									]}
-									onChange={setAudioLanguage}
+									onChange={(value) =>
+										void changePlaybackPreference("audioLanguage", value)
+									}
 								/>
 							}
 						/>
@@ -246,15 +281,17 @@ export function SettingsPage({
 							right={
 								<SettingsSelect
 									label={t("subtitleLanguage")}
-									value={subtitleLanguage}
+									value={playbackPreference.subtitleLanguage ?? "auto"}
 									options={[
-										["en", t("english")],
-										["ja", t("japanese")],
-										["es", t("spanish")],
-										["fr", t("french")],
+										["auto", t("languageAutomatic")],
+										...playbackPreference.subtitleLanguages.map(
+											(option) => [option.value, option.label] as [string, string],
+										),
 										["off", t("off")],
 									]}
-									onChange={setSubtitleLanguage}
+									onChange={(value) =>
+										void changePlaybackPreference("subtitleLanguage", value)
+									}
 								/>
 							}
 						/>

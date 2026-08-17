@@ -538,7 +538,7 @@ export function SyncplayProvider({
 		setGroups((old) =>
 			data.groups.map((group) => {
 				const known = old.find((entry) => entry.id === group.id);
-				return known && known.revision > group.revision ? known : group;
+				return known && known.revision >= group.revision ? known : group;
 			}),
 		);
 		const current = activeRef.current;

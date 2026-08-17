@@ -101,7 +101,7 @@ function safePlayerUrl(value?: string) {
 	}
 }
 
-export async function clearMediaSession(
+export function clearMediaSession(
 	video: HTMLVideoElement,
 	hls?: Hls | null,
 ) {
@@ -114,6 +114,42 @@ export async function clearMediaSession(
 		if (child.tagName !== "TRACK") child.remove();
 	}
 	video.load();
+}
+
+export type BufferedTimeRange = [number, number];
+
+export function normalizeBufferedRanges(
+	ranges: Array<readonly [number, number]>,
+	mergeGapSeconds = 0.05,
+): BufferedTimeRange[] {
+	const normalized = ranges
+		.filter(
+			([start, end]) =>
+				Number.isFinite(start) && Number.isFinite(end) && end > start,
+		)
+		.map(([start, end]) => [Math.max(0, start), Math.max(0, end)] as BufferedTimeRange)
+		.sort(([left], [right]) => left - right);
+	const merged: BufferedTimeRange[] = [];
+	for (const [start, end] of normalized) {
+		const previous = merged[merged.length - 1];
+		if (previous && start <= previous[1] + mergeGapSeconds) {
+			previous[1] = Math.max(previous[1], end);
+		} else {
+			merged.push([start, end]);
+		}
+	}
+	return merged;
+}
+
+export function bufferedSecondsAhead(
+	ranges: Array<readonly [number, number]>,
+	position: number,
+) {
+	if (!Number.isFinite(position)) return 0;
+	return ranges.reduce((maximum, [start, end]) => {
+		if (position < start || position > end) return maximum;
+		return Math.max(maximum, end - position);
+	}, 0);
 }
 
 export function syncplayWaitingForMembers(
@@ -390,7 +426,12 @@ export function VideoPlayer({
 	const controlsTimerRef = useRef<number | undefined>(undefined);
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const bufferingEpochRef = useRef(0);
-	const retryAfterBufferingRef = useRef(false);
+	const waitingTimerRef = useRef<number | undefined>(undefined);
+	const directStallTimerRef = useRef<number | undefined>(undefined);
+	const mediaWaitingRef = useRef(false);
+	const mediaLoadIdRef = useRef(0);
+	const mediaLoadActiveRef = useRef(false);
+	const transcodedFallbackRef = useRef<Promise<boolean> | null>(null);
 	const bufferedRef = useRef(false);
 	const readyItemIdRef = useRef<string | null>(null);
 	const appliedTimelineRef = useRef<string | null>(null);
@@ -533,9 +574,9 @@ export function VideoPlayer({
 	const debugAudioStream = debugSource?.MediaStreams?.find(
 		(stream) => stream.Type === "Audio",
 	);
-	const debugBufferAhead = bufferedRanges.ranges.reduce(
-		(maximum, [, end]) => Math.max(maximum, end - currentTime),
-		0,
+	const debugBufferAhead = bufferedSecondsAhead(
+		bufferedRanges.ranges,
+		currentTime,
 	);
 	const nextUpVisible =
 		item.Type === "Episode" &&
@@ -681,14 +722,17 @@ export function VideoPlayer({
 		[duration, item.Id, knownDuration, session],
 	);
 	const updateBufferedRanges = (video: HTMLVideoElement) => {
-		const ranges: Array<[number, number]> = [];
+		const ranges: BufferedTimeRange[] = [];
 		for (let index = 0; index < video.buffered.length; index += 1) {
 			const start = video.buffered.start(index);
 			const end = video.buffered.end(index);
 			if (Number.isFinite(start) && Number.isFinite(end) && end > start)
 				ranges.push([start, end]);
 		}
-		setBufferedRanges({ itemId: item.Id, ranges });
+		setBufferedRanges({
+			itemId: item.Id,
+			ranges: normalizeBufferedRanges(ranges),
+		});
 	};
 	const cancelPendingBufferingReport = useCallback(
 		(reason: string) => {
@@ -705,6 +749,43 @@ export function VideoPlayer({
 		},
 		[item.Id],
 	);
+	const clearMediaWaitTimers = useCallback(() => {
+		if (waitingTimerRef.current !== undefined) {
+			window.clearTimeout(waitingTimerRef.current);
+			waitingTimerRef.current = undefined;
+		}
+		if (directStallTimerRef.current !== undefined) {
+			window.clearTimeout(directStallTimerRef.current);
+			directStallTimerRef.current = undefined;
+		}
+		mediaWaitingRef.current = false;
+	}, []);
+	const invalidateMediaLoad = useCallback(
+		(reason: string) => {
+			mediaLoadActiveRef.current = false;
+			mediaLoadIdRef.current += 1;
+			clearMediaWaitTimers();
+			readyItemIdRef.current = null;
+			const state = syncplayStateRef.current;
+			if (state?.itemId === item.Id) {
+				bufferedRef.current = true;
+				void syncplayApiRef.current
+					.presence(
+						true,
+						true,
+						state.mediaGeneration ?? 0,
+						state.timelineRevision ?? state.revision,
+					)
+					.catch(() => undefined);
+			}
+			playerDebug("media load invalidated", {
+				itemId: item.Id,
+				reason,
+				loadId: mediaLoadIdRef.current,
+			});
+		},
+		[clearMediaWaitTimers, item.Id],
+	);
 
 	useEffect(() => {
 		syncplayStateRef.current = syncplay.active;
@@ -717,6 +798,7 @@ export function VideoPlayer({
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
 		cancelPendingBufferingReport("item changed");
+		invalidateMediaLoad("item changed");
 		sourceRef.current = undefined;
 		transcodeAttemptRef.current = false;
 		resumeTimeRef.current = null;
@@ -725,7 +807,7 @@ export function VideoPlayer({
 		readyItemIdRef.current = null;
 		settlingTimelineRef.current = null;
 		bufferedRef.current = true;
-	}, [cancelPendingBufferingReport, item.Id]);
+	}, [cancelPendingBufferingReport, invalidateMediaLoad, item.Id]);
 	const currentBufferedRanges =
 		bufferedRanges.itemId === item.Id ? bufferedRanges.ranges : [];
 
@@ -1050,7 +1132,11 @@ export function VideoPlayer({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !url) return;
+		const loadId = ++mediaLoadIdRef.current;
 		let active = true;
+		mediaLoadActiveRef.current = false;
+		clearMediaWaitTimers();
+		readyItemIdRef.current = null;
 		setBuffering(true);
 		setDebugStats({
 			manifestParsed: false,
@@ -1061,8 +1147,26 @@ export function VideoPlayer({
 			hlsErrors: 0,
 			lastHlsError: "",
 		});
-		void clearMediaSession(video, hlsRef.current);
+		clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
+		const sourceId = sourceRef.current?.Id;
+		const groupState = syncplayStateRef.current;
+		if (groupState?.itemId === item.Id) {
+			bufferedRef.current = true;
+			void syncplayApiRef.current
+				.presence(
+					true,
+					true,
+					groupState.mediaGeneration ?? 0,
+					groupState.timelineRevision ?? groupState.revision,
+				)
+				.catch(() => undefined);
+		}
+		mediaLoadActiveRef.current = true;
+		const isCurrentLoad = () =>
+			active &&
+			mediaLoadActiveRef.current &&
+			mediaLoadIdRef.current === loadId;
 		// Native HLS and hls.js can add a second subtitle track asynchronously.
 		// Install the suppression listener before assigning src so the browser
 		// cannot briefly select the stream's original captions.
@@ -1070,14 +1174,13 @@ export function VideoPlayer({
 		const position = savedPositionSeconds;
 		const onMetadata = () => {
 			void (async () => {
-				if (!active) return;
+				if (!isCurrentLoad()) return;
 				disableNativeSubtitleTracks(video, nativeSubtitleTrackRef.current?.track);
-				setBuffering(false);
-				const groupState = syncplayStateRef.current;
+				const currentGroupState = syncplayStateRef.current;
 				const syncplayApi = syncplayApiRef.current;
-				if (groupState?.itemId === item.Id) {
+				if (currentGroupState?.itemId === item.Id) {
 					const timeline = syncplayTimelineTarget(
-						groupState,
+						currentGroupState,
 						syncplayApi.serverNow(),
 					);
 					applyingSyncRef.current = true;
@@ -1086,7 +1189,8 @@ export function VideoPlayer({
 						timeline.position < video.duration
 					)
 						video.currentTime = timeline.position;
-					if (timeline.shouldPlay) startSyncedPlayback(video);
+					if (timeline.shouldPlay && syncplayMediaIsReady(video))
+						startSyncedPlayback(video);
 					else if (!video.paused) {
 						suppressSyncPauseRef.current = true;
 						video.pause();
@@ -1096,7 +1200,7 @@ export function VideoPlayer({
 					}, 0);
 					return;
 				}
-				if (groupState) return;
+				if (currentGroupState) return;
 				const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
 				const negotiatedPosition = sourceRef.current?.startPositionSeconds ?? 0;
 				const requestedPosition =
@@ -1134,6 +1238,8 @@ export function VideoPlayer({
 		};
 		const textTracks = video.textTracks;
 		const onCanPlay = () => {
+			if (!isCurrentLoad()) return;
+			clearMediaWaitTimers();
 			setBuffering(false);
 			playerDebug("media canplay", {
 				readyState: video.readyState,
@@ -1142,6 +1248,8 @@ export function VideoPlayer({
 			});
 		};
 		const onPlaying = () => {
+			if (!isCurrentLoad()) return;
+			clearMediaWaitTimers();
 			playerDebug("media first playable signal", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1149,6 +1257,7 @@ export function VideoPlayer({
 			});
 		};
 		const onMediaError = () => {
+			if (!isCurrentLoad()) return;
 			playerDebug("media error", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1174,13 +1283,13 @@ export function VideoPlayer({
 			hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, suppressHlsSubtitles);
 			hls.on(Hls.Events.SUBTITLE_TRACK_LOADED, suppressHlsSubtitles);
 			hls.on(Hls.Events.MANIFEST_PARSED, () => {
-				if (!active) return;
+				if (!isCurrentLoad()) return;
 				playerDebug("HLS manifest parsed", { url, mode: sourceRef.current?.mode });
 				setDebugStats((previous) => ({ ...previous, manifestParsed: true }));
 				setError("");
 			});
 			hls.on(Hls.Events.FRAG_LOADING, (_event, data) => {
-				if (!active) return;
+				if (!isCurrentLoad()) return;
 				setDebugStats((previous) => ({
 					...previous,
 					fragmentsRequested: previous.fragmentsRequested + 1,
@@ -1188,7 +1297,8 @@ export function VideoPlayer({
 				}));
 			});
 			hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
-				if (!active) return;
+				if (!isCurrentLoad()) return;
+				clearMediaWaitTimers();
 				playerDebug("HLS fragment buffered", {
 					url: data.frag?.url,
 					currentTime: video.currentTime,
@@ -1215,9 +1325,9 @@ export function VideoPlayer({
 					hlsErrors: previous.hlsErrors + 1,
 					lastHlsError: `${data.type}/${data.details}${data.fatal ? " (fatal)" : ""}`,
 				}));
-				if (!active || !data.fatal) return;
+				if (!isCurrentLoad() || !data.fatal) return;
 				setBuffering(false);
-				void requestTranscodedPlayback();
+				void requestTranscodedPlayback(loadId, sourceId);
 			});
 			hls.loadSource(url);
 			hls.attachMedia(video);
@@ -1227,6 +1337,9 @@ export function VideoPlayer({
 		}
 		return () => {
 			active = false;
+			if (mediaLoadIdRef.current === loadId)
+				mediaLoadActiveRef.current = false;
+			clearMediaWaitTimers();
 			video.removeEventListener("loadedmetadata", onMetadata);
 			video.removeEventListener("canplay", onCanPlay);
 			video.removeEventListener("playing", onPlaying);
@@ -1237,10 +1350,12 @@ export function VideoPlayer({
 			video.removeEventListener("timeupdate", onTextTrackAdded);
 			if (typeof textTracks.removeEventListener === "function")
 				textTracks.removeEventListener("addtrack", onTextTrackAdded);
-			hlsRef.current?.destroy();
-			hlsRef.current = null;
+			if (hlsRef.current) {
+				hlsRef.current.destroy();
+				hlsRef.current = null;
+			}
 		};
-	}, [url, item.Id, savedPositionSeconds, knownDuration]);
+	}, [clearMediaWaitTimers, url, item.Id, savedPositionSeconds, knownDuration]);
 
 	useEffect(() => {
 		if (videoRef.current) videoRef.current.volume = volume;

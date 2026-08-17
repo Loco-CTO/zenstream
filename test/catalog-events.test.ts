@@ -25,6 +25,7 @@ describe("catalog events", () => {
 				libraryId: "tv",
 				generation: 7,
 				rootEntityId: null,
+				reason: "refresh",
 			},
 		]);
 	});

@@ -104,6 +104,27 @@ describe("SyncplayGroupMenu", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("opens a redacted public group without crashing", () => {
+		syncplayState.groups = [
+			{
+				...publicGroup,
+				members: [
+					{
+						role: "host",
+						watchingTogether: true,
+						viewing: false,
+						loading: false,
+					} as unknown as (typeof publicGroup.members)[number],
+				],
+			},
+		];
+		syncplayState.active = null;
+		render(<SyncplayGroupMenu userId="viewer" />);
+		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
+		expect(screen.getByText("Public group")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Join view" })).toBeInTheDocument();
+	});
+
 	it("opens an already announced item immediately after joining", async () => {
 		syncplayState.groups = [publicGroup];
 		syncplayState.active = null;

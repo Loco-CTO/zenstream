@@ -230,6 +230,42 @@ describe("SyncplayProvider", () => {
 		TestSocket.openAutomatically = true;
 	});
 
+	it("does not activate a privacy-redacted HTTP lobby group", async () => {
+		TestSocket.openAutomatically = false;
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					groups: [
+						{
+							...group(1),
+							hostUserId: null,
+							itemId: null,
+							members: [
+								{
+									role: "host",
+									watchingTogether: true,
+									viewing: false,
+									loading: false,
+								} as unknown as SyncplayGroup["members"][number],
+							],
+						},
+					],
+				}),
+			),
+		);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
+		);
+		expect(screen.getByTestId("active-group")).toHaveTextContent("none");
+		TestSocket.openAutomatically = true;
+	});
+
 	it("refreshes the revision and retries a stale playback command once", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
@@ -491,12 +527,11 @@ describe("SyncplayProvider", () => {
 					hostUserId: "alex",
 					members: [
 						{
-							userId: "alex",
-							username: "Alex",
+							role: "host",
+							watchingTogether: true,
 							viewing: false,
 							loading: false,
-							role: "host",
-						},
+						} as unknown as SyncplayGroup["members"][number],
 					],
 				},
 			}),

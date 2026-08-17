@@ -72,6 +72,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const firstPageLoadingRef = useRef(false);
 	const loadingMoreRef = useRef(false);
 	const loadedQueryRef = useRef("");
+	const applyingQueryPreferenceRef = useRef<string | null>(null);
 	const requestedOffsetsRef = useRef(new Set<number>());
 	const queryLibraryId = searchParams.get("libraryId") ?? "";
 	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
@@ -128,6 +129,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			(normalizedQueryOrder === "ascending" ||
 				normalizedQueryOrder === "descending")
 		) {
+			applyingQueryPreferenceRef.current = `${libraryId}:${querySortBy}:${normalizedQueryOrder}`;
 			setSort({
 				sortBy: querySortBy!,
 				sortOrder:
@@ -155,9 +157,20 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			setSort({ sortBy: selectedSort, sortOrder });
 			return;
 		}
-		// A valid sort in the URL is an explicit navigation override. Leave it
-		// alone so it can be applied after this library's local value hydrates.
-		if (queryLibraryId === libraryId && validQuerySort) return;
+		const normalizedQueryOrder = querySortOrder?.toLowerCase();
+		const queryPreference = `${libraryId}:${querySortBy}:${normalizedQueryOrder}`;
+		// Let an explicit URL navigation hydrate the tab preference before
+		// reflecting local changes back into the address bar. Once hydration
+		// settles, subsequent sort changes own the URL.
+		if (applyingQueryPreferenceRef.current === queryPreference) {
+			if (
+				querySortBy === selectedSort &&
+				normalizedQueryOrder === sortOrder.toLowerCase()
+			) {
+				applyingQueryPreferenceRef.current = null;
+			}
+			return;
+		}
 		const params = new URLSearchParams();
 		params.set("libraryId", activeLibrary.Id);
 		params.set("sortBy", selectedSort);
@@ -175,6 +188,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		availableSorts,
 		libraryId,
 		queryLibraryId,
+		querySortBy,
+		querySortOrder,
 		validQuerySort,
 		router,
 		setSort,

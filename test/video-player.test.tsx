@@ -32,7 +32,11 @@ import { I18nProvider } from "@/lib/i18n";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
-import { getPlaybackInfo, type MediaItem } from "@/lib/media-api";
+import {
+	getPlaybackInfo,
+	playbackStreams,
+	type MediaItem,
+} from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
 
 vi.mock("@/lib/media-api", async () => {
@@ -52,6 +56,13 @@ vi.mock("@/lib/media-api", async () => {
 		playbackUrl: vi.fn().mockReturnValue("/video.m3u8"),
 	};
 });
+
+const defaultPlaybackStreams = {
+	source: { TranscodingUrl: "/video.m3u8" },
+	audio: [],
+	subtitles: [],
+	qualities: [],
+} as ReturnType<typeof playbackStreams>;
 
 describe("video player controls", () => {
 	it("recognizes the transient decoder window after a seek", () => {
@@ -85,15 +96,30 @@ describe("video player controls", () => {
 		).toBe(true);
 		expect(syncplayBufferingReportIsCurrent(report, current, 5)).toBe(false);
 	});
-	beforeEach(() => vi.useFakeTimers());
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi
+			.mocked(playbackStreams)
+			.mockReset()
+			.mockReturnValue(defaultPlaybackStreams);
+	});
 	afterEach(() => vi.useRealTimers());
 
-	it("detects when Syncplay is waiting for other members", () => {
+	it("detects when an active Syncplay member is waiting", () => {
 		const group = {
 			itemId: "movie",
 			resumeWhenReady: true,
 			mediaGeneration: 2,
-			members: [],
+			members: [
+				{
+					userId: "other",
+					username: "Other",
+					viewing: true,
+					loading: true,
+					readyGeneration: -1,
+					role: "viewer",
+				},
+			],
 		} as SyncplayGroup;
 		expect(syncplayWaitingForMembers(group, "movie")).toBe(true);
 		expect(
@@ -224,7 +250,7 @@ describe("video player controls", () => {
 	it("contains player overlays without creating a scrollbar", () => {
 		const { container } = render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
+				<SubtitlePreferencesProvider session={null}>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
@@ -283,6 +309,82 @@ describe("video player controls", () => {
 		expect(track?.getAttribute("src")).toContain("/subtitles/subtitle-file.vtt");
 	});
 
+	it("applies initial audio and subtitle choices that arrive after mount", async () => {
+		const source = {
+			Id: "source",
+			MediaStreams: [
+				{ Index: 2, Type: "Audio", DisplayTitle: "Japanese" },
+				{ Index: 4, Type: "Audio", DisplayTitle: "English" },
+				{ Index: 3, Type: "Subtitle", FileId: "subtitle-file" },
+			],
+		};
+		const streams = {
+			source,
+			audio: [
+				{ Index: 2, Type: "Audio", DisplayTitle: "Japanese" },
+				{ Index: 4, Type: "Audio", DisplayTitle: "English" },
+			],
+			subtitles: [{ Index: 3, Type: "Subtitle", FileId: "subtitle-file" }],
+			qualities: [],
+		} as never;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		const props = {
+			item: { Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem,
+			session: { token: "token", userId: "user", username: "Alex" },
+			initialStreams: streams,
+			onClose: vi.fn(),
+		};
+		const view = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer {...props} />
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						{...props}
+						initialAudioStreamId={2}
+						initialSubtitleStreamIndex={3}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		fireEvent.click(view.getByRole("button", { name: "Audio" }));
+		const japanese = view.getByRole("button", { name: "Japanese" });
+		expect(japanese.querySelector("svg")).toBeInTheDocument();
+		expect(view.container.querySelector("track")).toHaveAttribute(
+			"src",
+			expect.stringContaining("/subtitles/subtitle-file.vtt"),
+		);
+
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						{...props}
+						initialAudioStreamId={2}
+						initialSubtitleStreamIndex={null}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await act(async () => {
+			await Promise.resolve();
+		});
+		expect(view.container.querySelector("track")).not.toBeInTheDocument();
+	});
+
 	it("requests Picture in Picture when the browser supports it", () => {
 		const requestPictureInPicture = vi.fn().mockResolvedValue(undefined);
 		Object.defineProperty(document, "pictureInPictureEnabled", {
@@ -307,10 +409,16 @@ describe("video player controls", () => {
 
 		fireEvent.click(getByRole("button", { name: "Picture in Picture" }));
 		expect(requestPictureInPicture).toHaveBeenCalledOnce();
-		delete (document as Document & { pictureInPictureEnabled?: boolean })
-			.pictureInPictureEnabled;
 		delete (
-			HTMLVideoElement.prototype as HTMLVideoElement & {
+			document as Omit<Document, "pictureInPictureEnabled"> & {
+				pictureInPictureEnabled?: boolean;
+			}
+		).pictureInPictureEnabled;
+		delete (
+			HTMLVideoElement.prototype as Omit<
+				HTMLVideoElement,
+				"requestPictureInPicture"
+			> & {
 				requestPictureInPicture?: () => Promise<unknown>;
 			}
 		).requestPictureInPicture;
@@ -321,7 +429,7 @@ describe("video player controls", () => {
 		vi.mocked(getPlaybackInfo).mockClear();
 		render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
+				<SubtitlePreferencesProvider session={null}>
 					<VideoPlayer
 						item={
 							{
@@ -580,7 +688,7 @@ describe("video player controls", () => {
 		});
 	});
 
-	it("navigates locally before the Syncplay media command resolves", async () => {
+	it("navigates only after the Syncplay media command resolves", async () => {
 		let resolveCommand!: (value: unknown) => void;
 		const command = vi.fn(
 			() => new Promise<unknown>((resolve) => (resolveCommand = resolve)),
@@ -595,11 +703,14 @@ describe("video player controls", () => {
 
 		advanceToNextEpisodeWithSyncplay(next, command, onNext, onClose);
 
-		expect(onNext).toHaveBeenCalledWith(next);
+		expect(onNext).not.toHaveBeenCalled();
 		expect(onClose).not.toHaveBeenCalled();
 		expect(command).toHaveBeenCalledWith(nextEpisodeSyncplayCommand(next));
-		resolveCommand({});
-		await Promise.resolve();
+		await act(async () => {
+			resolveCommand({});
+			await Promise.resolve();
+		});
+		expect(onNext).toHaveBeenCalledWith(next);
 	});
 
 	it("holds a scheduled Syncplay start until its server timestamp", () => {
@@ -697,7 +808,9 @@ describe("video player controls", () => {
 			.mockResolvedValue(new Response(JSON.stringify(style)));
 		render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider>
+				<SubtitlePreferencesProvider
+					session={{ token: "token", userId: "user", username: "Alex" }}
+				>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
@@ -707,9 +820,21 @@ describe("video player controls", () => {
 			</I18nProvider>,
 		);
 
-		expect(fetchMock).toHaveBeenCalledWith("/api/preferences/subtitles", {
-			cache: "no-store",
+		await act(async () => {
+			await Promise.resolve();
 		});
+		expect(fetchMock).toHaveBeenCalled();
+		const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [
+			string,
+			RequestInit,
+		];
+		expect(requestUrl).toContain("/api/preferences/subtitles");
+		expect(requestInit).toEqual(
+			expect.objectContaining({
+				cache: "no-store",
+				credentials: "include",
+			}),
+		);
 	});
 
 	it("stacks active cues and applies the saved custom appearance", () => {
@@ -749,9 +874,19 @@ describe("video player controls", () => {
 		expect(cues[0].getAttribute("style")).toContain(
 			'font-family: Georgia, "Times New Roman", serif',
 		);
-		expect(cues[0].getAttribute("style")).toContain(
-			"font-size: clamp(16px, 8vh, 72px)",
-		);
+		expect(
+			nativeSubtitleCueCss({
+				renderer: "native",
+				fontFamily: "serif",
+				bold: true,
+				textScale: 160,
+				fontColor: "#aabbcc",
+				borderSize: 2,
+				borderColor: "#112233",
+				backgroundColor: "#445566",
+				backgroundOpacity: 40,
+			}),
+		).toContain("font-size: clamp(16px, 8vh, 72px)");
 		expect(cues[0].getAttribute("style")).not.toContain("-webkit-text-stroke");
 		expect(cues[0].getAttribute("style")).toContain(
 			"text-shadow: -2px -2px 0 #112233",
@@ -766,6 +901,7 @@ describe("video player controls", () => {
 					url: "/trickplay.webp",
 					width: 320,
 					height: 180,
+					tileIndex: 0,
 					columns: 1,
 					rows: 1,
 					cellX: 0,
@@ -866,7 +1002,10 @@ describe("video player controls", () => {
 
 		exitFullscreenSafely();
 		await expect(Promise.resolve()).resolves.toBeUndefined();
-		delete (document as Document & { exitFullscreen?: () => Promise<void> })
-			.exitFullscreen;
+		delete (
+			document as Omit<Document, "exitFullscreen"> & {
+				exitFullscreen?: () => Promise<void>;
+			}
+		).exitFullscreen;
 	});
 });

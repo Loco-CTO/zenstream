@@ -1,5 +1,8 @@
 import type { MediaItem, MediaStream } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
+import { authenticatedFetch } from "@/lib/authenticated-request";
+
+export { orchestratorBaseUrl } from "@/lib/authenticated-request";
 
 export type CatalogItem = {
 	id: string;
@@ -52,13 +55,6 @@ export type CatalogItem = {
 	};
 };
 
-export function orchestratorBaseUrl() {
-	if (process.env.NEXT_PUBLIC_ZSO_URL)
-		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
-	if (typeof window !== "undefined") return window.location.origin;
-	return "http://127.0.0.1:9090";
-}
-
 export async function catalogRequest<T>(
 	session: AuthSession,
 	path: string,
@@ -70,15 +66,9 @@ export async function catalogRequest<T>(
 	init.signal?.addEventListener("abort", abort, { once: true });
 	let response: Response;
 	try {
-		response = await fetch(`${orchestratorBaseUrl()}${path}`, {
+		response = await authenticatedFetch(session, path, {
 			...init,
 			signal: controller.signal,
-			headers: {
-				Accept: "application/json",
-				Authorization: `Bearer ${session.token}`,
-				...(init.body ? { "Content-Type": "application/json" } : {}),
-				...init.headers,
-			},
 		});
 	} catch (error) {
 		if (controller.signal.aborted && !init.signal?.aborted) {
@@ -89,8 +79,6 @@ export async function catalogRequest<T>(
 		window.clearTimeout(timeout);
 		init.signal?.removeEventListener("abort", abort);
 	}
-	if (response.status === 401 && typeof window !== "undefined")
-		window.dispatchEvent(new Event("zenstream:auth-expired"));
 	if (!response.ok) throw new Error(`Request failed with ${response.status}.`);
 	if (response.status === 204) return null as T;
 	return response.json() as Promise<T>;
@@ -250,7 +238,13 @@ export function toMediaStreams(
 		Width: typeof stream.width === "number" ? stream.width : undefined,
 		Height: typeof stream.height === "number" ? stream.height : undefined,
 		Channels: typeof stream.channels === "number" ? stream.channels : undefined,
+		IsDefault:
+			isRecord(stream.disposition) && Number(stream.disposition.default) === 1,
 		FileId: typeof stream.fileId === "string" ? stream.fileId : undefined,
 		IsExternal: Boolean(stream.fileId),
 	}));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }

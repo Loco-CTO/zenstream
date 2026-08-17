@@ -12,6 +12,9 @@ type Socket = SyncplaySocket;
 type SyncplayEvent = unknown;
 class SyncplaySocket {
 	private ws: WebSocket | null = null;
+	private connecting: Promise<void> | null = null;
+	private connectGeneration = 0;
+	private ticketController: AbortController | null = null;
 	private listeners = new Map<string, ((value?: SyncplayEvent) => void)[]>();
 	id = "syncplay";
 	constructor(
@@ -28,39 +31,56 @@ class SyncplaySocket {
 	private fire(event: string, value?: SyncplayEvent) {
 		for (const listener of this.listeners.get(event) ?? []) listener(value);
 	}
-	async connect() {
-		if (
-			this.ws &&
-			(this.ws.readyState === WebSocket.OPEN ||
-				this.ws.readyState === WebSocket.CONNECTING)
-		)
-			return;
+	private async open(generation: number, controller: AbortController) {
 		let ticket: string;
 		try {
 			const response = await authenticatedFetch(
 				this.auth.session,
 				"/api/auth/socket-ticket",
-				{ method: "POST" },
+				{ method: "POST", signal: controller.signal },
 			);
 			if (!response.ok) throw new Error("Socket ticket request failed");
 			ticket = String((await response.json()).ticket ?? "");
 			if (!ticket) throw new Error("Socket ticket was empty");
 		} catch (error) {
-			this.fire("connect_error", error as Error);
+			if (generation === this.connectGeneration && !controller.signal.aborted)
+				this.fire("connect_error", error as Error);
+			return;
+		} finally {
+			if (this.ticketController === controller) this.ticketController = null;
+		}
+		if (generation !== this.connectGeneration) return;
+		let ws: WebSocket;
+		try {
+			ws = new WebSocket(
+				`${this.url}?ticket=${encodeURIComponent(ticket)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
+			);
+		} catch (error) {
+			if (generation === this.connectGeneration)
+				this.fire("connect_error", error as Error);
 			return;
 		}
-		const ws = new WebSocket(
-			`${this.url}?ticket=${encodeURIComponent(ticket)}&participantId=${encodeURIComponent(this.auth.participantId)}`,
-		);
+		if (generation !== this.connectGeneration) {
+			ws.close();
+			return;
+		}
 		this.ws = ws;
-		ws.onopen = () => this.fire("connect");
+		const isCurrent = () =>
+			this.connectGeneration === generation && this.ws === ws;
+		ws.onopen = () => {
+			if (isCurrent()) this.fire("connect");
+		};
 		ws.onclose = (event) => {
-			if (this.ws === ws) this.ws = null;
+			if (!isCurrent()) return;
+			this.ws = null;
 			this.fire("disconnect", event.reason);
 		};
-		ws.onerror = () =>
-			this.fire("connect_error", new Error("WebSocket connection failed"));
+		ws.onerror = () => {
+			if (isCurrent())
+				this.fire("connect_error", new Error("WebSocket connection failed"));
+		};
 		ws.onmessage = (event) => {
+			if (!isCurrent()) return;
 			const message = JSON.parse(event.data);
 			if (message.type === "groups") this.fire("syncplay:groups", message);
 			else if (message.type === "group") this.fire("syncplay:group", message);
@@ -70,6 +90,24 @@ class SyncplaySocket {
 				this.fire("syncplay:participant-replaced", message);
 			else if (message.type === "clock") this.fire("clock", message);
 		};
+	}
+	async connect() {
+		if (
+			this.ws &&
+			(this.ws.readyState === WebSocket.OPEN ||
+				this.ws.readyState === WebSocket.CONNECTING)
+		)
+			return;
+		if (this.connecting) return this.connecting;
+		const generation = ++this.connectGeneration;
+		const controller = new AbortController();
+		this.ticketController = controller;
+		let pending: Promise<void>;
+		pending = this.open(generation, controller).finally(() => {
+			if (this.connecting === pending) this.connecting = null;
+		});
+		this.connecting = pending;
+		return pending;
 	}
 	emit<T = SyncplayEvent>(
 		event: string,
@@ -95,6 +133,10 @@ class SyncplaySocket {
 		}
 	}
 	disconnect() {
+		this.connectGeneration += 1;
+		this.ticketController?.abort();
+		this.ticketController = null;
+		this.connecting = null;
 		const ws = this.ws;
 		this.ws = null;
 		ws?.close();

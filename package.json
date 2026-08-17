@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
-    "@tailwindcss/postcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^26.1.1",

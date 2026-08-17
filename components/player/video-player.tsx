@@ -1228,7 +1228,8 @@ export function VideoPlayer({
 				setDuration(Math.max(knownDuration, mediaDuration));
 				const shouldPlay = resumePlayingRef.current ?? true;
 				resumePlayingRef.current = null;
-				if (shouldPlay) void video.play().catch(() => undefined);
+				if (shouldPlay)
+					void Promise.resolve(video.play()).catch(() => undefined);
 			})();
 		};
 		const onTextTrackAdded = () =>

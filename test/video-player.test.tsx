@@ -5,8 +5,10 @@ import {
 	TrickplayBubble,
 	advanceToNextEpisode,
 	advanceToNextEpisodeWithSyncplay,
+	bufferedSecondsAhead,
 	nextEpisodeSyncplayCommand,
 	nativeSubtitleCueCss,
+	normalizeBufferedRanges,
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
@@ -238,6 +240,22 @@ describe("video player controls", () => {
 		expect(syncplayWaitingEventIsBuffering({ readyState: 3 })).toBe(false);
 	});
 
+	it("normalizes overlapping buffered ranges and only reports buffer at the playhead", () => {
+		expect(
+			normalizeBufferedRanges([
+				[19.8, 192.5],
+				[0, 109.2],
+				[300, 301],
+				[301.03, 302],
+			]),
+		).toEqual([
+			[0, 192.5],
+			[300, 302],
+		]);
+		expect(bufferedSecondsAhead([[0, 192.5]], 97.4)).toBeCloseTo(95.1);
+		expect(bufferedSecondsAhead([[0, 192.5]], 250)).toBe(0);
+	});
+
 	it("does not reuse the previous episode's readiness for Next Up", () => {
 		expect(
 			syncplayItemIsLoading("episode-1", "episode-2", { readyState: 4 }),
@@ -261,6 +279,43 @@ describe("video player controls", () => {
 		);
 
 		expect(container.firstElementChild).toHaveClass("overflow-hidden");
+	});
+
+	it("does not show an unavailable preview notice without trickplay data", () => {
+		const { container, queryByText } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						initialStreams={
+							{
+								source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+								audio: [],
+								subtitles: [],
+								qualities: [],
+							} as never
+						}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		const video = container.querySelector("video");
+		const timeline = container.querySelector('input[aria-label="Seek"]');
+		expect(video).not.toBeNull();
+		expect(timeline).not.toBeNull();
+		if (!video || !timeline) return;
+		vi.spyOn(video, "play").mockResolvedValue(undefined);
+		Object.defineProperty(video, "duration", {
+			configurable: true,
+			value: 120,
+		});
+		fireEvent.loadedMetadata(video);
+		fireEvent.pointerMove(timeline, { clientX: 1 });
+
+		expect(queryByText("Preview unavailable")).not.toBeInTheDocument();
 	});
 
 	it("adds the selected VTT stream as a native subtitle track", () => {

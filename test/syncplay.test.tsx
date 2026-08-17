@@ -25,13 +25,23 @@ vi.mock("@/lib/authenticated-request", async () => {
 		authenticatedFetch: vi.fn(
 			async (...args: Parameters<typeof authenticatedFetch>) => {
 				const [, path] = args;
-				if (path === "/api/auth/socket-ticket")
-					return new Response(JSON.stringify({ ticket: "socket-ticket" }));
+				if (path === "/api/auth/socket-ticket") {
+					socketTicketGate.requested = true;
+					return (
+						socketTicketGate.response ??
+						new Response(JSON.stringify({ ticket: "socket-ticket" }))
+					);
+				}
 				return authenticatedFetch(...args);
 			},
 		),
 	};
 });
+
+const socketTicketGate = vi.hoisted(() => ({
+	response: null as Promise<Response> | null,
+	requested: false,
+}));
 
 class TestSocket {
 	static latest: TestSocket | null = null;
@@ -114,6 +124,9 @@ function Controls() {
 			<button onClick={() => void syncplay.join("other-group")}>Join other</button>
 			<button onClick={() => void syncplay.leave()}>Leave</button>
 			<button onClick={() => void syncplay.refresh()}>Refresh</button>
+			<button onClick={() => void syncplay.setControls(true)}>
+				Enable controls
+			</button>
 			<button
 				onClick={() =>
 					void syncplay.command({
@@ -200,6 +213,8 @@ describe("SyncplayProvider", () => {
 		vi.restoreAllMocks();
 		TestSocket.openAutomatically = true;
 		TestSocket.latest = null;
+		socketTicketGate.response = null;
+		socketTicketGate.requested = false;
 	});
 	it("normalizes a trailing slash in the public WebSocket origin", async () => {
 		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
@@ -234,6 +249,26 @@ describe("SyncplayProvider", () => {
 		view.unmount();
 		expect(socket?.close).toHaveBeenCalled();
 		TestSocket.openAutomatically = true;
+	});
+
+	it("does not create a socket after cleanup cancels a pending ticket", async () => {
+		let resolveTicket!: (response: Response) => void;
+		socketTicketGate.response = new Promise<Response>((resolve) => {
+			resolveTicket = resolve;
+		});
+		const view = render(
+			<SyncplayTestProvider>
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() => expect(socketTicketGate.requested).toBe(true));
+		view.unmount();
+		resolveTicket(new Response(JSON.stringify({ ticket: "late-ticket" })));
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		expect(TestSocket.latest).toBeNull();
 	});
 
 	it("loads visible groups even when the WebSocket never opens", async () => {
@@ -547,6 +582,48 @@ describe("SyncplayProvider", () => {
 		);
 	});
 
+	it("announces one viewer-control change for an HTTP response and duplicate socket echo", async () => {
+		const enabled = { ...joinedGroup(2), allowViewerControls: true };
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+				if (url.endsWith("/groups/group") && init?.method === "PATCH")
+					return new Response(JSON.stringify(enabled));
+				throw new Error(`Unexpected request: ${url}`);
+			});
+
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Enable controls" }));
+		await waitFor(() =>
+			expect(
+				screen.getAllByText("Viewer controls were enabled for everyone."),
+			).toHaveLength(1),
+		);
+		act(() =>
+			TestSocket.latest?.receive("syncplay:group", { group: enabled }),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(
+			screen.getAllByText("Viewer controls were enabled for everyone."),
+		).toHaveLength(1);
+		expect(
+			fetchMock.mock.calls.filter(
+				([url, init]) =>
+					String(url).endsWith("/groups/group") && init?.method === "PATCH",
+			),
+		).toHaveLength(1);
+	});
+
 	it("keeps another user's broadcast discoverable without joining it", async () => {
 		vi
 			.spyOn(globalThis, "fetch")
@@ -663,6 +740,7 @@ describe("SyncplayProvider", () => {
 	});
 
 	it("announces remote member changes after the initial group state", async () => {
+		let revision = 1;
 		let members: SyncplayGroup["members"] = [
 			{
 				userId: "user",
@@ -677,7 +755,9 @@ describe("SyncplayProvider", () => {
 				String(input).endsWith("/groups") &&
 				(!init?.method || init.method === "GET")
 			)
-				return new Response(JSON.stringify({ groups: [{ ...group(1), members }] }));
+				return new Response(
+					JSON.stringify({ groups: [{ ...group(revision), members }] }),
+				);
 			throw new Error(`Unexpected request: ${String(input)}`);
 		});
 		render(
@@ -699,11 +779,13 @@ describe("SyncplayProvider", () => {
 				role: "viewer",
 			},
 		];
+		revision = 2;
 		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
 		await waitFor(() =>
 			expect(screen.getByText("Sam joined the group.")).toBeInTheDocument(),
 		);
 		members = members.filter((member) => member.userId !== "sam");
+		revision = 3;
 		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
 		await waitFor(() =>
 			expect(screen.getByText("Sam left the group.")).toBeInTheDocument(),

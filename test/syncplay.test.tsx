@@ -845,6 +845,54 @@ describe("SyncplayProvider", () => {
 		);
 	});
 
+	it("shows one fallback notification for a duplicate media state", async () => {
+		const waiting = {
+			...group(1),
+			itemId: null,
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: false,
+					loading: false,
+					role: "host" as const,
+				},
+			],
+		};
+		const playing = {
+			...waiting,
+			itemId: "movie",
+			mediaGeneration: 1,
+			revision: 2,
+		};
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [waiting] }));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(JSON.stringify(playing));
+			if (url.endsWith("/api/catalog/items/movie"))
+				return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Start media" }));
+		await waitFor(() =>
+			expect(screen.getAllByText("Syncplay started playback.")).toHaveLength(1),
+		);
+		act(() => TestSocket.latest?.receive("syncplay:group", { group: playing }));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(screen.getAllByText("Syncplay started playback.")).toHaveLength(1);
+	});
+
 	it("optimistically leaves playback while remaining in the group", async () => {
 		const browsing = {
 			...joinedGroup(2),

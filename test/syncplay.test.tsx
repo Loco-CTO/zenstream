@@ -609,9 +609,7 @@ describe("SyncplayProvider", () => {
 				screen.getAllByText("Viewer controls were enabled for everyone."),
 			).toHaveLength(1),
 		);
-		act(() =>
-			TestSocket.latest?.receive("syncplay:group", { group: enabled }),
-		);
+		act(() => TestSocket.latest?.receive("syncplay:group", { group: enabled }));
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(
 			screen.getAllByText("Viewer controls were enabled for everyone."),
@@ -872,7 +870,9 @@ describe("SyncplayProvider", () => {
 			if (url.endsWith("/groups/group/command"))
 				return new Response(JSON.stringify(playing));
 			if (url.endsWith("/api/catalog/items/movie"))
-				return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
+				return new Response(JSON.stringify({ message: "not found" }), {
+					status: 404,
+				});
 			throw new Error(`Unexpected request: ${url}`);
 		});
 

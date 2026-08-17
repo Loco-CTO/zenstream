@@ -101,10 +101,7 @@ function safePlayerUrl(value?: string) {
 	}
 }
 
-export function clearMediaSession(
-	video: HTMLVideoElement,
-	hls?: Hls | null,
-) {
+export function clearMediaSession(video: HTMLVideoElement, hls?: Hls | null) {
 	hls?.stopLoad();
 	hls?.detachMedia();
 	hls?.destroy();
@@ -127,7 +124,10 @@ export function normalizeBufferedRanges(
 			([start, end]) =>
 				Number.isFinite(start) && Number.isFinite(end) && end > start,
 		)
-		.map(([start, end]) => [Math.max(0, start), Math.max(0, end)] as BufferedTimeRange)
+		.map(
+			([start, end]) =>
+				[Math.max(0, start), Math.max(0, end)] as BufferedTimeRange,
+		)
 		.sort(([left], [right]) => left - right);
 	const merged: BufferedTimeRange[] = [];
 	for (const [start, end] of normalized) {
@@ -912,7 +912,7 @@ export function VideoPlayer({
 			onClose,
 			onNext,
 			syncplay.active,
-			 syncplay.canControl,
+			syncplay.canControl,
 			syncplay.command,
 			invalidateMediaLoad,
 			session.userId,
@@ -1169,9 +1169,7 @@ export function VideoPlayer({
 		}
 		mediaLoadActiveRef.current = true;
 		const isCurrentLoad = () =>
-			active &&
-			mediaLoadActiveRef.current &&
-			mediaLoadIdRef.current === loadId;
+			active && mediaLoadActiveRef.current && mediaLoadIdRef.current === loadId;
 		// Native HLS and hls.js can add a second subtitle track asynchronously.
 		// Install the suppression listener before assigning src so the browser
 		// cannot briefly select the stream's original captions.
@@ -1228,8 +1226,7 @@ export function VideoPlayer({
 				setDuration(Math.max(knownDuration, mediaDuration));
 				const shouldPlay = resumePlayingRef.current ?? true;
 				resumePlayingRef.current = null;
-				if (shouldPlay)
-					void Promise.resolve(video.play()).catch(() => undefined);
+				if (shouldPlay) void Promise.resolve(video.play()).catch(() => undefined);
 			})();
 		};
 		const onTextTrackAdded = () =>
@@ -1343,8 +1340,7 @@ export function VideoPlayer({
 		}
 		return () => {
 			active = false;
-			if (mediaLoadIdRef.current === loadId)
-				mediaLoadActiveRef.current = false;
+			if (mediaLoadIdRef.current === loadId) mediaLoadActiveRef.current = false;
 			clearMediaWaitTimers();
 			video.removeEventListener("loadedmetadata", onMetadata);
 			video.removeEventListener("canplay", onCanPlay);

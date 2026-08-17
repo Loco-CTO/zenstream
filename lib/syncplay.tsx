@@ -476,7 +476,8 @@ export function SyncplayProvider({
 					)
 						announceOnce(
 							`group:${next.id}:${next.revision}:member-joined:${member.participantId ?? member.userId}`,
-							() => toast.success(t("syncplayMemberJoined", { member: member.username })),
+							() =>
+								toast.success(t("syncplayMemberJoined", { member: member.username })),
 						);
 				for (const member of previous.members)
 					if (
@@ -485,7 +486,8 @@ export function SyncplayProvider({
 					)
 						announceOnce(
 							`group:${next.id}:${next.revision}:member-left:${member.participantId ?? member.userId}`,
-							() => toast.success(t("syncplayMemberLeft", { member: member.username })),
+							() =>
+								toast.success(t("syncplayMemberLeft", { member: member.username })),
 						);
 				if (previous.allowViewerControls !== next.allowViewerControls)
 					announceOnce(
@@ -496,7 +498,7 @@ export function SyncplayProvider({
 									next.allowViewerControls
 										? "syncplayViewerControlsEnabled"
 										: "syncplayViewerControlsDisabled",
-									),
+								),
 							),
 					);
 				if (
@@ -700,7 +702,8 @@ export function SyncplayProvider({
 		socket.on("syncplay:participant-replaced", (message: { id?: string }) => {
 			syncplayDebug("participant replaced", message);
 			if (!message.id || activeRef.current?.id !== message.id) return;
-			if (tombstonesRef.current.get(message.id) === Number.MAX_SAFE_INTEGER) return;
+			if (tombstonesRef.current.get(message.id) === Number.MAX_SAFE_INTEGER)
+				return;
 			tombstonesRef.current.set(message.id, Number.MAX_SAFE_INTEGER);
 			socketHandlersRef.current?.setCurrent(null);
 			socketHandlersRef.current?.toast.error(

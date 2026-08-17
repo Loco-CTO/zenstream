@@ -102,8 +102,7 @@ class SyncplaySocket {
 		const generation = ++this.connectGeneration;
 		const controller = new AbortController();
 		this.ticketController = controller;
-		let pending: Promise<void>;
-		pending = this.open(generation, controller).finally(() => {
+		const pending = this.open(generation, controller).finally(() => {
 			if (this.connecting === pending) this.connecting = null;
 		});
 		this.connecting = pending;
@@ -792,8 +791,7 @@ export function SyncplayProvider({
 		const pending = controlsUpdateRef.current;
 		if (pending && pending.groupId === group.id && pending.value === value)
 			return pending.promise;
-		let request: Promise<void>;
-		request = (async () => {
+		const request = (async () => {
 			try {
 				adopt(
 					(await call(session, `groups/${group.id}`, "PATCH", {

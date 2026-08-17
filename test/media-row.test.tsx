@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MediaRow } from "@/components/home/media-row";
 import type { MediaItem } from "@/lib/media-api";

@@ -2035,12 +2035,13 @@ export function VideoPlayer({
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
-				onWaiting={() => {
+				 onWaiting={() => {
 					// `waiting` is also emitted while a browser is seeking to the
 					// synchronized timeline.  That is not a transport stall when the
 					// element already has future data; reporting it to the server makes
 					// the whole room pause, then resume, and seek again in a loop.
 					const video = videoRef.current;
+					if (!video || !mediaLoadActiveRef.current) return;
 					if (
 						settlingTimelineRef.current != null ||
 						syncplayWaitingIsSeekTransition(
@@ -2054,19 +2055,53 @@ export function VideoPlayer({
 						});
 						return;
 					}
-					if (video && !syncplayWaitingEventIsBuffering(video)) {
+					if (!syncplayWaitingEventIsBuffering(video)) {
 						playerDebug("video waiting ignored; media has future data", {
 							readyState: video.readyState,
 						});
 						return;
 					}
-					setBuffering(true);
-					retryAfterBufferingRef.current = true;
+					if (waitingTimerRef.current !== undefined)
+						window.clearTimeout(waitingTimerRef.current);
+					if (directStallTimerRef.current !== undefined)
+						window.clearTimeout(directStallTimerRef.current);
+					mediaWaitingRef.current = true;
+					const loadId = mediaLoadIdRef.current;
+					const sourceId = sourceRef.current?.Id;
 					playerDebug("video waiting", {
-						currentTime: video?.currentTime,
-						readyState: video?.readyState,
+						currentTime: video.currentTime,
+						readyState: video.readyState,
 					});
-					reportBuffering(true);
+					waitingTimerRef.current = window.setTimeout(() => {
+						waitingTimerRef.current = undefined;
+						if (
+							!mediaLoadActiveRef.current ||
+							mediaLoadIdRef.current !== loadId ||
+							!mediaWaitingRef.current ||
+							video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+						)
+							return;
+						setBuffering(true);
+						reportBuffering(true);
+						if (sourceRef.current?.mode === "direct") {
+							directStallTimerRef.current = window.setTimeout(() => {
+								directStallTimerRef.current = undefined;
+								if (
+									!mediaLoadActiveRef.current ||
+									mediaLoadIdRef.current !== loadId ||
+									!mediaWaitingRef.current ||
+									video.paused ||
+									video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+								)
+									return;
+								playerDebug("direct playback stalled; requesting transcode", {
+									currentTime: video.currentTime,
+									readyState: video.readyState,
+								});
+								void requestTranscodedPlayback(loadId, sourceId);
+							}, 1500);
+						}
+					}, 250);
 				}}
 				onCanPlay={() => {
 					// A media error can be emitted while the browser is still

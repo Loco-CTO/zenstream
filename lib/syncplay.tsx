@@ -369,6 +369,12 @@ export function SyncplayProvider({
 	const titleCache = useRef(new Map<string, string>());
 	const announcedMediaGenerationRef = useRef<string | null>(null);
 	const announcementItemRef = useRef<string | null>(null);
+	const notificationKeysRef = useRef(new Set<string>());
+	const controlsUpdateRef = useRef<{
+		groupId: string;
+		value: boolean;
+		promise: Promise<void>;
+	} | null>(null);
 	const membershipActionRef = useRef(false);
 	const socketHandlersRef = useRef<{
 		adopt: (group: SyncplayGroup, announceNewMedia?: boolean) => void;
@@ -400,9 +406,21 @@ export function SyncplayProvider({
 		activeRef.current = group;
 		setActive(group);
 	}, []);
+	const announceOnce = useCallback((key: string, announce: () => void) => {
+		const keys = notificationKeysRef.current;
+		if (keys.has(key)) return false;
+		keys.add(key);
+		if (keys.size > 256) {
+			const oldest = keys.values().next().value;
+			if (typeof oldest === "string") keys.delete(oldest);
+		}
+		announce();
+		return true;
+	}, []);
 	const announcePlayback = useCallback(
-		(itemId: string) => {
-			announcementItemRef.current = itemId;
+		(itemId: string, notificationKey: string) => {
+			if (!announceOnce(notificationKey, () => undefined)) return;
+			announcementItemRef.current = notificationKey;
 			const title = titleCache.current.get(itemId);
 			if (title) {
 				toast.success(t("syncplayNowPlaying", { title }));
@@ -411,18 +429,18 @@ export function SyncplayProvider({
 			void getItem(session, itemId)
 				.then((item) => {
 					titleCache.current.set(itemId, item.Name);
-					if (announcementItemRef.current === itemId)
+					if (announcementItemRef.current === notificationKey)
 						toast.success(t("syncplayNowPlaying", { title: item.Name }));
 				})
 				.catch(() => {
-					if (announcementItemRef.current === itemId)
+					if (announcementItemRef.current === notificationKey)
 						toast.success(t("syncplayNowPlayingFallback"));
 				});
 		},
-		[session, t, toast],
+		[announceOnce, session, t, toast],
 	);
 	const reconcile = useCallback(
-		(next: SyncplayGroup | null) => {
+		(next: SyncplayGroup | null, eventRevision?: number) => {
 			const previous = activeRef.current;
 			if (!hydratedRef.current) {
 				hydratedRef.current = true;
@@ -433,14 +451,19 @@ export function SyncplayProvider({
 				previous &&
 				next &&
 				previous.id === next.id &&
-				next.revision < previous.revision
+				next.revision <= previous.revision
 			)
 				return;
+			const revision = eventRevision ?? next?.revision ?? previous?.revision ?? -1;
 			if (previous && !next)
-				toast.success(t("syncplayGroupEnded", { group: previous.name }));
+				announceOnce(`group:${previous.id}:${revision}:ended`, () =>
+					toast.success(t("syncplayGroupEnded", { group: previous.name })),
+				);
 			if (previous && next && previous.id === next.id) {
 				if (!previous.hostDisconnectedAt && next.hostDisconnectedAt)
-					toast.error(t("syncplayHostDisconnected"));
+					announceOnce(`group:${next.id}:${next.revision}:host-disconnected`, () =>
+						toast.error(t("syncplayHostDisconnected")),
+					);
 				const before = new Map(
 					previous.members.map((member) => [member.participantId, member]),
 				);
@@ -452,13 +475,31 @@ export function SyncplayProvider({
 						member.participantId !== currentParticipantId &&
 						!before.has(member.participantId)
 					)
-						toast.success(t("syncplayMemberJoined", { member: member.username }));
+						announceOnce(
+							`group:${next.id}:${next.revision}:member-joined:${member.participantId ?? member.userId}`,
+							() => toast.success(t("syncplayMemberJoined", { member: member.username })),
+						);
 				for (const member of previous.members)
 					if (
 						member.participantId !== currentParticipantId &&
 						!after.has(member.participantId)
 					)
-						toast.success(t("syncplayMemberLeft", { member: member.username }));
+						announceOnce(
+							`group:${next.id}:${next.revision}:member-left:${member.participantId ?? member.userId}`,
+							() => toast.success(t("syncplayMemberLeft", { member: member.username })),
+						);
+				if (previous.allowViewerControls !== next.allowViewerControls)
+					announceOnce(
+						`group:${next.id}:${next.revision}:viewer-controls:${next.allowViewerControls ? "enabled" : "disabled"}`,
+						() =>
+							toast.success(
+								t(
+									next.allowViewerControls
+										? "syncplayViewerControlsEnabled"
+										: "syncplayViewerControlsDisabled",
+									),
+							),
+					);
 				if (
 					next.itemId &&
 					(next.mediaGeneration ?? 0) !== (previous.mediaGeneration ?? 0)
@@ -468,14 +509,14 @@ export function SyncplayProvider({
 					// media is ready; that event must not announce the same title again.
 					const generationKey = `${next.id}:${next.mediaGeneration ?? 0}`;
 					if (announcedMediaGenerationRef.current !== generationKey) {
-						announcePlayback(next.itemId);
+						announcePlayback(next.itemId, `media:${generationKey}`);
 						announcedMediaGenerationRef.current = generationKey;
 					}
 				}
 			}
 			setCurrent(next);
 		},
-		[announcePlayback, currentParticipantId, setCurrent, t, toast],
+		[announceOnce, announcePlayback, currentParticipantId, setCurrent, t, toast],
 	);
 	const refresh = useCallback(async () => {
 		const data = (await call(session, "groups")) as { groups: SyncplayGroup[] };
@@ -526,25 +567,14 @@ export function SyncplayProvider({
 			const knownRevision = revisionRef.current.get(group.id);
 			if (
 				(tombstone != null && group.revision <= tombstone) ||
-				(knownRevision != null && group.revision < knownRevision)
+				(knownRevision != null && group.revision <= knownRevision)
 			)
 				return;
 			if (
 				activeRef.current?.id === group.id &&
-				group.revision < activeRef.current.revision
+				group.revision <= activeRef.current.revision
 			)
 				return;
-			if (
-				activeRef.current?.id === group.id &&
-				activeRef.current.allowViewerControls !== group.allowViewerControls
-			)
-				toast.success(
-					t(
-						group.allowViewerControls
-							? "syncplayViewerControlsEnabled"
-							: "syncplayViewerControlsDisabled",
-					),
-				);
 			hydratedRef.current = true;
 			revisionRef.current.set(group.id, group.revision);
 			if (
@@ -553,7 +583,10 @@ export function SyncplayProvider({
 				group.itemId &&
 				group.itemId !== activeRef.current?.itemId
 			)
-				announcePlayback(group.itemId);
+				announcePlayback(
+					group.itemId,
+					`media:${group.id}:${group.mediaGeneration ?? 0}`,
+				);
 			const isMember = group.members.some((member) =>
 				isCurrentParticipant(member, currentParticipantId, session.userId),
 			);
@@ -643,27 +676,6 @@ export function SyncplayProvider({
 			syncplayDebug("socket groups", message);
 			const next = message.groups ?? [];
 			for (const group of next) socketHandlersRef.current?.adopt(group);
-			const current = activeRef.current;
-			if (current) {
-				const candidate = next.find((group) => group.id === current.id);
-				// A connection snapshot can be older than a command response or a
-				// socket event already applied locally. It must not evict the session.
-				if (candidate && candidate.revision >= current.revision)
-					reconcileRef.current(
-						candidate.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId, session.userId),
-						)
-							? candidate
-							: null,
-					);
-			} else
-				reconcileRef.current(
-					next.find((group) =>
-						group.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId, session.userId),
-						),
-					) ?? null,
-				);
 		});
 		socket.on("syncplay:group", (message: { group?: SyncplayGroup }) => {
 			syncplayDebug("socket group", message);
@@ -679,16 +691,17 @@ export function SyncplayProvider({
 				const id = message.id;
 				const revision = message.revision ?? Number.MAX_SAFE_INTEGER;
 				const known = revisionRef.current.get(id) ?? -1;
-				if (revision < known) return;
+				if (revision <= known) return;
 				tombstonesRef.current.set(id, revision);
 				revisionRef.current.set(id, revision);
 				setGroups((old) => old.filter((group) => group.id !== id));
-				if (activeRef.current?.id === id) reconcileRef.current(null);
+				if (activeRef.current?.id === id) reconcileRef.current(null, revision);
 			},
 		);
 		socket.on("syncplay:participant-replaced", (message: { id?: string }) => {
 			syncplayDebug("participant replaced", message);
 			if (!message.id || activeRef.current?.id !== message.id) return;
+			if (tombstonesRef.current.get(message.id) === Number.MAX_SAFE_INTEGER) return;
 			tombstonesRef.current.set(message.id, Number.MAX_SAFE_INTEGER);
 			socketHandlersRef.current?.setCurrent(null);
 			socketHandlersRef.current?.toast.error(
@@ -776,18 +789,29 @@ export function SyncplayProvider({
 	const setControls = async (value: boolean) => {
 		const group = activeRef.current;
 		if (!group) return;
-		try {
-			adopt(
-				(await call(session, `groups/${group.id}`, "PATCH", {
-					allowViewerControls: value,
-					expectedRevision: group.revision,
-					operationId: operationId(),
-				})) as SyncplayGroup,
-			);
-		} catch (error) {
-			toast.error(t("syncplaySettingsFailed"));
-			throw error;
-		}
+		const pending = controlsUpdateRef.current;
+		if (pending && pending.groupId === group.id && pending.value === value)
+			return pending.promise;
+		let request: Promise<void>;
+		request = (async () => {
+			try {
+				adopt(
+					(await call(session, `groups/${group.id}`, "PATCH", {
+						allowViewerControls: value,
+						expectedRevision: group.revision,
+						operationId: operationId(),
+					})) as SyncplayGroup,
+				);
+			} catch (error) {
+				toast.error(t("syncplaySettingsFailed"));
+				throw error;
+			}
+		})().finally(() => {
+			if (controlsUpdateRef.current?.promise === request)
+				controlsUpdateRef.current = null;
+		});
+		controlsUpdateRef.current = { groupId: group.id, value, promise: request };
+		return request;
 	};
 	const removeMember = async (userId: string) => {
 		const group = activeRef.current;
@@ -851,8 +875,9 @@ export function SyncplayProvider({
 		if (shouldAnnounce) {
 			// Announce the host's explicit media selection at the button command
 			// boundary. Play/pause commands must remain silent, including resume.
-			announcedMediaGenerationRef.current = `${group.id}:${(group.mediaGeneration ?? 0) + 1}`;
-			announcePlayback(itemId);
+			const generationKey = `${group.id}:${(group.mediaGeneration ?? 0) + 1}`;
+			announcedMediaGenerationRef.current = generationKey;
+			announcePlayback(itemId, `media:${generationKey}`);
 		}
 		const groupId = group.id;
 		const seekVersion = value.action === "seek" ? ++latestSeekRef.current : null;

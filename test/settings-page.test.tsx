@@ -8,6 +8,7 @@ const router = vi.hoisted(() => ({
 	back: vi.fn(),
 	push: vi.fn(),
 }));
+const session = { token: "token", userId: "user-1", username: "Alex" };
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => router,
@@ -133,7 +134,7 @@ describe("SettingsPage", () => {
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify(style)));
 		render(
-			<SubtitlePreferencesProvider initialStyle={style}>
+			<SubtitlePreferencesProvider session={session} initialStyle={style}>
 				<SettingsPage
 					displayName="Alex"
 					userId="user-1"
@@ -152,7 +153,7 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("option", { name: "Noto Sans" }));
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenCalledWith(
-				"/api/preferences/subtitles",
+				expect.stringContaining("/api/preferences/subtitles"),
 				expect.objectContaining({
 					method: "PATCH",
 					body: JSON.stringify({ ...style, fontFamily: "sans" }),
@@ -180,7 +181,7 @@ describe("SettingsPage", () => {
 				new Response(JSON.stringify({ ...style, renderer: "overlay" })),
 			);
 		render(
-			<SubtitlePreferencesProvider initialStyle={style}>
+			<SubtitlePreferencesProvider session={session} initialStyle={style}>
 				<SettingsPage
 					displayName="Alex"
 					userId="user-1"
@@ -196,7 +197,7 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("option", { name: /Overlay/ }));
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenCalledWith(
-				"/api/preferences/subtitles",
+				expect.stringContaining("/api/preferences/subtitles"),
 				expect.objectContaining({
 					method: "PATCH",
 					body: JSON.stringify({ ...style, renderer: "overlay" }),
@@ -223,7 +224,7 @@ describe("SettingsPage", () => {
 				new Response(JSON.stringify({ ...style, fontColor: "#818cf8" })),
 			);
 		render(
-			<SubtitlePreferencesProvider initialStyle={style}>
+			<SubtitlePreferencesProvider session={session} initialStyle={style}>
 				<SettingsPage
 					displayName="Alex"
 					userId="user-1"
@@ -257,7 +258,7 @@ describe("SettingsPage", () => {
 		);
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenLastCalledWith(
-				"/api/preferences/subtitles",
+				expect.stringContaining("/api/preferences/subtitles"),
 				expect.objectContaining({
 					method: "PATCH",
 					body: JSON.stringify({ ...style, fontColor: "#818cf8" }),

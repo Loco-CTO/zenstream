@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MediaRow } from "@/components/home/media-row";
 import type { MediaItem } from "@/lib/media-api";
@@ -18,6 +18,10 @@ function renderRow() {
 	scroller.setPointerCapture = vi.fn();
 	scroller.releasePointerCapture = vi.fn();
 	scroller.scrollBy = vi.fn();
+	Object.defineProperty(scroller, "scrollTo", {
+		configurable: true,
+		value: vi.fn(),
+	});
 	Object.defineProperties(scroller, {
 		clientWidth: { configurable: true, value: 500 },
 		scrollWidth: { configurable: true, value: 1000 },
@@ -33,61 +37,70 @@ function pointerEvent(type: string, properties: Record<string, unknown>) {
 }
 
 describe("MediaRow scrolling", () => {
-	it("only shows navigation buttons when more content exists in that direction", () => {
+	it("only shows navigation buttons when more content exists in that direction", async () => {
 		const scroller = renderRow();
 
-		expect(
-			screen.queryByRole("button", { name: "Scroll Popular left" }),
-		).not.toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "Scroll Popular right" }),
-		).toBeInTheDocument();
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("button", { name: "Scroll Popular left" }),
+			).not.toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular right" }),
+			).toBeInTheDocument();
+		});
 
 		scroller.scrollLeft = 250;
 		fireEvent.scroll(scroller);
-		expect(
-			screen.getByRole("button", { name: "Scroll Popular left" }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "Scroll Popular right" }),
-		).toBeInTheDocument();
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular left" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular right" }),
+			).toBeInTheDocument();
+		});
 
 		scroller.scrollLeft = 500;
 		fireEvent.scroll(scroller);
-		expect(
-			screen.getByRole("button", { name: "Scroll Popular left" }),
-		).toBeInTheDocument();
-		expect(
-			screen.queryByRole("button", { name: "Scroll Popular right" }),
-		).not.toBeInTheDocument();
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular left" }),
+			).toBeInTheDocument();
+			expect(
+				screen.queryByRole("button", { name: "Scroll Popular right" }),
+			).not.toBeInTheDocument();
+		});
 
 		scroller.scrollLeft = 3;
 		fireEvent.scroll(scroller);
-		expect(
-			screen.queryByRole("button", { name: "Scroll Popular left" }),
-		).not.toBeInTheDocument();
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "Scroll Popular left" }),
+			).not.toBeInTheDocument(),
+		);
 
 		scroller.scrollLeft = 497;
 		fireEvent.scroll(scroller);
-		expect(
-			screen.queryByRole("button", { name: "Scroll Popular right" }),
-		).not.toBeInTheDocument();
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "Scroll Popular right" }),
+			).not.toBeInTheDocument(),
+		);
 	});
 
-	it("smoothly scrolls from the navigation buttons without intercepting wheel input", () => {
-		const animationFrames: FrameRequestCallback[] = [];
-		const requestAnimationFrame = vi
-			.spyOn(window, "requestAnimationFrame")
-			.mockImplementation((callback) => {
-				animationFrames.push(callback);
-				return animationFrames.length;
-			});
+	it("uses native smooth scrolling from the navigation buttons without intercepting wheel input", async () => {
 		const scroller = renderRow();
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular right" }),
+			).toBeInTheDocument(),
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: "Scroll Popular right" }));
-		expect(scroller.scrollLeft).toBe(0);
-		act(() => animationFrames.shift()?.(0));
-		expect(scroller.scrollLeft).toBeCloseTo(57.6);
+		expect(scroller.scrollTo).toHaveBeenCalledWith({
+			left: 360,
+			behavior: "smooth",
+		});
 
 		const wheel = new WheelEvent("wheel", {
 			bubbles: true,
@@ -97,40 +110,37 @@ describe("MediaRow scrolling", () => {
 		scroller.dispatchEvent(wheel);
 		expect(wheel.defaultPrevented).toBe(false);
 		expect(scroller.scrollBy).not.toHaveBeenCalled();
-		requestAnimationFrame.mockRestore();
 	});
 
-	it("smoothly scrolls with the keyboard arrow keys", () => {
-		const animationFrames: FrameRequestCallback[] = [];
-		const requestAnimationFrame = vi
-			.spyOn(window, "requestAnimationFrame")
-			.mockImplementation((callback) => {
-				animationFrames.push(callback);
-				return animationFrames.length;
-			});
+	it("uses native smooth scrolling with the keyboard arrow keys", async () => {
 		const scroller = renderRow();
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular right" }),
+			).toBeInTheDocument(),
+		);
 
 		fireEvent.keyDown(scroller, { key: "ArrowRight" });
-		act(() => animationFrames.shift()?.(0));
-		expect(scroller.scrollLeft).toBeCloseTo(57.6);
+		expect(scroller.scrollTo).toHaveBeenLastCalledWith({
+			left: 360,
+			behavior: "smooth",
+		});
 
 		fireEvent.keyDown(scroller, { key: "ArrowLeft" });
-		act(() => animationFrames.shift()?.(0));
-		expect(scroller.scrollLeft).toBeGreaterThan(0);
-		expect(scroller.scrollLeft).toBeLessThan(57.6);
-		requestAnimationFrame.mockRestore();
+		expect(scroller.scrollTo).toHaveBeenLastCalledWith({
+			left: 0,
+			behavior: "smooth",
+		});
 	});
 
-	it("smoothly continues from pending drag movement when an arrow key takes over", () => {
-		const animationFrames: FrameRequestCallback[] = [];
-		const requestAnimationFrame = vi
-			.spyOn(window, "requestAnimationFrame")
-			.mockImplementation((callback) => {
-				animationFrames.push(callback);
-				return animationFrames.length;
-			});
+	it("cancels pending drag movement when an arrow key takes over", async () => {
 		const cancelAnimationFrame = vi.spyOn(window, "cancelAnimationFrame");
 		const scroller = renderRow();
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Scroll Popular right" }),
+			).toBeInTheDocument(),
+		);
 		scroller.scrollLeft = 100;
 		const cardLink = screen.getByRole("link", { name: /First title/ });
 
@@ -153,11 +163,12 @@ describe("MediaRow scrolling", () => {
 		);
 		fireEvent.keyDown(scroller, { key: "ArrowRight" });
 
-		act(() => animationFrames.shift()?.(0));
-		expect(scroller.scrollLeft).toBeCloseTo(164);
-		expect(cancelAnimationFrame).not.toHaveBeenCalled();
+		expect(cancelAnimationFrame).toHaveBeenCalled();
+		expect(scroller.scrollTo).toHaveBeenCalledWith({
+			left: 460,
+			behavior: "smooth",
+		});
 
-		requestAnimationFrame.mockRestore();
 		cancelAnimationFrame.mockRestore();
 	});
 
@@ -170,6 +181,9 @@ describe("MediaRow scrolling", () => {
 				return animationFrames.length;
 			});
 		const scroller = renderRow();
+		act(() => {
+			while (animationFrames.length) animationFrames.shift()?.(0);
+		});
 		scroller.scrollLeft = 100;
 		const cardLink = screen.getByRole("link", { name: /First title/ });
 

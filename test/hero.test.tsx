@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Hero } from "@/components/home/hero";
 import type { MediaItem } from "@/lib/media-api";
@@ -24,9 +24,9 @@ describe("Hero", () => {
 
 		expect(heading).toHaveClass("line-clamp-3");
 		expect(heading).toHaveClass("[overflow-wrap:anywhere]");
-		expect(heading).toHaveClass("text-[clamp(2rem,9vw,4rem)]");
-		expect(heading).toHaveClass("md:text-6xl");
-		expect(heading).toHaveClass("lg:text-7xl");
+		expect(heading).toHaveClass("text-[clamp(1.5rem,5vw,3rem)]");
+		expect(heading).toHaveClass("md:text-4xl");
+		expect(heading).toHaveClass("lg:text-5xl");
 	});
 
 	it("sizes the featured section to about three quarters of the viewport", () => {
@@ -71,14 +71,16 @@ describe("Hero", () => {
 		expect(infoButton).not.toHaveClass("uppercase");
 	});
 
-	it("routes the featured title to the native player URL when Play is clicked", () => {
+	it("routes the featured title to the native player URL when Play is clicked", async () => {
 		const item = heroItem("featured", "Featured Title");
 
 		render(<Hero items={[item]} session={session} />);
 
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
-		expect(router.push).toHaveBeenCalledWith("/play/featured");
+		await waitFor(() =>
+			expect(router.push).toHaveBeenCalledWith("/play/featured"),
+		);
 	});
 
 	it("uses the Logo image in place of the visual title when present", () => {

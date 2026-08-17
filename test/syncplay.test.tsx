@@ -7,7 +7,6 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import { io } from "socket.io-client";
 import {
 	SyncplayProvider,
 	useSyncplay,
@@ -16,26 +15,62 @@ import {
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
 
+vi.mock("@/lib/authenticated-request", async () => {
+	const actual = await vi.importActual<typeof import("@/lib/authenticated-request")>(
+		"@/lib/authenticated-request",
+	);
+	const authenticatedFetch = actual.authenticatedFetch;
+	return {
+		...actual,
+		authenticatedFetch: vi.fn(
+			async (...args: Parameters<typeof authenticatedFetch>) => {
+				const [, path] = args;
+				if (path === "/api/auth/socket-ticket")
+					return new Response(JSON.stringify({ ticket: "socket-ticket" }));
+				return authenticatedFetch(...args);
+			},
+		),
+	};
+});
+
 class TestSocket {
 	static latest: TestSocket | null = null;
 	static openAutomatically = true;
-	private handlers = new Map<string, (message?: unknown) => void>();
-	connect = vi.fn();
-	disconnect = vi.fn();
-	constructor() {
+	static readonly CONNECTING = 0;
+	static readonly OPEN = 1;
+	static readonly CLOSED = 3;
+	readonly url: string;
+	readyState = TestSocket.CONNECTING;
+	onopen: (() => void) | null = null;
+	onclose: ((event: { reason: string }) => void) | null = null;
+	onerror: (() => void) | null = null;
+	onmessage: ((event: { data: string }) => void) | null = null;
+	send = vi.fn();
+	close = vi.fn(() => {
+		this.readyState = TestSocket.CLOSED;
+		this.onclose?.({ reason: "" });
+	});
+	constructor(url: string) {
+		this.url = url;
 		TestSocket.latest = this;
-	}
-	on(event: string, handler: (message?: unknown) => void) {
-		this.handlers.set(event, handler);
-		if (event === "connect" && TestSocket.openAutomatically)
-			queueMicrotask(() => handler());
-		return this;
+		if (TestSocket.openAutomatically)
+			queueMicrotask(() => {
+				this.readyState = TestSocket.OPEN;
+				this.onopen?.();
+			});
 	}
 	receive(event: string, message?: unknown) {
-		this.handlers.get(event)?.(message);
+		const type = event.startsWith("syncplay:")
+			? event.slice("syncplay:".length)
+			: event;
+		const payload =
+			message && typeof message === "object"
+				? (message as Record<string, unknown>)
+				: {};
+		this.onmessage?.({ data: JSON.stringify({ type, ...payload }) });
 	}
 }
-vi.mock("socket.io-client", () => ({ io: vi.fn(() => new TestSocket()) }));
+vi.stubGlobal("WebSocket", TestSocket);
 
 vi.mock("next/navigation", () => ({
 	usePathname: () => "/show/movie",
@@ -164,35 +199,40 @@ describe("SyncplayProvider", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		TestSocket.openAutomatically = true;
+		TestSocket.latest = null;
 	});
-	it("normalizes a trailing slash in the public Socket.IO origin", () => {
+	it("normalizes a trailing slash in the public WebSocket origin", async () => {
 		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
 		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.domain.com/";
-		const socketFactory = vi.mocked(io);
-		const initialCalls = socketFactory.mock.calls.length;
 		const view = render(
 			<SyncplayTestProvider>
 				<GroupCount />
 			</SyncplayTestProvider>,
 		);
-		expect(socketFactory.mock.calls[initialCalls]?.[0]).toBe(
-			"https://zso.domain.com/syncplay",
-		);
-		view.unmount();
-		if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_ZSO_URL;
-		else process.env.NEXT_PUBLIC_ZSO_URL = originalOrigin;
+		try {
+			await waitFor(() =>
+				expect(TestSocket.latest?.url).toMatch(
+					/^ws:\/\/zso\.domain\.com\/api\/ws\/syncplay\?ticket=socket-ticket&participantId=/,
+				),
+			);
+		} finally {
+			view.unmount();
+			if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_ZSO_URL;
+			else process.env.NEXT_PUBLIC_ZSO_URL = originalOrigin;
+		}
 	});
 
-	it("disconnects the Socket.IO client when the provider unmounts", () => {
+	it("disconnects the WebSocket when the provider unmounts", async () => {
 		TestSocket.openAutomatically = false;
 		const view = render(
 			<SyncplayTestProvider>
 				<GroupCount />
 			</SyncplayTestProvider>,
 		);
+		await waitFor(() => expect(TestSocket.latest).not.toBeNull());
 		const socket = TestSocket.latest;
 		view.unmount();
-		expect(socket?.disconnect).toHaveBeenCalled();
+		expect(socket?.close).toHaveBeenCalled();
 		TestSocket.openAutomatically = true;
 	});
 
@@ -314,7 +354,7 @@ describe("SyncplayProvider", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenCalledWith(
-				"/api/syncplay/groups/group/join",
+				expect.stringContaining("/api/syncplay/groups/group/join"),
 				expect.any(Object),
 			),
 		);
@@ -362,7 +402,7 @@ describe("SyncplayProvider", () => {
 		);
 		await waitFor(() => expect(screen.getByText("group")).toBeInTheDocument());
 		expect(fetchMock).toHaveBeenCalledWith(
-			"/api/syncplay/groups",
+			expect.stringContaining("/api/syncplay/groups"),
 			expect.any(Object),
 		);
 	});
@@ -652,6 +692,7 @@ describe("SyncplayProvider", () => {
 			...members,
 			{
 				userId: "sam",
+				participantId: "participant-sam",
 				username: "Sam",
 				viewing: false,
 				loading: false,
@@ -696,8 +737,16 @@ describe("SyncplayProvider", () => {
 						revision: 2,
 					}),
 				);
-			if (url.endsWith("/api/content/items/movie"))
-				return new Response(JSON.stringify({ Id: "movie", Name: "Movie Name" }));
+			if (url.endsWith("/api/catalog/items/movie"))
+				return new Response(
+					JSON.stringify({
+						id: "movie",
+						libraryId: "movies",
+						type: "movie",
+						name: "Movie Name",
+						metadata: { title: "Movie Name" },
+					}),
+				);
 			throw new Error(`Unexpected request: ${url}`);
 		});
 		render(
@@ -740,7 +789,7 @@ describe("SyncplayProvider", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Browse" }));
 		await waitFor(() =>
 			expect(fetchMock).toHaveBeenCalledWith(
-				"/api/syncplay/groups/group/participation",
+				expect.stringContaining("/api/syncplay/groups/group/participation"),
 				expect.objectContaining({ method: "POST" }),
 			),
 		);

@@ -112,10 +112,9 @@ describe("detail views", () => {
 		const relatedCard = screen.getByText("Related Film").closest("article");
 		expect(relatedCard).toHaveClass("w-[148px]", "md:w-[200px]");
 		expect(screen.getByText("Related Film")).toHaveClass("text-xs");
-		expect(screen.getByText("Related Film").closest("a")).toHaveAttribute(
-			"href",
-			"/show/similar",
-		);
+		expect(
+			within(relatedCard!).getByRole("link", { name: "Related Film" }),
+		).toHaveAttribute("href", "/show/similar");
 		const playButton = screen.getByRole("button", { name: "Play" });
 		expect(playButton).not.toBeDisabled();
 		expect(playButton).toHaveClass("h-11", "min-w-28", "bg-white", "px-5");
@@ -128,7 +127,7 @@ describe("detail views", () => {
 		expect(playButton).not.toHaveClass("uppercase", "bg-gradient-to-br");
 	});
 
-	it("marks a watched item unwatched when playback starts", async () => {
+	it("navigates a watched item to the player", () => {
 		renderDetail({
 			item: { ...movie(), UserData: { IsFavorite: false, Played: true } },
 			seasons: [],
@@ -137,16 +136,7 @@ describe("detail views", () => {
 		});
 
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
-		const video = document.querySelector("video");
-		expect(video).toBeInTheDocument();
-		fireEvent.play(video!);
-
-		await waitFor(() =>
-			expect(fetch).toHaveBeenCalledWith(
-				expect.stringContaining("/UserPlayedItems/movie"),
-				expect.objectContaining({ method: "DELETE" }),
-			),
-		);
+		expect(router.push).toHaveBeenCalledWith("/play/movie");
 	});
 
 	it("opens the player immediately while media information is still loading", () => {
@@ -158,7 +148,7 @@ describe("detail views", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
-		expect(document.querySelector("video")).toBeInTheDocument();
+		expect(router.push).toHaveBeenCalledWith("/play/movie");
 	});
 
 	it("announces new host media before the player is mounted", () => {
@@ -225,10 +215,40 @@ describe("detail views", () => {
 
 	it("renders series episodes and switches seasons", async () => {
 		vi.mocked(fetch).mockImplementation(async (input) => {
-			if (String(input).includes("seasonId=s2")) {
+			const url = new URL(String(input));
+			if (url.pathname === "/api/catalog/items/s2") {
 				return new Response(
 					JSON.stringify({
-						Items: [{ ...episode("ep-2", 1), Name: "Second Season Premiere" }],
+						id: "s2",
+						libraryId: "shows",
+						type: "season",
+						name: "The Return",
+						metadata: { title: "The Return" },
+					}),
+					{ status: 200 },
+				);
+			}
+			if (
+				url.pathname === "/api/catalog/items" &&
+				url.searchParams.get("parentId") === "s2"
+			) {
+				return new Response(
+					JSON.stringify({
+						items: [
+							{
+								id: "ep-2",
+								libraryId: "shows",
+								type: "episode",
+								name: "Second Season Premiere",
+								seriesId: "series",
+								seasonId: "s2",
+								episodeNumber: 1,
+								metadata: {
+									title: "Second Season Premiere",
+									overview: "Episode overview",
+								},
+							},
+						],
 					}),
 					{ status: 200 },
 				);
@@ -358,18 +378,14 @@ describe("detail views", () => {
 			.getByRole("region", { name: "Episodes" })
 			.querySelector('[aria-label="Episodes"]');
 		if (!scroller) throw new Error("Episode scroller was not rendered");
-		const animationFrames: Array<FrameRequestCallback> = [];
-		vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-			animationFrames.push(callback);
-			return animationFrames.length;
-		});
 		Object.defineProperties(scroller, {
 			clientWidth: { configurable: true, value: 320 },
 			scrollWidth: { configurable: true, value: 640 },
 		});
+		const scrollTo = vi.fn();
 		Object.defineProperty(scroller, "scrollTo", {
 			configurable: true,
-			value: vi.fn(),
+			value: scrollTo,
 		});
 		fireEvent.scroll(scroller);
 
@@ -382,8 +398,7 @@ describe("detail views", () => {
 		fireEvent.click(
 			screen.getByRole("button", { name: "Scroll Episodes right" }),
 		);
-		animationFrames.shift()?.(0);
-		expect(scroller.scrollLeft).toBeCloseTo(51.2);
+		expect(scrollTo).toHaveBeenCalledWith({ left: 320, behavior: "smooth" });
 	});
 
 	it("uses the home media-card hover treatment for horizontally scrolling episodes", () => {
@@ -422,19 +437,17 @@ describe("detail views", () => {
 		if (!castScroller || !similarScroller)
 			throw new Error("Detail scrollers were not rendered");
 
-		const animationFrames: Array<FrameRequestCallback> = [];
-		vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-			animationFrames.push(callback);
-			return animationFrames.length;
-		});
+		const scrollToCalls = new Map<Element, ReturnType<typeof vi.fn>>();
 		for (const scroller of [castScroller, similarScroller]) {
 			Object.defineProperties(scroller, {
 				clientWidth: { configurable: true, value: 320 },
 				scrollWidth: { configurable: true, value: 640 },
 			});
+			const scrollTo = vi.fn();
+			scrollToCalls.set(scroller, scrollTo);
 			Object.defineProperty(scroller, "scrollTo", {
 				configurable: true,
-				value: vi.fn(),
+				value: scrollTo,
 			});
 			fireEvent.scroll(scroller);
 		}
@@ -453,15 +466,22 @@ describe("detail views", () => {
 		fireEvent.click(
 			screen.getByRole("button", { name: "Scroll More Like This right" }),
 		);
-		animationFrames.shift()?.(0);
-		animationFrames.shift()?.(0);
-		expect(castScroller.scrollLeft).toBeCloseTo(51.2);
-		expect(similarScroller.scrollLeft).toBeCloseTo(51.2);
+		expect(scrollToCalls.get(castScroller)).toHaveBeenCalledWith({
+			left: 320,
+			behavior: "smooth",
+		});
+		expect(scrollToCalls.get(similarScroller)).toHaveBeenCalledWith({
+			left: 320,
+			behavior: "smooth",
+		});
 	});
 
 	it("rolls back an optimistic favorite mutation after failure", async () => {
-		vi.mocked(fetch).mockImplementation(async (input) => {
-			if (String(input).includes("/UserFavoriteItems/"))
+		vi.mocked(fetch).mockImplementation(async (input, init) => {
+			if (
+				String(input).includes("/api/catalog/items/movie/state") &&
+				init?.method === "PATCH"
+			)
 				throw new Error("offline");
 			return new Response(null, { status: 204 });
 		});
@@ -514,6 +534,6 @@ function episode(id: string, number: number): MediaItem {
 		ParentIndexNumber: 1,
 		IndexNumber: number,
 		Overview: "Episode overview",
-		ImageTags: { Thumb: "thumb" },
+		ImageTags: { Primary: "thumb" },
 	};
 }

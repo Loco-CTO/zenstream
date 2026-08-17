@@ -13,7 +13,7 @@ describe("font configuration", () => {
 		expect(layout).toContain('variable: "--font-noto-sans"');
 		expect(layout).toContain("notoSans.variable");
 		expect(globals).toContain("--font-sans: var(--font-noto-sans);");
-		expect(globals).toContain("font-family: var(--font-noto-sans)");
+		expect(globals).toMatch(/font-family:\s*var\(--font-noto-sans\)/);
 	});
 
 	it("keeps the UI type scale at least 12px", () => {

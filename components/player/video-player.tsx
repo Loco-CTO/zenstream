@@ -888,6 +888,7 @@ export function VideoPlayer({
 				setNextChecked(false);
 				setCurrentTime(0);
 				setDuration(0);
+				invalidateMediaLoad("next episode");
 				setUrl(undefined);
 				void syncplay
 					.command(nextEpisodeSyncplayCommand(target))
@@ -902,6 +903,7 @@ export function VideoPlayer({
 			setNextChecked(false);
 			setCurrentTime(0);
 			setDuration(0);
+			invalidateMediaLoad("next episode");
 			setUrl(undefined);
 			advanceToNextEpisode(target, onNext, onClose);
 		},
@@ -910,8 +912,9 @@ export function VideoPlayer({
 			onClose,
 			onNext,
 			syncplay.active,
-			syncplay.canControl,
+			 syncplay.canControl,
 			syncplay.command,
+			invalidateMediaLoad,
 			session.userId,
 		],
 	);
@@ -995,6 +998,7 @@ export function VideoPlayer({
 					url: next.source?.url,
 					fallbackCount: transcodeAttemptRef.current ? 1 : 0,
 				});
+				invalidateMediaLoad("playback source changed");
 				sourceRef.current = next.source;
 				// The first negotiation is automatic. A fallback is allowed exactly
 				// once, and only when the initial direct source genuinely fails.
@@ -1031,6 +1035,7 @@ export function VideoPlayer({
 		initialSubtitleStreamIndex,
 		initialStreams,
 		savedPositionSeconds,
+		invalidateMediaLoad,
 	]);
 	useEffect(() => {
 		if (!syncplayGroupId || syncplayItemId !== item.Id) return;
@@ -1439,11 +1444,13 @@ export function VideoPlayer({
 			if (bufferingTimerRef.current !== undefined)
 				window.clearTimeout(bufferingTimerRef.current);
 			bufferingTimerRef.current = undefined;
+			clearMediaWaitTimers();
+			mediaLoadActiveRef.current = false;
 			bufferingEpochRef.current += 1;
 			if (videoClickTimerRef.current)
 				window.clearTimeout(videoClickTimerRef.current);
 		},
-		[],
+		[clearMediaWaitTimers],
 	);
 
 	useEffect(() => {
@@ -1636,37 +1643,67 @@ export function VideoPlayer({
 		video.currentTime = boundedTarget;
 		setError("");
 	}
-	async function requestTranscodedPlayback() {
+	async function requestTranscodedPlayback(
+		expectedLoadId = mediaLoadIdRef.current,
+		expectedSourceId = sourceRef.current?.Id,
+	) {
+		const isCurrentLoad = () =>
+			mediaLoadActiveRef.current &&
+			mediaLoadIdRef.current === expectedLoadId &&
+			(expectedSourceId == null || sourceRef.current?.Id === expectedSourceId);
+		if (!isCurrentLoad()) return false;
+		if (transcodedFallbackRef.current) return transcodedFallbackRef.current;
 		if (transcodeAttemptRef.current) {
-			setBuffering(false);
-			setError(t("mediaPlaybackFailed"));
+			if (isCurrentLoad()) {
+				setBuffering(false);
+				setError(t("mediaPlaybackFailed"));
+			}
 			return false;
 		}
 		transcodeAttemptRef.current = true;
+		const previousSource = sourceRef.current;
 		const video = videoRef.current;
 		if (video && Number.isFinite(video.currentTime))
 			resumeTimeRef.current = video.currentTime;
 		setError("");
 		setBuffering(true);
+		const fallback = (async () => {
+			try {
+				const next = await fetchTranscodedPlayback(undefined, previousSource);
+				if (!next.source) throw new Error("Missing transcoded source.");
+				if (!isCurrentLoad()) {
+					if (next.source.sessionId)
+						await cancelPlaybackSession(session, next.source.sessionId).catch(
+							() => undefined,
+						);
+					return false;
+				}
+				invalidateMediaLoad("transcoded fallback");
+				sourceRef.current = next.source;
+				setInfo((previous) => ({
+					...next,
+					qualities: previous?.qualities ?? next.qualities,
+				}));
+				setQuality("1");
+				setUrl(playbackUrl(next.source));
+				return true;
+			} catch (error) {
+				if (!isCurrentLoad()) return false;
+				playerDebug("video fallback failed", {
+					error: error instanceof Error ? error.message : String(error),
+					fallbackCount: 1,
+				});
+				setBuffering(false);
+				setError(t("mediaPlaybackFailed"));
+				return false;
+			}
+		})();
+		transcodedFallbackRef.current = fallback;
 		try {
-			const next = await fetchTranscodedPlayback();
-			if (!next.source) throw new Error("Missing transcoded source.");
-			sourceRef.current = next.source;
-			setInfo((previous) => ({
-				...next,
-				qualities: previous?.qualities ?? next.qualities,
-			}));
-			setQuality("1");
-			setUrl(playbackUrl(next.source));
-			return true;
-		} catch (error) {
-			playerDebug("video fallback failed", {
-				error: error instanceof Error ? error.message : String(error),
-				fallbackCount: 1,
-			});
-			setBuffering(false);
-			setError(t("mediaPlaybackFailed"));
-			return false;
+			return await fallback;
+		} finally {
+			if (transcodedFallbackRef.current === fallback)
+				transcodedFallbackRef.current = null;
 		}
 	}
 	function startSyncedPlayback(video: HTMLVideoElement) {
@@ -1881,6 +1918,7 @@ export function VideoPlayer({
 				if (!parsed.source)
 					throw new Error("The server did not return a playback source.");
 				const source = preserveTrickplay(parsed.source, info?.source);
+				invalidateMediaLoad("quality changed");
 				sourceRef.current = source;
 				transcodeAttemptRef.current = source?.mode === "video-transcode";
 				setInfo((previous) => ({
@@ -1950,6 +1988,7 @@ export function VideoPlayer({
 				const parsed = playbackStreams(playback);
 				const source = preserveTrickplay(parsed.source, info.source);
 				if (!source) throw new Error("The server did not return a media source.");
+				invalidateMediaLoad("audio track changed");
 				sourceRef.current = source;
 				transcodeAttemptRef.current = source.mode === "video-transcode";
 				setInfo((previous) => ({
@@ -1990,7 +2029,7 @@ export function VideoPlayer({
 			setTimelinePreview({ time, left, ...preview });
 		} else {
 			setTimelinePreview(undefined);
-			setPreviewUnavailable(Boolean(info));
+			setPreviewUnavailable(false);
 		}
 	}
 
@@ -2035,7 +2074,7 @@ export function VideoPlayer({
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
-				 onWaiting={() => {
+				onWaiting={() => {
 					// `waiting` is also emitted while a browser is seeking to the
 					// synchronized timeline.  That is not a transport stall when the
 					// element already has future data; reporting it to the server makes
@@ -2104,10 +2143,12 @@ export function VideoPlayer({
 					}, 250);
 				}}
 				onCanPlay={() => {
+					if (url && !mediaLoadActiveRef.current) return;
 					// A media error can be emitted while the browser is still
 					// recovering the source. `canplay` is the authoritative signal
 					// that the current element can be played, so clear any stale
 					// error overlay here.
+					clearMediaWaitTimers();
 					setError("");
 					setBuffering(false);
 					cancelPendingBufferingReport("canplay");
@@ -2119,7 +2160,6 @@ export function VideoPlayer({
 					if (!settlingSeek) seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
 					readyItemIdRef.current = item.Id;
-					retryAfterBufferingRef.current = false;
 					playerDebug("video canplay", {
 						currentTime: videoRef.current?.currentTime,
 						readyState: videoRef.current?.readyState,
@@ -2201,6 +2241,7 @@ export function VideoPlayer({
 					else onClose();
 				}}
 				onPlay={(e) => {
+					if (url && !mediaLoadActiveRef.current) return;
 					const logicalTime = e.currentTarget.currentTime;
 					const syncState = syncplayStateRef.current;
 					const syncWantsPlaying = Boolean(
@@ -2234,17 +2275,20 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onPlaying={(event) => {
+					if (url && !mediaLoadActiveRef.current) return;
 					disableNativeSubtitleTracks(
 						event.currentTarget,
 						nativeSubtitleTrackRef.current?.track,
 					);
 					setBuffering(false);
+					clearMediaWaitTimers();
 					cancelPendingBufferingReport("playing");
 					if (settlingTimelineRef.current == null) seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
 					reportBuffering(false);
 				}}
 				onPause={(e) => {
+					if (url && !mediaLoadActiveRef.current) return;
 					const logicalTime = e.currentTarget.currentTime;
 					reportCurrentProgress(e.currentTarget);
 					const syncState = syncplayStateRef.current;
@@ -2288,9 +2332,13 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onError={() => {
+					if (!mediaLoadActiveRef.current) return;
 					const video = videoRef.current;
 					if (!transcodeAttemptRef.current && sourceRef.current?.mode === "direct") {
-						void requestTranscodedPlayback();
+						void requestTranscodedPlayback(
+							mediaLoadIdRef.current,
+							sourceRef.current.Id,
+						);
 						return;
 					}
 					// Do not replace an already playable source with an error overlay

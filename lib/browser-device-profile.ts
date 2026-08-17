@@ -1,3 +1,5 @@
+import { zenstreamVersion } from "@/lib/version";
+
 export type BrowserPlaybackProfile = {
 	Type: "Video";
 	Container: string;
@@ -15,6 +17,68 @@ export type BrowserDeviceProfile = {
 		DeliveryMethod: "External";
 	}>;
 };
+
+export type BrowserDeviceMetadata = {
+	deviceId: string;
+	deviceType: "browser";
+	browser: string;
+	operatingSystem: string;
+	deviceName: string;
+	clientName: "ZenStream Web";
+	clientVersion: string;
+};
+
+const DEVICE_ID_KEY = "zenstream.device-id";
+
+function browserName(userAgent: string) {
+	if (/Edg\//i.test(userAgent)) return "Edge";
+	if (/OPR\//i.test(userAgent)) return "Opera";
+	if (/Firefox\//i.test(userAgent)) return "Firefox";
+	if (/Chrome\//i.test(userAgent)) return "Chrome";
+	if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent))
+		return "Safari";
+	return "Unknown browser";
+}
+
+function operatingSystem(userAgent: string) {
+	if (/Windows NT/i.test(userAgent)) return "Windows";
+	if (/Android/i.test(userAgent)) return "Android";
+	if (/iPhone|iPad|iPod/i.test(userAgent)) return "iOS";
+	if (/Mac OS X/i.test(userAgent)) return "macOS";
+	if (/Linux/i.test(userAgent)) return "Linux";
+	return "Unknown OS";
+}
+
+export function browserDeviceId() {
+	if (typeof window === "undefined") return "browser-server";
+	try {
+		const existing = window.localStorage.getItem(DEVICE_ID_KEY);
+		if (existing) return existing;
+		const generated =
+			typeof window.crypto?.randomUUID === "function"
+				? window.crypto.randomUUID()
+				: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+		window.localStorage.setItem(DEVICE_ID_KEY, generated);
+		return generated;
+	} catch {
+		return "browser-ephemeral";
+	}
+}
+
+export function browserDeviceMetadata(): BrowserDeviceMetadata {
+	const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
+	const browser = browserName(userAgent);
+	const os = operatingSystem(userAgent);
+	return {
+		deviceId: browserDeviceId(),
+		deviceType: "browser",
+		browser,
+		operatingSystem: os,
+		deviceName: `${browser} on ${os}`,
+		clientName: "ZenStream Web",
+		clientVersion: zenstreamVersion,
+	};
+}
 
 type VideoElementLike = Pick<HTMLVideoElement, "canPlayType">;
 

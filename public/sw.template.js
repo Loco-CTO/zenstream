@@ -32,6 +32,21 @@ self.addEventListener("fetch", (event) => {
 		url.pathname.startsWith("/api/")
 	)
 		return;
+	if (url.pathname.startsWith("/_next/static/")) {
+		event.respondWith(
+			caches.match(request).then((cached) => {
+				const network = fetch(request).then((response) => {
+					if (response.ok) {
+						const copy = response.clone();
+						caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+					}
+					return response;
+				});
+				return cached || network;
+			}),
+		);
+		return;
+	}
 
 	event.respondWith(
 		fetch(request).catch(() =>

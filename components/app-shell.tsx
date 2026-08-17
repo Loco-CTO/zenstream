@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import { sessionFromAuth } from "@/lib/auth";
 import {
 	authenticateByName,
@@ -9,7 +10,10 @@ import {
 	fetchPlayData,
 	fetchHomeData,
 	clearMediaClientCache,
+	clearMediaClientSession,
 	primeResourceTicket,
+	revokeAuthSession,
+	validateBrowserSession,
 	type DetailData,
 	type HomeData,
 } from "@/lib/media-api";
@@ -21,15 +25,43 @@ import {
 } from "@/lib/session";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Navbar } from "@/components/layout/navbar";
-import { HomePage } from "@/components/pages/home-page";
-import { LoginPage } from "@/components/pages/login-page";
-import { SettingsPage } from "@/components/pages/settings-page";
-import { DetailPage } from "@/components/pages/detail-page";
-import { PlayerPage } from "@/components/pages/player-page";
-import { LibraryPage } from "@/components/pages/library-page";
-import { FavoritesPage } from "@/components/pages/favorites-page";
-import { SearchPage } from "@/components/pages/search-page";
-import { CollectionPage } from "@/components/pages/collection-page";
+const HomePage = dynamic(
+	() => import("@/components/pages/home-page").then((m) => m.HomePage),
+	{ ssr: false },
+);
+const LoginPage = dynamic(
+	() => import("@/components/pages/login-page").then((m) => m.LoginPage),
+	{ ssr: false },
+);
+const SettingsPage = dynamic(
+	() => import("@/components/pages/settings-page").then((m) => m.SettingsPage),
+	{ ssr: false },
+);
+const DetailPage = dynamic(
+	() => import("@/components/pages/detail-page").then((m) => m.DetailPage),
+	{ ssr: false },
+);
+const PlayerPage = dynamic(
+	() => import("@/components/pages/player-page").then((m) => m.PlayerPage),
+	{ ssr: false },
+);
+const LibraryPage = dynamic(
+	() => import("@/components/pages/library-page").then((m) => m.LibraryPage),
+	{ ssr: false },
+);
+const FavoritesPage = dynamic(
+	() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage),
+	{ ssr: false },
+);
+const SearchPage = dynamic(
+	() => import("@/components/pages/search-page").then((m) => m.SearchPage),
+	{ ssr: false },
+);
+const CollectionPage = dynamic(
+	() =>
+		import("@/components/pages/collection-page").then((m) => m.CollectionPage),
+	{ ssr: false },
+);
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -37,15 +69,20 @@ import {
 	getLocalePreference,
 	getMetadataLanguagePreference,
 	getMetadataLanguages,
+	getPlaybackPreference,
 	getStoredLocale,
 	setLocalePreference,
 	setMetadataLanguagePreference,
+	setPlaybackPreference as savePlaybackPreference,
 	storeLocale,
+	clearPreferenceCache,
 	type MetadataLanguagePreference,
+	type PlaybackPreference,
 } from "@/lib/preferences";
 import {
 	DEFAULT_SUBTITLE_STYLE,
 	getSubtitlePreference,
+	clearSubtitlePreferenceCache,
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
@@ -55,7 +92,8 @@ import { ToastProvider } from "@/components/ui/toast";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 
-type AppStatus = "checking" | "login" | "loading" | "ready" | "error";
+type AppStatus =
+	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
 
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
@@ -71,68 +109,146 @@ export function AppShell() {
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
+	const [playbackPreference, setPlaybackPreference] =
+		useState<PlaybackPreference>({
+			audioLanguage: null,
+			subtitleLanguage: null,
+			audioLanguages: [],
+			subtitleLanguages: [],
+		});
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
+	const [, setResourceTicketRevision] = useState(0);
 	const loadedPreferencesToken = useRef<string | null>(null);
+	const sessionRef = useRef<AuthSession | null>(null);
+	const routeLoadGeneration = useRef(0);
+	const preferencesGeneration = useRef(0);
+	const localeMutationGeneration = useRef(0);
+	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
+	const confirmedLocale = useRef<Locale>("en");
+	const metadataLanguageMutationGeneration = useRef(0);
+	const metadataLanguageMutationQueue = useRef<Promise<void>>(Promise.resolve());
+	const confirmedMetadataLanguage = useRef<MetadataLanguagePreference>({
+		mode: "auto",
+		language: "en",
+	});
+	const metadataLanguageRef = useRef<MetadataLanguagePreference>({
+		mode: "auto",
+		language: "en",
+	});
+	const bootstrapInFlight = useRef<Promise<AuthSession | null> | null>(null);
+	const authExpiryHandled = useRef<AuthSession | null>(null);
 	const homeLoadInFlight = useRef(false);
 	const homeTrailingRefresh = useRef(false);
+	const homeTrailingRequest = useRef<{
+		session: AuthSession;
+		generation: number;
+	} | null>(null);
+	const loadHomeRef = useRef<
+		| ((nextSession: AuthSession, requestedGeneration?: number) => Promise<void>)
+		| null
+	>(null);
 	const homeDataRef = useRef<HomeData | null>(null);
 	const detailRefreshGeneration = useRef(0);
 	const detailRefreshInFlight = useRef(false);
 	const detailTrailingRefresh = useRef(false);
 	const detailRefreshController = useRef<AbortController | null>(null);
-	const loadPreferences = useCallback(() => {
-		void getLocalePreference()
+	const detailLoadController = useRef<AbortController | null>(null);
+	const loadPreferences = useCallback((nextSession: AuthSession) => {
+		const generation = ++preferencesGeneration.current;
+		const localeGeneration = localeMutationGeneration.current;
+		const metadataLanguageGeneration = metadataLanguageMutationGeneration.current;
+		const commit = (callback: () => void) => {
+			if (
+				generation === preferencesGeneration.current &&
+				sessionRef.current === nextSession
+			)
+				callback();
+		};
+		void getLocalePreference(nextSession)
 			.then((remoteLocale) => {
-				storeLocale(remoteLocale);
-				setLocale(remoteLocale);
+				if (localeGeneration !== localeMutationGeneration.current) return;
+				commit(() => {
+					confirmedLocale.current = remoteLocale;
+					storeLocale(remoteLocale);
+					setLocale(remoteLocale);
+				});
 			})
 			.catch(() => undefined);
-		void getSubtitlePreference()
-			.then(setSubtitleStyle)
+		void getSubtitlePreference(nextSession)
+			.then((value) => commit(() => setSubtitleStyle(value)))
 			.catch(() => undefined);
-		void getMetadataLanguages()
-			.then(setMetadataLanguages)
+		void getMetadataLanguages(nextSession)
+			.then((value) => commit(() => setMetadataLanguages(value)))
 			.catch(() => undefined);
-		void getMetadataLanguagePreference()
-			.then(setMetadataLanguage)
+		void getPlaybackPreference(nextSession)
+			.then((value) => commit(() => setPlaybackPreference(value)))
+			.catch(() => undefined);
+		void getMetadataLanguagePreference(nextSession)
+			.then((value) => {
+				if (
+					metadataLanguageGeneration !== metadataLanguageMutationGeneration.current
+				)
+					return;
+				commit(() => {
+					confirmedMetadataLanguage.current = value;
+					metadataLanguageRef.current = value;
+					setMetadataLanguage(value);
+				});
+			})
 			.catch(() => undefined);
 	}, []);
 
 	const loadHome = useCallback(
-		async (nextSession: AuthSession) => {
+		async (
+			nextSession: AuthSession,
+			requestedGeneration = routeLoadGeneration.current,
+		) => {
+			const isCurrent = () =>
+				sessionRef.current === nextSession &&
+				requestedGeneration === routeLoadGeneration.current;
 			if (homeLoadInFlight.current) {
-				homeTrailingRefresh.current = true;
+				if (sessionRef.current === nextSession) homeTrailingRefresh.current = true;
+				else
+					homeTrailingRequest.current = {
+						session: nextSession,
+						generation: requestedGeneration,
+					};
 				return;
 			}
 			homeLoadInFlight.current = true;
 			const hasExistingHome = homeDataRef.current !== null;
 			const finishProgress = start();
 			if (!hasExistingHome) {
-				setStatus("loading");
-				setHomeData(null);
+				if (isCurrent()) {
+					setStatus("loading");
+					setHomeData(null);
+				}
 			}
-			setError(null);
+			if (isCurrent()) setError(null);
 			try {
 				do {
 					homeTrailingRefresh.current = false;
 					try {
-						await primeResourceTicket(nextSession);
+						void primeResourceTicket(nextSession);
 						const data = await fetchHomeData(nextSession, (section) => {
+							if (!isCurrent()) return;
 							setHomeData((current) => {
-								const next = { ...(current ?? {}), ...section } as HomeData;
+								const next = mergeHomeSection(current, section);
 								homeDataRef.current = next;
 								return next;
 							});
 							if (sectionHasContent(section)) setStatus("ready");
 						});
-						homeDataRef.current = data;
-						setHomeData(data);
-						setStatus("ready");
+						if (isCurrent()) {
+							homeDataRef.current = data;
+							setHomeData(data);
+							setStatus("ready");
+						}
 					} catch (err) {
 						if (homeTrailingRefresh.current) continue;
-						if (!hasExistingHome) {
+						if (!hasExistingHome && isCurrent()) {
 							setError(
 								err instanceof Error ? err.message : "Could not load your library.",
 							);
@@ -143,10 +259,19 @@ export function AppShell() {
 			} finally {
 				homeLoadInFlight.current = false;
 				finishProgress();
+				const trailing = homeTrailingRequest.current;
+				homeTrailingRequest.current = null;
+				if (trailing && sessionRef.current === trailing.session)
+					queueMicrotask(() => {
+						void loadHomeRef.current?.(trailing.session, trailing.generation);
+					});
 			}
 		},
 		[start],
 	);
+	useEffect(() => {
+		loadHomeRef.current = loadHome;
+	}, [loadHome]);
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
@@ -157,8 +282,13 @@ export function AppShell() {
 	const currentSearch =
 		typeof window !== "undefined" ? window.location.search : "";
 	const fetchDetailPayload = useCallback(
-		async (nextSession: AuthSession, itemId: string, signal?: AbortSignal) => {
-			await primeResourceTicket(nextSession);
+		async (
+			nextSession: AuthSession,
+			itemId: string,
+			signal?: AbortSignal,
+			onSection?: (section: Partial<DetailData>) => void,
+		) => {
+			void primeResourceTicket(nextSession);
 			if (pathname === "/search") return null;
 			return playId
 				? fetchPlayData(nextSession, itemId)
@@ -167,27 +297,60 @@ export function AppShell() {
 						itemId,
 						new URLSearchParams(window.location.search).get("seasonId") ?? undefined,
 						signal,
+						onSection,
 					);
 		},
 		[pathname, playId],
 	);
 	const loadDetail = useCallback(
-		async (nextSession: AuthSession, itemId: string) => {
+		async (
+			nextSession: AuthSession,
+			itemId: string,
+			requestedGeneration = routeLoadGeneration.current,
+		) => {
+			const isCurrent = () =>
+				sessionRef.current === nextSession &&
+				requestedGeneration === routeLoadGeneration.current;
 			const finishProgress = start();
-			setStatus("loading");
-			setError(null);
-			setDetailData(null);
+			detailLoadController.current?.abort();
+			const loadController = new AbortController();
+			detailLoadController.current = loadController;
+			if (isCurrent()) {
+				setStatus("loading");
+				setError(null);
+			}
 			try {
 				if (pathname === "/search") {
-					setSearchData(searchQuery);
-					setStatus("ready");
+					if (isCurrent()) {
+						setSearchData(searchQuery);
+						setStatus("ready");
+					}
 					return;
 				}
-				setDetailData(await fetchDetailPayload(nextSession, itemId));
-				setStatus("ready");
+				const nextData = await fetchDetailPayload(
+					nextSession,
+					itemId,
+					loadController.signal,
+					(section) => {
+						if (!isCurrent()) return;
+						setDetailData(
+							(current) => ({ ...(current ?? {}), ...section }) as DetailData,
+						);
+						if (section.item) setStatus("ready");
+					},
+				);
+				if (isCurrent()) {
+					setDetailData(nextData);
+					setStatus("ready");
+				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : "Could not load this title.");
-				setStatus("error");
+				if (loadController.signal.aborted) return;
+				if (isCurrent()) {
+					setError(
+						err instanceof Error ? err.message : "Could not load this title.",
+					);
+					setStatus("error");
+				}
 			} finally {
 				finishProgress();
 			}
@@ -238,32 +401,80 @@ export function AppShell() {
 	}, [currentSearch, pathname]);
 
 	useEffect(() => {
+		let disposed = false;
 		const finishProgress = start();
 		const stored = getAuthSession();
 		const storedLocale = getStoredLocale();
-		// Apply both hydrated preferences before revealing the authenticated UI.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		if (storedLocale) setLocale(storedLocale);
+		// Hydrate the locally cached interface language before authenticated content renders.
+		if (storedLocale) {
+			confirmedLocale.current = storedLocale;
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setLocale(storedLocale);
+		}
 		if (!stored) {
-			// Cookie-backed auth is only available after hydration.
 			setStatus("login");
 			finishProgress();
-			return;
+			return () => {
+				disposed = true;
+			};
 		}
-		setSession(stored);
-		if (loadedPreferencesToken.current !== stored.token) {
-			loadedPreferencesToken.current = stored.token;
-			loadPreferences();
+		const validation =
+			bootstrapInFlight.current ??
+			(validateBrowserSession(stored).finally(() => {
+				bootstrapInFlight.current = null;
+			}) as Promise<AuthSession | null>);
+		bootstrapInFlight.current = validation;
+		void validation
+			.then((verified) => {
+				if (disposed) return;
+				if (!verified) {
+					clearAuthCookies();
+					clearMediaClientSession();
+					clearPreferenceCache();
+					clearSubtitlePreferenceCache();
+					setStatus("login");
+					return;
+				}
+				setAuthCookies(verified);
+				sessionRef.current = verified;
+				setSession(verified);
+				setStatus("checking");
+			})
+			.catch((validationError) => {
+				if (disposed) return;
+				setError(
+					validationError instanceof Error
+						? validationError.message
+						: "Could not reach the Orchestrator.",
+				);
+				setStatus("bootstrap-error");
+			})
+			.finally(finishProgress);
+		return () => {
+			disposed = true;
+		};
+	}, [start]);
+
+	useEffect(() => {
+		if (!session) return;
+		const generation = ++routeLoadGeneration.current;
+		if (loadedPreferencesToken.current !== session.userId) {
+			loadedPreferencesToken.current = session.userId;
+			loadPreferences(session);
 		}
+		const finishProgress = start();
 		void (async () => {
-			if (detailId || playId) await loadDetail(stored, detailId ?? playId!);
+			if (detailId || playId)
+				await loadDetail(session, detailId ?? playId!, generation);
 			else if (pathname === "/search" || pathname === "/settings") {
-				if (pathname === "/search") setSearchData(searchQuery);
-				setStatus("ready");
+				if (generation === routeLoadGeneration.current) {
+					if (pathname === "/search") setSearchData(searchQuery);
+					setStatus("ready");
+				}
 			} else if (pathname === "/library" || pathname === "/favorites") {
-				await primeResourceTicket(stored);
-				setStatus("ready");
-			} else await loadHome(stored);
+				void primeResourceTicket(session);
+				if (generation === routeLoadGeneration.current) setStatus("ready");
+			} else await loadHome(session, generation);
 			finishProgress();
 		})();
 	}, [
@@ -274,6 +485,7 @@ export function AppShell() {
 		loadPreferences,
 		pathname,
 		searchQuery,
+		session,
 		start,
 	]);
 
@@ -281,37 +493,78 @@ export function AppShell() {
 		const response = await authenticateByName(username, password);
 		const nextSession = sessionFromAuth(response);
 		setAuthCookies(nextSession);
+		sessionRef.current = nextSession;
+		authExpiryHandled.current = null;
 		setSession(nextSession);
-		loadPreferences();
-		await primeResourceTicket(nextSession);
-		if (detailId || playId) await loadDetail(nextSession, detailId ?? playId!);
+		const generation = ++routeLoadGeneration.current;
+		loadPreferences(nextSession);
+		void primeResourceTicket(nextSession);
+		if (detailId || playId)
+			await loadDetail(nextSession, detailId ?? playId!, generation);
 		else if (pathname === "/search") {
-			setSearchData(searchQuery);
-			setStatus("ready");
-		} else if (pathname === "/library" || pathname === "/favorites")
-			setStatus("ready");
-		else await loadHome(nextSession);
+			if (generation === routeLoadGeneration.current) {
+				setSearchData(searchQuery);
+				setStatus("ready");
+			}
+		} else if (pathname === "/library" || pathname === "/favorites") {
+			if (generation === routeLoadGeneration.current) setStatus("ready");
+		} else await loadHome(nextSession, generation);
 	};
 
+	const clearLocalSession = useCallback(
+		(expiredSession?: AuthSession) => {
+			if (expiredSession && sessionRef.current !== expiredSession) return;
+			const activeSession = sessionRef.current ?? session;
+			clearAuthCookies();
+			clearMediaClientSession();
+			clearPreferenceCache();
+			clearSubtitlePreferenceCache();
+			clearMediaClientCache();
+			routeLoadGeneration.current += 1;
+			preferencesGeneration.current += 1;
+			localeMutationGeneration.current += 1;
+			metadataLanguageMutationGeneration.current += 1;
+			localeMutationQueue.current = Promise.resolve();
+			metadataLanguageMutationQueue.current = Promise.resolve();
+			detailRefreshGeneration.current += 1;
+			detailRefreshController.current?.abort();
+			sessionRef.current = null;
+			setSession(null);
+			loadedPreferencesToken.current = null;
+			homeDataRef.current = null;
+			homeTrailingRefresh.current = false;
+			homeTrailingRequest.current = null;
+			setHomeData(null);
+			setDetailData(null);
+			setSearchData(null);
+			setError(null);
+			setStatus("login");
+			return activeSession;
+		},
+		[session],
+	);
+
 	const handleLogout = useCallback(() => {
-		clearAuthCookies();
-		clearMediaClientCache();
-		setSession(null);
-		loadedPreferencesToken.current = null;
-		homeDataRef.current = null;
-		setHomeData(null);
-		setDetailData(null);
-		setSearchData(null);
-		setError(null);
-		setStatus("login");
-	}, []);
+		const currentSession = sessionRef.current;
+		if (!currentSession) return;
+		const activeSession = clearLocalSession(currentSession);
+		if (activeSession)
+			void revokeAuthSession(activeSession).catch(() => undefined);
+	}, [clearLocalSession]);
 
 	useEffect(() => {
-		const handleAuthExpired = () => handleLogout();
+		const handleAuthExpired = (event: Event) => {
+			const expiredSession = (event as CustomEvent<{ session?: AuthSession }>)
+				.detail?.session;
+			if (expiredSession && sessionRef.current !== expiredSession) return;
+			if (authExpiryHandled.current === expiredSession) return;
+			authExpiryHandled.current = expiredSession ?? sessionRef.current;
+			clearLocalSession(expiredSession);
+		};
 		window.addEventListener("zenstream:auth-expired", handleAuthExpired);
 		return () =>
 			window.removeEventListener("zenstream:auth-expired", handleAuthExpired);
-	}, [handleLogout]);
+	}, [clearLocalSession]);
 
 	useEffect(() => {
 		if (!session || process.env.NODE_ENV === "test") return;
@@ -319,8 +572,18 @@ export function AppShell() {
 	}, [session]);
 
 	useEffect(() => {
+		const refreshImageUrls = () =>
+			setResourceTicketRevision((value) => value + 1);
+		window.addEventListener("zenstream:resource-ticket", refreshImageUrls);
+		return () =>
+			window.removeEventListener("zenstream:resource-ticket", refreshImageUrls);
+	}, []);
+
+	useEffect(() => {
 		if (!session || pathname !== "/") return;
-		const refresh = () => {
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }>;
+			if (event.detail?.reason === "scan") return;
 			void loadHome(session);
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
@@ -354,23 +617,54 @@ export function AppShell() {
 	]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
-		const previousLocale = locale;
+		const activeSession = session;
+		const generation = ++localeMutationGeneration.current;
 		const finishProgress = start();
 		setLocale(nextLocale);
 		storeLocale(nextLocale);
+		if (!activeSession) {
+			finishProgress();
+			return;
+		}
+		const mutation = localeMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return setLocalePreference(activeSession, nextLocale);
+		});
+		localeMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
 		try {
-			await setLocalePreference(nextLocale);
-			if (metadataLanguage.mode === "auto") {
-				const updated = await getMetadataLanguagePreference();
+			const savedLocale = await mutation;
+			if (savedLocale === null || sessionRef.current !== activeSession) return;
+			confirmedLocale.current = savedLocale;
+			if (generation !== localeMutationGeneration.current) return;
+			setLocale(savedLocale);
+			storeLocale(savedLocale);
+			if (metadataLanguageRef.current.mode === "auto") {
+				const metadataGeneration = metadataLanguageMutationGeneration.current;
+				const updated = await getMetadataLanguagePreference(activeSession);
+				if (
+					generation !== localeMutationGeneration.current ||
+					metadataGeneration !== metadataLanguageMutationGeneration.current ||
+					sessionRef.current !== activeSession
+				)
+					return;
+				confirmedMetadataLanguage.current = updated;
+				metadataLanguageRef.current = updated;
 				setMetadataLanguage(updated);
-				if (session) {
-					if (detailId) await loadDetail(session, detailId);
-					else await loadHome(session);
-				}
+				clearMediaClientCache();
+				if (detailId) await loadDetail(activeSession, detailId);
+				else await loadHome(activeSession);
 			}
 		} catch (saveError) {
-			setLocale(previousLocale);
-			storeLocale(previousLocale);
+			if (
+				generation !== localeMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			setLocale(confirmedLocale.current);
+			storeLocale(confirmedLocale.current);
 			throw saveError;
 		} finally {
 			finishProgress();
@@ -378,20 +672,56 @@ export function AppShell() {
 	};
 
 	const handleMetadataLanguageChange = async (language: string | null) => {
-		const previous = metadataLanguage;
-		setMetadataLanguage({
+		const activeSession = session;
+		const generation = ++metadataLanguageMutationGeneration.current;
+		const optimistic = {
 			mode: language ? "explicit" : "auto",
 			language: language ?? locale,
+		} as MetadataLanguagePreference;
+		metadataLanguageRef.current = optimistic;
+		setMetadataLanguage(optimistic);
+		if (!activeSession) return;
+		const mutation = metadataLanguageMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return setMetadataLanguagePreference(activeSession, language);
 		});
+		metadataLanguageMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
 		try {
-			const updated = await setMetadataLanguagePreference(language);
+			const updated = await mutation;
+			if (updated === null || sessionRef.current !== activeSession) return;
+			confirmedMetadataLanguage.current = updated;
+			if (generation !== metadataLanguageMutationGeneration.current) return;
+			metadataLanguageRef.current = updated;
 			setMetadataLanguage(updated);
-			if (session) {
-				if (detailId) await loadDetail(session, detailId);
-				else await loadHome(session);
-			}
+			clearMediaClientCache();
+			if (detailId) await loadDetail(activeSession, detailId);
+			else await loadHome(activeSession);
 		} catch (error) {
-			setMetadataLanguage(previous);
+			if (
+				generation !== metadataLanguageMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			metadataLanguageRef.current = confirmedMetadataLanguage.current;
+			setMetadataLanguage(confirmedMetadataLanguage.current);
+			throw error;
+		}
+	};
+
+	const handlePlaybackPreferenceChange = async (
+		value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
+	) => {
+		const activeSession = session;
+		if (!activeSession) return;
+		const previous = playbackPreference;
+		setPlaybackPreference({ ...previous, ...value });
+		try {
+			setPlaybackPreference(await savePlaybackPreference(activeSession, value));
+		} catch (error) {
+			setPlaybackPreference(previous);
 			throw error;
 		}
 	};
@@ -401,10 +731,21 @@ export function AppShell() {
 			<ToastProvider>
 				<SubtitlePreferencesProvider
 					key={JSON.stringify(subtitleStyle)}
+					session={session}
 					initialStyle={subtitleStyle}
 				>
 					{status === "checking" ? (
 						<div className="min-h-screen bg-background" />
+					) : status === "bootstrap-error" ? (
+						<ErrorPanel
+							title="Could not connect to ZenStream"
+							message={error}
+							onRetry={() => {
+								setStatus("checking");
+								setError(null);
+								window.location.reload();
+							}}
+						/>
 					) : status === "login" || !session ? (
 						<LoginPage onLogin={handleLogin} />
 					) : (
@@ -419,6 +760,8 @@ export function AppShell() {
 									metadataLanguages={metadataLanguages}
 									metadataLanguage={metadataLanguage}
 									onMetadataLanguageChange={handleMetadataLanguageChange}
+									playbackPreference={playbackPreference}
+									onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
 									onLogout={handleLogout}
 								/>
 							) : (
@@ -475,6 +818,29 @@ export function AppShell() {
 			</ToastProvider>
 		</I18nProvider>
 	);
+}
+
+function mergeHomeSection(
+	current: HomeData | null,
+	section: Partial<HomeData>,
+): HomeData {
+	const next = { ...(current ?? {}), ...section } as HomeData;
+	const currentLatestItems = current?.latestItems;
+	const sectionLatestItems = section.latestItems;
+
+	// The first featured response is intentionally limited to one item while the
+	// complete hero list loads. Keep an already-rendered full list during that
+	// intermediate refresh so the active slide cannot disappear and fall back to
+	// the first item for a render.
+	if (
+		currentLatestItems &&
+		sectionLatestItems &&
+		currentLatestItems.length > sectionLatestItems.length
+	) {
+		next.latestItems = currentLatestItems;
+	}
+
+	return next;
 }
 
 function sectionHasContent(section: Partial<HomeData>) {

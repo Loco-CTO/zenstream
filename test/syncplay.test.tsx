@@ -167,7 +167,7 @@ describe("SyncplayProvider", () => {
 	});
 	it("normalizes a trailing slash in the public Socket.IO origin", () => {
 		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
-		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.amai.space/";
+		process.env.NEXT_PUBLIC_ZSO_URL = "https://zso.domain.com/";
 		const socketFactory = vi.mocked(io);
 		const initialCalls = socketFactory.mock.calls.length;
 		const view = render(
@@ -176,7 +176,7 @@ describe("SyncplayProvider", () => {
 			</SyncplayTestProvider>,
 		);
 		expect(socketFactory.mock.calls[initialCalls]?.[0]).toBe(
-			"https://zso.amai.space/syncplay",
+			"https://zso.domain.com/syncplay",
 		);
 		view.unmount();
 		if (originalOrigin === undefined) delete process.env.NEXT_PUBLIC_ZSO_URL;
@@ -227,6 +227,42 @@ describe("SyncplayProvider", () => {
 		await waitFor(() =>
 			expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
 		);
+		TestSocket.openAutomatically = true;
+	});
+
+	it("does not activate a privacy-redacted HTTP lobby group", async () => {
+		TestSocket.openAutomatically = false;
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					groups: [
+						{
+							...group(1),
+							hostUserId: null,
+							itemId: null,
+							members: [
+								{
+									role: "host",
+									watchingTogether: true,
+									viewing: false,
+									loading: false,
+								} as unknown as SyncplayGroup["members"][number],
+							],
+						},
+					],
+				}),
+			),
+		);
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
+		);
+		expect(screen.getByTestId("active-group")).toHaveTextContent("none");
 		TestSocket.openAutomatically = true;
 	});
 
@@ -491,12 +527,11 @@ describe("SyncplayProvider", () => {
 					hostUserId: "alex",
 					members: [
 						{
-							userId: "alex",
-							username: "Alex",
+							role: "host",
+							watchingTogether: true,
 							viewing: false,
 							loading: false,
-							role: "host",
-						},
+						} as unknown as SyncplayGroup["members"][number],
 					],
 				},
 			}),

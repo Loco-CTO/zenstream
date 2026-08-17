@@ -1,5 +1,12 @@
-import type { AuthSession } from "@/lib/session";
-import { browserDeviceProfile } from "@/lib/browser-device-profile";
+import { getAuthSession, type AuthSession } from "@/lib/session";
+import {
+	browserDeviceMetadata,
+	browserDeviceProfile,
+} from "@/lib/browser-device-profile";
+import {
+	authenticatedFetch,
+	orchestratorBaseUrl as sharedOrchestratorBaseUrl,
+} from "@/lib/authenticated-request";
 import {
 	catalogRequest,
 	toMediaItem,
@@ -114,6 +121,7 @@ export interface MediaSource {
 	mode?: "direct" | "remux" | "audio-transcode" | "video-transcode";
 	sessionState?: string;
 	sessionId?: string;
+	viewerSessionId?: string;
 	startPositionSeconds?: number;
 	actualStartPositionSeconds?: number;
 	MediaStreams?: MediaStream[];
@@ -148,8 +156,33 @@ export interface TrickplaySheet {
 export interface PlaybackInfo {
 	source?: MediaSource;
 	sessionId?: string;
+	viewerSessionId?: string;
 	startPositionSeconds?: number;
 }
+
+export type ViewerCommand = {
+	id: string;
+	action: "pause" | "resume" | "stop";
+	issuedAt?: string;
+};
+
+export type ViewerCommandAck = {
+	id: string;
+	success: boolean;
+	error?: string;
+};
+
+export type ViewerHeartbeatResponse = {
+	viewerSessionId: string;
+	serverTime?: string;
+	commands?: ViewerCommand[];
+};
+
+export type ViewerEndResponse = {
+	viewerSessionId: string;
+	workerSessionId?: string;
+	stopWorker?: boolean;
+};
 
 export interface PlaybackSessionStatus {
 	sessionId: string;
@@ -181,6 +214,7 @@ const clientInFlight = new Map<
 	string,
 	{ promise: Promise<unknown>; controller: AbortController }
 >();
+const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();
 
 function combinedSignal(
 	external: AbortSignal | undefined,
@@ -219,11 +253,15 @@ async function cachedClientRequest<T>(
 	return trackedRequest;
 }
 
-export function clearMediaClientCache(scope?: {
-	libraryId?: string;
-	rootEntityId?: string;
-}) {
+export function clearMediaClientCache(
+	scope?: {
+		libraryId?: string;
+		rootEntityId?: string;
+	},
+	options?: { preserveHome?: boolean },
+) {
 	const affected = (key: string, value?: unknown) => {
+		if (options?.preserveHome && key.startsWith("home:")) return false;
 		if (!scope?.libraryId && !scope?.rootEntityId) return true;
 		if (/^(home|search|libraries|favorites):/.test(key)) return true;
 		if (scope.libraryId && key.includes(`:${scope.libraryId}:`)) return true;
@@ -247,6 +285,7 @@ export function clearMediaClientCache(scope?: {
 		pending.controller.abort();
 		clientInFlight.delete(key);
 	}
+	heroTrailerCache.clear();
 }
 
 export type ImageBlurHashes = Partial<
@@ -296,7 +335,7 @@ export interface HomeData {
 }
 
 export interface HomeLibrarySection extends NewlyAddedSection {
-	titleKey: "topRated" | "newReleases" | "newlyAddedOn";
+	titleKey: "newlyAddedOn" | "topRated";
 	stackEpisodes?: boolean;
 }
 
@@ -332,7 +371,7 @@ export async function getSearchItems(
 		async (signal) => {
 			const result = await catalogRequest<{ items: CatalogItem[] }>(
 				session,
-				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40`,
+				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40&view=card`,
 				{ signal: combinedSignal(options.signal, signal) },
 			);
 			return result.items.map(toMediaItem);
@@ -347,31 +386,55 @@ export interface NewlyAddedSection {
 }
 
 export function orchestratorBaseUrl() {
-	if (process.env.NEXT_PUBLIC_ZSO_URL)
-		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
-	if (typeof window !== "undefined") return window.location.origin;
-	return "http://127.0.0.1:9090";
+	return sharedOrchestratorBaseUrl();
 }
 
-let resourceTicket: { value: string; expiresAt: number; token: string } | null =
-	null;
+let resourceTicket: {
+	value: string;
+	expiresAt: number;
+	sessionKey: string;
+} | null = null;
+
+function resourceSessionKey(session: AuthSession | null | undefined) {
+	return session ? `${session.userId}:${session.token || "browser-cookie"}` : "";
+}
+
+export function clearMediaClientSession() {
+	clearMediaClientCache();
+	resourceTicket = null;
+}
+
+export async function revokeAuthSession(session: AuthSession): Promise<void> {
+	const response = await authenticatedFetch(
+		session,
+		"/api/auth/logout",
+		{
+			method: "POST",
+			cache: "no-store",
+			keepalive: true,
+		},
+		{ notifyOnUnauthorized: false },
+	);
+	// An expired token is already effectively revoked.
+	if (!response.ok && response.status !== 401) {
+		throw new Error(`Logout failed with ${response.status}.`);
+	}
+}
 
 export async function primeResourceTicket(
 	session: AuthSession,
 ): Promise<string | null> {
 	if (
 		resourceTicket &&
-		resourceTicket.token === session.token &&
+		resourceTicket.sessionKey === resourceSessionKey(session) &&
 		resourceTicket.expiresAt > Date.now() + 30_000
 	)
 		return resourceTicket.value;
 	try {
-		const response = await fetch(
-			`${orchestratorBaseUrl()}/api/auth/resource-ticket`,
-			{
-				headers: { Authorization: `Bearer ${session.token}` },
-				cache: "no-store",
-			},
+		const response = await authenticatedFetch(
+			session,
+			"/api/auth/resource-ticket",
+			{ cache: "no-store" },
 		);
 		if (!response.ok) return null;
 		const payload = (await response.json()) as {
@@ -386,15 +449,32 @@ export async function primeResourceTicket(
 				: typeof responseValue.expiresIn === "number"
 					? Date.now() + responseValue.expiresIn * 1000
 					: Date.now() + 10 * 60_000;
-		resourceTicket = { value: payload.ticket, expiresAt, token: session.token };
+		resourceTicket = {
+			value: payload.ticket,
+			expiresAt,
+			sessionKey: resourceSessionKey(session),
+		};
+		if (typeof window !== "undefined")
+			window.dispatchEvent(new Event("zenstream:resource-ticket"));
 		return payload.ticket;
 	} catch {
 		return null;
 	}
 }
 
-function addResourceTicket(params: URLSearchParams) {
-	if (resourceTicket && resourceTicket.expiresAt > Date.now())
+function addResourceTicket(params: URLSearchParams, sessionToken?: string) {
+	const activeSession = getAuthSession();
+	const activeKey = sessionToken
+		? resourceSessionKey({
+				...(activeSession ?? { userId: "", username: "" }),
+				token: sessionToken,
+			})
+		: resourceSessionKey(activeSession);
+	if (
+		resourceTicket &&
+		resourceTicket.sessionKey === activeKey &&
+		resourceTicket.expiresAt > Date.now()
+	)
 		params.set("access", resourceTicket.value);
 }
 
@@ -402,20 +482,114 @@ export async function authenticateByName(
 	username: string,
 	password: string,
 ): Promise<AuthResponse> {
-	const response = await fetch(`${orchestratorBaseUrl()}/api/auth/login`, {
-		method: "POST",
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
-		body: JSON.stringify({
-			username: username.trim(),
-			password: password.trim(),
-		}),
-	});
+	const response = await fetch(
+		`${orchestratorBaseUrl()}/api/auth/browser-login`,
+		{
+			method: "POST",
+			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			body: JSON.stringify({
+				username: username.trim(),
+				password,
+				device: browserDeviceMetadata(),
+			}),
+			credentials: "include",
+		},
+	);
 
 	if (!response.ok) {
 		throw new Error(`Login failed with ${response.status}.`);
 	}
 
 	return (await response.json()) as AuthResponse;
+}
+
+export async function validateInvite(token: string): Promise<void> {
+	const response = await fetch(
+		`${orchestratorBaseUrl()}/api/user/check_invite?invite=${encodeURIComponent(token)}`,
+		{ headers: { Accept: "application/json" }, credentials: "include" },
+	);
+	if (!response.ok) throw new Error("Invalid invite.");
+}
+
+export async function registerWithInvite(
+	token: string,
+	username: string,
+	password: string,
+): Promise<AuthResponse> {
+	const response = await fetch(`${orchestratorBaseUrl()}/api/user/register`, {
+		method: "POST",
+		headers: { Accept: "application/json", "Content-Type": "application/json" },
+		body: JSON.stringify({
+			invite: token,
+			username: username.trim(),
+			password,
+		}),
+		credentials: "include",
+	});
+	if (!response.ok) {
+		const detail = (await response.json().catch(() => null)) as {
+			detail?: string;
+		} | null;
+		throw new Error(detail?.detail || "Registration failed.");
+	}
+	return (await response.json()) as AuthResponse;
+}
+
+export async function validateBrowserSession(
+	session: AuthSession,
+): Promise<AuthSession | null> {
+	let response = await authenticatedFetch(
+		session,
+		"/api/auth/bootstrap",
+		{ cache: "no-store" },
+		{ notifyOnUnauthorized: false },
+	);
+	if (response.status === 404) {
+		response = await authenticatedFetch(
+			session,
+			"/api/auth/me",
+			{ cache: "no-store" },
+			{ notifyOnUnauthorized: false },
+		);
+	}
+	if (response.status === 401) return null;
+	if (!response.ok)
+		throw new Error(`Session validation failed with ${response.status}.`);
+	const payload = (await response.json()) as {
+		user?: { id?: unknown; username?: unknown };
+		resourceTicket?: unknown;
+		resourceTicketExpiresIn?: unknown;
+	};
+	if (typeof payload.user?.id !== "string")
+		throw new Error("Server did not return a complete session response.");
+	if (typeof payload.resourceTicket === "string") {
+		resourceTicket = {
+			value: payload.resourceTicket,
+			expiresAt:
+				Date.now() +
+				(typeof payload.resourceTicketExpiresIn === "number"
+					? payload.resourceTicketExpiresIn * 1000
+					: 10 * 60_000),
+			sessionKey: resourceSessionKey({
+				token: "",
+				userId: payload.user.id,
+				username:
+					typeof payload.user.username === "string"
+						? payload.user.username
+						: "ZenStream",
+			}),
+		};
+		if (typeof window !== "undefined")
+			window.dispatchEvent(new Event("zenstream:resource-ticket"));
+	}
+	return {
+		token: "",
+		userId: payload.user.id,
+		username:
+			typeof payload.user.username === "string"
+				? payload.user.username
+				: "ZenStream",
+	};
 }
 
 export async function fetchHomeData(
@@ -425,32 +599,92 @@ export async function fetchHomeData(
 	const data = await cachedClientRequest(
 		`home:${session.userId}`,
 		async (signal) => {
-			const result = await catalogRequest<{
-				latestItems: CatalogItem[];
-				continueWatching: CatalogItem[];
-				nextUp: CatalogItem[];
-				myList: CatalogItem[];
-				recentlyPlayed: CatalogItem[];
-				genreRows: Array<{ genre: string; items: CatalogItem[] }>;
-				libraryRows: Array<
-					Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }
-				>;
-			}>(session, "/api/catalog/home", { signal });
-			return {
-				latestItems: result.latestItems.map(toMediaItem),
-				continueWatching: result.continueWatching.map(toMediaItem),
-				nextUp: result.nextUp.map(toMediaItem),
-				myList: result.myList.map(toMediaItem),
-				recentlyPlayed: result.recentlyPlayed.map(toMediaItem),
-				genreRows: result.genreRows.map((row) => ({
-					...row,
-					items: row.items.map(toMediaItem),
-				})),
-				libraryRows: result.libraryRows.map((row) => ({
-					...row,
-					items: row.items.map(toMediaItem),
-				})),
+			const section = async <T>(
+				name: string,
+				limit?: number,
+				extra?: Record<string, string>,
+			) => {
+				const params = new URLSearchParams({
+					section: name,
+					view: name === "featured" ? "full" : "card",
+				});
+				if (limit !== undefined) params.set("limit", String(limit));
+				for (const [key, value] of Object.entries(extra ?? {}))
+					params.set(key, value);
+				return catalogRequest<T>(session, `/api/catalog/home?${params}`, {
+					signal,
+				});
 			};
+
+			const featured = await section<{ latestItems?: CatalogItem[] }>(
+				"featured",
+				1,
+			);
+			const first = { latestItems: (featured.latestItems ?? []).map(toMediaItem) };
+			onSection?.(first);
+
+			const rest = await Promise.all([
+				section<{ continueWatching?: CatalogItem[] }>("continueWatching", 18),
+				section<{ nextUp?: CatalogItem[] }>("nextUp", 18),
+				section<{
+					myList?: CatalogItem[];
+					recentlyPlayed?: CatalogItem[];
+					genreRows?: Array<{ genre: string; items: CatalogItem[] }>;
+				}>("derived", 18),
+				getLibraryViews(session),
+			]);
+			const continueWatching = (rest[0].continueWatching ?? []).map(toMediaItem);
+			const nextUp = (rest[1].nextUp ?? []).map(toMediaItem);
+			const derived = rest[2];
+			const libraries = rest[3] as LibraryView[];
+			onSection?.({
+				continueWatching,
+				nextUp,
+				myList: (derived.myList ?? []).map(toMediaItem),
+				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
+				genreRows: (derived.genreRows ?? []).map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
+			});
+
+			const libraryRows: HomeLibrarySection[] = [];
+			for (let offset = 0; offset < libraries.length; offset += 3) {
+				const batch = await Promise.all(
+					libraries.slice(offset, offset + 3).map(async (library) => {
+						const result = await section<{
+							libraryRows?: Array<
+								Omit<HomeLibrarySection, "items"> & { items: CatalogItem[] }
+							>;
+						}>("library", 18, { libraryId: library.Id });
+						return (result.libraryRows ?? []).map((row) => ({
+							...row,
+							items: row.items.map(toMediaItem),
+						}));
+					}),
+				);
+				libraryRows.push(...batch.flat());
+				onSection?.({ libraryRows: [...libraryRows] });
+			}
+
+			const allFeatured = await section<{ latestItems?: CatalogItem[] }>(
+				"featured",
+				25,
+			);
+			const result: HomeData = {
+				latestItems: (allFeatured.latestItems ?? []).map(toMediaItem),
+				continueWatching,
+				nextUp,
+				myList: (derived.myList ?? []).map(toMediaItem),
+				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
+				genreRows: (derived.genreRows ?? []).map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
+				libraryRows,
+			};
+			onSection?.(result);
+			return result;
 		},
 	);
 	onSection?.(data);
@@ -465,7 +699,7 @@ export function getFavoriteItems(
 		signal?: AbortSignal;
 	} = {},
 ) {
-	const params = new URLSearchParams({ pageSize: "100" });
+	const params = new URLSearchParams({ pageSize: "100", view: "card" });
 	if (options.sortBy) params.set("sortBy", options.sortBy);
 	if (options.sortOrder) params.set("sortOrder", options.sortOrder);
 	return cachedClientRequest(
@@ -524,6 +758,7 @@ export async function getLibraryItems(
 		libraryId: options.parentId,
 		page: String(Math.floor(options.startIndex / limit) + 1),
 		pageSize: String(limit),
+		view: "card",
 		sortBy: catalogSort(options.sortBy),
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
@@ -555,35 +790,120 @@ export async function fetchDetailData(
 	itemId: string,
 	requestedSeasonId?: string,
 	requestSignal?: AbortSignal,
+	onSection?: (section: Partial<DetailData>) => void,
 ): Promise<DetailData> {
-	return cachedClientRequest(
+	const data = await cachedClientRequest(
 		`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`,
 		async (signal) => {
-			const params = new URLSearchParams();
+			const params = new URLSearchParams({ section: "header" });
 			if (requestedSeasonId) params.set("seasonId", requestedSeasonId);
 			try {
-				const response = await catalogRequest<{
+				const header = await catalogRequest<{
 					item: CatalogItem;
 					backgroundItem?: CatalogItem | null;
 					seasons: CatalogItem[];
-					episodes: CatalogItem[];
-					similar: CatalogItem[];
-					collectionItems?: CatalogItem[] | null;
 				}>(
 					session,
-					`/api/catalog/items/${encodeURIComponent(itemId)}/detail${params.size ? `?${params}` : ""}`,
+					`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${params}`,
 					{ signal: combinedSignal(requestSignal, signal) },
 				);
-				return {
-					item: toMediaItem(response.item),
-					backgroundItem: response.backgroundItem
-						? toMediaItem(response.backgroundItem)
+				const initial: DetailData = {
+					item: toMediaItem(header.item),
+					backgroundItem: header.backgroundItem
+						? toMediaItem(header.backgroundItem)
 						: undefined,
-					seasons: response.seasons.map(toMediaItem),
-					episodes: response.episodes.map(toMediaItem),
-					similar: response.similar.map(toMediaItem),
-					collectionItems: response.collectionItems?.map(toMediaItem),
+					seasons: (header.seasons ?? []).map(toMediaItem),
+					episodes: [],
+					similar: [],
 				};
+				onSection?.(initial);
+				const item = initial.item;
+				const season = getInitialSeason(item, initial.seasons, requestedSeasonId);
+				const episodeParams = new URLSearchParams({
+					section: "episodes",
+					page: "1",
+					pageSize: "40",
+					view: "full",
+				});
+				if (season) episodeParams.set("seasonId", season.Id);
+				const episodesPromise =
+					season && (item.Type === "Series" || item.Type === "Episode")
+						? catalogRequest<{
+								episodes?: CatalogItem[];
+								total?: number;
+							}>(
+								session,
+								`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${episodeParams}`,
+								{
+									signal: combinedSignal(requestSignal, signal),
+								},
+							)
+						: Promise.resolve({ episodes: [], total: 0 });
+				const similarPromise =
+					item.Type === "Episode"
+						? Promise.resolve({ similar: [] as CatalogItem[] })
+						: catalogRequest<{ similar?: CatalogItem[] }>(
+								session,
+								`/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=similar&view=card`,
+								{ signal: combinedSignal(requestSignal, signal) },
+							);
+				const creditsPromise = catalogRequest<{
+					credits?: { cast?: unknown[]; crew?: unknown[] };
+				}>(
+					session,
+					`/api/catalog/items/${encodeURIComponent(itemId)}/detail?section=credits`,
+					{
+						signal: combinedSignal(requestSignal, signal),
+					},
+				);
+				const collectionPromise =
+					item.Type === "BoxSet"
+						? getChildren(session, item)
+						: Promise.resolve(undefined);
+				const [episodes, similar, credits, collectionItems] = await Promise.all([
+					episodesPromise,
+					similarPromise,
+					creditsPromise,
+					collectionPromise,
+				]);
+				let episodeItems = (episodes.episodes ?? []).map(toMediaItem);
+				const episodeTotal = Number(episodes.total ?? episodeItems.length);
+				for (
+					let episodePage = 2;
+					episodePage <= Math.ceil(episodeTotal / 40);
+					episodePage += 1
+				) {
+					if (requestSignal?.aborted || signal.aborted) break;
+					const pageParams = new URLSearchParams({
+						section: "episodes",
+						page: String(episodePage),
+						pageSize: "40",
+						view: "full",
+					});
+					if (season) pageParams.set("seasonId", season.Id);
+					const page = await catalogRequest<{ episodes?: CatalogItem[] }>(
+						session,
+						`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${pageParams}`,
+						{ signal: combinedSignal(requestSignal, signal) },
+					);
+					episodeItems = episodeItems.concat((page.episodes ?? []).map(toMediaItem));
+					onSection?.({ episodes: episodeItems });
+				}
+				const similarItems = (similar.similar ?? []).map(toMediaItem);
+				const completed: DetailData = {
+					...initial,
+					episodes: episodeItems,
+					similar: similarItems,
+					collectionItems,
+				};
+				if (credits.credits) {
+					completed.item = toMediaItem({
+						...header.item,
+						metadata: { ...header.item.metadata, credits: credits.credits },
+					} as CatalogItem);
+				}
+				onSection?.({ episodes: episodeItems, similar: similarItems });
+				return completed;
 			} catch (error) {
 				const status =
 					error instanceof Error
@@ -614,6 +934,8 @@ export async function fetchDetailData(
 		},
 		DETAIL_CACHE_TTL_MS,
 	);
+	onSection?.(data);
+	return data;
 }
 
 export async function fetchPlayData(
@@ -677,12 +999,14 @@ export async function getPlaybackInfo(
 			streams?: Array<Record<string, unknown>>;
 		};
 		sessionId?: string;
+		viewerSessionId?: string;
 		startPositionSeconds?: number;
 		url: string;
 	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/negotiate`, {
 		method: "POST",
 		body: JSON.stringify({
 			engine: "web",
+			device: browserDeviceMetadata(),
 			sourceId: options.sourceId,
 			forceTranscoding: options.forceTranscoding === true,
 			requestedMode: options.requestedMode,
@@ -707,12 +1031,14 @@ export async function getPlaybackInfo(
 		mode: response.mode,
 		sessionState: response.sessionState,
 		sessionId: response.sessionId,
+		viewerSessionId: response.viewerSessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
 	});
 	return {
 		source,
 		sessionId: response.sessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
+		viewerSessionId: response.viewerSessionId,
 	};
 }
 
@@ -731,7 +1057,12 @@ function mediaSourceFromPayload(
 	itemId: string,
 	playback: Pick<
 		MediaSource,
-		"url" | "mode" | "sessionState" | "sessionId" | "startPositionSeconds"
+		| "url"
+		| "mode"
+		| "sessionState"
+		| "sessionId"
+		| "startPositionSeconds"
+		| "viewerSessionId"
 	> = {},
 ): MediaSource {
 	return {
@@ -765,6 +1096,44 @@ export async function cancelPlaybackSession(
 	await catalogRequest(
 		session,
 		`/api/playback/sessions/${encodeURIComponent(sessionId)}`,
+		{ method: "DELETE", keepalive: true },
+	);
+}
+
+export async function heartbeatPlaybackViewer(
+	session: AuthSession,
+	viewerSessionId: string,
+	payload: {
+		positionSeconds: number;
+		durationSeconds?: number;
+		paused: boolean;
+		workerSessionId?: string;
+		commandAcks?: ViewerCommandAck[];
+	},
+): Promise<ViewerHeartbeatResponse> {
+	return catalogRequest<ViewerHeartbeatResponse>(
+		session,
+		`/api/playback/viewers/${encodeURIComponent(viewerSessionId)}/heartbeat`,
+		{
+			method: "POST",
+			body: JSON.stringify(payload),
+		},
+	);
+}
+
+export function isPlaybackViewerTerminalError(error: unknown) {
+	if (!(error instanceof Error)) return false;
+	const status = error.message.match(/Request failed with (401|404|410)\./)?.[1];
+	return status != null;
+}
+
+export async function endPlaybackViewer(
+	session: AuthSession,
+	viewerSessionId: string,
+): Promise<ViewerEndResponse> {
+	return catalogRequest<ViewerEndResponse>(
+		session,
+		`/api/playback/viewers/${encodeURIComponent(viewerSessionId)}`,
 		{ method: "DELETE", keepalive: true },
 	);
 }
@@ -916,7 +1285,7 @@ export function subtitleUrl(
 	)?.FileId;
 	if (!mediaFileId) return "";
 	const params = new URLSearchParams();
-	addResourceTicket(params);
+	addResourceTicket(params, session.token);
 	return `${orchestratorBaseUrl()}/api/playback/items/${encodeURIComponent(itemId)}/subtitles/${encodeURIComponent(mediaFileId)}.vtt?${params}`;
 }
 
@@ -1027,6 +1396,7 @@ export async function reportPlayback(
 			}),
 		},
 	);
+	clearMediaClientCache({ rootEntityId: itemId });
 }
 
 export async function getPlaybackMarkers(
@@ -1061,8 +1431,6 @@ function toMarker(start: unknown, end: unknown): PlaybackMarker | undefined {
 		end: end > 1_000_000 ? end / 10_000_000 : end,
 	};
 }
-
-const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();
 
 export function getHeroTrailer(
 	session: AuthSession,
@@ -1143,7 +1511,9 @@ export function getEpisodes(
 	seasonId: string,
 ) {
 	void seriesId;
-	return getItem(session, seasonId).then((item) => getChildren(session, item));
+	return getItem(session, seasonId).then((item) =>
+		getChildren(session, item, "full"),
+	);
 }
 
 /** Loads every episode in display order so series playback can resume at the first unwatched item. */
@@ -1158,16 +1528,21 @@ export function getSeriesEpisodes(session: AuthSession, seriesId: string) {
 export function getSimilarItems(session: AuthSession, itemId: string) {
 	return catalogRequest<{ items: CatalogItem[] }>(
 		session,
-		`/api/catalog/items/${encodeURIComponent(itemId)}/similar`,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/similar?view=card`,
 	).then((result) => result.items.map(toMediaItem));
 }
 
-async function getChildren(session: AuthSession, parent: MediaItem) {
+async function getChildren(
+	session: AuthSession,
+	parent: MediaItem,
+	view: "card" | "full" = "card",
+) {
 	if (!parent.LibraryId) return [];
 	const params = new URLSearchParams({
 		libraryId: parent.LibraryId,
 		parentId: parent.Id,
 		pageSize: "100",
+		view,
 	});
 	const result = await catalogRequest<{ items: CatalogItem[] }>(
 		session,
@@ -1277,8 +1652,8 @@ export function userImageUrl(userId: string): string | null {
 	return null;
 }
 
-export function userInitial(username: string) {
-	return Array.from(username.trim())[0]?.toLocaleUpperCase() ?? "?";
+export function userInitial(username?: string | null) {
+	return Array.from(username?.trim() ?? "")[0]?.toLocaleUpperCase() ?? "?";
 }
 
 export function personImageUrl(person: MediaPerson) {
@@ -1290,7 +1665,11 @@ export function personImage(person: MediaPerson) {
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
 		const url = new URL(tag, orchestratorBaseUrl());
-		if (resourceTicket && resourceTicket.expiresAt > Date.now())
+		if (
+			resourceTicket &&
+			resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
+			resourceTicket.expiresAt > Date.now()
+		)
 			url.searchParams.set("access", resourceTicket.value);
 		return {
 			src: url.toString(),
@@ -1313,7 +1692,11 @@ function imageData(
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
 		const url = new URL(tag, orchestratorBaseUrl());
-		if (resourceTicket && resourceTicket.expiresAt > Date.now())
+		if (
+			resourceTicket &&
+			resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
+			resourceTicket.expiresAt > Date.now()
+		)
 			url.searchParams.set("access", resourceTicket.value);
 		return {
 			src: url.toString(),

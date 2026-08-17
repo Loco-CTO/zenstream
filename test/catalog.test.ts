@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogRequest, toMediaItem, type CatalogItem } from "@/lib/catalog";
 import {
 	authenticateByName,
+	fetchDetailData,
+	fetchHomeData,
+	getEpisodes,
 	getInitialSeason,
 	getPlaybackInfo,
 	getPlaybackMarkers,
@@ -16,6 +19,204 @@ const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
+	it("loads full metadata for featured hero items while keeping other home sections compact", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = String(input);
+				const parsed = new URL(url);
+				if (parsed.pathname === "/api/catalog/home") {
+					if (parsed.searchParams.get("section") === "featured") {
+						return new Response(
+							JSON.stringify({
+								latestItems: [
+									{
+										id: "hero-1",
+										libraryId: "movies",
+										type: "movie",
+										name: "Hero Movie",
+										metadata: {
+											title: "Hero Movie",
+											overview: "Hero synopsis",
+											images: {
+												Backdrop: { url: "/backdrop" },
+												Logo: { url: "/logo" },
+											},
+										},
+									},
+								],
+							}),
+							{ status: 200 },
+						);
+					}
+					return new Response(JSON.stringify({}), { status: 200 });
+				}
+				if (parsed.pathname === "/api/catalog/libraries") {
+					return new Response(JSON.stringify({ libraries: [] }), { status: 200 });
+				}
+				return new Response(null, { status: 404 });
+			});
+
+		const data = await fetchHomeData(session);
+
+		expect(data.latestItems[0]).toMatchObject({
+			Overview: "Hero synopsis",
+			ImageTags: { Logo: "/logo" },
+			BackdropImageTags: ["/backdrop"],
+		});
+		const homeRequests = fetchMock.mock.calls
+			.map(([input]) => new URL(String(input)))
+			.filter((url) => url.pathname === "/api/catalog/home");
+		expect(
+			homeRequests
+				.filter((url) => url.searchParams.get("section") === "featured")
+				.every((url) => url.searchParams.get("view") === "full"),
+		).toBe(true);
+		expect(
+			homeRequests
+				.filter((url) => url.searchParams.get("section") !== "featured")
+				.every((url) => url.searchParams.get("view") === "card"),
+		).toBe(true);
+	});
+
+	it("loads episode descriptions from the full detail projection", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = String(input);
+				if (url.includes("section=header")) {
+					return new Response(
+						JSON.stringify({
+							item: {
+								id: "series-1",
+								libraryId: "shows",
+								type: "series",
+								name: "Example Show",
+								metadata: { title: "Example Show" },
+							},
+							seasons: [
+								{
+									id: "season-1",
+									libraryId: "shows",
+									type: "season",
+									name: "Season 1",
+									seasonNumber: 1,
+									metadata: { title: "Season 1" },
+								},
+							],
+						}),
+						{ status: 200 },
+					);
+				}
+				if (url.includes("section=episodes")) {
+					const page = new URL(url).searchParams.get("page");
+					return new Response(
+						JSON.stringify({
+							episodes: [
+								{
+									id: page === "2" ? "episode-2" : "episode-1",
+									libraryId: "shows",
+									type: "episode",
+									name: page === "2" ? "Episode 2" : "Episode 1",
+									seasonId: "season-1",
+									seasonNumber: 1,
+									episodeNumber: page === "2" ? 2 : 1,
+									metadata:
+										page === "2"
+											? { title: "Episode 2", description: "Fallback description" }
+											: { title: "Episode 1", overview: "Localized overview" },
+								},
+							],
+							total: 41,
+						}),
+						{ status: 200 },
+					);
+				}
+				if (url.includes("section=similar")) {
+					return new Response(JSON.stringify({ similar: [] }), { status: 200 });
+				}
+				if (url.includes("section=credits")) {
+					return new Response(JSON.stringify({ credits: { cast: [], crew: [] } }), {
+						status: 200,
+					});
+				}
+				return new Response(null, { status: 404 });
+			});
+
+		const data = await fetchDetailData(session, "series-1");
+
+		expect(data.episodes.map((episode) => episode.Overview)).toEqual([
+			"Localized overview",
+			"Fallback description",
+		]);
+		const episodeRequests = fetchMock.mock.calls
+			.map(([input]) => String(input))
+			.filter((url) => url.includes("section=episodes"));
+		expect(episodeRequests).toHaveLength(2);
+		expect(episodeRequests.every((url) => url.includes("view=full"))).toBe(true);
+		expect(episodeRequests.some((url) => url.includes("page=2"))).toBe(true);
+	});
+
+	it("loads switched-season episodes with full metadata", async () => {
+		const seasonId = "season-switched-full";
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = new URL(String(input));
+				if (url.pathname === `/api/catalog/items/${seasonId}`) {
+					return new Response(
+						JSON.stringify({
+							id: seasonId,
+							libraryId: "shows",
+							type: "season",
+							name: "Season 2",
+							seasonNumber: 2,
+							metadata: { title: "Season 2" },
+						}),
+						{ status: 200 },
+					);
+				}
+				if (
+					url.pathname === "/api/catalog/items" &&
+					url.searchParams.get("parentId") === seasonId
+				) {
+					return new Response(
+						JSON.stringify({
+							items: [
+								{
+									id: "episode-switched-full",
+									libraryId: "shows",
+									type: "episode",
+									name: "Second Season Premiere",
+									seasonId,
+									seasonNumber: 2,
+									episodeNumber: 1,
+									metadata: {
+										title: "Second Season Premiere",
+										overview: "Second season overview",
+									},
+								},
+							],
+						}),
+						{ status: 200 },
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+		const episodes = await getEpisodes(session, "series-1", seasonId);
+
+		expect(episodes[0]?.Overview).toBe("Second season overview");
+		const childrenRequest = fetchMock.mock.calls
+			.map(([input]) => new URL(String(input)))
+			.find(
+				(url) =>
+					url.pathname === "/api/catalog/items" &&
+					url.searchParams.get("parentId") === seasonId,
+			);
+		expect(childrenRequest?.searchParams.get("view")).toBe("full");
+	});
+
 	it("loads source-specific intro and outro markers from the Orchestrator", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
 			new Response(
@@ -239,7 +440,6 @@ describe("catalog client", () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(
 				JSON.stringify({
-					token: "token",
 					user: { id: "u", username: "alex" },
 				}),
 				{ status: 200 },
@@ -247,12 +447,17 @@ describe("catalog client", () => {
 		);
 		await authenticateByName(" alex ", "password-123");
 		expect(fetchMock).toHaveBeenCalledWith(
-			expect.stringContaining("/api/auth/login"),
+			expect.stringContaining("/api/auth/browser-login"),
 			expect.objectContaining({
 				method: "POST",
-				body: JSON.stringify({ username: "alex", password: "password-123" }),
 			}),
 		);
+		const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+		expect(body).toMatchObject({ username: "alex", password: "password-123" });
+		expect(body.device).toMatchObject({
+			deviceType: "browser",
+			clientName: "ZenStream Web",
+		});
 	});
 
 	it("negotiates playback through the catalog playback endpoint", async () => {

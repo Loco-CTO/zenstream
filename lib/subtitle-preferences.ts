@@ -16,12 +16,8 @@ export type SubtitleStyle = {
 };
 
 export type SubtitleCue = { start: number; end: number; text: string };
-import { getAuthSession } from "@/lib/session";
-const preferenceUrl = `${(process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "")}/api/preferences/subtitles`;
-const preferenceHeaders = (): Record<string, string> => {
-	const token = getAuthSession()?.token;
-	return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import { authenticatedFetch } from "@/lib/authenticated-request";
+import type { AuthSession } from "@/lib/session";
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	renderer: "native",
@@ -41,14 +37,30 @@ export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
 	mono: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
 };
 
-let subtitlePreferenceCache: {
-	expiresAt: number;
-	value: SubtitleStyle;
-} | null = null;
-let subtitlePreferenceInFlight: Promise<SubtitleStyle> | null = null;
+const subtitlePreferenceCache = new Map<
+	AuthSession,
+	{ expiresAt: number; value: SubtitleStyle }
+>();
+const subtitlePreferenceInFlight = new Map<
+	AuthSession,
+	{ promise: Promise<SubtitleStyle>; controller: AbortController }
+>();
 
-export function clearSubtitlePreferenceCache() {
-	subtitlePreferenceCache = null;
+export function clearSubtitlePreferenceCache(session?: AuthSession) {
+	const targets = session
+		? [session]
+		: [
+				...new Set([
+					...subtitlePreferenceCache.keys(),
+					...subtitlePreferenceInFlight.keys(),
+				]),
+			];
+	for (const target of targets) {
+		subtitlePreferenceCache.delete(target);
+		const pending = subtitlePreferenceInFlight.get(target);
+		pending?.controller.abort();
+		subtitlePreferenceInFlight.delete(target);
+	}
 }
 
 export function subtitleOuterShadow(size: number, color: string) {
@@ -112,40 +124,56 @@ function decodeSubtitleText(value: string) {
 		.trim();
 }
 
-export async function getSubtitlePreference(): Promise<SubtitleStyle> {
-	if (subtitlePreferenceCache && subtitlePreferenceCache.expiresAt > Date.now())
-		return subtitlePreferenceCache.value;
-	if (subtitlePreferenceInFlight) return subtitlePreferenceInFlight;
-	subtitlePreferenceInFlight = (async () => {
-		const response = await fetch(preferenceUrl, {
-			cache: "no-store",
-			headers: preferenceHeaders(),
-		});
+export async function getSubtitlePreference(
+	session: AuthSession,
+): Promise<SubtitleStyle> {
+	const cached = subtitlePreferenceCache.get(session);
+	if (cached && cached.expiresAt > Date.now()) return cached.value;
+	const pending = subtitlePreferenceInFlight.get(session);
+	if (pending) return pending.promise;
+	const controller = new AbortController();
+	const request = (async () => {
+		const response = await authenticatedFetch(
+			session,
+			"/api/preferences/subtitles",
+			{ cache: "no-store", signal: controller.signal },
+		);
 		if (!response.ok) throw new Error("Could not load subtitle preferences.");
 		const data: unknown = await response.json();
 		const style = normalizeSubtitleStyle(data);
 		if (!style) throw new Error("Invalid subtitle preference response.");
-		subtitlePreferenceCache = { expiresAt: Date.now() + 30_000, value: style };
+		if (subtitlePreferenceInFlight.get(session)?.controller === controller)
+			subtitlePreferenceCache.set(session, {
+				expiresAt: Date.now() + 30_000,
+				value: style,
+			});
 		return style;
-	})().finally(() => {
-		subtitlePreferenceInFlight = null;
+	})();
+	const tracked = request.finally(() => {
+		if (subtitlePreferenceInFlight.get(session)?.promise === tracked)
+			subtitlePreferenceInFlight.delete(session);
 	});
-	return subtitlePreferenceInFlight;
+	subtitlePreferenceInFlight.set(session, { promise: tracked, controller });
+	return tracked;
 }
 
 export async function setSubtitlePreference(
+	session: AuthSession,
 	style: SubtitleStyle,
 ): Promise<SubtitleStyle> {
-	const response = await fetch(preferenceUrl, {
-		method: "PATCH",
-		headers: { ...preferenceHeaders(), "Content-Type": "application/json" },
-		body: JSON.stringify(style),
-	});
+	const response = await authenticatedFetch(
+		session,
+		"/api/preferences/subtitles",
+		{
+			method: "PATCH",
+			body: JSON.stringify(style),
+		},
+	);
 	if (!response.ok) throw new Error("Could not save subtitle preferences.");
 	const data: unknown = await response.json();
 	if (!isSubtitleStyle(data))
 		throw new Error("Invalid subtitle preference response.");
-	clearSubtitlePreferenceCache();
+	clearSubtitlePreferenceCache(session);
 	return data;
 }
 

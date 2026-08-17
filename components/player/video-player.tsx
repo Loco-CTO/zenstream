@@ -2337,7 +2337,7 @@ export function VideoPlayer({
 					if (!transcodeAttemptRef.current && sourceRef.current?.mode === "direct") {
 						void requestTranscodedPlayback(
 							mediaLoadIdRef.current,
-							sourceRef.current.Id,
+							sourceRef.current?.Id,
 						);
 						return;
 					}

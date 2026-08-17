@@ -16,9 +16,9 @@ import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
 
 vi.mock("@/lib/authenticated-request", async () => {
-	const actual = await vi.importActual<typeof import("@/lib/authenticated-request")>(
-		"@/lib/authenticated-request",
-	);
+	const actual = await vi.importActual<
+		typeof import("@/lib/authenticated-request")
+	>("@/lib/authenticated-request");
 	const authenticatedFetch = actual.authenticatedFetch;
 	return {
 		...actual,

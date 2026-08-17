@@ -50,6 +50,9 @@ export function BlurHashImage({
 					{...props}
 					src={image.src}
 					alt={alt}
+					loading={props.loading ?? "lazy"}
+					decoding={props.decoding ?? "async"}
+					fetchPriority={props.fetchPriority ?? "low"}
 					className={className}
 					onError={(event) => {
 						setFailedSrc(image.src);

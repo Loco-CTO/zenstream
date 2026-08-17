@@ -21,6 +21,7 @@ const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
 describe("LibraryPage", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		window.history.replaceState(null, "", "/library");
 		const storage = new Map<string, string>();
 		Object.defineProperty(window, "localStorage", {
 			configurable: true,
@@ -124,6 +125,43 @@ describe("LibraryPage", () => {
 		expect(
 			window.localStorage.getItem("zenstream:user:sort:library:movies"),
 		).toBe(JSON.stringify({ sortBy: "runtime", sortOrder: "Ascending" }));
+	});
+
+	it("updates the URL when the active tab's sort preference changes", async () => {
+		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: makeItems(1),
+			totalRecordCount: 1,
+		});
+		renderLibrary();
+
+		await screen.findByRole("heading", { name: "Shows" });
+		await waitFor(() =>
+			expect(window.location.search).toBe(
+				"?libraryId=shows&sortBy=lastAdded&sortOrder=descending",
+			),
+		);
+
+		fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
+		fireEvent.click(screen.getByRole("option", { name: "Date added" }));
+		await waitFor(() =>
+			expect(window.location.search).toBe(
+				"?libraryId=shows&sortBy=added&sortOrder=descending",
+			),
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));
+		await waitFor(() =>
+			expect(window.location.search).toBe(
+				"?libraryId=shows&sortBy=added&sortOrder=ascending",
+			),
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		await waitFor(() =>
+			expect(window.location.search).toBe(
+				"?libraryId=movies&sortBy=added&sortOrder=descending",
+			),
+		);
 	});
 
 	it("keeps rendered cards bounded and appends the next page near the end", async () => {
@@ -249,8 +287,9 @@ describe("LibraryPage", () => {
 		renderLibrary();
 
 		await screen.findByRole("heading", { name: "Shows" });
+		await waitFor(() => expect(rejectShows).toBeTypeOf("function"));
 		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
-		rejectShows(new Error("stale request failed"));
+		await act(async () => rejectShows(new Error("stale request failed")));
 
 		await screen.findByText("Title 0");
 		expect(

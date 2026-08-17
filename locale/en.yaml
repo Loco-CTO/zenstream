@@ -21,6 +21,8 @@ welcome: Welcome back
 loginDescription: Sign in to your library.
 username: Username
 password: Password
+confirmPassword: Confirm password
+passwordsDoNotMatch: Passwords do not match.
 login: Login
 loginFailed: Login failed. Check your username and password.
 libraryLoadFailed: Could not load your library
@@ -51,6 +53,7 @@ nextUp: Next Up
 playNext: Play next
 stopPlaying: Stop playing
 topRated: Top Rated Anime
+topRatedOn: "Top Rated on {library}"
 newReleases: New Releases
 movies: Movies
 myList: My List
@@ -70,6 +73,7 @@ appearance: Appearance
 languageDescription: Choose the language used throughout ZenStream
 preferredMetadataLanguage: Preferred Metadata Language
 preferredMetadataLanguageDescription: Choose the language used for titles, descriptions, and artwork
+languageAutomatic: Automatic
 metadataLanguageAutomatic: Automatic (interface language)
 metadataLanguageSaveFailed: Could not save your metadata language setting.
 playback: Playback

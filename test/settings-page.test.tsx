@@ -84,6 +84,39 @@ describe("SettingsPage", () => {
 		expect(onLogout).toHaveBeenCalledOnce();
 	});
 
+	it("shows only the server-provided playback languages and saves selections", async () => {
+		const onPlaybackPreferenceChange = vi.fn().mockResolvedValue(undefined);
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				locale="en"
+				onLocaleChange={vi.fn()}
+				onPlaybackPreferenceChange={onPlaybackPreferenceChange}
+				playbackPreference={{
+					audioLanguage: null,
+					subtitleLanguage: null,
+					audioLanguages: [{ value: "en", label: "English" }],
+					subtitleLanguages: [{ value: "ja", label: "Japanese" }],
+				}}
+				onLogout={() => undefined}
+			/>,
+		);
+		openSection("Playback");
+		fireEvent.click(screen.getByRole("combobox", { name: "Audio Language" }));
+		expect(screen.getByRole("option", { name: "English" })).toBeInTheDocument();
+		expect(
+			screen.queryByRole("option", { name: "Spanish" }),
+		).not.toBeInTheDocument();
+		fireEvent.click(screen.getByRole("option", { name: "English" }));
+		await waitFor(() =>
+			expect(onPlaybackPreferenceChange).toHaveBeenCalledWith({
+				audioLanguage: "en",
+				subtitleLanguage: null,
+			}),
+		);
+	});
+
 	it("shows subtitle controls only in the Subtitles category and saves changes", async () => {
 		const style = {
 			renderer: "native" as const,

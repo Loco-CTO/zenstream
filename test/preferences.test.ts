@@ -6,6 +6,8 @@ import {
 	setLocalePreference,
 	storeLocale,
 	clearPreferenceCache,
+	getPlaybackPreference,
+	setPlaybackPreference,
 } from "@/lib/preferences";
 import {
 	getSubtitlePreference,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/subtitle-preferences";
 
 const storage = new Map<string, string>();
+const session = { token: "", userId: "user-1", username: "Alex" };
 
 beforeEach(() => {
 	clearPreferenceCache();
@@ -40,25 +43,26 @@ describe("locale preferences", () => {
 		vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify({ locale: "ja" })));
-		await expect(getLocalePreference()).resolves.toBe("ja");
+		await expect(getLocalePreference(session)).resolves.toBe("ja");
 	});
 
 	it("rejects invalid responses", async () => {
 		vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify({ locale: "fr" })));
-		await expect(getLocalePreference()).rejects.toThrow("Invalid locale");
+		await expect(getLocalePreference(session)).rejects.toThrow("Invalid locale");
 	});
 
 	it("persists locale with PATCH", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify({ locale: "ja" })));
-		await expect(setLocalePreference("ja")).resolves.toBe("ja");
+		await expect(setLocalePreference(session, "ja")).resolves.toBe("ja");
 		expect(fetchMock).toHaveBeenCalledWith(
-			"/api/preferences/locale",
+			expect.stringContaining("/api/preferences/locale"),
 			expect.objectContaining({
 				method: "PATCH",
+				credentials: "include",
 				body: JSON.stringify({ locale: "ja" }),
 			}),
 		);
@@ -90,7 +94,7 @@ describe("subtitle preferences", () => {
 		vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify(style)));
-		await expect(getSubtitlePreference()).resolves.toEqual(style);
+		await expect(getSubtitlePreference(session)).resolves.toEqual(style);
 		expect(isSubtitleStyle({ ...style, textScale: 201 })).toBe(false);
 	});
 
@@ -106,7 +110,7 @@ describe("subtitle preferences", () => {
 		vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify(legacyStyle)));
-		await expect(getSubtitlePreference()).resolves.toEqual({
+		await expect(getSubtitlePreference(session)).resolves.toEqual({
 			...legacyStyle,
 			renderer: "native",
 			fontFamily: "sans",
@@ -118,10 +122,14 @@ describe("subtitle preferences", () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response(JSON.stringify(style)));
-		await expect(setSubtitlePreference(style)).resolves.toEqual(style);
+		await expect(setSubtitlePreference(session, style)).resolves.toEqual(style);
 		expect(fetchMock).toHaveBeenCalledWith(
-			"/api/preferences/subtitles",
-			expect.objectContaining({ method: "PATCH", body: JSON.stringify(style) }),
+			expect.stringContaining("/api/preferences/subtitles"),
+			expect.objectContaining({
+				method: "PATCH",
+				credentials: "include",
+				body: JSON.stringify(style),
+			}),
 		);
 	});
 
@@ -144,5 +152,38 @@ describe("subtitle preferences", () => {
 				"WEBVTT\r\n00:00:01,000 --> 00:00:03,500\r\nA &amp; B\r\n\r\nNOTE ignored\r\n",
 			),
 		).toEqual([{ start: 1, end: 3.5, text: "A & B" }]);
+	});
+});
+
+describe("playback language preferences", () => {
+	const preference = {
+		audioLanguage: null,
+		subtitleLanguage: "off",
+		audioLanguages: [{ value: "en", label: "English" }],
+		subtitleLanguages: [{ value: "ja", label: "Japanese" }],
+	};
+
+	it("loads the permission-filtered language options", async () => {
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(preference)));
+		await expect(getPlaybackPreference(session)).resolves.toEqual(preference);
+	});
+
+	it("persists shared language selections", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify(preference)));
+		await setPlaybackPreference(session, {
+			audioLanguage: "en",
+			subtitleLanguage: "ja",
+		});
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/preferences/playback"),
+			expect.objectContaining({
+				method: "PATCH",
+				body: JSON.stringify({ audioLanguage: "en", subtitleLanguage: "ja" }),
+			}),
+		);
 	});
 });

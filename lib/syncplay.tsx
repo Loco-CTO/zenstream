@@ -16,7 +16,7 @@ class SyncplaySocket {
 	id = "syncplay";
 	constructor(
 		private readonly url: string,
-		private readonly auth: { token: string; participantId: string },
+		private readonly auth: { session: AuthSession; participantId: string },
 	) {}
 	on<T = SyncplayEvent>(event: string, listener: (value: T) => void) {
 		this.listeners.set(event, [
@@ -35,16 +35,13 @@ class SyncplaySocket {
 				this.ws.readyState === WebSocket.CONNECTING)
 		)
 			return;
-		const httpOrigin = this.url
-			.replace(/^ws:/, "http:")
-			.replace(/^wss:/, "https:")
-			.replace(/\/api\/ws\/syncplay$/, "");
 		let ticket: string;
 		try {
-			const response = await fetch(`${httpOrigin}/api/auth/socket-ticket`, {
-				method: "POST",
-				headers: { Authorization: `Bearer ${this.auth.token}` },
-			});
+			const response = await authenticatedFetch(
+				this.auth.session,
+				"/api/auth/socket-ticket",
+				{ method: "POST" },
+			);
 			if (!response.ok) throw new Error("Socket ticket request failed");
 			ticket = String((await response.json()).ticket ?? "");
 			if (!ticket) throw new Error("Socket ticket was empty");
@@ -110,7 +107,7 @@ function normalizeSyncplayOrigin(origin: string) {
 const io = (
 	origin: string,
 	options: {
-		auth: { token: string; participantId: string };
+		auth: { session: AuthSession; participantId: string };
 		path?: string;
 		autoConnect?: boolean;
 	},
@@ -119,7 +116,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { getItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
-import { getAuthSession } from "@/lib/session";
+import { authenticatedFetch } from "@/lib/authenticated-request";
 
 export type SyncplayGroup = {
 	id: string;
@@ -175,6 +172,7 @@ type Context = {
 		viewing: boolean,
 		loading: boolean,
 		mediaGeneration?: number,
+		timelineRevision?: number,
 	) => Promise<void>;
 	canControl: boolean;
 	serverNow: () => number;
@@ -219,12 +217,14 @@ function participantId() {
 	return generated;
 }
 function isCurrentParticipant(
-	member: { participantId?: string },
-	currentId: string,
+	member: { participantId?: string; userId?: string },
+	currentParticipantId: string,
+	currentUserId: string,
 ) {
-	return member.participantId == null
-		? true
-		: member.participantId === currentId;
+	if (member.participantId) {
+		return member.participantId === currentParticipantId;
+	}
+	return Boolean(member.userId) && member.userId === currentUserId;
 }
 const syncplayDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
@@ -239,7 +239,12 @@ class SyncplayRequestError extends Error {
 		super(message);
 	}
 }
-async function call(path: string, method = "GET", body?: unknown) {
+async function call(
+	session: AuthSession,
+	path: string,
+	method = "GET",
+	body?: unknown,
+) {
 	const started = performance.now();
 	syncplayDebug("HTTP request", { path, method, body });
 	const controller = new AbortController();
@@ -249,18 +254,11 @@ async function call(path: string, method = "GET", body?: unknown) {
 	);
 	let response: Response;
 	try {
-		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
-		response = await fetch(`${base}/api/syncplay/${path}`, {
+		response = await authenticatedFetch(session, `/api/syncplay/${path}`, {
 			method,
 			headers: {
-				...(getAuthSession()?.token
-					? { Authorization: `Bearer ${getAuthSession()!.token}` }
-					: {}),
-				...(getAuthSession()?.username
-					? { "X-ZenStream-Username": getAuthSession()!.username }
-					: {}),
+				...(session.username ? { "X-ZenStream-Username": session.username } : {}),
 				"X-ZenStream-Participant": participantId(),
-				...(body ? { "Content-Type": "application/json" } : {}),
 			},
 			body: body ? JSON.stringify(body) : undefined,
 			cache: "no-store",
@@ -311,7 +309,15 @@ export function SyncplayProvider({
 	const socketRef = useRef<Socket | null>(null);
 	const commandChainRef = useRef(Promise.resolve());
 	const latestSeekRef = useRef(0);
-	const presenceChainRef = useRef(Promise.resolve());
+	const presencePendingRef = useRef<{
+		groupId: string;
+		viewing: boolean;
+		loading: boolean;
+		generation: number;
+		timelineRevision: number;
+		sequence: number;
+	} | null>(null);
+	const presenceWorkerRef = useRef<Promise<void> | null>(null);
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
 	const tombstonesRef = useRef(new Map<string, number>());
@@ -430,7 +436,7 @@ export function SyncplayProvider({
 		[announcePlayback, currentParticipantId, setCurrent, t, toast],
 	);
 	const refresh = useCallback(async () => {
-		const data = (await call("groups")) as { groups: SyncplayGroup[] };
+		const data = (await call(session, "groups")) as { groups: SyncplayGroup[] };
 		syncplayDebug(
 			"groups refreshed",
 			JSON.stringify(
@@ -461,11 +467,11 @@ export function SyncplayProvider({
 					(data.groups.find((group) => group.id === current.id) ?? current)
 				: (data.groups.find((group) =>
 						group.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId),
+							isCurrentParticipant(member, currentParticipantId, session.userId),
 						),
 					) ?? null),
 		);
-	}, [currentParticipantId, reconcile]);
+	}, [currentParticipantId, reconcile, session]);
 	const reconcileRef = useRef(reconcile);
 	const refreshRef = useRef(refresh);
 	useEffect(() => {
@@ -507,7 +513,7 @@ export function SyncplayProvider({
 			)
 				announcePlayback(group.itemId);
 			const isMember = group.members.some((member) =>
-				isCurrentParticipant(member, currentParticipantId),
+				isCurrentParticipant(member, currentParticipantId, session.userId),
 			);
 			if (activeRef.current?.id === group.id) reconcile(isMember ? group : null);
 			// All users receive group broadcasts so they can discover public groups.
@@ -520,7 +526,15 @@ export function SyncplayProvider({
 				return [group, ...old.filter((entry) => entry.id !== group.id)];
 			});
 		},
-		[announcePlayback, currentParticipantId, reconcile, setCurrent, t, toast],
+		[
+			announcePlayback,
+			currentParticipantId,
+			reconcile,
+			session.userId,
+			setCurrent,
+			t,
+			toast,
+		],
 	);
 	useEffect(() => {
 		socketHandlersRef.current = { adopt, setCurrent, t, toast };
@@ -536,7 +550,7 @@ export function SyncplayProvider({
 		).replace(/\/+$/, "");
 		const socket = io(socketOrigin, {
 			path: "/api/socket.io",
-			auth: { token: session.token, participantId: currentParticipantId },
+			auth: { session, participantId: currentParticipantId },
 			autoConnect: false,
 		});
 		socketRef.current = socket;
@@ -595,7 +609,7 @@ export function SyncplayProvider({
 				if (candidate && candidate.revision >= current.revision)
 					reconcileRef.current(
 						candidate.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId),
+							isCurrentParticipant(member, currentParticipantId, session.userId),
 						)
 							? candidate
 							: null,
@@ -604,7 +618,7 @@ export function SyncplayProvider({
 				reconcileRef.current(
 					next.find((group) =>
 						group.members.some((member) =>
-							isCurrentParticipant(member, currentParticipantId),
+							isCurrentParticipant(member, currentParticipantId, session.userId),
 						),
 					) ?? null,
 				);
@@ -645,12 +659,12 @@ export function SyncplayProvider({
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
 		};
-	}, [currentParticipantId, session.token]);
+	}, [currentParticipantId, session]);
 	const create = async () => {
 		if (activeRef.current || membershipActionRef.current) return;
 		membershipActionRef.current = true;
 		try {
-			const group = (await call("groups", "POST")) as SyncplayGroup;
+			const group = (await call(session, "groups", "POST")) as SyncplayGroup;
 			adopt(group);
 			toast.success(t("syncplayGroupCreated"));
 		} catch (error) {
@@ -673,7 +687,7 @@ export function SyncplayProvider({
 		membershipActionRef.current = true;
 		try {
 			const known = groups.find((entry) => entry.id === id);
-			const group = (await call(`groups/${id}/join`, "POST", {
+			const group = (await call(session, `groups/${id}/join`, "POST", {
 				expectedRevision: known?.revision,
 				operationId: operationId(),
 			})) as SyncplayGroup;
@@ -696,7 +710,7 @@ export function SyncplayProvider({
 		const group = activeRef.current;
 		if (!group) return;
 		try {
-			await call(`groups/${group.id}`, "DELETE", {
+			await call(session, `groups/${group.id}`, "DELETE", {
 				expectedRevision: group.revision,
 				operationId: operationId(),
 			});
@@ -722,7 +736,7 @@ export function SyncplayProvider({
 		if (!group) return;
 		try {
 			adopt(
-				(await call(`groups/${group.id}`, "PATCH", {
+				(await call(session, `groups/${group.id}`, "PATCH", {
 					allowViewerControls: value,
 					expectedRevision: group.revision,
 					operationId: operationId(),
@@ -739,6 +753,7 @@ export function SyncplayProvider({
 		try {
 			adopt(
 				(await call(
+					session,
 					`groups/${group.id}/members/${encodeURIComponent(userId)}`,
 					"DELETE",
 					{ expectedRevision: group.revision, operationId: operationId() },
@@ -755,7 +770,7 @@ export function SyncplayProvider({
 		const update = (state: SyncplayGroup): SyncplayGroup => ({
 			...state,
 			members: state.members.map((member) =>
-				isCurrentParticipant(member, currentParticipantId)
+				isCurrentParticipant(member, currentParticipantId, session.userId)
 					? {
 							...member,
 							watchingTogether: value,
@@ -772,13 +787,13 @@ export function SyncplayProvider({
 		);
 		try {
 			adopt(
-				(await call(`groups/${group.id}/participation`, "POST", {
+				(await call(session, `groups/${group.id}/participation`, "POST", {
 					watchingTogether: value,
 					operationId: operationId(),
 				})) as SyncplayGroup,
 			);
 		} catch (error) {
-			adopt((await call(`groups/${group.id}`)) as SyncplayGroup);
+			adopt((await call(session, `groups/${group.id}`)) as SyncplayGroup);
 			toast.error(t("syncplayPresenceFailed"));
 			throw error;
 		}
@@ -808,7 +823,7 @@ export function SyncplayProvider({
 			if (!current || current.id !== groupId) return;
 			const id = operationId();
 			const send = (revision: number) =>
-				call(`groups/${groupId}/command`, "POST", {
+				call(session, `groups/${groupId}/command`, "POST", {
 					...value,
 					expectedRevision: revision,
 					operationId: id,
@@ -826,7 +841,7 @@ export function SyncplayProvider({
 					if (!(error instanceof SyncplayRequestError) || error.status !== 409)
 						throw error;
 					const latest = (error.group ??
-						(await call(`groups/${groupId}`))) as SyncplayGroup;
+						(await call(session, `groups/${groupId}`))) as SyncplayGroup;
 					syncplayDebug("command stale; retrying", {
 						groupId,
 						latestRevision: latest.revision,
@@ -841,7 +856,7 @@ export function SyncplayProvider({
 							retryError.status !== 409
 						)
 							throw retryError;
-						adopt((await call(`groups/${groupId}`)) as SyncplayGroup);
+						adopt((await call(session, `groups/${groupId}`)) as SyncplayGroup);
 					}
 				}
 			} catch (error) {
@@ -854,62 +869,66 @@ export function SyncplayProvider({
 		commandChainRef.current = next;
 		return next;
 	};
-	const presence = async (
+	const startPresenceWorker = () => {
+		if (presenceWorkerRef.current) return;
+		presenceWorkerRef.current = (async () => {
+			while (presencePendingRef.current) {
+				const report = presencePendingRef.current;
+				presencePendingRef.current = null;
+				if (activeRef.current?.id !== report.groupId) continue;
+				try {
+					syncplayDebug("presence send", report);
+					adopt(
+						(await call(session, `groups/${report.groupId}/presence`, "POST", {
+							viewing: report.viewing,
+							loading: report.loading,
+							mediaGeneration: report.generation,
+							timelineRevision: report.timelineRevision,
+							presenceSequence: report.sequence,
+							operationId: operationId(),
+						})) as SyncplayGroup,
+					);
+				} catch (error) {
+					syncplayDebug("presence failed", { ...report, error });
+					toast.error(t("syncplayPresenceFailed"));
+				}
+			}
+		})().finally(() => {
+			presenceWorkerRef.current = null;
+			// A report can be queued in the same turn that the worker drains its
+			// last item. Start a replacement so it cannot be stranded.
+			if (presencePendingRef.current) startPresenceWorker();
+		});
+	};
+	const presence = (
 		viewing: boolean,
 		loading: boolean,
 		mediaGeneration?: number,
-	) => {
+		timelineRevision?: number,
+	): Promise<void> => {
 		const group = activeRef.current;
-		if (!group) return;
+		if (!group) return Promise.resolve();
 		const groupId = group.id;
 		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
-		const timelineRevision = group.timelineRevision ?? group.revision;
+		const revision = timelineRevision ?? group.timelineRevision ?? group.revision;
 		const sequence = ++presenceSequenceRef.current;
-		const send = async () => {
-			if (activeRef.current?.id !== groupId) return;
-			try {
-				syncplayDebug("presence send", {
-					groupId,
-					viewing,
-					loading,
-					generation,
-					timelineRevision,
-					sequence,
-				});
-				adopt(
-					(await call(`groups/${groupId}/presence`, "POST", {
-						viewing,
-						loading,
-						mediaGeneration: generation,
-						timelineRevision,
-						presenceSequence: sequence,
-						operationId: operationId(),
-					})) as SyncplayGroup,
-				);
-			} catch (error) {
-				syncplayDebug("presence failed", {
-					groupId,
-					viewing,
-					loading,
-					generation,
-					timelineRevision,
-					sequence,
-					error,
-				});
-				toast.error(t("syncplayPresenceFailed"));
-				throw error;
-			}
+		presencePendingRef.current = {
+			groupId,
+			viewing,
+			loading,
+			generation,
+			timelineRevision: revision,
+			sequence,
 		};
-		const next = presenceChainRef.current.catch(() => undefined).then(send);
-		presenceChainRef.current = next;
-		return next;
+		startPresenceWorker();
+		return presenceWorkerRef.current ?? Promise.resolve();
 	};
 	const value = {
 		groups,
 		active,
 		currentMember:
 			active?.members.find((member) =>
-				isCurrentParticipant(member, currentParticipantId),
+				isCurrentParticipant(member, currentParticipantId, session.userId),
 			) ?? null,
 		create,
 		join,

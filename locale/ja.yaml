@@ -23,6 +23,8 @@ welcome: おかえりなさい
 loginDescription: ライブラリにサインインします。
 username: ユーザー名
 password: パスワード
+confirmPassword: パスワード（確認）
+passwordsDoNotMatch: パスワードが一致しません。
 login: ログイン
 loginFailed: ログインできませんでした。ユーザー名とパスワードを確認してください。
 libraryLoadFailed: ライブラリを読み込めませんでした。
@@ -43,6 +45,7 @@ continueWatching: 視聴を続ける
 newlyAddedOn: "{library} の新着"
 nextUp: 次に見る
 topRated: 高評価のアニメ
+topRatedOn: "{library} の高評価"
 newReleases: 新着作品
 movies: 映画
 myList: マイリスト
@@ -62,6 +65,7 @@ appearance: 外観
 languageDescription: ZenStream全体で使用する言語を選択します
 preferredMetadataLanguage: 優先メタデータ言語
 preferredMetadataLanguageDescription: タイトル、説明、アートワークに使用する言語を選択します
+languageAutomatic: 自動
 metadataLanguageAutomatic: 自動（インターフェース言語）
 metadataLanguageSaveFailed: メタデータ言語設定を保存できませんでした。
 playback: 再生

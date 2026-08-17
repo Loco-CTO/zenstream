@@ -22,6 +22,11 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { releaseDateLabel, runtimeLabel, progressPercent } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
+import { getPlaybackPreference } from "@/lib/preferences";
+import {
+	preferredSubtitleIndex,
+	preferredTrackIndex,
+} from "@/lib/playback-preferences";
 import { useProgress } from "@/components/status/progress-indicator";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
@@ -149,16 +154,21 @@ export function DetailPage({
 		if (!hasTrackSelection) {
 			return;
 		}
-		void getPlaybackSource(session, item.Id)
-			.then((source) => {
+		void Promise.all([
+			getPlaybackSource(session, item.Id),
+			getPlaybackPreference(session),
+		])
+			.then(([source, preference]) => {
 				if (!active) return;
 				const parsed = playbackStreams({ source });
 				setTrackChoices({ itemId: item.Id, streams: parsed });
-				const audio =
-					parsed.audio.find((track) => track.IsDefault) ?? parsed.audio[0];
-				const subtitle =
-					parsed.subtitles.find((track) => track.IsDefault) ?? parsed.subtitles[0];
-				setSelectedTracks({ audio: audio?.Index, subtitle: subtitle?.Index });
+				setSelectedTracks({
+					audio: preferredTrackIndex(parsed.audio, preference.audioLanguage),
+					subtitle: preferredSubtitleIndex(
+						parsed.subtitles,
+						preference.subtitleLanguage,
+					),
+				});
 			})
 			.catch(() => undefined);
 		return () => {
@@ -184,12 +194,14 @@ export function DetailPage({
 		if (!seriesId || nextSeasonId === seasonId) return;
 		const previous = seasonId;
 		setSeasonId(nextSeasonId);
+		setRequestedSeasonId(nextSeasonId);
 		setSeasonLoading(true);
 		const finish = start();
 		try {
 			setEpisodes(await getEpisodes(session, seriesId, nextSeasonId));
 		} catch {
 			setSeasonId(previous);
+			setRequestedSeasonId(previous);
 			setMutationError(t("detailLoadFailed"));
 		} finally {
 			setSeasonLoading(false);
@@ -415,6 +427,18 @@ function getRequestedSeasonId() {
 	if (typeof window === "undefined") return undefined;
 	return (
 		new URLSearchParams(window.location.search).get("seasonId") ?? undefined
+	);
+}
+
+function setRequestedSeasonId(seasonId: string) {
+	if (typeof window === "undefined") return;
+	const url = new URL(window.location.href);
+	if (seasonId) url.searchParams.set("seasonId", seasonId);
+	else url.searchParams.delete("seasonId");
+	window.history.replaceState(
+		window.history.state,
+		"",
+		`${url.pathname}${url.search}${url.hash}`,
 	);
 }
 
@@ -715,9 +739,7 @@ export function EpisodeCard({
 							image={image}
 							alt={episode.Name}
 							className={
-								horizontal
-									? `brightness-75 ${MEDIA_CARD_IMAGE_CLASS}`
-									: "h-full w-full object-cover brightness-75"
+								horizontal ? `${MEDIA_CARD_IMAGE_CLASS}` : "h-full w-full object-cover"
 							}
 						/>
 					)}
@@ -843,7 +865,7 @@ function PeopleSection({
 												<BlurHashImage
 													image={image}
 													alt={person.Name}
-													className="h-full w-full object-cover brightness-90"
+													className="h-full w-full object-cover"
 												/>
 											)}
 										</div>

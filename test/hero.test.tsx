@@ -224,6 +224,27 @@ describe("Hero", () => {
 		vi.useRealTimers();
 	});
 
+	it("cycles three no-trailer slides in order without skipping", () => {
+		vi.useFakeTimers();
+		const first = heroItem("cycle-first", "Cycle First");
+		const second = heroItem("cycle-second", "Cycle Second");
+		const third = heroItem("cycle-third", "Cycle Third");
+
+		render(<Hero items={[first, second, third]} session={session} />);
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(screen.getByRole("heading", { name: third.Name })).toBeInTheDocument();
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
 	it("starts a muted YouTube trailer after 800ms and advances when it ends", async () => {
 		vi.useFakeTimers();
 		const first = {
@@ -256,12 +277,17 @@ describe("Hero", () => {
 
 		const postMessage = vi.spyOn(iframe.contentWindow!, "postMessage");
 		fireEvent.load(iframe);
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onReady" }),
+				}),
+			);
+		});
 		expect(postMessage).toHaveBeenCalledWith(
-			JSON.stringify({
-				event: "command",
-				func: "addEventListener",
-				args: ["onStateChange"],
-			}),
+			JSON.stringify({ event: "listening", id: "trailer-video" }),
 			"https://www.youtube.com",
 		);
 
@@ -270,16 +296,167 @@ describe("Hero", () => {
 				new MessageEvent("message", {
 					origin: "https://www.youtube.com",
 					source: iframe.contentWindow,
-					data: JSON.stringify({
-						event: "infoDelivery",
-						info: { playerState: 0 },
-					}),
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+		});
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
+
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 1 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
 				}),
 			);
 		});
 		expect(
 			screen.getByRole("heading", { name: second.Name }),
 		).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
+	it("does not let an ended trailer skip the next slide", async () => {
+		vi.useFakeTimers();
+		const first = {
+			...heroItem("single-advance-first", "Single Advance First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/single-advance-video" }],
+		};
+		const second = heroItem("single-advance-second", "Single Advance Second");
+		const third = heroItem("single-advance-third", "Single Advance Third");
+
+		render(<Hero items={[first, second, third]} session={session} />);
+
+		await act(async () => {
+			vi.advanceTimersByTime(800);
+			await Promise.resolve();
+		});
+		const iframe = screen.getByTitle(
+			"Single Advance First trailer",
+		) as HTMLIFrameElement;
+
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 1 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin: "https://www.youtube.com",
+					source: iframe.contentWindow,
+					data: JSON.stringify({ event: "onStateChange", info: 0 }),
+				}),
+			);
+		});
+
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+		act(() => vi.advanceTimersByTime(6999));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+		act(() => vi.advanceTimersByTime(1));
+		expect(screen.getByRole("heading", { name: third.Name })).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
+	it("queues a finished trailer until the progressive hero list can advance", async () => {
+		vi.useFakeTimers();
+		const first = {
+			...heroItem("progressive-first", "Progressive First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/progressive-video" }],
+		};
+		const second = heroItem("progressive-second", "Progressive Second");
+		const { rerender } = render(<Hero items={[first]} session={session} />);
+
+		await act(async () => {
+			vi.advanceTimersByTime(800);
+			await Promise.resolve();
+		});
+		const iframe = screen.getByTitle(
+			"Progressive First trailer",
+		) as HTMLIFrameElement;
+
+		act(() => {
+			for (const info of [1, 0, 0]) {
+				window.dispatchEvent(
+					new MessageEvent("message", {
+						origin: "https://www.youtube.com",
+						source: iframe.contentWindow,
+						data: JSON.stringify({ event: "onStateChange", info }),
+					}),
+				);
+			}
+		});
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
+
+		rerender(<Hero items={[first, second]} session={session} />);
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
+	it("keeps the active trailer bound to its item across a list reorder", async () => {
+		vi.useFakeTimers();
+		const first = {
+			...heroItem("reorder-first", "Reorder First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/reorder-video" }],
+		};
+		const second = heroItem("reorder-second", "Reorder Second");
+		const third = heroItem("reorder-third", "Reorder Third");
+		const { rerender } = render(
+			<Hero items={[first, second, third]} session={session} />,
+		);
+
+		await act(async () => {
+			vi.advanceTimersByTime(800);
+			await Promise.resolve();
+		});
+		const iframe = screen.getByTitle("Reorder First trailer");
+
+		rerender(<Hero items={[second, first, third]} session={session} />);
+		expect(screen.getByTitle("Reorder First trailer")).toBe(iframe);
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
+
+		act(() => {
+			for (const info of [1, 0]) {
+				window.dispatchEvent(
+					new MessageEvent("message", {
+						origin: "https://www.youtube.com",
+						source: (iframe as HTMLIFrameElement).contentWindow,
+						data: JSON.stringify({ event: "onStateChange", info }),
+					}),
+				);
+			}
+		});
+		expect(screen.getByRole("heading", { name: third.Name })).toBeInTheDocument();
 		vi.useRealTimers();
 	});
 });
@@ -294,5 +471,6 @@ function heroItem(id: string, name: string): MediaItem {
 		},
 		BackdropImageTags: ["backdrop-tag"],
 		LocalTrailerCount: 0,
+		RemoteTrailers: [],
 	};
 }

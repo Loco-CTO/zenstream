@@ -6,9 +6,9 @@ export function sessionFromAuth(response: AuthResponse): AuthSession {
 	const userId = response.user?.id;
 	const username = response.user?.username ?? "ZenStream";
 
-	if (!token || !userId) {
+	if (!userId) {
 		throw new Error("Server did not return a complete login response.");
 	}
 
-	return { token, userId, username };
+	return { token: token ?? "", userId, username };
 }

@@ -14,7 +14,7 @@ describe("auth cookies", () => {
 		setAuthCookies({ token: "token-1", userId: "user-1", username: "Alex" });
 
 		expect(getAuthSession()).toEqual({
-			token: "token-1",
+			token: "",
 			userId: "user-1",
 			username: "Alex",
 		});

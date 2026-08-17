@@ -15,6 +15,9 @@ import * as session from "@/lib/session";
 describe("home screen", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockImplementation(async (value) => value);
 	});
 
 	it("shows login when no session exists", async () => {
@@ -36,6 +39,50 @@ describe("home screen", () => {
 		expect(
 			screen.getByRole("button", { name: /login/i }).className,
 		).not.toContain("bg-gradient");
+	});
+
+	it("validates a restored session before loading authenticated data", async () => {
+		const hinted = { token: "", userId: "user", username: "Alex" };
+		vi.spyOn(session, "getAuthSession").mockReturnValue(hinted);
+		const validate = vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockResolvedValue(null);
+		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData");
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		expect(
+			await screen.findByRole("heading", { name: /welcome back/i }),
+		).toBeInTheDocument();
+		expect(validate).toHaveBeenCalledWith(hinted);
+		expect(fetchHomeData).not.toHaveBeenCalled();
+	});
+
+	it("shows a retryable bootstrap error without mounting authenticated services", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "",
+			userId: "user",
+			username: "Alex",
+		});
+		vi
+			.spyOn(jellyfin, "validateBrowserSession")
+			.mockRejectedValue(new Error("Orchestrator unavailable"));
+		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData");
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		expect(
+			await screen.findByText("Orchestrator unavailable"),
+		).toBeInTheDocument();
+		expect(fetchHomeData).not.toHaveBeenCalled();
 	});
 
 	it("loads and renders populated home rows", async () => {
@@ -70,12 +117,6 @@ describe("home screen", () => {
 					titleKey: "topRated",
 					items: [item("top-1", "Top Rated")],
 				},
-				{
-					libraryId: "anime",
-					libraryName: "Anime",
-					titleKey: "newReleases",
-					items: [item("new-1", "New Release")],
-				},
 			],
 			continueWatching: [item("resume-1", "Resume Show")],
 			nextUp: [item("next-1", "Next Episode")],
@@ -106,9 +147,11 @@ describe("home screen", () => {
 		expect(
 			screen.getByRole("button", { name: /show slide 2: second feature/i }),
 		).toBeInTheDocument();
-		expect(screen.getByText("New Release")).toBeInTheDocument();
+		expect(screen.queryByText("New Release")).not.toBeInTheDocument();
 		expect(screen.getByText("Newly Added on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
+		expect(screen.getByText("Top Rated on Anime")).toBeInTheDocument();
+		expect(screen.getByText("Top Rated")).toBeInTheDocument();
 		expect(
 			within(
 				screen.getByText("Newly Added on Anime").closest("section")!,
@@ -117,10 +160,10 @@ describe("home screen", () => {
 		expect(screen.getByText("Continue Watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
 		expect(screen.getByText("My List")).toBeInTheDocument();
-		expect(screen.getByText("Recently Played")).toBeInTheDocument();
+		expect(screen.queryByText("Recently Played")).not.toBeInTheDocument();
 		expect(screen.getByText("Drama")).toBeInTheDocument();
 		expect(screen.getByText("Favorite")).toBeInTheDocument();
-		expect(screen.getByText("Recently Played Title")).toBeInTheDocument();
+		expect(screen.queryByText("Recently Played Title")).not.toBeInTheDocument();
 		expect(
 			within(screen.getByText("My List").closest("section")!).getByRole("link", {
 				name: /all/i,
@@ -137,9 +180,12 @@ describe("home screen", () => {
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Newly Added on Anime")).toBeLessThan(
-			sectionHeadings.indexOf("Recently Played"),
+			sectionHeadings.indexOf("Top Rated on Anime"),
 		);
-		expect(sectionHeadings.indexOf("Recently Played")).toBeLessThan(
+		expect(sectionHeadings.indexOf("Top Rated on Anime")).toBeLessThan(
+			sectionHeadings.indexOf("My List"),
+		);
+		expect(sectionHeadings.indexOf("My List")).toBeLessThan(
 			sectionHeadings.indexOf("Drama"),
 		);
 
@@ -167,7 +213,7 @@ describe("home screen", () => {
 					{
 						libraryId: "anime",
 						libraryName: "Anime",
-						titleKey: "topRated",
+						titleKey: "newlyAddedOn",
 						items: [item("top-1", "Recovered")],
 					},
 				],
@@ -192,6 +238,46 @@ describe("home screen", () => {
 		expect(await screen.findAllByText("Recovered")).toHaveLength(2);
 	});
 
+	it("falls back to legacy newly added rows when canonical rows are absent", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "token",
+			userId: "user",
+			username: "Alex",
+		});
+		vi.spyOn(jellyfin, "fetchHomeData").mockResolvedValue({
+			latestItems: [],
+			newlyAdded: [
+				{
+					libraryId: "movies",
+					libraryName: "Movies",
+					items: [item("legacy-new", "Legacy Newly Added")],
+				},
+			],
+			libraryRows: [
+				{
+					libraryId: "movies",
+					libraryName: "Movies",
+					titleKey: "topRated",
+					items: [item("legacy-top", "Legacy Top Rated")],
+				},
+			],
+			continueWatching: [],
+			nextUp: [],
+			myList: [],
+		});
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		expect(await screen.findByText("Newly Added on Movies")).toBeInTheDocument();
+		expect(screen.getByText("Legacy Newly Added")).toBeInTheDocument();
+		expect(screen.getByText("Top Rated on Movies")).toBeInTheDocument();
+		expect(screen.getByText("Legacy Top Rated")).toBeInTheDocument();
+	});
+
 	it("retries an invalidated in-flight home load without showing its abort error", async () => {
 		vi.spyOn(session, "getAuthSession").mockReturnValue({
 			token: "token",
@@ -213,7 +299,7 @@ describe("home screen", () => {
 					{
 						libraryId: "anime",
 						libraryName: "Anime",
-						titleKey: "topRated",
+						titleKey: "newlyAddedOn",
 						items: [item("fresh", "Fresh Home")],
 					},
 				],
@@ -244,6 +330,98 @@ describe("home screen", () => {
 		expect(
 			screen.queryByText("This signal is aborted without reason"),
 		).not.toBeInTheDocument();
+	});
+
+	it("ignores intermediate scan catalog updates and refreshes when idle", async () => {
+		vi.spyOn(session, "getAuthSession").mockReturnValue({
+			token: "token",
+			userId: "user",
+			username: "Alex",
+		});
+		const fetchHomeData = vi.spyOn(jellyfin, "fetchHomeData").mockResolvedValue({
+			latestItems: [],
+			libraryRows: [],
+			continueWatching: [],
+			nextUp: [],
+		});
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(1));
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "anime", reason: "scan" },
+				}),
+			);
+		});
+		expect(fetchHomeData).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "anime", reason: "refresh" },
+				}),
+			);
+		});
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
+	});
+
+	it("keeps the active hero slide while a refresh publishes its limited featured response", async () => {
+		const auth = { token: "token", userId: "user", username: "Alex" };
+		vi.spyOn(session, "getAuthSession").mockReturnValue(auth);
+		const first = item("hero-first", "Hero First");
+		const second = item("hero-second", "Hero Second");
+		const third = item("hero-third", "Hero Third");
+		const fullHome = {
+			latestItems: [first, second, third],
+			libraryRows: [],
+			continueWatching: [],
+			nextUp: [],
+		};
+		let resolveRefresh!: (data: jellyfin.HomeData) => void;
+		const fetchHomeData = vi
+			.spyOn(jellyfin, "fetchHomeData")
+			.mockResolvedValueOnce(fullHome)
+			.mockImplementationOnce(async (_session, onSection) => {
+				onSection?.({ latestItems: [first] });
+				return new Promise((resolve) => {
+					resolveRefresh = resolve;
+				});
+			});
+
+		render(
+			<ProgressProvider>
+				<Page />
+			</ProgressProvider>,
+		);
+
+		await screen.findByRole("heading", { name: first.Name });
+		fireEvent.click(
+			screen.getByRole("button", { name: /show next featured slide/i }),
+		);
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+
+		await act(async () => {
+			window.dispatchEvent(new Event("zenstream:catalog-changed"));
+		});
+		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+
+		resolveRefresh(fullHome);
+		await waitFor(() =>
+			expect(
+				screen.getByRole("heading", { name: second.Name }),
+			).toBeInTheDocument(),
+		);
 	});
 
 	it("does not show the empty-library state while home data is loading", async () => {

@@ -8,18 +8,6 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { zenstreamVersion } from "@/lib/version";
 
-export function libraryHref(options: {
-	libraryId?: string;
-	sortBy: string;
-	sortOrder: string;
-}) {
-	const params = new URLSearchParams();
-	if (options.libraryId) params.set("libraryId", options.libraryId);
-	params.set("sortBy", options.sortBy);
-	params.set("sortOrder", options.sortOrder.toLowerCase());
-	return `/library?${params.toString()}`;
-}
-
 export function HomePage({
 	data,
 	session,
@@ -35,13 +23,28 @@ export function HomePage({
 			: hero
 				? [hero]
 				: [];
+	const canonicalLibraryRows = (data.libraryRows ?? []).filter(
+		(section) =>
+			(section.titleKey === "newlyAddedOn" || section.titleKey === "topRated") &&
+			section.items.length > 0,
+	);
+	const canonicalNewlyAdded = canonicalLibraryRows.filter(
+		(section) => section.titleKey === "newlyAddedOn",
+	);
+	const legacyNewlyAdded =
+		canonicalNewlyAdded.length === 0
+			? (data.newlyAdded ?? [])
+					.filter((section) => section.items.length > 0)
+					.map((section) => ({
+						...section,
+						titleKey: "newlyAddedOn" as const,
+						stackEpisodes: false,
+					}))
+			: [];
 	const libraryRows = [
-		...(data.libraryRows ?? []).filter(
-			(section) => section.titleKey === "newlyAddedOn",
-		),
-		...(data.libraryRows ?? []).filter(
-			(section) => section.titleKey !== "newlyAddedOn",
-		),
+		...canonicalNewlyAdded,
+		...legacyNewlyAdded,
+		...canonicalLibraryRows.filter((section) => section.titleKey === "topRated"),
 	];
 
 	return (
@@ -57,41 +60,26 @@ export function HomePage({
 						session={session}
 					/>
 				))}
+				{libraryRows.map((section) => (
+					<MediaRow
+						key={`${section.libraryId}:${section.titleKey}`}
+						title={t(
+							section.titleKey === "topRated" ? "topRatedOn" : "newlyAddedOn",
+							{ library: section.libraryName },
+						)}
+						items={section.items}
+						variant="poster"
+						stackEpisodes={section.stackEpisodes}
+						session={session}
+						viewAllHref={undefined}
+					/>
+				))}
 				<MediaRow
 					title={t("myList")}
 					items={data.myList ?? []}
 					variant="poster"
 					session={session}
 					viewAllHref="/favorites"
-				/>
-				{libraryRows.map((section) => (
-					<MediaRow
-						key={`${section.libraryId}:${section.titleKey}`}
-						title={
-							section.titleKey === "newlyAddedOn"
-								? t("newlyAddedOn", { library: section.libraryName })
-								: `${section.libraryName} ${t(section.titleKey)}`.trim()
-						}
-						items={section.items}
-						variant="poster"
-						stackEpisodes={section.stackEpisodes}
-						session={session}
-						viewAllHref={
-							section.titleKey === "newlyAddedOn"
-								? undefined
-								: libraryHref({
-										libraryId: section.libraryId,
-										sortBy: section.titleKey === "topRated" ? "rating" : "release",
-										sortOrder: "Descending",
-									})
-						}
-					/>
-				))}
-				<MediaRow
-					title={t("recentlyPlayed")}
-					items={data.recentlyPlayed ?? []}
-					variant="poster"
-					session={session}
 				/>
 				{(data.genreRows ?? []).map((section) => (
 					<MediaRow

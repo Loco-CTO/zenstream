@@ -265,6 +265,51 @@ describe("detail views", () => {
 		).toBeInTheDocument();
 	});
 
+	it("keeps the selected season in the detail URL for refreshes", async () => {
+		window.history.replaceState({}, "", "/show/series");
+		const seasonId = "season-url-2";
+		vi.mocked(fetch).mockImplementation(async (input) => {
+			const url = new URL(String(input));
+			if (url.pathname === `/api/catalog/items/${seasonId}`) {
+				return new Response(
+					JSON.stringify({
+						id: seasonId,
+						libraryId: "shows",
+						type: "season",
+						name: "Season 2",
+						seasonNumber: 2,
+						metadata: { title: "Season 2" },
+					}),
+					{ status: 200 },
+				);
+			}
+			if (
+				url.pathname === "/api/catalog/items" &&
+				url.searchParams.get("parentId") === seasonId
+			) {
+				return new Response(JSON.stringify({ items: [] }), { status: 200 });
+			}
+			return new Response(null, { status: 404 });
+		});
+
+		renderDetail({
+			item: { Id: "series", Name: "Series", Type: "Series" },
+			seasons: [
+				{ Id: "season-url-1", Name: "Season 1", IndexNumber: 1 },
+				{ Id: seasonId, Name: "Season 2", IndexNumber: 2 },
+			],
+			episodes: [],
+			similar: [],
+		});
+
+		fireEvent.click(screen.getByRole("combobox", { name: "Season" }));
+		fireEvent.click(screen.getByRole("option", { name: "S2: Season 2" }));
+
+		await waitFor(() =>
+			expect(window.location.search).toBe(`?seasonId=${seasonId}`),
+		);
+	});
+
 	it("defaults a series to season one when specials are listed first", () => {
 		renderDetail({
 			item: { ...movie(), Id: "series", Type: "Series" },

@@ -24,9 +24,33 @@ import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
 const SLIDE_INTERVAL_MS = 7000;
-const TRAILER_DELAY_MS = 800;
-const DRAG_THRESHOLD_PX = 48;
+const TRAILER_DELAY_MS = 0;
+const DRAG_THRESHOLD_PX = 64;
 type SlideDirection = "next" | "previous";
+type TrailerState = {
+	itemId: string;
+	generation: number;
+	value: HeroTrailer;
+};
+type SlideLifecycle = {
+	itemId: string;
+	generation: number;
+	startedAt: number;
+	advanceRequested: boolean;
+	pendingAdvance: boolean;
+	fallbackTimer: number | null;
+};
+
+function clearLifecycleTimer(lifecycle: SlideLifecycle | null | undefined) {
+	if (
+		lifecycle?.fallbackTimer === null ||
+		lifecycle?.fallbackTimer === undefined
+	) {
+		return;
+	}
+	window.clearTimeout(lifecycle.fallbackTimer);
+	lifecycle.fallbackTimer = null;
+}
 
 export function Hero({
 	items,
@@ -38,10 +62,12 @@ export function Hero({
 	const { locale, t } = useI18n();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 	const slides = useMemo(() => items.filter(hasVisualImage), [items]);
-	const [activeIndex, setActiveIndex] = useState(0);
+	const [activeItemId, setActiveItemId] = useState<string | null>(
+		() => slides[0]?.Id ?? items[0]?.Id ?? null,
+	);
 	const [slideDirection, setSlideDirection] = useState<SlideDirection>("next");
 	const [isDragging, setIsDragging] = useState(false);
-	const [trailer, setTrailer] = useState<HeroTrailer | null>(null);
+	const [trailerState, setTrailerState] = useState<TrailerState | null>(null);
 	const [isTrailerMuted, setIsTrailerMuted] = useState(true);
 	const [canPlayTrailers, setCanPlayTrailers] = useState(false);
 	const [titleLogoFailedSrc, setTitleLogoFailedSrc] = useState<string | null>(
@@ -49,8 +75,40 @@ export function Hero({
 	);
 	const dragStartX = useRef<number | null>(null);
 	const dragHandled = useRef(false);
-	const fallbackTimer = useRef<number | null>(null);
+	const slidesRef = useRef(slides);
+	const activeItemIdRef = useRef(activeItemId);
+	const activeItemRef = useRef<MediaItem | null>(null);
+	const lifecycleGeneration = useRef(0);
+	const lifecycleRef = useRef<SlideLifecycle | null>(null);
 	const canNavigateSlides = slides.length > 1;
+	const effectiveActiveItemId =
+		activeItemId && slides.some((slide) => slide.Id === activeItemId)
+			? activeItemId
+			: (slides[0]?.Id ?? items[0]?.Id ?? null);
+	const indexedActiveSlide = slides.findIndex(
+		(slide) => slide.Id === effectiveActiveItemId,
+	);
+	const visibleIndex = indexedActiveSlide >= 0 ? indexedActiveSlide : 0;
+	const item = slides[visibleIndex] ?? items[0] ?? null;
+	const trailer =
+		trailerState && item && trailerState.itemId === item.Id
+			? trailerState.value
+			: null;
+	const trailerGeneration =
+		trailerState && item && trailerState.itemId === item.Id
+			? trailerState.generation
+			: null;
+	const trailerMetadataKey = item
+		? item.RemoteTrailers === undefined
+			? "unknown"
+			: item.RemoteTrailers.map((entry) => entry.Url ?? "").join("\u001f")
+		: "none";
+
+	useEffect(() => {
+		slidesRef.current = slides;
+		activeItemIdRef.current = item?.Id ?? null;
+		activeItemRef.current = item;
+	}, [item, slides]);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(pointer: fine) and (hover: hover)");
@@ -61,79 +119,222 @@ export function Hero({
 		return () => mediaQuery.removeEventListener("change", updateTrailerSupport);
 	}, []);
 
+	const invalidateActiveLifecycle = useCallback(() => {
+		const lifecycle = lifecycleRef.current;
+		if (!lifecycle) return;
+		lifecycle.advanceRequested = true;
+		lifecycle.pendingAdvance = false;
+		clearLifecycleTimer(lifecycle);
+	}, []);
+
 	const showSlide = useCallback(
 		(index: number, direction: SlideDirection) => {
 			if (!canNavigateSlides) return;
-			setTrailer(null);
+			const nextItem = slides[(index + slides.length) % slides.length];
+			if (!nextItem || nextItem.Id === activeItemIdRef.current) return;
+			invalidateActiveLifecycle();
+			activeItemIdRef.current = nextItem.Id;
+			setTrailerState(null);
 			setIsTrailerMuted(true);
 			setSlideDirection(direction);
-			setActiveIndex((index + slides.length) % slides.length);
+			setActiveItemId(nextItem.Id);
 		},
-		[canNavigateSlides, slides.length],
+		[canNavigateSlides, invalidateActiveLifecycle, slides],
 	);
 
 	const goToPreviousSlide = useCallback(() => {
-		showSlide(activeIndex - 1, "previous");
-	}, [activeIndex, showSlide]);
+		showSlide(visibleIndex - 1, "previous");
+	}, [showSlide, visibleIndex]);
 
 	const goToNextSlide = useCallback(() => {
-		showSlide(activeIndex + 1, "next");
-	}, [activeIndex, showSlide]);
+		showSlide(visibleIndex + 1, "next");
+	}, [showSlide, visibleIndex]);
 
-	const visibleIndex = slides.length > 0 ? activeIndex % slides.length : 0;
-	const item = slides[visibleIndex] ?? items[0] ?? null;
+	const advanceToNextSlide = useCallback(() => {
+		const currentSlides = slidesRef.current;
+		if (currentSlides.length <= 1) return false;
+		const currentIndex = Math.max(
+			0,
+			currentSlides.findIndex((slide) => slide.Id === activeItemIdRef.current),
+		);
+		const nextItem = currentSlides[(currentIndex + 1) % currentSlides.length];
+		activeItemIdRef.current = nextItem.Id;
+		setTrailerState(null);
+		setIsTrailerMuted(true);
+		setSlideDirection("next");
+		setActiveItemId(nextItem.Id);
+		return true;
+	}, []);
+
+	const requestAdvance = useCallback(
+		(itemId: string, generation: number) => {
+			const lifecycle = lifecycleRef.current;
+			if (
+				!lifecycle ||
+				lifecycle.itemId !== itemId ||
+				lifecycle.generation !== generation ||
+				lifecycle.advanceRequested ||
+				activeItemIdRef.current !== itemId
+			) {
+				return;
+			}
+			if (slidesRef.current.length <= 1) {
+				lifecycle.pendingAdvance = true;
+				return;
+			}
+			lifecycle.advanceRequested = true;
+			lifecycle.pendingAdvance = false;
+			clearLifecycleTimer(lifecycle);
+			advanceToNextSlide();
+		},
+		[advanceToNextSlide],
+	);
+
+	const scheduleAdvance = useCallback(
+		(itemId: string, generation: number, delayMs: number) => {
+			const lifecycle = lifecycleRef.current;
+			if (
+				!lifecycle ||
+				lifecycle.itemId !== itemId ||
+				lifecycle.generation !== generation ||
+				lifecycle.advanceRequested
+			) {
+				return;
+			}
+			clearLifecycleTimer(lifecycle);
+			const timer = window.setTimeout(() => {
+				if (lifecycle.fallbackTimer !== timer) return;
+				lifecycle.fallbackTimer = null;
+				requestAdvance(itemId, generation);
+			}, delayMs);
+			lifecycle.fallbackTimer = timer;
+		},
+		[requestAdvance],
+	);
 
 	useEffect(() => {
-		if (!item) return undefined;
+		if (!effectiveActiveItemId) return undefined;
+		const lifecycleItem = activeItemRef.current;
+		if (!lifecycleItem || lifecycleItem.Id !== effectiveActiveItemId)
+			return undefined;
 
+		clearLifecycleTimer(lifecycleRef.current);
 		let cancelled = false;
-		const scheduleFallback = () => {
-			if (!canNavigateSlides) return;
-			fallbackTimer.current = window.setTimeout(goToNextSlide, SLIDE_INTERVAL_MS);
+		const generation = ++lifecycleGeneration.current;
+		const startedAt = Date.now();
+		const lifecycle: SlideLifecycle = {
+			itemId: effectiveActiveItemId,
+			generation,
+			startedAt,
+			advanceRequested: false,
+			pendingAdvance: false,
+			fallbackTimer: null,
 		};
-
-		scheduleFallback();
+		lifecycleRef.current = lifecycle;
 		if (!canPlayTrailers) {
+			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
 			return () => {
 				cancelled = true;
-				if (fallbackTimer.current !== null) {
-					window.clearTimeout(fallbackTimer.current);
-					fallbackTimer.current = null;
+				if (lifecycleRef.current === lifecycle) {
+					clearLifecycleTimer(lifecycle);
+					lifecycleRef.current = null;
+				}
+			};
+		}
+		const hasTrailerMetadata = lifecycleItem.RemoteTrailers !== undefined;
+		const hasListedTrailer = (lifecycleItem.RemoteTrailers?.length ?? 0) > 0;
+		if (hasTrailerMetadata && !hasListedTrailer) {
+			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
+			return () => {
+				cancelled = true;
+				if (lifecycleRef.current === lifecycle) {
+					clearLifecycleTimer(lifecycle);
+					lifecycleRef.current = null;
 				}
 			};
 		}
 
 		const trailerDelay = window.setTimeout(() => {
-			void getHeroTrailer(session, item)
+			void getHeroTrailer(session, lifecycleItem)
 				.then((nextTrailer: HeroTrailer | null) => {
-					if (cancelled || !nextTrailer) return;
-					if (fallbackTimer.current !== null) {
-						window.clearTimeout(fallbackTimer.current);
-						fallbackTimer.current = null;
+					if (
+						cancelled ||
+						lifecycleRef.current !== lifecycle ||
+						activeItemIdRef.current !== effectiveActiveItemId
+					) {
+						return;
 					}
-					setTrailer(nextTrailer);
+					if (nextTrailer) {
+						clearLifecycleTimer(lifecycle);
+						setTrailerState({
+							itemId: effectiveActiveItemId,
+							generation,
+							value: nextTrailer,
+						});
+						return;
+					}
+					scheduleAdvance(
+						effectiveActiveItemId,
+						generation,
+						Math.max(0, SLIDE_INTERVAL_MS - (Date.now() - startedAt)),
+					);
 				})
-				.catch(() => undefined);
+				.catch(() => {
+					if (
+						!cancelled &&
+						lifecycleRef.current === lifecycle &&
+						activeItemIdRef.current === effectiveActiveItemId
+					) {
+						scheduleAdvance(
+							effectiveActiveItemId,
+							generation,
+							Math.max(0, SLIDE_INTERVAL_MS - (Date.now() - startedAt)),
+						);
+					}
+				});
 		}, TRAILER_DELAY_MS);
 
 		return () => {
 			cancelled = true;
 			window.clearTimeout(trailerDelay);
-			if (fallbackTimer.current !== null) {
-				window.clearTimeout(fallbackTimer.current);
-				fallbackTimer.current = null;
+			if (lifecycleRef.current === lifecycle) {
+				clearLifecycleTimer(lifecycle);
+				lifecycleRef.current = null;
 			}
 		};
-	}, [canNavigateSlides, canPlayTrailers, goToNextSlide, item, session]);
+	}, [
+		canPlayTrailers,
+		effectiveActiveItemId,
+		scheduleAdvance,
+		session,
+		trailerMetadataKey,
+	]);
 
-	const handleTrailerFailure = useCallback(() => {
-		setTrailer(null);
-		if (!canNavigateSlides) return;
-		if (fallbackTimer.current !== null) {
-			window.clearTimeout(fallbackTimer.current);
+	useEffect(() => {
+		const lifecycle = lifecycleRef.current;
+		if (slides.length > 1 && lifecycle?.pendingAdvance) {
+			requestAdvance(lifecycle.itemId, lifecycle.generation);
 		}
-		fallbackTimer.current = window.setTimeout(goToNextSlide, SLIDE_INTERVAL_MS);
-	}, [canNavigateSlides, goToNextSlide]);
+	}, [requestAdvance, slides.length]);
+
+	const handleTrailerFailure = useCallback(
+		(itemId: string, generation: number) => {
+			if (
+				lifecycleRef.current?.generation !== generation ||
+				activeItemIdRef.current !== itemId
+			) {
+				return;
+			}
+			setTrailerState(null);
+			const startedAt = lifecycleRef.current.startedAt;
+			scheduleAdvance(
+				itemId,
+				generation,
+				Math.max(0, SLIDE_INTERVAL_MS - (Date.now() - startedAt)),
+			);
+		},
+		[scheduleAdvance],
+	);
 
 	const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
 		if (!canNavigateSlides || isInteractiveTarget(event.target)) return;
@@ -246,8 +447,16 @@ export function Hero({
 						trailer={trailer}
 						title={`${item.Name} trailer`}
 						muted={isTrailerMuted}
-						onEnded={goToNextSlide}
-						onError={handleTrailerFailure}
+						onEnded={() => {
+							if (trailerGeneration !== null) {
+								requestAdvance(item.Id, trailerGeneration);
+							}
+						}}
+						onError={() => {
+							if (trailerGeneration !== null) {
+								handleTrailerFailure(item.Id, trailerGeneration);
+							}
+						}}
 					/>
 				) : (
 					<video
@@ -261,8 +470,16 @@ export function Hero({
 								track.mode = "disabled";
 							}
 						}}
-						onEnded={goToNextSlide}
-						onError={handleTrailerFailure}
+						onEnded={() => {
+							if (trailerGeneration !== null) {
+								requestAdvance(item.Id, trailerGeneration);
+							}
+						}}
+						onError={() => {
+							if (trailerGeneration !== null) {
+								handleTrailerFailure(item.Id, trailerGeneration);
+							}
+						}}
 						className="pointer-events-none absolute inset-0 h-full w-full scale-[1.45] object-cover"
 					/>
 				))}
@@ -399,6 +616,14 @@ function YouTubeTrailer({
 	onError: () => void;
 }) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
+	const hasPlayed = useRef(false);
+	const hasEnded = useRef(false);
+	const hasFailed = useRef(false);
+	const failOnce = useCallback(() => {
+		if (hasFailed.current || hasEnded.current) return;
+		hasFailed.current = true;
+		onError();
+	}, [onError]);
 
 	const sendCommand = useCallback((func: string) => {
 		iframeRef.current?.contentWindow?.postMessage(
@@ -434,15 +659,20 @@ function YouTubeTrailer({
 			try {
 				const data =
 					typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-				const playerState =
-					data?.event === "onStateChange"
-						? data.info
-						: data?.event === "infoDelivery"
-							? data.info?.playerState
-							: undefined;
-
-				if (playerState === 0) onEnded();
-				if (data?.event === "onError") onError();
+				if (data?.event === "onReady") {
+					subscribeToEvent("onStateChange");
+					subscribeToEvent("onError");
+					sendCommand("playVideo");
+					sendCommand(muted ? "mute" : "unMute");
+				}
+				if (data?.event === "onStateChange") {
+					if (data.info === 1) hasPlayed.current = true;
+					if (data.info === 0 && hasPlayed.current && !hasEnded.current) {
+						hasEnded.current = true;
+						onEnded();
+					}
+				}
+				if (data?.event === "onError") failOnce();
 			} catch {
 				// Ignore unrelated iframe messages.
 			}
@@ -450,7 +680,7 @@ function YouTubeTrailer({
 
 		window.addEventListener("message", handleMessage);
 		return () => window.removeEventListener("message", handleMessage);
-	}, [onEnded, onError]);
+	}, [failOnce, muted, onEnded, sendCommand, subscribeToEvent]);
 
 	const params = new URLSearchParams({
 		autoplay: "1",
@@ -476,12 +706,8 @@ function YouTubeTrailer({
 					JSON.stringify({ event: "listening", id: trailer.videoId }),
 					"https://www.youtube.com",
 				);
-				subscribeToEvent("onStateChange");
-				subscribeToEvent("onError");
-				sendCommand("playVideo");
-				sendCommand(muted ? "mute" : "unMute");
 			}}
-			onError={onError}
+			onError={failOnce}
 			className="pointer-events-none absolute inset-0 h-full w-full scale-[1.45] border-0"
 		/>
 	);

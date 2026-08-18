@@ -1046,6 +1046,26 @@ describe("video player controls", () => {
 		expect(css).toContain("text-shadow: -2px -2px 0 #112233");
 	});
 
+	it("renders the default subtitle outline and transparent background", () => {
+		const css = nativeSubtitleCueCss(DEFAULT_SUBTITLE_STYLE);
+		expect(css).toContain("color: #ffffff");
+		expect(css).toContain("font-family: 'Noto Sans', Arial, sans-serif");
+		expect(css).toContain("text-shadow: -2px -2px 0 #000000");
+		expect(css).toContain("2px 2px 0 #000000");
+		expect(css).toContain("background-color: rgba(0, 0, 0, 0)");
+
+		const { getByTestId } = render(
+			<CustomSubtitleCue
+				cues={[{ start: 0, end: 2, text: "Default subtitle" }]}
+				time={1}
+				style={DEFAULT_SUBTITLE_STYLE}
+			/>,
+		);
+		expect(getByTestId("subtitle-cue").getAttribute("style")).toContain(
+			"text-shadow: -2px -2px 0 #000000",
+		);
+	});
+
 	it("ignores fullscreen exit failures when the document is no longer active", async () => {
 		const exitFullscreen = vi
 			.fn()

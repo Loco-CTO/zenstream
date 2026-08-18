@@ -10,6 +10,7 @@ import {
 	setPlaybackPreference,
 } from "@/lib/preferences";
 import {
+	DEFAULT_SUBTITLE_STYLE,
 	getSubtitlePreference,
 	isSubtitleStyle,
 	parseWebVttCues,
@@ -78,6 +79,20 @@ describe("locale preferences", () => {
 });
 
 describe("subtitle preferences", () => {
+	it("uses the requested default appearance", () => {
+		expect(DEFAULT_SUBTITLE_STYLE).toEqual({
+			renderer: "native",
+			fontFamily: "sans",
+			bold: false,
+			textScale: 100,
+			fontColor: "#ffffff",
+			borderSize: 2,
+			borderColor: "#000000",
+			backgroundColor: "#000000",
+			backgroundOpacity: 0,
+		});
+	});
+
 	const style = {
 		renderer: "native" as const,
 		fontFamily: "serif" as const,

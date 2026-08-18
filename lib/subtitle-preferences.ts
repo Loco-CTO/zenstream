@@ -25,7 +25,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	bold: false,
 	textScale: 100,
 	fontColor: "#ffffff",
-	borderSize: 0,
+	borderSize: 2,
 	borderColor: "#000000",
 	backgroundColor: "#000000",
 	backgroundOpacity: 0,

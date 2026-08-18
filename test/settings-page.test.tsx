@@ -111,10 +111,10 @@ describe("SettingsPage", () => {
 		).not.toBeInTheDocument();
 		fireEvent.click(screen.getByRole("option", { name: "English" }));
 		await waitFor(() =>
-			expect(onPlaybackPreferenceChange).toHaveBeenCalledWith({
-				audioLanguage: "en",
-				subtitleLanguage: null,
-			}),
+			expect(onPlaybackPreferenceChange).toHaveBeenCalledWith(
+				"audioLanguage",
+				"en",
+			),
 		);
 	});
 

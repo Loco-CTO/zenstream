@@ -14,6 +14,13 @@ import * as preferences from "@/lib/preferences";
 import * as session from "@/lib/session";
 import * as subtitlePreferences from "@/lib/subtitle-preferences";
 
+const playbackPreference: preferences.PlaybackPreference = {
+	audioLanguage: "en",
+	subtitleLanguage: "ja",
+	audioLanguages: [{ value: "en", label: "English" }],
+	subtitleLanguages: [{ value: "ja", label: "Japanese" }],
+};
+
 function deferred<T>() {
 	let resolve!: (value: T) => void;
 	let reject!: (reason?: unknown) => void;
@@ -61,6 +68,9 @@ describe("settings route", () => {
 		vi
 			.spyOn(subtitlePreferences, "getSubtitlePreference")
 			.mockResolvedValue(DEFAULT_SUBTITLE_STYLE);
+		vi
+			.spyOn(preferences, "getPlaybackPreference")
+			.mockResolvedValue(playbackPreference);
 	});
 
 	it("does not render the home navigation while home data is loading", async () => {
@@ -136,6 +146,64 @@ describe("settings route", () => {
 			expect(screen.getAllByRole("combobox")[0]).toHaveTextContent("English"),
 		);
 		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+	});
+
+	it("reloads playback languages when the Playback section opens", async () => {
+		const load = vi.mocked(preferences.getPlaybackPreference);
+		load.mockReset();
+		load
+			.mockRejectedValueOnce(new Error("initial playback load failed"))
+			.mockResolvedValue(playbackPreference);
+		renderSettings();
+
+		await screen.findByRole("heading", { name: "Settings" });
+		fireEvent.click(screen.getByRole("button", { name: "Playback" }));
+		await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+		await waitFor(() =>
+			expect(screen.getByRole("combobox", { name: "Audio Language" })).toHaveTextContent(
+				"English",
+			),
+		);
+	});
+
+	it("keeps rapid audio and subtitle changes ordered", async () => {
+		const first = deferred<preferences.PlaybackPreference>();
+		const second = deferred<preferences.PlaybackPreference>();
+		const save = vi
+			.spyOn(preferences, "setPlaybackPreference")
+			.mockImplementationOnce(() => first.promise)
+			.mockImplementationOnce(() => second.promise);
+		renderSettings();
+
+		fireEvent.click(await screen.findByRole("button", { name: "Playback" }));
+		await waitFor(() =>
+			expect(screen.getByRole("combobox", { name: "Audio Language" })).toHaveTextContent(
+				"English",
+			),
+		);
+
+		fireEvent.click(screen.getByRole("combobox", { name: "Audio Language" }));
+		fireEvent.click(await screen.findByRole("option", { name: "English" }));
+		fireEvent.click(screen.getByRole("combobox", { name: "Subtitle Language" }));
+		fireEvent.click(await screen.findByRole("option", { name: "Japanese" }));
+
+		expect(save).toHaveBeenCalledTimes(1);
+		expect(save.mock.calls[0]?.[1]).toEqual({
+			audioLanguage: "en",
+			subtitleLanguage: "ja",
+		});
+		await act(async () => first.resolve({ ...playbackPreference, subtitleLanguage: null }));
+		await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+		expect(save.mock.calls[1]?.[1]).toEqual({
+			audioLanguage: "en",
+			subtitleLanguage: "ja",
+		});
+		await act(async () => second.resolve(playbackPreference));
+		await waitFor(() =>
+			expect(screen.getByRole("combobox", { name: "Subtitle Language" })).toHaveTextContent(
+				"Japanese",
+			),
+		);
 	});
 
 	it("serializes metadata-language changes and ignores a stale failed mutation", async () => {

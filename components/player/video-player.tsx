@@ -2401,6 +2401,7 @@ export function VideoPlayer({
 			>
 				<SyncplayGroupMenu
 					userId={session.userId}
+					avatarVersion={session.avatarVersion}
 					playerContext
 					buttonClassName="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white/70 transition hover:bg-black/50 hover:text-white"
 				/>

@@ -125,15 +125,18 @@ export function AppShell() {
 	const [, setResourceTicketRevision] = useState(0);
 	const loadedPreferencesSession = useRef<AuthSession | null>(null);
 	const sessionRef = useRef<AuthSession | null>(null);
-	const handleAvatarVersionChange = useCallback((nextAvatarVersion: string | null) => {
-		setAvatarVersion(nextAvatarVersion);
-		setSession((current) => {
-			if (!current) return current;
-			const nextSession = { ...current, avatarVersion: nextAvatarVersion };
-			sessionRef.current = nextSession;
-			return nextSession;
-		});
-	}, []);
+	const handleAvatarVersionChange = useCallback(
+		(nextAvatarVersion: string | null) => {
+			setAvatarVersion(nextAvatarVersion);
+			setSession((current) => {
+				if (!current) return current;
+				const nextSession = { ...current, avatarVersion: nextAvatarVersion };
+				sessionRef.current = nextSession;
+				return nextSession;
+			});
+		},
+		[],
+	);
 	const routeLoadGeneration = useRef(0);
 	const preferencesGeneration = useRef(0);
 	const playbackPreferenceRef = useRef(EMPTY_PLAYBACK_PREFERENCE);

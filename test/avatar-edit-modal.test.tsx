@@ -1,10 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
-import {
-	removeAvatar,
-	uploadAvatar,
-} from "@/lib/profile";
+import { removeAvatar, uploadAvatar } from "@/lib/profile";
 
 vi.mock("@/lib/profile", () => ({
 	AVATAR_ACCEPT: "image/jpeg,image/png,image/webp,image/gif",
@@ -87,8 +84,14 @@ describe("AvatarEditModal", () => {
 		expect(screen.getByText("90°")).toBeInTheDocument();
 
 		const image = screen.getAllByRole("img")[0];
-		Object.defineProperty(image, "naturalWidth", { configurable: true, value: 800 });
-		Object.defineProperty(image, "naturalHeight", { configurable: true, value: 600 });
+		Object.defineProperty(image, "naturalWidth", {
+			configurable: true,
+			value: 800,
+		});
+		Object.defineProperty(image, "naturalHeight", {
+			configurable: true,
+			value: 600,
+		});
 		fireEvent.load(image);
 		const save = await screen.findByRole("button", { name: "Save" });
 		await waitFor(() => expect(save).toBeEnabled());

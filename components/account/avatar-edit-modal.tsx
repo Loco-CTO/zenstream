@@ -189,13 +189,7 @@ export function AvatarEditModal({
 			setOffset((currentOffset) => clampOffset(currentOffset, Math.exp(next)));
 			return next;
 		});
-	}, [
-		clampOffset,
-		getMaxZoom,
-		getMinZoom,
-		rotation,
-		viewportDimensions,
-	]);
+	}, [clampOffset, getMaxZoom, getMinZoom, rotation, viewportDimensions]);
 
 	useEffect(() => {
 		const element = viewportRef.current;
@@ -255,7 +249,9 @@ export function AvatarEditModal({
 			y: event.clientY - lastPointerRef.current.y,
 		};
 		lastPointerRef.current = { x: event.clientX, y: event.clientY };
-		setOffset((current) => clampOffset({ x: current.x + delta.x, y: current.y + delta.y }, scale));
+		setOffset((current) =>
+			clampOffset({ x: current.x + delta.x, y: current.y + delta.y }, scale),
+		);
 	};
 
 	const updateZoom = (nextZoom: number) => {
@@ -287,7 +283,9 @@ export function AvatarEditModal({
 			const result = await uploadAvatar(session, file, crop);
 			onSaved(result.avatarVersion);
 		} catch (saveError) {
-			setError(saveError instanceof Error ? saveError.message : t("avatarUploadFailed"));
+			setError(
+				saveError instanceof Error ? saveError.message : t("avatarUploadFailed"),
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -301,7 +299,11 @@ export function AvatarEditModal({
 			const result = await removeAvatar(session);
 			onSaved(result.avatarVersion);
 		} catch (removeError) {
-			setError(removeError instanceof Error ? removeError.message : t("avatarRemoveFailed"));
+			setError(
+				removeError instanceof Error
+					? removeError.message
+					: t("avatarRemoveFailed"),
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -334,7 +336,10 @@ export function AvatarEditModal({
 			>
 				<header className="flex items-start justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
 					<div className="min-w-0">
-						<h2 id="avatar-edit-title" className="text-base font-semibold text-white sm:text-lg">
+						<h2
+							id="avatar-edit-title"
+							className="text-base font-semibold text-white sm:text-lg"
+						>
 							{t("avatarEditTitle")}
 						</h2>
 						<p className="mt-1 text-xs leading-relaxed text-white/45">
@@ -369,21 +374,24 @@ export function AvatarEditModal({
 								fileInputRef.current?.click();
 							}}
 							className="group flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.025] px-6 py-12 text-center transition hover:border-violet-300/60 hover:bg-white/[0.05]"
-						onDragOver={(event) => {
-							event.preventDefault();
-							setDragActive(true);
-						}}
-						onDragLeave={() => setDragActive(false)}
-						onDrop={(event) => {
-							event.preventDefault();
-							setDragActive(false);
-							selectFile(event.dataTransfer.files[0]);
-						}}
-						style={
-							dragActive
-								? { borderColor: "rgb(196 181 253 / 0.75)", backgroundColor: "rgb(196 181 253 / 0.08)" }
-								: undefined
-						}
+							onDragOver={(event) => {
+								event.preventDefault();
+								setDragActive(true);
+							}}
+							onDragLeave={() => setDragActive(false)}
+							onDrop={(event) => {
+								event.preventDefault();
+								setDragActive(false);
+								selectFile(event.dataTransfer.files[0]);
+							}}
+							style={
+								dragActive
+									? {
+											borderColor: "rgb(196 181 253 / 0.75)",
+											backgroundColor: "rgb(196 181 253 / 0.08)",
+										}
+									: undefined
+							}
 						>
 							<span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-300/10 text-violet-200 transition group-hover:bg-violet-300/15">
 								<ImagePlus className="h-7 w-7" />
@@ -406,7 +414,9 @@ export function AvatarEditModal({
 										avatarVersion={avatarVersion}
 										containerClassName="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 ring-1 ring-white/12"
 									/>
-									<p className="truncate text-xs text-white/55">{t("avatarCurrentImage")}</p>
+									<p className="truncate text-xs text-white/55">
+										{t("avatarCurrentImage")}
+									</p>
 								</div>
 								<button
 									type="button"
@@ -460,15 +470,45 @@ export function AvatarEditModal({
 							)}
 							{cropSize > 0 && (
 								<>
-									<div className="pointer-events-none absolute inset-x-0 top-0 bg-black/60" style={{ height: cropTop }} />
-									<div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/60" style={{ height: viewportDimensions.h - cropTop - cropSize }} />
-									<div className="pointer-events-none absolute bg-black/60" style={{ left: 0, top: cropTop, width: cropLeft, height: cropSize }} />
-									<div className="pointer-events-none absolute right-0 bg-black/60" style={{ top: cropTop, width: viewportDimensions.w - cropLeft - cropSize, height: cropSize }} />
-									<div className="pointer-events-none absolute border-2 border-white/65" style={{ left: cropLeft, top: cropTop, width: cropSize, height: cropSize }}>
+									<div
+										className="pointer-events-none absolute inset-x-0 top-0 bg-black/60"
+										style={{ height: cropTop }}
+									/>
+									<div
+										className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/60"
+										style={{ height: viewportDimensions.h - cropTop - cropSize }}
+									/>
+									<div
+										className="pointer-events-none absolute bg-black/60"
+										style={{ left: 0, top: cropTop, width: cropLeft, height: cropSize }}
+									/>
+									<div
+										className="pointer-events-none absolute right-0 bg-black/60"
+										style={{
+											top: cropTop,
+											width: viewportDimensions.w - cropLeft - cropSize,
+											height: cropSize,
+										}}
+									/>
+									<div
+										className="pointer-events-none absolute border-2 border-white/65"
+										style={{
+											left: cropLeft,
+											top: cropTop,
+											width: cropSize,
+											height: cropSize,
+										}}
+									>
 										{[1, 2].map((index) => (
 											<div key={index}>
-												<div className="absolute inset-y-0 border-l border-white/20" style={{ left: `${(100 / 3) * index}%` }} />
-												<div className="absolute inset-x-0 border-t border-white/20" style={{ top: `${(100 / 3) * index}%` }} />
+												<div
+													className="absolute inset-y-0 border-l border-white/20"
+													style={{ left: `${(100 / 3) * index}%` }}
+												/>
+												<div
+													className="absolute inset-x-0 border-t border-white/20"
+													style={{ top: `${(100 / 3) * index}%` }}
+												/>
 											</div>
 										))}
 									</div>
@@ -490,7 +530,9 @@ export function AvatarEditModal({
 									className="w-full accent-violet-300"
 								/>
 								<ZoomIn className="h-4 w-4 shrink-0 text-white/35" />
-								<span className="w-12 text-right text-xs tabular-nums text-white/45">{zoomPercent}%</span>
+								<span className="w-12 text-right text-xs tabular-nums text-white/45">
+									{zoomPercent}%
+								</span>
 							</div>
 						</div>
 
@@ -505,10 +547,12 @@ export function AvatarEditModal({
 											className="pointer-events-none absolute max-w-none"
 											style={{
 												left:
-													previewSize / 2 + clampedOffset.x * previewScale -
+													previewSize / 2 +
+													clampedOffset.x * previewScale -
 													(imageDimensions.w * previewScale * scale) / 2,
 												top:
-													previewSize / 2 + clampedOffset.y * previewScale -
+													previewSize / 2 +
+													clampedOffset.y * previewScale -
 													(imageDimensions.h * previewScale * scale) / 2,
 												width: imageDimensions.w * previewScale * scale,
 												height: imageDimensions.h * previewScale * scale,
@@ -519,7 +563,9 @@ export function AvatarEditModal({
 									)}
 								</div>
 								<div className="hidden min-w-0 sm:block">
-									<p className="text-xs font-medium text-white/55">{t("avatarPreview")}</p>
+									<p className="text-xs font-medium text-white/55">
+										{t("avatarPreview")}
+									</p>
 									<p className="mt-1 text-[11px] text-white/30">{rotation}°</p>
 								</div>
 							</div>
@@ -532,7 +578,9 @@ export function AvatarEditModal({
 									className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-2 text-xs font-medium text-white/55 transition hover:border-white/20 hover:bg-white/[0.04] hover:text-white disabled:opacity-40"
 								>
 									<RotateCcw className="h-3.5 w-3.5" />
-									<span className="hidden md:inline">{t("avatarRotateCounterClockwise")}</span>
+									<span className="hidden md:inline">
+										{t("avatarRotateCounterClockwise")}
+									</span>
 								</button>
 								<button
 									type="button"
@@ -581,7 +629,10 @@ export function AvatarEditModal({
 				)}
 
 				{error && (
-					<p role="alert" className="border-t border-red-300/10 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200 sm:px-6">
+					<p
+						role="alert"
+						className="border-t border-red-300/10 bg-red-400/[0.06] px-4 py-3 text-xs text-red-200 sm:px-6"
+					>
 						{error}
 					</p>
 				)}

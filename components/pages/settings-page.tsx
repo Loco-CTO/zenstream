@@ -160,471 +160,474 @@ export function SettingsPage({
 	};
 
 	const avatarSession =
-		session ?? ({ token: "", userId, username: displayName } satisfies AuthSession);
+		session ??
+		({ token: "", userId, username: displayName } satisfies AuthSession);
 
 	return (
 		<>
-		<main className="min-h-screen bg-background pb-12 text-foreground">
-			<header className="sticky top-0 z-40 flex items-center gap-3 border-b border-white/5 bg-[var(--c-nav-from)] px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] backdrop-blur-xl sm:gap-4 sm:px-6 md:px-14 md:py-4">
-				<button
-					type="button"
-					onClick={goBack}
-					aria-label={t("back")}
-					className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition hover:bg-white/8 hover:text-white"
-				>
-					<ChevronLeft className="h-4 w-4" />
-				</button>
-				<h1 className="text-lg font-bold tracking-tight text-white">
-					{section === "root"
-						? t("settings")
-						: section === "account"
-							? t("account")
-							: section === "appearance"
-								? t("appearance")
-								: section === "playback"
-									? t("playback")
-									: section === "subtitles"
-										? t("subtitles")
-										: section === "notifications"
-											? t("notifications")
-											: section === "privacy"
-												? t("privacyData")
-												: t("versions")}
-				</h1>
-			</header>
+			<main className="min-h-screen bg-background pb-12 text-foreground">
+				<header className="sticky top-0 z-40 flex items-center gap-3 border-b border-white/5 bg-[var(--c-nav-from)] px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] backdrop-blur-xl sm:gap-4 sm:px-6 md:px-14 md:py-4">
+					<button
+						type="button"
+						onClick={goBack}
+						aria-label={t("back")}
+						className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition hover:bg-white/8 hover:text-white"
+					>
+						<ChevronLeft className="h-4 w-4" />
+					</button>
+					<h1 className="text-lg font-bold tracking-tight text-white">
+						{section === "root"
+							? t("settings")
+							: section === "account"
+								? t("account")
+								: section === "appearance"
+									? t("appearance")
+									: section === "playback"
+										? t("playback")
+										: section === "subtitles"
+											? t("subtitles")
+											: section === "notifications"
+												? t("notifications")
+												: section === "privacy"
+													? t("privacyData")
+													: t("versions")}
+					</h1>
+				</header>
 
-			<div className="space-y-7 px-4 py-6 sm:px-6 sm:py-8 md:px-14">
-				{section === "root" && (
-					<SettingsIndex
-						displayName={displayName}
-						userId={userId}
-						avatarVersion={avatarVersion}
-						onOpenSection={openSection}
-						onLogout={onLogout}
-					/>
-				)}
+				<div className="space-y-7 px-4 py-6 sm:px-6 sm:py-8 md:px-14">
+					{section === "root" && (
+						<SettingsIndex
+							displayName={displayName}
+							userId={userId}
+							avatarVersion={avatarVersion}
+							onOpenSection={openSection}
+							onLogout={onLogout}
+						/>
+					)}
 
-				{section === "account" && (
-					<SettingsSection title={t("account")}>
-						<div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
-							<UserAvatar
-								displayName={displayName}
-								userId={userId}
-								avatarVersion={avatarVersion}
-							/>
-							<p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
-								{displayName}
-							</p>
-							<button
-								type="button"
-								onClick={() => setAvatarModalOpen(true)}
-								className="text-xs font-medium text-violet-400 transition hover:text-violet-300"
-							>
-								{t("edit")}
-							</button>
-						</div>
-						<SettingsRow
-							label={t("changePassword")}
-							border={false}
-							right={<ChevronRight className="h-4 w-4 text-white/20" />}
-						/>
-					</SettingsSection>
-				)}
-
-				{section === "appearance" && (
-					<SettingsSection title={t("appearance")}>
-						<SettingsRow
-							label={t("language")}
-							sub={t("languageDescription")}
-							border={false}
-							right={
-								<Dropdown
-									aria-label={t("language")}
-									value={locale}
-									onChange={(value) => void changeLocale(value as Locale)}
-									options={[
-										{ value: "en", label: t("english") },
-										{ value: "ja", label: t("japanese") },
-									]}
+					{section === "account" && (
+						<SettingsSection title={t("account")}>
+							<div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
+								<UserAvatar
+									displayName={displayName}
+									userId={userId}
+									avatarVersion={avatarVersion}
 								/>
-							}
-						/>
-						{localeError && (
-							<p
-								role="alert"
-								className="border-t border-white/5 px-4 py-3 text-xs text-red-300"
-							>
-								{t("localeSaveFailed")}
-							</p>
-						)}
-						<SettingsRow
-							label={t("preferredMetadataLanguage")}
-							sub={t("preferredMetadataLanguageDescription")}
-							border={false}
-							right={
-								<Dropdown
-									aria-label={t("preferredMetadataLanguage")}
-									value={
-										metadataLanguage.mode === "auto" ? "auto" : metadataLanguage.language
-									}
-									onChange={(value) => void changeMetadataLanguage(value)}
-									options={[
-										{ value: "auto", label: t("metadataLanguageAutomatic") },
-										...metadataLanguages.map((value) => ({
-											value,
-											label:
-												new Intl.DisplayNames([locale], { type: "language" }).of(value) ??
-												value,
-										})),
-									]}
-								/>
-							}
-						/>
-						{metadataLanguageError && (
-							<p
-								role="alert"
-								className="border-t border-white/5 px-4 py-3 text-xs text-red-300"
-							>
-								{t("metadataLanguageSaveFailed")}
-							</p>
-						)}
-					</SettingsSection>
-				)}
-
-				{section === "playback" && (
-					<SettingsSection title={t("playback")}>
-						<SettingsRow
-							label={t("audioLanguage")}
-							right={
-								<SettingsSelect
-									label={t("audioLanguage")}
-									value={playbackPreference.audioLanguage ?? "auto"}
-									options={[
-										["auto", t("languageAutomatic")],
-										...playbackPreference.audioLanguages.map(
-											(option) => [option.value, option.label] as [string, string],
-										),
-									]}
-									onChange={(value) =>
-										void changePlaybackPreference("audioLanguage", value)
-									}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleLanguage")}
-							right={
-								<SettingsSelect
-									label={t("subtitleLanguage")}
-									value={playbackPreference.subtitleLanguage ?? "auto"}
-									options={[
-										["auto", t("languageAutomatic")],
-										...playbackPreference.subtitleLanguages.map(
-											(option) => [option.value, option.label] as [string, string],
-										),
-										["off", t("off")],
-									]}
-									onChange={(value) =>
-										void changePlaybackPreference("subtitleLanguage", value)
-									}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("autoplayNextEpisode")}
-							right={
-								<Toggle
-									label={t("autoplayNextEpisode")}
-									checked={autoplayNext}
-									onChange={setAutoplayNext}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("autoplayBrowse")}
-							sub={t("autoplayBrowseDescription")}
-							border={false}
-							right={
-								<Toggle
-									label={t("autoplayBrowse")}
-									checked={autoplayBrowse}
-									onChange={setAutoplayBrowse}
-								/>
-							}
-						/>
-					</SettingsSection>
-				)}
-
-				{section === "subtitles" && (
-					<SettingsSection title={t("subtitles")}>
-						<SettingsRow
-							label={t("subtitleRenderer")}
-							right={
-								<SettingsSelect
-									label={t("subtitleRenderer")}
-									value={style.renderer}
-									options={[
-										["native", t("subtitleRendererNative")],
-										["overlay", t("subtitleRendererOverlay")],
-									]}
-									onChange={(value) =>
-										void updateSubtitleStyle({
-											renderer: value as typeof style.renderer,
-										})
-									}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleFont")}
-							right={
-								<SettingsSelect
-									label={t("subtitleFont")}
-									value={style.fontFamily}
-									options={[
-										["sans", "Noto Sans"],
-										["serif", "Serif"],
-										["mono", "Monospace"],
-									]}
-									onChange={(value) =>
-										void updateSubtitleStyle({
-											fontFamily: value as typeof style.fontFamily,
-										})
-									}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleBold")}
-							right={
-								<Toggle
-									label={t("subtitleBold")}
-									checked={style.bold}
-									onChange={(value) => void updateSubtitleStyle({ bold: value })}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitlePreview")}
-							border={false}
-							right={
-								<Toggle
-									label={t("subtitlePreview")}
-									checked={subtitlePreview}
-									onChange={setSubtitlePreview}
-								/>
-							}
-						/>
-						{subtitlePreview && (
-							<div className="border-t border-white/5 bg-black/30 px-4 py-8 text-center">
-								<span
-									className="inline-block max-w-full"
-									style={{
-										color: style.fontColor,
-										backgroundColor: hexToRgba(
-											style.backgroundColor,
-											style.backgroundOpacity,
-										),
-										fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily],
-										fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`,
-										fontWeight: style.bold ? 700 : 400,
-										lineHeight: 1.15,
-										padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined,
-										textShadow: subtitleOuterShadow(style.borderSize, style.borderColor),
-									}}
+								<p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+									{displayName}
+								</p>
+								<button
+									type="button"
+									onClick={() => setAvatarModalOpen(true)}
+									className="text-xs font-medium text-violet-400 transition hover:text-violet-300"
 								>
-									{t("subtitlePreviewText")}
-								</span>
-							</div>
-						)}
-						<SettingsRow
-							label={t("subtitleTextSize")}
-							right={
-								<RangeControl
-									label={t("subtitleTextSize")}
-									min={50}
-									max={200}
-									value={style.textScale}
-									suffix="%"
-									onChange={(value) => void updateSubtitleStyle({ textScale: value })}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleFontColor")}
-							right={
-								<ColorControl
-									label={t("subtitleFontColor")}
-									value={style.fontColor}
-									onChange={(value) => void updateSubtitleStyle({ fontColor: value })}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleBorderSize")}
-							right={
-								<RangeControl
-									label={t("subtitleBorderSize")}
-									min={0}
-									max={8}
-									step={1}
-									value={style.borderSize}
-									suffix="px"
-									onChange={(value) => void updateSubtitleStyle({ borderSize: value })}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleBorderColor")}
-							right={
-								<ColorControl
-									label={t("subtitleBorderColor")}
-									value={style.borderColor}
-									onChange={(value) => void updateSubtitleStyle({ borderColor: value })}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleBackgroundColor")}
-							right={
-								<ColorControl
-									label={t("subtitleBackgroundColor")}
-									value={style.backgroundColor}
-									onChange={(value) =>
-										void updateSubtitleStyle({ backgroundColor: value })
-									}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("subtitleBackgroundOpacity")}
-							right={
-								<RangeControl
-									label={t("subtitleBackgroundOpacity")}
-									min={0}
-									max={100}
-									value={style.backgroundOpacity}
-									suffix="%"
-									onChange={(value) =>
-										void updateSubtitleStyle({ backgroundOpacity: value })
-									}
-								/>
-							}
-						/>
-						{subtitleError && (
-							<p
-								role="alert"
-								className="border-t border-white/5 px-4 py-3 text-xs text-red-300"
-							>
-								{t("subtitleSaveFailed")}
-							</p>
-						)}
-					</SettingsSection>
-				)}
-
-				{section === "notifications" && (
-					<SettingsSection title={t("notifications")}>
-						<SettingsRow
-							label={t("newEpisodes")}
-							sub={t("newEpisodesDescription")}
-							right={
-								<Toggle
-									label={t("newEpisodes")}
-									checked={newEpisodes}
-									onChange={setNewEpisodes}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("newSeasons")}
-							right={
-								<Toggle
-									label={t("newSeasons")}
-									checked={newSeasons}
-									onChange={setNewSeasons}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("watchReminders")}
-							sub={t("watchRemindersDescription")}
-							right={
-								<Toggle
-									label={t("watchReminders")}
-									checked={reminders}
-									onChange={setReminders}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("appUpdates")}
-							border={false}
-							right={
-								<Toggle
-									label={t("appUpdates")}
-									checked={updates}
-									onChange={setUpdates}
-								/>
-							}
-						/>
-					</SettingsSection>
-				)}
-
-				{section === "privacy" && (
-					<SettingsSection title={t("privacyData")}>
-						<SettingsRow
-							label={t("watchHistory")}
-							sub={t("watchHistoryDescription")}
-							right={
-								<Toggle
-									label={t("watchHistory")}
-									checked={watchHistory}
-									onChange={setWatchHistory}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("dataSaver")}
-							sub={t("dataSaverDescription")}
-							right={
-								<Toggle
-									label={t("dataSaver")}
-									checked={dataSaver}
-									onChange={setDataSaver}
-								/>
-							}
-						/>
-						<SettingsRow
-							label={t("clearWatchHistory")}
-							border={false}
-							right={
-								<button className="text-xs font-medium text-red-400/70 transition hover:text-red-400">
-									{t("clear")}
+									{t("edit")}
 								</button>
-							}
-						/>
-					</SettingsSection>
-				)}
+							</div>
+							<SettingsRow
+								label={t("changePassword")}
+								border={false}
+								right={<ChevronRight className="h-4 w-4 text-white/20" />}
+							/>
+						</SettingsSection>
+					)}
 
-				{section === "versions" && (
-					<SettingsSection title={t("versions")}>
-						<SettingsRow
-							label={t("zenstreamVersion")}
-							right={<span className="text-xs text-white/45">{zenstreamVersion}</span>}
-						/>
-						<SettingsRow
-							label={t("orchestratorVersion")}
-							border={false}
-							right={
-								<span className="text-xs text-white/45">
-									{orchestratorVersion ?? t("versionUnavailable")}
-								</span>
-							}
-						/>
-					</SettingsSection>
-				)}
-			</div>
-		</main>
+					{section === "appearance" && (
+						<SettingsSection title={t("appearance")}>
+							<SettingsRow
+								label={t("language")}
+								sub={t("languageDescription")}
+								border={false}
+								right={
+									<Dropdown
+										aria-label={t("language")}
+										value={locale}
+										onChange={(value) => void changeLocale(value as Locale)}
+										options={[
+											{ value: "en", label: t("english") },
+											{ value: "ja", label: t("japanese") },
+										]}
+									/>
+								}
+							/>
+							{localeError && (
+								<p
+									role="alert"
+									className="border-t border-white/5 px-4 py-3 text-xs text-red-300"
+								>
+									{t("localeSaveFailed")}
+								</p>
+							)}
+							<SettingsRow
+								label={t("preferredMetadataLanguage")}
+								sub={t("preferredMetadataLanguageDescription")}
+								border={false}
+								right={
+									<Dropdown
+										aria-label={t("preferredMetadataLanguage")}
+										value={
+											metadataLanguage.mode === "auto" ? "auto" : metadataLanguage.language
+										}
+										onChange={(value) => void changeMetadataLanguage(value)}
+										options={[
+											{ value: "auto", label: t("metadataLanguageAutomatic") },
+											...metadataLanguages.map((value) => ({
+												value,
+												label:
+													new Intl.DisplayNames([locale], { type: "language" }).of(value) ??
+													value,
+											})),
+										]}
+									/>
+								}
+							/>
+							{metadataLanguageError && (
+								<p
+									role="alert"
+									className="border-t border-white/5 px-4 py-3 text-xs text-red-300"
+								>
+									{t("metadataLanguageSaveFailed")}
+								</p>
+							)}
+						</SettingsSection>
+					)}
+
+					{section === "playback" && (
+						<SettingsSection title={t("playback")}>
+							<SettingsRow
+								label={t("audioLanguage")}
+								right={
+									<SettingsSelect
+										label={t("audioLanguage")}
+										value={playbackPreference.audioLanguage ?? "auto"}
+										options={[
+											["auto", t("languageAutomatic")],
+											...playbackPreference.audioLanguages.map(
+												(option) => [option.value, option.label] as [string, string],
+											),
+										]}
+										onChange={(value) =>
+											void changePlaybackPreference("audioLanguage", value)
+										}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleLanguage")}
+								right={
+									<SettingsSelect
+										label={t("subtitleLanguage")}
+										value={playbackPreference.subtitleLanguage ?? "auto"}
+										options={[
+											["auto", t("languageAutomatic")],
+											...playbackPreference.subtitleLanguages.map(
+												(option) => [option.value, option.label] as [string, string],
+											),
+											["off", t("off")],
+										]}
+										onChange={(value) =>
+											void changePlaybackPreference("subtitleLanguage", value)
+										}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("autoplayNextEpisode")}
+								right={
+									<Toggle
+										label={t("autoplayNextEpisode")}
+										checked={autoplayNext}
+										onChange={setAutoplayNext}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("autoplayBrowse")}
+								sub={t("autoplayBrowseDescription")}
+								border={false}
+								right={
+									<Toggle
+										label={t("autoplayBrowse")}
+										checked={autoplayBrowse}
+										onChange={setAutoplayBrowse}
+									/>
+								}
+							/>
+						</SettingsSection>
+					)}
+
+					{section === "subtitles" && (
+						<SettingsSection title={t("subtitles")}>
+							<SettingsRow
+								label={t("subtitleRenderer")}
+								right={
+									<SettingsSelect
+										label={t("subtitleRenderer")}
+										value={style.renderer}
+										options={[
+											["native", t("subtitleRendererNative")],
+											["overlay", t("subtitleRendererOverlay")],
+										]}
+										onChange={(value) =>
+											void updateSubtitleStyle({
+												renderer: value as typeof style.renderer,
+											})
+										}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleFont")}
+								right={
+									<SettingsSelect
+										label={t("subtitleFont")}
+										value={style.fontFamily}
+										options={[
+											["sans", "Noto Sans"],
+											["serif", "Serif"],
+											["mono", "Monospace"],
+										]}
+										onChange={(value) =>
+											void updateSubtitleStyle({
+												fontFamily: value as typeof style.fontFamily,
+											})
+										}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleBold")}
+								right={
+									<Toggle
+										label={t("subtitleBold")}
+										checked={style.bold}
+										onChange={(value) => void updateSubtitleStyle({ bold: value })}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitlePreview")}
+								border={false}
+								right={
+									<Toggle
+										label={t("subtitlePreview")}
+										checked={subtitlePreview}
+										onChange={setSubtitlePreview}
+									/>
+								}
+							/>
+							{subtitlePreview && (
+								<div className="border-t border-white/5 bg-black/30 px-4 py-8 text-center">
+									<span
+										className="inline-block max-w-full"
+										style={{
+											color: style.fontColor,
+											backgroundColor: hexToRgba(
+												style.backgroundColor,
+												style.backgroundOpacity,
+											),
+											fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily],
+											fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`,
+											fontWeight: style.bold ? 700 : 400,
+											lineHeight: 1.15,
+											padding: style.backgroundOpacity ? "0.08em 0.2em" : undefined,
+											textShadow: subtitleOuterShadow(style.borderSize, style.borderColor),
+										}}
+									>
+										{t("subtitlePreviewText")}
+									</span>
+								</div>
+							)}
+							<SettingsRow
+								label={t("subtitleTextSize")}
+								right={
+									<RangeControl
+										label={t("subtitleTextSize")}
+										min={50}
+										max={200}
+										value={style.textScale}
+										suffix="%"
+										onChange={(value) => void updateSubtitleStyle({ textScale: value })}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleFontColor")}
+								right={
+									<ColorControl
+										label={t("subtitleFontColor")}
+										value={style.fontColor}
+										onChange={(value) => void updateSubtitleStyle({ fontColor: value })}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleBorderSize")}
+								right={
+									<RangeControl
+										label={t("subtitleBorderSize")}
+										min={0}
+										max={8}
+										step={1}
+										value={style.borderSize}
+										suffix="px"
+										onChange={(value) => void updateSubtitleStyle({ borderSize: value })}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleBorderColor")}
+								right={
+									<ColorControl
+										label={t("subtitleBorderColor")}
+										value={style.borderColor}
+										onChange={(value) => void updateSubtitleStyle({ borderColor: value })}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleBackgroundColor")}
+								right={
+									<ColorControl
+										label={t("subtitleBackgroundColor")}
+										value={style.backgroundColor}
+										onChange={(value) =>
+											void updateSubtitleStyle({ backgroundColor: value })
+										}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("subtitleBackgroundOpacity")}
+								right={
+									<RangeControl
+										label={t("subtitleBackgroundOpacity")}
+										min={0}
+										max={100}
+										value={style.backgroundOpacity}
+										suffix="%"
+										onChange={(value) =>
+											void updateSubtitleStyle({ backgroundOpacity: value })
+										}
+									/>
+								}
+							/>
+							{subtitleError && (
+								<p
+									role="alert"
+									className="border-t border-white/5 px-4 py-3 text-xs text-red-300"
+								>
+									{t("subtitleSaveFailed")}
+								</p>
+							)}
+						</SettingsSection>
+					)}
+
+					{section === "notifications" && (
+						<SettingsSection title={t("notifications")}>
+							<SettingsRow
+								label={t("newEpisodes")}
+								sub={t("newEpisodesDescription")}
+								right={
+									<Toggle
+										label={t("newEpisodes")}
+										checked={newEpisodes}
+										onChange={setNewEpisodes}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("newSeasons")}
+								right={
+									<Toggle
+										label={t("newSeasons")}
+										checked={newSeasons}
+										onChange={setNewSeasons}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("watchReminders")}
+								sub={t("watchRemindersDescription")}
+								right={
+									<Toggle
+										label={t("watchReminders")}
+										checked={reminders}
+										onChange={setReminders}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("appUpdates")}
+								border={false}
+								right={
+									<Toggle
+										label={t("appUpdates")}
+										checked={updates}
+										onChange={setUpdates}
+									/>
+								}
+							/>
+						</SettingsSection>
+					)}
+
+					{section === "privacy" && (
+						<SettingsSection title={t("privacyData")}>
+							<SettingsRow
+								label={t("watchHistory")}
+								sub={t("watchHistoryDescription")}
+								right={
+									<Toggle
+										label={t("watchHistory")}
+										checked={watchHistory}
+										onChange={setWatchHistory}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("dataSaver")}
+								sub={t("dataSaverDescription")}
+								right={
+									<Toggle
+										label={t("dataSaver")}
+										checked={dataSaver}
+										onChange={setDataSaver}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("clearWatchHistory")}
+								border={false}
+								right={
+									<button className="text-xs font-medium text-red-400/70 transition hover:text-red-400">
+										{t("clear")}
+									</button>
+								}
+							/>
+						</SettingsSection>
+					)}
+
+					{section === "versions" && (
+						<SettingsSection title={t("versions")}>
+							<SettingsRow
+								label={t("zenstreamVersion")}
+								right={
+									<span className="text-xs text-white/45">{zenstreamVersion}</span>
+								}
+							/>
+							<SettingsRow
+								label={t("orchestratorVersion")}
+								border={false}
+								right={
+									<span className="text-xs text-white/45">
+										{orchestratorVersion ?? t("versionUnavailable")}
+									</span>
+								}
+							/>
+						</SettingsSection>
+					)}
+				</div>
+			</main>
 			{avatarModalOpen && (
 				<AvatarEditModal
 					session={avatarSession}

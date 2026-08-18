@@ -7,8 +7,7 @@ export function UserAvatar({
 	displayName,
 	userId,
 	avatarVersion,
-	containerClassName =
-		"flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 ring-1 ring-white/12",
+	containerClassName = "flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 ring-1 ring-white/12",
 	imageClassName = "h-full w-full object-cover",
 	fallbackClassName = "text-base font-semibold text-white/80",
 }: {

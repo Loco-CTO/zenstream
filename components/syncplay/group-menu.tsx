@@ -200,13 +200,13 @@ export function SyncplayGroupMenu({
 																	className="relative flex items-center gap-2 pr-10 text-xs"
 																>
 																	<div className="relative shrink-0">
-														<MemberAvatar
-															userId={member.userId}
-															username={member.username}
-															avatarVersion={
-																member.userId === userId ? avatarVersion : undefined
-															}
-															size="sm"
+																		<MemberAvatar
+																			userId={member.userId}
+																			username={member.username}
+																			avatarVersion={
+																				member.userId === userId ? avatarVersion : undefined
+																			}
+																			size="sm"
 																		/>
 																		{member.watchingTogether !== false && (
 																			<Eye className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-violet-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[2.5]" />
@@ -343,9 +343,7 @@ function ActiveGroupView({
 								<MemberAvatar
 									userId={member.userId}
 									username={member.username}
-									avatarVersion={
-										member.userId === userId ? avatarVersion : undefined
-									}
+									avatarVersion={member.userId === userId ? avatarVersion : undefined}
 									size="md"
 								/>
 								{member.watchingTogether !== false && (

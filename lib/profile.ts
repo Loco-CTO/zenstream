@@ -20,7 +20,10 @@ export type AvatarUpdate = {
 	avatarVersion: string | null;
 };
 
-async function throwProfileError(response: Response, fallback: string): Promise<never> {
+async function throwProfileError(
+	response: Response,
+	fallback: string,
+): Promise<never> {
 	const payload = (await response.json().catch(() => null)) as {
 		detail?: unknown;
 	} | null;
@@ -54,18 +57,17 @@ export async function uploadAvatar(
 			cache: "no-store",
 		},
 	);
-	if (!response.ok)
-		return throwProfileError(response, "Avatar upload failed.");
+	if (!response.ok) return throwProfileError(response, "Avatar upload failed.");
 	return (await response.json()) as AvatarUpdate;
 }
 
-export async function removeAvatar(session: AuthSession): Promise<AvatarUpdate> {
-	const response = await authenticatedFetch(
-		session,
-		"/api/account/avatar",
-		{ method: "DELETE", cache: "no-store" },
-	);
-	if (!response.ok)
-		return throwProfileError(response, "Avatar removal failed.");
+export async function removeAvatar(
+	session: AuthSession,
+): Promise<AvatarUpdate> {
+	const response = await authenticatedFetch(session, "/api/account/avatar", {
+		method: "DELETE",
+		cache: "no-store",
+	});
+	if (!response.ok) return throwProfileError(response, "Avatar removal failed.");
 	return (await response.json()) as AvatarUpdate;
 }

@@ -38,9 +38,11 @@ describe("profile avatar API", () => {
 	});
 
 	it("removes the current avatar through the authenticated account route", async () => {
-		vi.mocked(authenticatedFetch).mockResolvedValue(
-			new Response(JSON.stringify({ avatarVersion: null }), { status: 200 }),
-		);
+		vi
+			.mocked(authenticatedFetch)
+			.mockResolvedValue(
+				new Response(JSON.stringify({ avatarVersion: null }), { status: 200 }),
+			);
 
 		await expect(removeAvatar(session)).resolves.toEqual({ avatarVersion: null });
 		expect(vi.mocked(authenticatedFetch)).toHaveBeenCalledWith(

@@ -107,6 +107,15 @@ export function AppShell() {
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
+	const handleAvatarVersionChange = useCallback((nextAvatarVersion: string | null) => {
+		setAvatarVersion(nextAvatarVersion);
+		setSession((current) => {
+			if (!current) return current;
+			const nextSession = { ...current, avatarVersion: nextAvatarVersion };
+			sessionRef.current = nextSession;
+			return nextSession;
+		});
+	}, []);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
 	const [searchData, setSearchData] = useState<string | null>(null);
 
@@ -815,7 +824,7 @@ export function AppShell() {
 									userId={session.userId}
 									session={session}
 									avatarVersion={avatarVersion}
-									onAvatarVersionChange={setAvatarVersion}
+									onAvatarVersionChange={handleAvatarVersionChange}
 									locale={locale}
 									onLocaleChange={handleLocaleChange}
 									metadataLanguages={metadataLanguages}

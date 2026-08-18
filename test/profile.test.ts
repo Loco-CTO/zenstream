@@ -23,7 +23,7 @@ describe("profile avatar API", () => {
 		await expect(uploadAvatar(session, file, crop)).resolves.toEqual({
 			avatarVersion: "version-2",
 		});
-		const [path, options] = vi.mocked(authenticatedFetch).mock.calls[0];
+		const [, path, options] = vi.mocked(authenticatedFetch).mock.calls[0];
 		const params = new URLSearchParams(path.split("?")[1]);
 		expect(path).toContain("/api/account/avatar?");
 		expect(params.get("cropX")).toBe("12.5");

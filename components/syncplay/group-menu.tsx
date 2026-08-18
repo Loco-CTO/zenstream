@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 export function SyncplayGroupMenu({
 	userId,
-	avatarVersion,
+	avatarVersion = null,
 	buttonClassName,
 	playerContext = false,
 }: {

@@ -171,7 +171,6 @@ export function AvatarEditModal({
 		if (!imageSrc || !imageDimensions.w || !viewportDimensions.w) return;
 		setZoom(getMinZoom());
 		setOffset({ x: 0, y: 0 });
-		setRotation(0);
 	}, [
 		getMinZoom,
 		imageDimensions.h,

@@ -13,7 +13,7 @@ import type { AuthSession } from "@/lib/session";
 export function Navbar({
 	displayName,
 	userId,
-	avatarVersion,
+	avatarVersion = null,
 	onLogout,
 	session,
 }: {

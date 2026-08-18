@@ -83,7 +83,7 @@ describe("AvatarEditModal", () => {
 		fireEvent.click(rotate);
 		expect(screen.getByText("90°")).toBeInTheDocument();
 
-		const image = screen.getAllByRole("img")[0];
+		const image = container.querySelector("img") as HTMLImageElement;
 		Object.defineProperty(image, "naturalWidth", {
 			configurable: true,
 			value: 800,

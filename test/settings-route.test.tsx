@@ -160,9 +160,9 @@ describe("settings route", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Playback" }));
 		await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
 		await waitFor(() =>
-			expect(screen.getByRole("combobox", { name: "Audio Language" })).toHaveTextContent(
-				"English",
-			),
+			expect(
+				screen.getByRole("combobox", { name: "Audio Language" }),
+			).toHaveTextContent("English"),
 		);
 	});
 
@@ -177,9 +177,9 @@ describe("settings route", () => {
 
 		fireEvent.click(await screen.findByRole("button", { name: "Playback" }));
 		await waitFor(() =>
-			expect(screen.getByRole("combobox", { name: "Audio Language" })).toHaveTextContent(
-				"English",
-			),
+			expect(
+				screen.getByRole("combobox", { name: "Audio Language" }),
+			).toHaveTextContent("English"),
 		);
 
 		fireEvent.click(screen.getByRole("combobox", { name: "Audio Language" }));
@@ -192,7 +192,9 @@ describe("settings route", () => {
 			audioLanguage: "en",
 			subtitleLanguage: "ja",
 		});
-		await act(async () => first.resolve({ ...playbackPreference, subtitleLanguage: null }));
+		await act(async () =>
+			first.resolve({ ...playbackPreference, subtitleLanguage: null }),
+		);
 		await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
 		expect(save.mock.calls[1]?.[1]).toEqual({
 			audioLanguage: "en",
@@ -200,9 +202,9 @@ describe("settings route", () => {
 		});
 		await act(async () => second.resolve(playbackPreference));
 		await waitFor(() =>
-			expect(screen.getByRole("combobox", { name: "Subtitle Language" })).toHaveTextContent(
-				"Japanese",
-			),
+			expect(
+				screen.getByRole("combobox", { name: "Subtitle Language" }),
+			).toHaveTextContent("Japanese"),
 		);
 	});
 

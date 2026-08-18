@@ -129,7 +129,9 @@ export function AppShell() {
 	const playbackPreferenceRef = useRef(EMPTY_PLAYBACK_PREFERENCE);
 	const confirmedPlaybackPreference = useRef(EMPTY_PLAYBACK_PREFERENCE);
 	const playbackPreferenceMutationGeneration = useRef(0);
-	const playbackPreferenceMutationQueue = useRef<Promise<void>>(Promise.resolve());
+	const playbackPreferenceMutationQueue = useRef<Promise<void>>(
+		Promise.resolve(),
+	);
 	const localeMutationGeneration = useRef(0);
 	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const confirmedLocale = useRef<Locale>("en");
@@ -193,8 +195,7 @@ export function AppShell() {
 		void getPlaybackPreference(nextSession)
 			.then((value) => {
 				if (
-					playbackMutationGeneration !==
-					playbackPreferenceMutationGeneration.current
+					playbackMutationGeneration !== playbackPreferenceMutationGeneration.current
 				)
 					return;
 				commit(() => {

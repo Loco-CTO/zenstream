@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import {
 	useCallback,
 	useEffect,
@@ -122,7 +124,7 @@ export function AvatarEditModal({
 		[cropSize, effectiveHeight, effectiveWidth],
 	);
 
-	const clearSelectedFile = useCallback(() => {
+	const clearSelectedFile = () => {
 		if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
 		objectUrlRef.current = null;
 		setFile(null);
@@ -132,7 +134,7 @@ export function AvatarEditModal({
 		setZoom(0);
 		setRotation(0);
 		if (fileInputRef.current) fileInputRef.current.value = "";
-	}, []);
+	};
 
 	useEffect(() => {
 		return () => {

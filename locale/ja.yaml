@@ -60,6 +60,23 @@ scrollRight: "{title}を右にスクロール"
 showSlide: "スライド{count}を表示: {title}"
 account: アカウント
 edit: 編集
+avatarEditTitle: プロフィール画像を編集
+avatarEditDescription: ZenStream全体で表示する画像の範囲を選択します
+avatarChooseImage: 画像を選択
+avatarDropHint: ファイルをここにドロップするか、端末から選択してください
+avatarSupportedFormats: "JPEG、PNG、WebP、GIF · {size}まで"
+avatarCurrentImage: 現在のプロフィール画像
+avatarRemove: アバターを削除
+avatarFileTooLarge: 20 MB未満の画像を選択してください。
+avatarInvalidFile: JPEG、PNG、WebP、GIF画像を選択してください。
+avatarPreview: プレビュー
+avatarZoom: ズーム
+avatarRotateCounterClockwise: 反時計回りに回転
+avatarRotateClockwise: 時計回りに回転
+avatarChooseAnother: 別の画像を選択
+avatarProcessing: 処理中…
+avatarUploadFailed: アバターを保存できませんでした。
+avatarRemoveFailed: アバターを削除できませんでした。
 changePassword: パスワードを変更
 appearance: 外観
 languageDescription: ZenStream全体で使用する言語を選択します

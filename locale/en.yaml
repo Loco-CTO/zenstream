@@ -68,6 +68,23 @@ scrollRight: "Scroll {title} right"
 showSlide: "Show slide {count}: {title}"
 account: Account
 edit: Edit
+avatarEditTitle: Edit profile picture
+avatarEditDescription: Choose a crop for the picture shown across ZenStream.
+avatarChooseImage: Choose an image
+avatarDropHint: Drop a file here or browse from your device
+avatarSupportedFormats: "JPEG, PNG, WebP, or GIF · Up to {size}"
+avatarCurrentImage: Current profile picture
+avatarRemove: Remove avatar
+avatarFileTooLarge: Choose an image smaller than 20 MB.
+avatarInvalidFile: Choose a JPEG, PNG, WebP, or GIF image.
+avatarPreview: Preview
+avatarZoom: Zoom
+avatarRotateCounterClockwise: Rotate counter-clockwise
+avatarRotateClockwise: Rotate clockwise
+avatarChooseAnother: Choose another
+avatarProcessing: Processing…
+avatarUploadFailed: Could not save your avatar.
+avatarRemoveFailed: Could not remove your avatar.
 changePassword: Change Password
 appearance: Appearance
 languageDescription: Choose the language used throughout ZenStream

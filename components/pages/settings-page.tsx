@@ -3,15 +3,17 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
-import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
+import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
+import { UserAvatar } from "@/components/account/user-avatar";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import {
 	SUBTITLE_FONT_STACKS,
 	subtitleOuterShadow,
 } from "@/lib/subtitle-preferences";
 import { fetchOrchestratorVersion, zenstreamVersion } from "@/lib/version";
+import type { AuthSession } from "@/lib/session";
 import type {
 	MetadataLanguagePreference,
 	PlaybackPreference,
@@ -20,6 +22,9 @@ import type {
 type SettingsPageProps = {
 	displayName: string;
 	userId: string;
+	session?: AuthSession;
+	avatarVersion?: string | null;
+	onAvatarVersionChange?: (avatarVersion: string | null) => void;
 	locale: Locale;
 	onLocaleChange: (locale: Locale) => Promise<void>;
 	metadataLanguages?: string[];
@@ -47,6 +52,9 @@ type SettingsSectionName =
 export function SettingsPage({
 	displayName,
 	userId,
+	session,
+	avatarVersion = null,
+	onAvatarVersionChange = () => undefined,
 	locale,
 	onLocaleChange,
 	metadataLanguages = ["en"],
@@ -81,6 +89,7 @@ export function SettingsPage({
 	const [dataSaver, setDataSaver] = useState(false);
 	const [subtitlePreview, setSubtitlePreview] = useState(false);
 	const [section, setSection] = useState<SettingsSectionName>("root");
+	const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 	const [orchestratorVersion, setOrchestratorVersion] = useState<string | null>(
 		null,
 	);
@@ -150,7 +159,11 @@ export function SettingsPage({
 		router.push("/");
 	};
 
+	const avatarSession =
+		session ?? ({ token: "", userId, username: displayName } satisfies AuthSession);
+
 	return (
+		<>
 		<main className="min-h-screen bg-background pb-12 text-foreground">
 			<header className="sticky top-0 z-40 flex items-center gap-3 border-b border-white/5 bg-[var(--c-nav-from)] px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] backdrop-blur-xl sm:gap-4 sm:px-6 md:px-14 md:py-4">
 				<button
@@ -185,6 +198,7 @@ export function SettingsPage({
 					<SettingsIndex
 						displayName={displayName}
 						userId={userId}
+						avatarVersion={avatarVersion}
 						onOpenSection={openSection}
 						onLogout={onLogout}
 					/>
@@ -193,11 +207,19 @@ export function SettingsPage({
 				{section === "account" && (
 					<SettingsSection title={t("account")}>
 						<div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
-							<Avatar displayName={displayName} userId={userId} />
+							<UserAvatar
+								displayName={displayName}
+								userId={userId}
+								avatarVersion={avatarVersion}
+							/>
 							<p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
 								{displayName}
 							</p>
-							<button className="text-xs font-medium text-violet-400 transition hover:text-violet-300">
+							<button
+								type="button"
+								onClick={() => setAvatarModalOpen(true)}
+								className="text-xs font-medium text-violet-400 transition hover:text-violet-300"
+							>
 								{t("edit")}
 							</button>
 						</div>
@@ -603,6 +625,20 @@ export function SettingsPage({
 				)}
 			</div>
 		</main>
+			{avatarModalOpen && (
+				<AvatarEditModal
+					session={avatarSession}
+					displayName={displayName}
+					userId={userId}
+					avatarVersion={avatarVersion}
+					onClose={() => setAvatarModalOpen(false)}
+					onSaved={(nextAvatarVersion) => {
+						onAvatarVersionChange(nextAvatarVersion);
+						setAvatarModalOpen(false);
+					}}
+				/>
+			)}
+		</>
 	);
 }
 
@@ -628,11 +664,13 @@ function SettingsSection({
 function SettingsIndex({
 	displayName,
 	userId,
+	avatarVersion,
 	onOpenSection,
 	onLogout,
 }: {
 	displayName: string;
 	userId: string;
+	avatarVersion?: string | null;
 	onOpenSection: (section: Exclude<SettingsSectionName, "root">) => void;
 	onLogout: () => void;
 }) {
@@ -647,7 +685,13 @@ function SettingsIndex({
 				<SettingsMenuItem
 					label={t("account")}
 					sub={displayName}
-					leading={<Avatar displayName={displayName} userId={userId} />}
+					leading={
+						<UserAvatar
+							displayName={displayName}
+							userId={userId}
+							avatarVersion={avatarVersion}
+						/>
+					}
 					onClick={() => onOpenSection("account")}
 				/>
 				<SettingsMenuItem
@@ -1200,31 +1244,4 @@ function hexToRgba(hex: string, opacity: number) {
 	const green = Number.parseInt(value.slice(2, 4), 16);
 	const blue = Number.parseInt(value.slice(4, 6), 16);
 	return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
-}
-
-function Avatar({
-	displayName,
-	userId,
-}: {
-	displayName: string;
-	userId: string;
-}) {
-	const [failed, setFailed] = useState(false);
-	const imageUrl = userImageUrl(userId);
-	return (
-		<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 ring-1 ring-white/12">
-			{!imageUrl || failed ? (
-				<span className="text-base font-semibold text-white/80">
-					{userInitial(displayName)}
-				</span>
-			) : (
-				<img
-					src={imageUrl}
-					alt=""
-					className="h-full w-full object-cover"
-					onError={() => setFailed(true)}
-				/>
-			)}
-		</div>
-	);
 }

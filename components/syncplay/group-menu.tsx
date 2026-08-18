@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useRouter } from "next/navigation";
+import { UserAvatar } from "@/components/account/user-avatar";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -19,10 +19,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 export function SyncplayGroupMenu({
 	userId,
+	avatarVersion,
 	buttonClassName,
 	playerContext = false,
 }: {
 	userId: string;
+	avatarVersion?: string | null;
 	buttonClassName?: string;
 	playerContext?: boolean;
 }) {
@@ -88,6 +90,7 @@ export function SyncplayGroupMenu({
 						<ActiveGroupView
 							group={active}
 							userId={userId}
+							avatarVersion={avatarVersion}
 							onBack={() => setShowGroupList(true)}
 							onLeave={() => void leave().catch(() => undefined)}
 							onRemoveMember={(memberId) =>
@@ -197,10 +200,13 @@ export function SyncplayGroupMenu({
 																	className="relative flex items-center gap-2 pr-10 text-xs"
 																>
 																	<div className="relative shrink-0">
-																		<MemberAvatar
-																			userId={member.userId}
-																			username={member.username}
-																			size="sm"
+														<MemberAvatar
+															userId={member.userId}
+															username={member.username}
+															avatarVersion={
+																member.userId === userId ? avatarVersion : undefined
+															}
+															size="sm"
 																		/>
 																		{member.watchingTogether !== false && (
 																			<Eye className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-violet-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[2.5]" />
@@ -261,30 +267,25 @@ export function SyncplayGroupMenu({
 function MemberAvatar({
 	userId,
 	username,
+	avatarVersion,
 	size,
 }: {
 	userId: string;
 	username: string;
+	avatarVersion?: string | null;
 	size: "sm" | "md";
 }) {
-	const [failed, setFailed] = useState(false);
 	const dimensions = size === "md" ? "h-6 w-6" : "h-5 w-5";
-	const imageUrl = userImageUrl(userId);
-	return !imageUrl || failed ? (
-		<span
-			className={
+	return (
+		<UserAvatar
+			displayName={username}
+			userId={userId}
+			avatarVersion={avatarVersion}
+			containerClassName={
 				dimensions +
-				" flex items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/60"
+				" flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10"
 			}
-		>
-			{userInitial(username)}
-		</span>
-	) : (
-		<img
-			src={imageUrl}
-			alt=""
-			onError={() => setFailed(true)}
-			className={dimensions + " rounded-full bg-white/10 object-cover"}
+			fallbackClassName="text-xs font-semibold text-white/60"
 		/>
 	);
 }
@@ -292,6 +293,7 @@ function MemberAvatar({
 function ActiveGroupView({
 	group,
 	userId,
+	avatarVersion,
 	onBack,
 	onLeave,
 	onRemoveMember,
@@ -301,6 +303,7 @@ function ActiveGroupView({
 }: {
 	group: ReturnType<typeof useSyncplay>["active"] & object;
 	userId: string;
+	avatarVersion?: string | null;
 	onBack: () => void;
 	onLeave: () => void;
 	onRemoveMember: (id: string) => void;
@@ -340,6 +343,9 @@ function ActiveGroupView({
 								<MemberAvatar
 									userId={member.userId}
 									username={member.username}
+									avatarVersion={
+										member.userId === userId ? avatarVersion : undefined
+									}
 									size="md"
 								/>
 								{member.watchingTogether !== false && (

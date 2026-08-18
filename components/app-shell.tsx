@@ -106,6 +106,7 @@ export function AppShell() {
 	const pathname = usePathname() ?? "/";
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
+	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
 	const [searchData, setSearchData] = useState<string | null>(null);
 
@@ -452,11 +453,13 @@ export function AppShell() {
 					clearMediaClientSession();
 					clearPreferenceCache();
 					clearSubtitlePreferenceCache();
+					setAvatarVersion(null);
 					setStatus("login");
 					return;
 				}
 				setAuthCookies(verified);
 				sessionRef.current = verified;
+				setAvatarVersion(verified.avatarVersion ?? null);
 				setSession(verified);
 				setStatus("checking");
 			})
@@ -515,6 +518,7 @@ export function AppShell() {
 		setAuthCookies(nextSession);
 		sessionRef.current = nextSession;
 		authExpiryHandled.current = null;
+		setAvatarVersion(nextSession.avatarVersion ?? null);
 		setSession(nextSession);
 		const generation = ++routeLoadGeneration.current;
 		loadPreferences(nextSession);
@@ -551,6 +555,7 @@ export function AppShell() {
 			detailRefreshGeneration.current += 1;
 			detailRefreshController.current?.abort();
 			sessionRef.current = null;
+			setAvatarVersion(null);
 			setSession(null);
 			loadedPreferencesSession.current = null;
 			playbackPreferenceRef.current = EMPTY_PLAYBACK_PREFERENCE;
@@ -808,6 +813,9 @@ export function AppShell() {
 								<SettingsPage
 									displayName={session.username}
 									userId={session.userId}
+									session={session}
+									avatarVersion={avatarVersion}
+									onAvatarVersionChange={setAvatarVersion}
 									locale={locale}
 									onLocaleChange={handleLocaleChange}
 									metadataLanguages={metadataLanguages}
@@ -823,6 +831,7 @@ export function AppShell() {
 									<Navbar
 										displayName={session.username}
 										userId={session.userId}
+										avatarVersion={avatarVersion}
 										onLogout={handleLogout}
 										session={session}
 									/>

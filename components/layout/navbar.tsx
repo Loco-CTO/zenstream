@@ -4,20 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, LogOut, Search, Settings } from "lucide-react";
+import { UserAvatar } from "@/components/account/user-avatar";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
-import { userImageUrl, userInitial } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
 export function Navbar({
 	displayName,
 	userId,
+	avatarVersion,
 	onLogout,
 	session,
 }: {
 	displayName: string;
 	userId: string;
+	avatarVersion?: string | null;
 	onLogout: () => void;
 	session?: AuthSession;
 }) {
@@ -62,7 +64,7 @@ export function Navbar({
 						data-testid="header-actions"
 						className="flex items-center gap-2 sm:gap-3"
 					>
-						<SyncplayGroupMenu userId={userId} />
+						<SyncplayGroupMenu userId={userId} avatarVersion={avatarVersion} />
 						<button
 							aria-label={t("search")}
 							onClick={() => setSearchOpen(true)}
@@ -83,7 +85,14 @@ export function Navbar({
 								onClick={() => setProfileOpen((open) => !open)}
 								className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 text-white/70 transition hover:border-violet-400/60"
 							>
-								<UserAvatar key={userId} displayName={displayName} userId={userId} />
+								<UserAvatar
+									key={userId}
+									displayName={displayName}
+									userId={userId}
+									avatarVersion={avatarVersion}
+									containerClassName="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-white/8"
+									fallbackClassName="text-sm font-semibold text-white"
+								/>
 							</button>
 							{profileOpen && (
 								<div
@@ -120,36 +129,5 @@ export function Navbar({
 				<SearchOverlay session={session} onClose={() => setSearchOpen(false)} />
 			)}
 		</>
-	);
-}
-
-function UserAvatar({
-	displayName,
-	userId,
-}: {
-	displayName: string;
-	userId: string;
-}) {
-	const [imageFailed, setImageFailed] = useState(false);
-	const imageUrl = userImageUrl(userId);
-
-	if (!imageUrl || imageFailed) {
-		return (
-			<span
-				data-testid="default-user-initial"
-				className="text-sm font-semibold text-white"
-			>
-				{userInitial(displayName)}
-			</span>
-		);
-	}
-
-	return (
-		<img
-			src={imageUrl}
-			alt=""
-			className="h-full w-full object-cover"
-			onError={() => setImageFailed(true)}
-		/>
 	);
 }

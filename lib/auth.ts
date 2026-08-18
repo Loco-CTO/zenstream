@@ -10,5 +10,8 @@ export function sessionFromAuth(response: AuthResponse): AuthSession {
 		throw new Error("Server did not return a complete login response.");
 	}
 
-	return { token: token ?? "", userId, username };
+	const session: AuthSession = { token: token ?? "", userId, username };
+	if (response.user && "avatarVersion" in response.user)
+		session.avatarVersion = response.user.avatarVersion ?? null;
+	return session;
 }

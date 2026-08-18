@@ -2,6 +2,7 @@ export interface AuthSession {
 	token: string;
 	userId: string;
 	username: string;
+	avatarVersion?: string | null;
 }
 
 const COOKIE_TOKEN = "token";

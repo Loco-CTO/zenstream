@@ -20,6 +20,7 @@ export interface AuthResponse {
 	user?: {
 		id?: string;
 		username?: string;
+		avatarVersion?: string | null;
 	};
 }
 
@@ -556,7 +557,7 @@ export async function validateBrowserSession(
 	if (!response.ok)
 		throw new Error(`Session validation failed with ${response.status}.`);
 	const payload = (await response.json()) as {
-		user?: { id?: unknown; username?: unknown };
+		user?: { id?: unknown; username?: unknown; avatarVersion?: unknown };
 		resourceTicket?: unknown;
 		resourceTicketExpiresIn?: unknown;
 	};
@@ -582,7 +583,7 @@ export async function validateBrowserSession(
 		if (typeof window !== "undefined")
 			window.dispatchEvent(new Event("zenstream:resource-ticket"));
 	}
-	return {
+	const validated: AuthSession = {
 		token: "",
 		userId: payload.user.id,
 		username:
@@ -590,6 +591,13 @@ export async function validateBrowserSession(
 				? payload.user.username
 				: "ZenStream",
 	};
+	if ("avatarVersion" in payload.user) {
+		validated.avatarVersion =
+			typeof payload.user.avatarVersion === "string"
+				? payload.user.avatarVersion
+				: null;
+	}
+	return validated;
 }
 
 export async function fetchHomeData(
@@ -1647,9 +1655,18 @@ export function titleLogoImage(item: MediaItem) {
 	return imageData(item, "Logo", 680, 300);
 }
 
-export function userImageUrl(userId: string): string | null {
-	void userId;
-	return null;
+export function userImageUrl(
+	userId: string,
+	avatarVersion?: string | null,
+): string | null {
+	if (!userId || avatarVersion === null) return null;
+	const url = new URL(
+		`/api/users/${encodeURIComponent(userId)}/avatar`,
+		orchestratorBaseUrl(),
+	);
+	if (avatarVersion) url.searchParams.set("v", avatarVersion);
+	addResourceTicket(url.searchParams);
+	return url.toString();
 }
 
 export function userInitial(username?: string | null) {

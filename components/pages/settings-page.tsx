@@ -27,8 +27,10 @@ type SettingsPageProps = {
 	onMetadataLanguageChange?: (language: string | null) => Promise<void>;
 	playbackPreference?: PlaybackPreference;
 	onPlaybackPreferenceChange?: (
-		value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
+		field: "audioLanguage" | "subtitleLanguage",
+		value: string | null,
 	) => Promise<void>;
+	onPlaybackPreferenceLoad?: () => void;
 	onLogout: () => void;
 };
 
@@ -57,6 +59,7 @@ export function SettingsPage({
 		subtitleLanguages: [],
 	},
 	onPlaybackPreferenceChange = async () => undefined,
+	onPlaybackPreferenceLoad = () => undefined,
 	onLogout,
 }: SettingsPageProps) {
 	const router = useRouter();
@@ -81,6 +84,11 @@ export function SettingsPage({
 	const [orchestratorVersion, setOrchestratorVersion] = useState<string | null>(
 		null,
 	);
+	const playbackPreferenceRef = useRef(playbackPreference);
+
+	useEffect(() => {
+		playbackPreferenceRef.current = playbackPreference;
+	}, [playbackPreference]);
 
 	useEffect(() => {
 		void fetchOrchestratorVersion().then(setOrchestratorVersion);
@@ -108,21 +116,26 @@ export function SettingsPage({
 		field: "audioLanguage" | "subtitleLanguage",
 		value: string,
 	) => {
-		const next = {
-			audioLanguage: playbackPreference.audioLanguage,
-			subtitleLanguage: playbackPreference.subtitleLanguage,
-			[field]:
-				value === "auto"
-					? null
-					: value === "off" && field === "subtitleLanguage"
-						? "off"
-						: value,
+		const nextValue =
+			value === "auto"
+				? null
+				: value === "off" && field === "subtitleLanguage"
+					? "off"
+					: value;
+		playbackPreferenceRef.current = {
+			...playbackPreferenceRef.current,
+			[field]: nextValue,
 		};
 		try {
-			await onPlaybackPreferenceChange(next);
+			await onPlaybackPreferenceChange(field, nextValue);
 		} catch {
 			// The parent restores the last confirmed value and can surface its own error.
 		}
+	};
+
+	const openSection = (nextSection: Exclude<SettingsSectionName, "root">) => {
+		setSection(nextSection);
+		if (nextSection === "playback") onPlaybackPreferenceLoad();
 	};
 
 	const goBack = () => {
@@ -172,7 +185,7 @@ export function SettingsPage({
 					<SettingsIndex
 						displayName={displayName}
 						userId={userId}
-						onOpenSection={setSection}
+						onOpenSection={openSection}
 						onLogout={onLogout}
 					/>
 				)}

@@ -736,16 +736,44 @@ export function AppShell() {
 	};
 
 	const handlePlaybackPreferenceChange = async (
-		value: Pick<PlaybackPreference, "audioLanguage" | "subtitleLanguage">,
+		field: "audioLanguage" | "subtitleLanguage",
+		value: string | null,
 	) => {
 		const activeSession = session;
 		if (!activeSession) return;
-		const previous = playbackPreference;
-		setPlaybackPreference({ ...previous, ...value });
+		const generation = ++playbackPreferenceMutationGeneration.current;
+		const optimistic = {
+			...playbackPreferenceRef.current,
+			[field]: value,
+		};
+		playbackPreferenceRef.current = optimistic;
+		setPlaybackPreference(optimistic);
+		const mutation = playbackPreferenceMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return savePlaybackPreference(activeSession, {
+				audioLanguage: optimistic.audioLanguage,
+				subtitleLanguage: optimistic.subtitleLanguage,
+			});
+		});
+		playbackPreferenceMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
 		try {
-			setPlaybackPreference(await savePlaybackPreference(activeSession, value));
+			const saved = await mutation;
+			if (saved === null || sessionRef.current !== activeSession) return;
+			confirmedPlaybackPreference.current = saved;
+			if (generation !== playbackPreferenceMutationGeneration.current) return;
+			playbackPreferenceRef.current = saved;
+			setPlaybackPreference(saved);
 		} catch (error) {
-			setPlaybackPreference(previous);
+			if (
+				generation !== playbackPreferenceMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			playbackPreferenceRef.current = confirmedPlaybackPreference.current;
+			setPlaybackPreference(confirmedPlaybackPreference.current);
 			throw error;
 		}
 	};
@@ -786,6 +814,7 @@ export function AppShell() {
 									onMetadataLanguageChange={handleMetadataLanguageChange}
 									playbackPreference={playbackPreference}
 									onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+									onPlaybackPreferenceLoad={() => loadPreferences(session)}
 									onLogout={handleLogout}
 								/>
 							) : (

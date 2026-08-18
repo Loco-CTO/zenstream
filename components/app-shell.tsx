@@ -95,6 +95,13 @@ import { startCatalogEvents } from "@/lib/catalog-events";
 type AppStatus =
 	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
 
+const EMPTY_PLAYBACK_PREFERENCE: PlaybackPreference = {
+	audioLanguage: null,
+	subtitleLanguage: null,
+	audioLanguages: [],
+	subtitleLanguages: [],
+};
+
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
 	const { start } = useProgress();
@@ -110,20 +117,19 @@ export function AppShell() {
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
 	const [playbackPreference, setPlaybackPreference] =
-		useState<PlaybackPreference>({
-			audioLanguage: null,
-			subtitleLanguage: null,
-			audioLanguages: [],
-			subtitleLanguages: [],
-		});
+		useState<PlaybackPreference>(EMPTY_PLAYBACK_PREFERENCE);
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
 	const [, setResourceTicketRevision] = useState(0);
-	const loadedPreferencesToken = useRef<string | null>(null);
+	const loadedPreferencesSession = useRef<AuthSession | null>(null);
 	const sessionRef = useRef<AuthSession | null>(null);
 	const routeLoadGeneration = useRef(0);
 	const preferencesGeneration = useRef(0);
+	const playbackPreferenceRef = useRef(EMPTY_PLAYBACK_PREFERENCE);
+	const confirmedPlaybackPreference = useRef(EMPTY_PLAYBACK_PREFERENCE);
+	const playbackPreferenceMutationGeneration = useRef(0);
+	const playbackPreferenceMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const localeMutationGeneration = useRef(0);
 	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const confirmedLocale = useRef<Locale>("en");
@@ -159,6 +165,8 @@ export function AppShell() {
 		const generation = ++preferencesGeneration.current;
 		const localeGeneration = localeMutationGeneration.current;
 		const metadataLanguageGeneration = metadataLanguageMutationGeneration.current;
+		const playbackMutationGeneration =
+			playbackPreferenceMutationGeneration.current;
 		const commit = (callback: () => void) => {
 			if (
 				generation === preferencesGeneration.current &&
@@ -183,7 +191,18 @@ export function AppShell() {
 			.then((value) => commit(() => setMetadataLanguages(value)))
 			.catch(() => undefined);
 		void getPlaybackPreference(nextSession)
-			.then((value) => commit(() => setPlaybackPreference(value)))
+			.then((value) => {
+				if (
+					playbackMutationGeneration !==
+					playbackPreferenceMutationGeneration.current
+				)
+					return;
+				commit(() => {
+					confirmedPlaybackPreference.current = value;
+					playbackPreferenceRef.current = value;
+					setPlaybackPreference(value);
+				});
+			})
 			.catch(() => undefined);
 		void getMetadataLanguagePreference(nextSession)
 			.then((value) => {
@@ -458,8 +477,8 @@ export function AppShell() {
 	useEffect(() => {
 		if (!session) return;
 		const generation = ++routeLoadGeneration.current;
-		if (loadedPreferencesToken.current !== session.userId) {
-			loadedPreferencesToken.current = session.userId;
+		if (loadedPreferencesSession.current !== session) {
+			loadedPreferencesSession.current = session;
 			loadPreferences(session);
 		}
 		const finishProgress = start();
@@ -524,13 +543,18 @@ export function AppShell() {
 			preferencesGeneration.current += 1;
 			localeMutationGeneration.current += 1;
 			metadataLanguageMutationGeneration.current += 1;
+			playbackPreferenceMutationGeneration.current += 1;
 			localeMutationQueue.current = Promise.resolve();
 			metadataLanguageMutationQueue.current = Promise.resolve();
+			playbackPreferenceMutationQueue.current = Promise.resolve();
 			detailRefreshGeneration.current += 1;
 			detailRefreshController.current?.abort();
 			sessionRef.current = null;
 			setSession(null);
-			loadedPreferencesToken.current = null;
+			loadedPreferencesSession.current = null;
+			playbackPreferenceRef.current = EMPTY_PLAYBACK_PREFERENCE;
+			confirmedPlaybackPreference.current = EMPTY_PLAYBACK_PREFERENCE;
+			setPlaybackPreference(EMPTY_PLAYBACK_PREFERENCE);
 			homeDataRef.current = null;
 			homeTrailingRefresh.current = false;
 			homeTrailingRequest.current = null;

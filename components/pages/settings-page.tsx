@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
+import { ChangePasswordModal } from "@/components/account/change-password-modal";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import {
@@ -36,6 +37,7 @@ type SettingsPageProps = {
 		value: string | null,
 	) => Promise<void>;
 	onPlaybackPreferenceLoad?: () => void;
+	onPasswordChanged?: () => void;
 	onLogout: () => void;
 };
 
@@ -68,6 +70,7 @@ export function SettingsPage({
 	},
 	onPlaybackPreferenceChange = async () => undefined,
 	onPlaybackPreferenceLoad = () => undefined,
+	onPasswordChanged = () => undefined,
 	onLogout,
 }: SettingsPageProps) {
 	const router = useRouter();
@@ -90,6 +93,7 @@ export function SettingsPage({
 	const [subtitlePreview, setSubtitlePreview] = useState(false);
 	const [section, setSection] = useState<SettingsSectionName>("root");
 	const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+	const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 	const [orchestratorVersion, setOrchestratorVersion] = useState<string | null>(
 		null,
 	);
@@ -227,6 +231,7 @@ export function SettingsPage({
 							<SettingsRow
 								label={t("changePassword")}
 								border={false}
+								onClick={() => setPasswordModalOpen(true)}
 								right={<ChevronRight className="h-4 w-4 text-white/20" />}
 							/>
 						</SettingsSection>
@@ -641,6 +646,13 @@ export function SettingsPage({
 					}}
 				/>
 			)}
+			{passwordModalOpen && (
+				<ChangePasswordModal
+					session={avatarSession}
+					onClose={() => setPasswordModalOpen(false)}
+					onContinueToLogin={onPasswordChanged}
+				/>
+			)}
 		</>
 	);
 }
@@ -769,22 +781,35 @@ function SettingsRow({
 	sub,
 	right,
 	border = true,
+	onClick,
 }: {
 	label: string;
 	sub?: string;
 	right: React.ReactNode;
 	border?: boolean;
+	onClick?: () => void;
 }) {
-	return (
-		<div
-			className={`flex flex-wrap items-start gap-3 px-4 py-4 ${border ? "border-b border-white/5" : ""}`}
-		>
+	const content = (
+		<>
 			<div className="min-w-0 flex-1">
 				<p className="text-sm text-white/80">{label}</p>
 				{sub && <p className="mt-0.5 text-xs leading-5 text-white/30">{sub}</p>}
 			</div>
 			<div className="shrink-0">{right}</div>
-		</div>
+		</>
+	);
+	const className = `flex w-full flex-wrap items-start gap-3 px-4 py-4 text-left ${border ? "border-b border-white/5" : ""}`;
+
+	return onClick ? (
+		<button
+			type="button"
+			onClick={onClick}
+			className={`${className} transition hover:bg-white/[0.04]`}
+		>
+			{content}
+		</button>
+	) : (
+		<div className={className}>{content}</div>
 	);
 }
 

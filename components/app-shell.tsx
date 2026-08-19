@@ -594,6 +594,10 @@ export function AppShell() {
 			void revokeAuthSession(activeSession).catch(() => undefined);
 	}, [clearLocalSession]);
 
+	const handlePasswordChanged = useCallback(() => {
+		clearLocalSession();
+	}, [clearLocalSession]);
+
 	useEffect(() => {
 		const handleAuthExpired = (event: Event) => {
 			const expiredSession = (event as CustomEvent<{ session?: AuthSession }>)
@@ -836,6 +840,7 @@ export function AppShell() {
 									playbackPreference={playbackPreference}
 									onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
 									onPlaybackPreferenceLoad={() => loadPreferences(session)}
+									onPasswordChanged={handlePasswordChanged}
 									onLogout={handleLogout}
 								/>
 							) : (

@@ -78,6 +78,15 @@ avatarProcessing: 処理中…
 avatarUploadFailed: アバターを保存できませんでした。
 avatarRemoveFailed: アバターを削除できませんでした。
 changePassword: パスワードを変更
+currentPassword: 現在のパスワード
+newPassword: 新しいパスワード
+confirmNewPassword: 新しいパスワード（確認）
+passwordChangeDescription: 現在のパスワードを入力し、新しいパスワードを設定してください。
+passwordTooShort: パスワードは8文字以上で入力してください。
+passwordChangeFailed: パスワードを変更できませんでした。現在のパスワードを確認して、もう一度お試しください。
+passwordChanged: パスワードを変更しました
+passwordChangedDescription: パスワードを変更しました。続行するには再度サインインしてください。
+continueToLogin: 再度サインイン
 appearance: 外観
 languageDescription: ZenStream全体で使用する言語を選択します
 preferredMetadataLanguage: 優先メタデータ言語

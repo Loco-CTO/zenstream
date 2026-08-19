@@ -422,6 +422,26 @@ export async function revokeAuthSession(session: AuthSession): Promise<void> {
 	}
 }
 
+export async function changeAccountPassword(
+	session: AuthSession,
+	currentPassword: string,
+	newPassword: string,
+	confirmNewPassword: string,
+): Promise<void> {
+	const response = await authenticatedFetch(session, "/api/account/password", {
+		method: "POST",
+		cache: "no-store",
+		body: JSON.stringify({
+			currentPassword,
+			newPassword,
+			confirmNewPassword,
+		}),
+	});
+	if (!response.ok) {
+		throw new Error(`Password change failed with ${response.status}.`);
+	}
+}
+
 export async function primeResourceTicket(
 	session: AuthSession,
 ): Promise<string | null> {

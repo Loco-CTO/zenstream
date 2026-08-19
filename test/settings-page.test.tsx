@@ -181,7 +181,7 @@ describe("SettingsPage", () => {
 			/>,
 		);
 
-		openSection("Account");
+		fireEvent.click(screen.getByRole("button", { name: /Account/ }));
 		fireEvent.click(screen.getByRole("button", { name: "Change Password" }));
 		expect(
 			screen.getByRole("dialog", { name: "Change Password" }),

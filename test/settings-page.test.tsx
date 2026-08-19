@@ -217,7 +217,9 @@ describe("SettingsPage", () => {
 				"new-password",
 			),
 		);
-		expect(screen.getByRole("heading", { name: "Password changed" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Password changed" }),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Continue to sign in" }));
 		expect(onPasswordChanged).toHaveBeenCalledOnce();
 	});

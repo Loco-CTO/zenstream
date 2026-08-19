@@ -136,10 +136,7 @@ export function ChangePasswordModal({
 							<button
 								type="submit"
 								disabled={
-									submitting ||
-									!currentPassword ||
-									!newPassword ||
-									!confirmNewPassword
+									submitting || !currentPassword || !newPassword || !confirmNewPassword
 								}
 								className="inline-flex min-w-28 items-center justify-center gap-2 rounded-lg bg-violet-300 px-4 py-2.5 text-xs font-semibold text-black transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-45"
 							>

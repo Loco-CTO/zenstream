@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "@/components/pages/settings-page";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { I18nProvider, translate } from "@/lib/i18n";
+import * as mediaApi from "@/lib/media-api";
 
 const router = vi.hoisted(() => ({
 	back: vi.fn(),
@@ -161,6 +162,64 @@ describe("SettingsPage", () => {
 			),
 		);
 		expect(screen.queryByText("Autoplay Next Episode")).not.toBeInTheDocument();
+	});
+
+	it("opens the change-password form, validates it, and completes sign-in handoff", async () => {
+		const changePassword = vi
+			.spyOn(mediaApi, "changeAccountPassword")
+			.mockResolvedValue(undefined);
+		const onPasswordChanged = vi.fn();
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				session={session}
+				locale="en"
+				onLocaleChange={vi.fn()}
+				onPasswordChanged={onPasswordChanged}
+				onLogout={() => undefined}
+			/>,
+		);
+
+		openSection("Account");
+		fireEvent.click(screen.getByRole("button", { name: "Change Password" }));
+		expect(
+			screen.getByRole("dialog", { name: "Change Password" }),
+		).toBeInTheDocument();
+
+		fireEvent.change(screen.getByLabelText("Current password"), {
+			target: { value: "current-password" },
+		});
+		fireEvent.change(screen.getByLabelText("New password"), {
+			target: { value: "short" },
+		});
+		fireEvent.change(screen.getByLabelText("Confirm new password"), {
+			target: { value: "short" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Save" }));
+		expect(screen.getByRole("alert")).toHaveTextContent(
+			"Password must be at least 8 characters.",
+		);
+		expect(changePassword).not.toHaveBeenCalled();
+
+		fireEvent.change(screen.getByLabelText("New password"), {
+			target: { value: "new-password" },
+		});
+		fireEvent.change(screen.getByLabelText("Confirm new password"), {
+			target: { value: "new-password" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Save" }));
+		await waitFor(() =>
+			expect(changePassword).toHaveBeenCalledWith(
+				session,
+				"current-password",
+				"new-password",
+				"new-password",
+			),
+		);
+		expect(screen.getByRole("heading", { name: "Password changed" })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole("button", { name: "Continue to sign in" }));
+		expect(onPasswordChanged).toHaveBeenCalledOnce();
 	});
 
 	it("saves the selected subtitle renderer", async () => {

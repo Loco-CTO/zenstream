@@ -261,6 +261,20 @@ export function MediaCardOverlay({
 			>
 				<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
 			</button>
+			{item &&
+				session &&
+				(item.Type === "Movie" || item.Type === "Series") && (
+					<button
+						type="button"
+						aria-label={t(following ? "unfollow" : "follow")}
+						aria-pressed={following}
+						title={t(following ? "unfollow" : "follow")}
+						onClick={toggleFollowing}
+						className={`pointer-events-auto absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur transition hover:scale-110 hover:border-white/60 hover:bg-black/55 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black ${following ? "text-violet-200" : "text-white/80"}`}
+					>
+						<Bookmark className={`h-4 w-4 ${following ? "fill-violet-200" : ""}`} />
+					</button>
+				)}
 		</div>
 	);
 }

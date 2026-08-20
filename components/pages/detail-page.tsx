@@ -128,6 +128,7 @@ export function DetailPage({
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
+	const isFollowable = item.Type === "Movie" || item.Type === "Series";
 	const hasTrackSelection = item.Type === "Movie" || isEpisode;
 	const seriesId = isEpisode ? item.SeriesId : item.Id;
 	const background =
@@ -380,7 +381,7 @@ export function DetailPage({
 									/>
 								}
 							/>
-							{!isEpisode && (
+			{isFollowable && (
 								<ActionButton
 									active={Boolean(item.UserData?.IsFollowing)}
 									label={t(item.UserData?.IsFollowing ? "unfollow" : "follow")}

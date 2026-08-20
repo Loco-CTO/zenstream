@@ -134,6 +134,13 @@ function eventColor(event: CalendarEvent) {
 	return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
 }
 
+function colorWithAlpha(color: string, alpha: number) {
+	const red = Number.parseInt(color.slice(1, 3), 16);
+	const green = Number.parseInt(color.slice(3, 5), 16);
+	const blue = Number.parseInt(color.slice(5, 7), 16);
+	return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 function formatEventTime(
 	event: CalendarEvent,
 	locale: string,
@@ -544,7 +551,7 @@ function EventBlock({
 			className={`block w-full shrink-0 overflow-hidden rounded-[4px] text-left transition hover:brightness-125 ${compact ? "px-1.5 py-0.5" : "px-2 py-1.5"} ${event.hasFile ? "" : "border"}`}
 			style={{
 				backgroundColor: event.hasFile ? `${color}20` : "transparent",
-				borderColor: event.hasFile ? "transparent" : color,
+				borderColor: event.hasFile ? "transparent" : colorWithAlpha(color, 0.2),
 				borderLeft: `2.5px solid ${color}`,
 			}}
 		>

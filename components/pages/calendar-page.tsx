@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	CalendarDays,
 	ChevronLeft,
@@ -114,7 +114,11 @@ function eventColor(event: CalendarEvent) {
 	return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
 }
 
-function formatEventTime(event: CalendarEvent, locale: string, allDayLabel: string) {
+function formatEventTime(
+	event: CalendarEvent,
+	locale: string,
+	allDayLabel: string,
+) {
 	if (event.allDay) return allDayLabel;
 	return formatDay(new Date(event.eventAt), locale, {
 		hour: "2-digit",
@@ -124,12 +128,16 @@ function formatEventTime(event: CalendarEvent, locale: string, allDayLabel: stri
 }
 
 function eventTitle(event: CalendarEvent, t: Translator) {
-	return event.title || (event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"));
+	return (
+		event.title ||
+		(event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"))
+	);
 }
 
 export function CalendarPage({ session }: { session: AuthSession }) {
 	const { locale, t } = useI18n();
 	const { start: startProgress } = useProgress();
+	const translatorRef = useRef(t);
 	const [view, setView] = useState<CalendarView>("week");
 	const [anchor, setAnchor] = useState(() => new Date());
 	const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -137,6 +145,10 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const range = useMemo(() => rangeFor(view, anchor), [anchor, view]);
+
+	useEffect(() => {
+		translatorRef.current = t;
+	}, [t]);
 
 	const load = useCallback(
 		async (signal?: AbortSignal) => {
@@ -155,14 +167,18 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 				);
 			} catch (nextError) {
 				if (!signal?.aborted) {
-					setError(nextError instanceof Error ? nextError.message : t("calendarLoadFailed"));
+					setError(
+						nextError instanceof Error
+							? nextError.message
+							: translatorRef.current("calendarLoadFailed"),
+					);
 				}
 			} finally {
 				if (!signal?.aborted) setLoading(false);
 				finish();
 			}
 		},
-		[range.end, range.start, session, startProgress, t],
+		[range.end, range.start, session, startProgress],
 	);
 
 	useEffect(() => {
@@ -205,7 +221,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	}
 
 	return (
-		<main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--c-page)] pb-[calc(4rem+env(safe-area-inset-bottom))] pt-16 md:pb-0 md:pt-20">
+		<main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--c-page)] pb-[calc(4rem+env(safe-area-inset-bottom))] pt-20 md:pb-0">
 			<CalendarToolbar
 				view={view}
 				rangeTitle={rangeTitle}
@@ -311,7 +327,9 @@ function CalendarToolbar({
 					<ChevronRight className="h-4 w-4" />
 				</button>
 			</div>
-			<span className="min-w-0 truncate text-sm font-semibold text-white/65">{rangeTitle}</span>
+			<span className="min-w-0 truncate text-sm font-semibold text-white/65">
+				{rangeTitle}
+			</span>
 			<div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
 				{(["week", "month", "day"] as const).map((value) => (
 					<button
@@ -353,7 +371,10 @@ function CalendarGrid({
 	const todayKey = localKey(new Date());
 
 	return (
-		<div className="min-h-0 flex-1 overflow-auto" style={{ scrollbarWidth: "thin" }}>
+		<div
+			className="min-h-0 flex-1 overflow-auto"
+			style={{ scrollbarWidth: "thin" }}
+		>
 			<div className={view === "month" ? "min-w-[560px]" : "min-w-[700px]"}>
 				<div className="sticky top-0 z-10 grid grid-cols-7 border-b border-white/[0.06] bg-[var(--c-page)]">
 					{headerDays.map((day) => {
@@ -363,10 +384,14 @@ function CalendarGrid({
 								key={localKey(day)}
 								className={`border-r border-white/[0.05] px-3 py-2.5 last:border-0 ${isToday ? "bg-violet-500/[0.08]" : ""}`}
 							>
-								<span className={`text-[10px] font-semibold uppercase tracking-widest ${isToday ? "text-violet-400" : "text-white/25"}`}>
+								<span
+									className={`text-[10px] font-semibold uppercase tracking-widest ${isToday ? "text-violet-400" : "text-white/25"}`}
+								>
 									{formatDay(day, locale, { weekday: "short" })}
 								</span>
-								<span className={`ml-1.5 text-sm font-black ${isToday ? "text-violet-300" : "text-white/50"}`}>
+								<span
+									className={`ml-1.5 text-sm font-black ${isToday ? "text-violet-300" : "text-white/50"}`}
+								>
 									{day.getDate()}
 								</span>
 							</div>
@@ -409,7 +434,9 @@ function CalendarGrid({
 									key={localKey(day)}
 									className={`min-h-[118px] border-b border-white/[0.04] p-1.5 ${!inMonth ? "bg-white/[0.01] opacity-45" : isToday ? "bg-violet-500/[0.05]" : ""}`}
 								>
-									<span className={`mb-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-violet-500 text-white" : "text-white/40"}`}>
+									<span
+										className={`mb-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-violet-500 text-white" : "text-white/40"}`}
+									>
 										{day.getDate()}
 									</span>
 									<div className="flex flex-col gap-1">
@@ -451,7 +478,10 @@ function DayView({
 	t: Translator;
 }) {
 	return (
-		<div className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-10" style={{ scrollbarWidth: "thin" }}>
+		<div
+			className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-10"
+			style={{ scrollbarWidth: "thin" }}
+		>
 			{events.length ? (
 				<div className="max-w-xl space-y-1.5">
 					{events.map((event) => (
@@ -510,7 +540,10 @@ function EventBlock({
 				borderLeft: `2.5px solid ${color}`,
 			}}
 		>
-			<p className={`truncate font-bold leading-tight ${compact ? "text-[10px]" : "text-[11px]"}`} style={{ color }}>
+			<p
+				className={`truncate font-bold leading-tight ${compact ? "text-[10px]" : "text-[11px]"}`}
+				style={{ color }}
+			>
 				{primaryTitle}
 			</p>
 			{!compact && (
@@ -552,10 +585,13 @@ function SelectionPanel({
 			<div className="flex items-start gap-4 p-4">
 				<div className="min-w-0 flex-1">
 					<p className="truncate text-sm font-semibold text-white">
-						{event.seriesTitle ? `${event.seriesTitle} · ` : ""}{title}
+						{event.seriesTitle ? `${event.seriesTitle} · ` : ""}
+						{title}
 					</p>
 					<p className="mt-0.5 text-xs text-white/40">
-						{event.kind === "episode" && event.seasonNumber != null && event.episodeNumber != null
+						{event.kind === "episode" &&
+						event.seasonNumber != null &&
+						event.episodeNumber != null
 							? `S${event.seasonNumber} · Ep ${event.episodeNumber} · `
 							: ""}
 						{formatDay(new Date(event.eventAt), locale, {
@@ -565,7 +601,8 @@ function SelectionPanel({
 						})}
 					</p>
 					<p className="mt-1 text-[11px] tabular-nums text-white/25">
-						{formatEventTime(event, locale, t("calendarAllDay"))} · {event.libraryName}
+						{formatEventTime(event, locale, t("calendarAllDay"))} ·{" "}
+						{event.libraryName}
 					</p>
 				</div>
 				<div className="flex shrink-0 items-center gap-2">

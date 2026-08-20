@@ -148,8 +148,10 @@ function formatEventTime(
 
 function episodePosition(event: CalendarEvent) {
 	if (event.kind !== "episode") return null;
-	if (event.seasonNumber == null || event.episodeNumber == null) return null;
-	return `S${event.seasonNumber} · Ep ${event.episodeNumber}`;
+	if (event.episodeNumber == null) return null;
+	const episode = String(event.episodeNumber).padStart(2, "0");
+	if (event.seasonNumber == null) return `E${episode}`;
+	return `S${String(event.seasonNumber).padStart(2, "0")}E${episode}`;
 }
 
 function eventTitle(event: CalendarEvent, t: Translator) {
@@ -519,8 +521,8 @@ function EventBlock({
 				? position
 				: null;
 	const episodeLabel =
-		event.kind === "episode" && event.episodeNumber != null
-			? `E${event.episodeNumber}`
+		event.kind === "episode"
+			? position || t("calendarEpisode")
 			: t("calendarRelease");
 
 	return (
@@ -564,6 +566,7 @@ function SelectionPanel({
 }) {
 	const color = eventColor(event);
 	const title = eventTitle(event, t);
+	const position = episodePosition(event);
 	const href = event.catalogItemId
 		? event.kind === "episode" && event.catalogSeriesId
 			? `/show/${event.catalogSeriesId}/episode/${event.catalogItemId}`
@@ -582,11 +585,7 @@ function SelectionPanel({
 						{title}
 					</p>
 					<p className="mt-0.5 text-xs text-white/40">
-						{event.kind === "episode" &&
-						event.seasonNumber != null &&
-						event.episodeNumber != null
-							? `S${event.seasonNumber} · Ep ${event.episodeNumber} · `
-							: ""}
+						{position ? `${position} · ` : ""}
 						{formatDay(new Date(event.eventAt), locale, {
 							weekday: "long",
 							month: "long",

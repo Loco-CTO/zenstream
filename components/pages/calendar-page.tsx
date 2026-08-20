@@ -237,13 +237,13 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	const selected = events.find((event) => event.id === selectedId) || null;
 	const rangeTitle =
 		view === "day"
-				? formatDay(anchor, locale, {
-						weekday: "long",
-						month: "long",
-						day: "numeric",
-						year: "numeric",
-					})
-				: `${formatDay(range.start, locale, { month: "short", day: "numeric" })} – ${formatDay(addDays(range.end, -1), locale, { month: "short", day: "numeric" })}, ${addDays(range.end, -1).getFullYear()}`;
+			? formatDay(anchor, locale, {
+					weekday: "long",
+					month: "long",
+					day: "numeric",
+					year: "numeric",
+				})
+			: `${formatDay(range.start, locale, { month: "short", day: "numeric" })} – ${formatDay(addDays(range.end, -1), locale, { month: "short", day: "numeric" })}, ${addDays(range.end, -1).getFullYear()}`;
 
 	function resetToday() {
 		setAnchor(clampAnchor(new Date(), view));
@@ -534,18 +534,18 @@ function EventBlock({
 			}}
 		>
 			<p
-				className={`truncate font-bold leading-tight ${compact ? "text-[10px]" : "text-[11px]"}`}
+				className="truncate font-bold text-[13px] leading-tight"
 				style={{ color }}
 			>
 				{primaryTitle}
 			</p>
 			{!compact && secondaryTitle && (
-				<p className="mt-0.5 truncate text-[10px] leading-snug text-white/55">
+				<p className="mt-0.5 truncate text-[11px] leading-snug text-white/55">
 					{secondaryTitle}
 				</p>
 			)}
 			{!compact && (
-				<p className="mt-0.5 truncate text-[9px] tabular-nums text-white/28">
+				<p className="mt-0.5 truncate text-[10px] tabular-nums text-white/28">
 					{formatEventTime(event, locale, t("calendarAllDay"))} · {episodeLabel}
 				</p>
 			)}

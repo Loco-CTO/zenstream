@@ -817,13 +817,12 @@ function BrowserPushControl({ session }: { session?: AuthSession }) {
 	const { t } = useI18n();
 	const [status, setStatus] = useState<
 		"loading" | "unsupported" | "unconfigured" | "blocked" | "enabled" | "disabled" | "error"
-	>("loading");
+	>(() => (!session || !browserPushSupported() ? "unsupported" : "loading"));
 	const [publicKey, setPublicKey] = useState<string | null>(null);
 
 	useEffect(() => {
 		let active = true;
 		if (!session || !browserPushSupported()) {
-			setStatus("unsupported");
 			return () => {
 				active = false;
 			};

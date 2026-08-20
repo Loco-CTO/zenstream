@@ -986,7 +986,9 @@ describe("video player controls", () => {
 
 		fireEvent.ended(view.container.querySelector("video")!);
 
-		expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ Id: "episode-2" }));
+		expect(onNext).toHaveBeenCalledWith(
+			expect.objectContaining({ Id: "episode-2" }),
+		);
 		expect(onClose).not.toHaveBeenCalled();
 	});
 
@@ -1014,7 +1016,9 @@ describe("video player controls", () => {
 		expect(onClose).not.toHaveBeenCalled();
 
 		fireEvent.click(view.getByRole("button", { name: /Play next/i }));
-		expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ Id: "episode-2" }));
+		expect(onNext).toHaveBeenCalledWith(
+			expect.objectContaining({ Id: "episode-2" }),
+		);
 	});
 
 	it("closes at the end when no next episode exists", async () => {

@@ -19,10 +19,11 @@ type PlaybackBehaviorPreferencesContext = PlaybackBehaviorPreferences & {
 	setAutoplayBrowse: (value: boolean) => void;
 };
 
-export const DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES: PlaybackBehaviorPreferences = {
-	autoplayNextEpisode: true,
-	autoplayBrowse: true,
-};
+export const DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES: PlaybackBehaviorPreferences =
+	{
+		autoplayNextEpisode: true,
+		autoplayBrowse: true,
+	};
 
 export function playbackBehaviorStorageKey(userId: string) {
 	return `zenstream:${userId}:playback:behavior`;
@@ -51,7 +52,8 @@ function parsePreferences(value: string | null) {
 }
 
 function readPreferences(userId: string) {
-	if (typeof window === "undefined") return DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES;
+	if (typeof window === "undefined")
+		return DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES;
 	try {
 		return parsePreferences(
 			window.localStorage.getItem(playbackBehaviorStorageKey(userId)),

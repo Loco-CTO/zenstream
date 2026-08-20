@@ -831,71 +831,71 @@ export function AppShell() {
 							<SyncplayProvider session={session}>
 								<SyncplayPlaybackFollower />
 								{pathname === "/settings" ? (
-								<SettingsPage
-									displayName={session.username}
-									userId={session.userId}
-									session={session}
-									avatarVersion={avatarVersion}
-									onAvatarVersionChange={handleAvatarVersionChange}
-									locale={locale}
-									onLocaleChange={handleLocaleChange}
-									metadataLanguages={metadataLanguages}
-									metadataLanguage={metadataLanguage}
-									onMetadataLanguageChange={handleMetadataLanguageChange}
-									playbackPreference={playbackPreference}
-									onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
-									onPlaybackPreferenceLoad={() => loadPreferences(session)}
-									onPasswordChanged={handlePasswordChanged}
-									onLogout={handleLogout}
-								/>
-								) : (
-								<div className="min-h-screen bg-background text-foreground">
-									<Navbar
+									<SettingsPage
 										displayName={session.username}
 										userId={session.userId}
-										avatarVersion={avatarVersion}
-										onLogout={handleLogout}
 										session={session}
+										avatarVersion={avatarVersion}
+										onAvatarVersionChange={handleAvatarVersionChange}
+										locale={locale}
+										onLocaleChange={handleLocaleChange}
+										metadataLanguages={metadataLanguages}
+										metadataLanguage={metadataLanguage}
+										onMetadataLanguageChange={handleMetadataLanguageChange}
+										playbackPreference={playbackPreference}
+										onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+										onPlaybackPreferenceLoad={() => loadPreferences(session)}
+										onPasswordChanged={handlePasswordChanged}
+										onLogout={handleLogout}
 									/>
-									<MobileNav />
-									{status === "error" && (
-										<ErrorPanel
-											titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
-											message={error}
-											onRetry={() =>
-												detailId ? loadDetail(session, detailId) : loadHome(session)
-											}
+								) : (
+									<div className="min-h-screen bg-background text-foreground">
+										<Navbar
+											displayName={session.username}
+											userId={session.userId}
+											avatarVersion={avatarVersion}
+											onLogout={handleLogout}
+											session={session}
 										/>
-									)}
-									{status === "ready" && detailData && playId && (
-										<PlayerPage initialData={detailData} session={session} />
-									)}
-									{status === "ready" &&
-										detailData &&
-										detailId &&
-										!playId &&
-										(detailData.item.Type === "BoxSet" ? (
-											<CollectionPage initialData={detailData} session={session} />
-										) : (
-											<DetailPage initialData={detailData} session={session} />
-										))}
-									{status === "ready" && pathname === "/library" && (
-										<LibraryPage session={session} />
-									)}
-									{status === "ready" && pathname === "/favorites" && (
-										<FavoritesPage session={session} />
-									)}
-									{status === "ready" && pathname === "/search" && (
-										<SearchPage session={session} query={searchData ?? searchQuery} />
-									)}
-									{homeData &&
-										!detailId &&
-										pathname !== "/library" &&
-										pathname !== "/favorites" &&
-										pathname !== "/search" && (
-											<HomePage data={homeData} session={session} />
+										<MobileNav />
+										{status === "error" && (
+											<ErrorPanel
+												titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
+												message={error}
+												onRetry={() =>
+													detailId ? loadDetail(session, detailId) : loadHome(session)
+												}
+											/>
 										)}
-								</div>
+										{status === "ready" && detailData && playId && (
+											<PlayerPage initialData={detailData} session={session} />
+										)}
+										{status === "ready" &&
+											detailData &&
+											detailId &&
+											!playId &&
+											(detailData.item.Type === "BoxSet" ? (
+												<CollectionPage initialData={detailData} session={session} />
+											) : (
+												<DetailPage initialData={detailData} session={session} />
+											))}
+										{status === "ready" && pathname === "/library" && (
+											<LibraryPage session={session} />
+										)}
+										{status === "ready" && pathname === "/favorites" && (
+											<FavoritesPage session={session} />
+										)}
+										{status === "ready" && pathname === "/search" && (
+											<SearchPage session={session} query={searchData ?? searchQuery} />
+										)}
+										{homeData &&
+											!detailId &&
+											pathname !== "/library" &&
+											pathname !== "/favorites" &&
+											pathname !== "/search" && (
+												<HomePage data={homeData} session={session} />
+											)}
+									</div>
 								)}
 							</SyncplayProvider>
 						</PlaybackBehaviorPreferencesProvider>

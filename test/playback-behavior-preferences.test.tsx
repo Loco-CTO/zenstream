@@ -63,8 +63,7 @@ function PreferenceProbe() {
 
 function HoverPreviewHarness() {
 	const preview = useHoverPreview("movie", 120 * 10_000_000, session);
-	const { autoplayBrowse, setAutoplayBrowse } =
-		usePlaybackBehaviorPreferences();
+	const { autoplayBrowse, setAutoplayBrowse } = usePlaybackBehaviorPreferences();
 	return (
 		<>
 			<button type="button" onPointerEnter={preview.start}>
@@ -81,7 +80,7 @@ function HoverPreviewHarness() {
 	);
 }
 
-	describe("playback behavior preferences", () => {
+describe("playback behavior preferences", () => {
 	beforeEach(() => {
 		installLocalStorage();
 		vi.useFakeTimers();
@@ -108,14 +107,12 @@ function HoverPreviewHarness() {
 			view.getByRole("switch", { name: "Autoplay on Browse" }),
 		).toHaveAttribute("aria-checked", "true");
 
-		fireEvent.click(
-			view.getByRole("switch", { name: "Autoplay Next Episode" }),
-		);
+		fireEvent.click(view.getByRole("switch", { name: "Autoplay Next Episode" }));
 		fireEvent.click(view.getByRole("switch", { name: "Autoplay on Browse" }));
 
-		expect(window.localStorage.getItem(playbackBehaviorStorageKey("user-1"))).toBe(
-			JSON.stringify({ autoplayNextEpisode: false, autoplayBrowse: false }),
-		);
+		expect(
+			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
+		).toBe(JSON.stringify({ autoplayNextEpisode: false, autoplayBrowse: false }));
 
 		view.unmount();
 		const restored = render(
@@ -197,13 +194,16 @@ function HoverPreviewHarness() {
 	});
 });
 
-	describe("hover preview autoplay", () => {
+describe("hover preview autoplay", () => {
 	beforeEach(() => {
 		installLocalStorage();
 		vi.useFakeTimers();
-		vi.mocked(getPlaybackInfo).mockReset().mockResolvedValue({
-			source: { Id: "source", mode: "direct", url: "/movie.mp4" },
-		} as never);
+		vi
+			.mocked(getPlaybackInfo)
+			.mockReset()
+			.mockResolvedValue({
+				source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+			} as never);
 		vi.mocked(playbackUrl).mockReturnValue("/movie.mp4");
 	});
 
@@ -254,9 +254,7 @@ function HoverPreviewHarness() {
 		expect(getPlaybackInfo).toHaveBeenCalledOnce();
 		expect(play).toHaveBeenCalledOnce();
 
-		fireEvent.click(
-			view.getByRole("switch", { name: "Autoplay on Browse" }),
-		);
+		fireEvent.click(view.getByRole("switch", { name: "Autoplay on Browse" }));
 		expect(pause).toHaveBeenCalledOnce();
 		expect(video).not.toHaveAttribute("src", "/movie.mp4");
 	});

@@ -3,13 +3,18 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+	Bookmark,
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
 	RefreshCw,
 	X,
 } from "lucide-react";
-import { getCalendar, type CalendarEvent } from "@/lib/calendar";
+import {
+	getCalendar,
+	setCalendarFollowing,
+	type CalendarEvent,
+} from "@/lib/calendar";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useProgress } from "@/components/status/progress-indicator";
@@ -181,6 +186,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [followError, setFollowError] = useState<string | null>(null);
 	const range = useMemo(() => rangeFor(view, anchor), [anchor, view]);
 	const navigation = useMemo(
 		() => navigationState(view, anchor),
@@ -263,6 +269,39 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 		setSelectedId((current) => (current === id ? null : id));
 	}
 
+	async function toggleFollow(event: CalendarEvent) {
+		if (!event.followAvailable) return;
+		const previous = Boolean(event.following);
+		const next = !previous;
+		setFollowError(null);
+		setEvents((current) =>
+			current.map((value) =>
+				value.id === event.id ? { ...value, following: next } : value,
+			),
+		);
+		try {
+			const result = await setCalendarFollowing(session, event.id, next);
+			setEvents((current) =>
+				current.map((value) =>
+					value.id === event.id
+						? { ...value, following: Boolean(result.following) }
+						: value,
+				),
+			);
+		} catch (nextError) {
+			setEvents((current) =>
+				current.map((value) =>
+					value.id === event.id ? { ...value, following: previous } : value,
+				),
+			);
+			setFollowError(
+				nextError instanceof Error
+					? nextError.message
+					: t("calendarLoadFailed"),
+			);
+		}
+	}
+
 	return (
 		<main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--c-page)] pb-[calc(4rem+env(safe-area-inset-bottom))] pt-20 md:pb-0">
 			<CalendarToolbar
@@ -319,9 +358,15 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 						<SelectionPanel
 							event={selected}
 							locale={locale}
+							onFollow={() => void toggleFollow(selected)}
 							onClose={() => setSelectedId(null)}
 							t={t}
 						/>
+					)}
+					{followError && (
+						<div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded border border-red-400/20 bg-black/80 px-3 py-2 text-[11px] text-red-200 shadow-xl">
+							{followError}
+						</div>
 					)}
 					{loading && (
 						<div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/25">
@@ -579,11 +624,13 @@ function EventBlock({
 function SelectionPanel({
 	event,
 	locale,
+	onFollow,
 	onClose,
 	t,
 }: {
 	event: CalendarEvent;
 	locale: string;
+	onFollow: () => void;
 	onClose: () => void;
 	t: Translator;
 }) {
@@ -623,6 +670,20 @@ function SelectionPanel({
 					</p>
 				</div>
 				<div className="flex shrink-0 items-start gap-2">
+					{event.followAvailable && (
+						<button
+							type="button"
+							aria-label={t(event.following ? "unfollow" : "follow")}
+							title={t(event.following ? "unfollow" : "follow")}
+							onClick={onFollow}
+							className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-[11px] font-semibold transition ${event.following ? "border-violet-300/40 bg-violet-400/15 text-violet-200" : "border-white/[0.1] text-white/60 hover:border-white/25 hover:text-white"}`}
+						>
+							<Bookmark
+								className={`h-3.5 w-3.5 ${event.following ? "fill-violet-200" : ""}`}
+							/>
+							{t(event.following ? "unfollow" : "follow")}
+						</button>
+					)}
 					{openEpisodeHref ? (
 						<Link
 							href={openEpisodeHref}

@@ -57,6 +57,13 @@ const CalendarPage = dynamic(
 	() => import("@/components/pages/calendar-page").then((m) => m.CalendarPage),
 	{ ssr: false },
 );
+const NotificationsPage = dynamic(
+	() =>
+		import("@/components/pages/notifications-page").then(
+			(m) => m.NotificationsPage,
+		),
+	{ ssr: false },
+);
 const SearchPage = dynamic(
 	() => import("@/components/pages/search-page").then((m) => m.SearchPage),
 	{ ssr: false },
@@ -506,7 +513,11 @@ export function AppShell() {
 		void (async () => {
 			if (detailId || playId)
 				await loadDetail(session, detailId ?? playId!, generation);
-			else if (pathname === "/search" || pathname === "/settings") {
+			else if (
+				pathname === "/search" ||
+				pathname === "/settings" ||
+				pathname === "/notifications"
+			) {
 				if (generation === routeLoadGeneration.current) {
 					if (pathname === "/search") setSearchData(searchQuery);
 					setStatus("ready");
@@ -546,7 +557,7 @@ export function AppShell() {
 		void primeResourceTicket(nextSession);
 		if (detailId || playId)
 			await loadDetail(nextSession, detailId ?? playId!, generation);
-		else if (pathname === "/search") {
+		else if (pathname === "/search" || pathname === "/notifications") {
 			if (generation === routeLoadGeneration.current) {
 				setSearchData(searchQuery);
 				setStatus("ready");
@@ -897,9 +908,12 @@ export function AppShell() {
 										{status === "ready" && pathname === "/favorites" && (
 											<FavoritesPage session={session} />
 										)}
-										{status === "ready" && pathname === "/calendar" && (
-											<CalendarPage session={session} />
-										)}
+						{status === "ready" && pathname === "/calendar" && (
+							<CalendarPage session={session} />
+						)}
+						{status === "ready" && pathname === "/notifications" && (
+							<NotificationsPage session={session} />
+						)}
 										{status === "ready" && pathname === "/search" && (
 											<SearchPage session={session} query={searchData ?? searchQuery} />
 										)}
@@ -907,7 +921,8 @@ export function AppShell() {
 											!detailId &&
 											pathname !== "/library" &&
 											pathname !== "/favorites" &&
-											pathname !== "/calendar" &&
+							pathname !== "/calendar" &&
+							pathname !== "/notifications" &&
 											pathname !== "/search" && (
 												<HomePage data={homeData} session={session} />
 											)}

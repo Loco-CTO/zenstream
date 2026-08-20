@@ -52,6 +52,7 @@ export interface MediaItem {
 	LocalTrailerCount?: number;
 	UserData?: {
 		IsFavorite?: boolean;
+		IsFollowing?: boolean;
 		UnplayedItemCount?: number;
 		PlayedPercentage?: number;
 		PlaybackPositionTicks?: number;
@@ -1606,6 +1607,22 @@ export async function setPlayed(
 		{
 			method: "PATCH",
 			body: JSON.stringify({ played }),
+		},
+	);
+	clearMediaClientCache();
+}
+
+export async function setFollowing(
+	session: AuthSession,
+	itemId: string,
+	following: boolean,
+) {
+	await catalogRequest(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ following }),
 		},
 	);
 	clearMediaClientCache();

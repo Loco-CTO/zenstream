@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
 	getPlaybackSource,
 	getEpisodes,
@@ -13,6 +13,7 @@ import {
 	personImage,
 	posterImage,
 	setFavorite,
+	setFollowing,
 	setPlayed,
 	titleLogoImage,
 	playbackStreams,
@@ -239,6 +240,21 @@ export function DetailPage({
 		}
 	}
 
+	async function toggleFollowing() {
+		const previous = Boolean(item.UserData?.IsFollowing);
+		setItem(updateUserData(item, { IsFollowing: !previous }));
+		setMutationError("");
+		const finish = start();
+		try {
+			await setFollowing(session, item.Id, !previous);
+		} catch {
+			setItem(updateUserData(item, { IsFollowing: previous }));
+			setMutationError(t("detailLoadFailed"));
+		} finally {
+			finish();
+		}
+	}
+
 	const startPlayback = useCallback(async () => {
 		setMutationError("");
 		let target = item;
@@ -364,6 +380,18 @@ export function DetailPage({
 									/>
 								}
 							/>
+							{!isEpisode && (
+								<ActionButton
+									active={Boolean(item.UserData?.IsFollowing)}
+									label={t(item.UserData?.IsFollowing ? "unfollow" : "follow")}
+									onClick={toggleFollowing}
+									icon={
+										<Bookmark
+											className={`h-4 w-4 ${item.UserData?.IsFollowing ? "fill-violet-300" : ""}`}
+										/>
+									}
+								/>
+							)}
 						</div>
 						{hasTrackSelection &&
 							currentTrackChoices &&

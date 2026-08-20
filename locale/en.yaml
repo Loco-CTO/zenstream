@@ -21,6 +21,27 @@ calendarOpenEpisode: Open episode
 list: List
 search: Search
 notifications: Notifications
+notificationInbox: Notification inbox
+notificationInboxDescription: New episodes and movies are listed here.
+notificationsEmpty: No notifications yet
+notificationsEmptyDescription: Follow a series or movie to get notified when new playable media is added.
+notificationsLoadFailed: Could not load notifications
+markAllRead: Mark all read
+markRead: Mark as read
+markUnread: Mark as unread
+loadMore: Load more
+follow: Follow
+unfollow: Unfollow
+browserNotifications: Browser notifications
+browserNotificationsDescription: Deliver new Follow notifications as browser push messages.
+browserNotificationsEnabled: Enabled · Disable
+browserNotificationsUnavailable: Not configured
+browserNotificationsBlocked: Browser permission is blocked
+browserNotificationsUnsupported: Not supported in this browser
+browserNotificationsRetry: Retry
+enableBrowserNotifications: Enable
+followNotifications: Follow controls notification selection
+followNotificationsDescription: Use Follow on a series or movie to choose what appears in your inbox.
 profile: Profile
 settings: Settings
 language: Language
@@ -159,7 +180,7 @@ autoplayNextEpisode: Autoplay Next Episode
 autoplayBrowse: Autoplay on Browse
 autoplayBrowseDescription: Play previews while browsing
 newEpisodes: New Episodes
-newEpisodesDescription: When a show you watch releases
+newEpisodesDescription: Follow a series to receive new episode notifications
 newSeasons: New Seasons
 watchReminders: Watch Reminders
 watchRemindersDescription: Nudges to continue watching

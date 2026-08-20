@@ -21,6 +21,8 @@ export type CalendarEvent = {
 	catalogItemId?: string | null;
 	catalogSeriesId?: string | null;
 	metadataStatus: "future" | "catalog" | "pending" | string;
+	following: boolean;
+	followAvailable: boolean;
 };
 
 export type CalendarResponse = {
@@ -43,5 +45,20 @@ export function getCalendar(
 		session,
 		`/api/calendar?${params.toString()}`,
 		{ signal },
+	);
+}
+
+export function setCalendarFollowing(
+	session: AuthSession,
+	eventId: string,
+	following: boolean,
+) {
+	return catalogRequest<{ following: boolean }>(
+		session,
+		`/api/calendar/events/${encodeURIComponent(eventId)}/follow`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ following }),
+		},
 	);
 }

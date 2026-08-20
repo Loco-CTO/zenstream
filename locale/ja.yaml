@@ -23,6 +23,27 @@ favorites: お気に入り
 list: マイリスト
 search: 検索
 notifications: 通知
+notificationInbox: 通知一覧
+notificationInboxDescription: 新しいエピソードや映画がここに表示されます。
+notificationsEmpty: 通知はありません
+notificationsEmptyDescription: シリーズや映画をフォローすると、新しい再生可能なメディアが追加されたときに通知されます。
+notificationsLoadFailed: 通知を読み込めませんでした
+markAllRead: すべて既読にする
+markRead: 既読にする
+markUnread: 未読にする
+loadMore: さらに読み込む
+follow: フォロー
+unfollow: フォローを解除
+browserNotifications: ブラウザー通知
+browserNotificationsDescription: 新しいフォロー通知をブラウザーのプッシュ通知で受け取ります。
+browserNotificationsEnabled: 有効 · 無効にする
+browserNotificationsUnavailable: 未設定
+browserNotificationsBlocked: ブラウザーの権限がブロックされています
+browserNotificationsUnsupported: このブラウザーでは利用できません
+browserNotificationsRetry: 再試行
+enableBrowserNotifications: 有効にする
+followNotifications: フォローで通知を選択
+followNotificationsDescription: シリーズや映画のフォローから受け取る通知を選択します。
 profile: プロフィール
 settings: 設定
 language: 言語
@@ -151,7 +172,7 @@ autoplayNextEpisode: 次のエピソードを自動再生
 autoplayBrowse: 閲覧中に自動再生
 autoplayBrowseDescription: 閲覧中にプレビューを再生します
 newEpisodes: 新しいエピソード
-newEpisodesDescription: 視聴中の番組に新作が追加されたとき
+newEpisodesDescription: シリーズをフォローすると新しいエピソードを通知します
 newSeasons: 新しいシーズン
 watchReminders: 視聴リマインダー
 watchRemindersDescription: 視聴の続きをお知らせします

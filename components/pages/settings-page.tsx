@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
@@ -20,6 +20,12 @@ import type {
 	MetadataLanguagePreference,
 	PlaybackPreference,
 } from "@/lib/preferences";
+import {
+	browserPushSupported,
+	getBrowserPushConfig,
+	registerBrowserPush,
+	unregisterBrowserPush,
+} from "@/lib/notifications";
 
 type SettingsPageProps = {
 	displayName: string;
@@ -89,10 +95,6 @@ export function SettingsPage({
 	} = usePlaybackBehaviorPreferences();
 	const [localeError, setLocaleError] = useState(false);
 	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
-	const [newEpisodes, setNewEpisodes] = useState(true);
-	const [newSeasons, setNewSeasons] = useState(true);
-	const [reminders, setReminders] = useState(false);
-	const [updates, setUpdates] = useState(false);
 	const [watchHistory, setWatchHistory] = useState(true);
 	const [dataSaver, setDataSaver] = useState(false);
 	const [subtitlePreview, setSubtitlePreview] = useState(false);
@@ -536,47 +538,15 @@ export function SettingsPage({
 					{section === "notifications" && (
 						<SettingsSection title={t("notifications")}>
 							<SettingsRow
-								label={t("newEpisodes")}
-								sub={t("newEpisodesDescription")}
-								right={
-									<Toggle
-										label={t("newEpisodes")}
-										checked={newEpisodes}
-										onChange={setNewEpisodes}
-									/>
-								}
+								label={t("browserNotifications")}
+								sub={t("browserNotificationsDescription")}
+								right={<BrowserPushControl session={session} />}
 							/>
 							<SettingsRow
-								label={t("newSeasons")}
-								right={
-									<Toggle
-										label={t("newSeasons")}
-										checked={newSeasons}
-										onChange={setNewSeasons}
-									/>
-								}
-							/>
-							<SettingsRow
-								label={t("watchReminders")}
-								sub={t("watchRemindersDescription")}
-								right={
-									<Toggle
-										label={t("watchReminders")}
-										checked={reminders}
-										onChange={setReminders}
-									/>
-								}
-							/>
-							<SettingsRow
-								label={t("appUpdates")}
+								label={t("followNotifications")}
+								sub={t("followNotificationsDescription")}
 								border={false}
-								right={
-									<Toggle
-										label={t("appUpdates")}
-										checked={updates}
-										onChange={setUpdates}
-									/>
-								}
+								right={<Bell className="h-4 w-4 text-violet-300/70" />}
 							/>
 						</SettingsSection>
 					)}
@@ -839,6 +809,89 @@ function Toggle({
 			<span
 				className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-4" : ""}`}
 			/>
+		</button>
+	);
+}
+
+function BrowserPushControl({ session }: { session?: AuthSession }) {
+	const { t } = useI18n();
+	const [status, setStatus] = useState<
+		"loading" | "unsupported" | "unconfigured" | "blocked" | "enabled" | "disabled" | "error"
+	>("loading");
+	const [publicKey, setPublicKey] = useState<string | null>(null);
+
+	useEffect(() => {
+		let active = true;
+		if (!session || !browserPushSupported()) {
+			setStatus("unsupported");
+			return () => {
+				active = false;
+			};
+		}
+		void getBrowserPushConfig(session)
+			.then(async (config) => {
+				if (!active) return;
+				setPublicKey(config.publicKey);
+				if (!config.configured) {
+					setStatus("unconfigured");
+					return;
+				}
+				if (Notification.permission === "denied") {
+					setStatus("blocked");
+					return;
+				}
+				const registration = await navigator.serviceWorker.ready;
+				const subscription = await registration.pushManager.getSubscription();
+				if (active) setStatus(subscription ? "enabled" : "disabled");
+			})
+			.catch(() => {
+				if (active) setStatus("error");
+			});
+		return () => {
+			active = false;
+		};
+	}, [session]);
+
+	async function toggle() {
+		if (!session || !publicKey) return;
+		try {
+			if (status === "enabled") {
+				await unregisterBrowserPush(session);
+				setStatus("disabled");
+			} else {
+				await registerBrowserPush(session, publicKey);
+				setStatus("enabled");
+			}
+		} catch {
+			setStatus("error");
+		}
+	}
+
+	if (status === "loading")
+		return <span className="text-xs text-white/30">{t("loadingMore")}</span>;
+	if (status === "enabled")
+		return (
+			<button
+				type="button"
+				onClick={() => void toggle()}
+				className="rounded border border-violet-300/30 bg-violet-400/10 px-3 py-1.5 text-xs font-semibold text-violet-200 transition hover:bg-violet-400/20"
+			>
+				{t("browserNotificationsEnabled")}
+			</button>
+		);
+	if (status === "unconfigured")
+		return <span className="text-xs text-white/30">{t("browserNotificationsUnavailable")}</span>;
+	if (status === "blocked")
+		return <span className="text-xs text-amber-200/70">{t("browserNotificationsBlocked")}</span>;
+	if (status === "unsupported")
+		return <span className="text-xs text-white/30">{t("browserNotificationsUnsupported")}</span>;
+	return (
+		<button
+			type="button"
+			onClick={() => void toggle()}
+			className="rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-white/25 hover:text-white"
+		>
+			{status === "error" ? t("browserNotificationsRetry") : t("enableBrowserNotifications")}
 		</button>
 	);
 }

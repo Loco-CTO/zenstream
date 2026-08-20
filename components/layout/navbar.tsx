@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, LogOut, Search, Settings } from "lucide-react";
@@ -9,6 +9,7 @@ import { SearchOverlay } from "@/components/layout/search-overlay";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
+import { getNotificationSummary } from "@/lib/notifications";
 
 export function Navbar({
 	displayName,
@@ -27,6 +28,25 @@ export function Navbar({
 	const pathname = usePathname();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
+	const [unreadCount, setUnreadCount] = useState(0);
+
+	useEffect(() => {
+		if (!session) return;
+		let active = true;
+		const refresh = () => {
+			void getNotificationSummary(session)
+				.then((result) => {
+					if (active) setUnreadCount(result.unreadCount);
+				})
+				.catch(() => undefined);
+		};
+		refresh();
+		window.addEventListener("zenstream:notifications-changed", refresh);
+		return () => {
+			active = false;
+			window.removeEventListener("zenstream:notifications-changed", refresh);
+		};
+	}, [session]);
 
 	return (
 		<>
@@ -78,13 +98,18 @@ export function Navbar({
 						>
 							<Search className="h-[22px] w-[22px]" />
 						</button>
-						<button
+						<Link
+							href="/notifications"
 							aria-label={t("notifications")}
-							className="relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
+							className={`relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${pathname === "/notifications" ? "text-white" : ""}`}
 						>
 							<Bell className="h-[22px] w-[22px]" />
-							<span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-violet-400" />
-						</button>
+							{unreadCount > 0 && (
+								<span className="absolute right-1.5 top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-violet-400 px-1 text-[9px] font-black leading-none text-black">
+									{unreadCount > 99 ? "99+" : unreadCount}
+								</span>
+							)}
+						</Link>
 						<div className="relative">
 							<button
 								aria-label={t("profile")}

@@ -31,11 +31,17 @@ import {
 	parseWebVttCues,
 } from "@/lib/subtitle-preferences";
 import { I18nProvider } from "@/lib/i18n";
+import {
+	PlaybackBehaviorPreferencesProvider,
+	playbackBehaviorStorageKey,
+} from "@/components/playback-behavior-preferences-provider";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
 import {
+	getEpisodes,
 	getPlaybackInfo,
+	getSeasons,
 	playbackStreams,
 	type MediaItem,
 } from "@/lib/media-api";
@@ -47,7 +53,9 @@ vi.mock("@/lib/media-api", async () => {
 	return {
 		...actual,
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
+		getEpisodes: vi.fn().mockResolvedValue([]),
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
+		getSeasons: vi.fn().mockResolvedValue([]),
 		getTrickplayInfo: vi.fn().mockResolvedValue(undefined),
 		playbackStreams: vi.fn().mockReturnValue({
 			source: { TranscodingUrl: "/video.m3u8" },
@@ -116,8 +124,91 @@ describe("video player controls", () => {
 			.mocked(playbackStreams)
 			.mockReset()
 			.mockReturnValue(defaultPlaybackStreams);
+		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
+		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
 	});
 	afterEach(() => vi.useRealTimers());
+
+	async function flushPlayerEffects() {
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+	}
+
+	function renderEpisodePlayer({
+		autoplayNextEpisode = true,
+		withNext = true,
+	}: {
+		autoplayNextEpisode?: boolean;
+		withNext?: boolean;
+	} = {}) {
+		const session = { token: "token", userId: "user", username: "Alex" };
+		const item = {
+			Id: "episode-1",
+			Name: "Episode 1",
+			Type: "Episode",
+			SeriesId: "series-1",
+			ParentIndexNumber: 1,
+			IndexNumber: 1,
+			RunTimeTicks: 120 * 10_000_000,
+		} as MediaItem;
+		const next = {
+			Id: "episode-2",
+			Name: "Episode 2",
+			Type: "Episode",
+			SeriesId: "series-1",
+			ParentIndexNumber: 1,
+			IndexNumber: 2,
+		} as MediaItem;
+		vi.mocked(getSeasons).mockResolvedValue(
+			withNext
+				? ([
+						{
+							Id: "season-1",
+							Name: "Season 1",
+							Type: "Season",
+							IndexNumber: 1,
+						},
+					] as MediaItem[])
+				: [],
+		);
+		vi.mocked(getEpisodes).mockResolvedValue(withNext ? [next] : []);
+		if (!autoplayNextEpisode)
+			window.localStorage.setItem(
+				playbackBehaviorStorageKey(session.userId),
+				JSON.stringify({ autoplayNextEpisode: false, autoplayBrowse: true }),
+			);
+		const onNext = vi.fn();
+		const onClose = vi.fn();
+		const view = render(
+			<I18nProvider locale="en">
+				<PlaybackBehaviorPreferencesProvider userId={session.userId}>
+					<SubtitlePreferencesProvider>
+						<VideoPlayer
+							item={item}
+							session={session}
+							initialStreams={
+								{
+									source: {
+										Id: "source-1",
+										mode: "direct",
+										url: "/episode.mp4",
+									},
+									audio: [],
+									subtitles: [],
+									qualities: [],
+								} as ReturnType<typeof playbackStreams>
+							}
+							onClose={onClose}
+							onNext={onNext}
+						/>
+					</SubtitlePreferencesProvider>
+				</PlaybackBehaviorPreferencesProvider>
+			</I18nProvider>,
+		);
+		return { view, onNext, onClose };
+	}
 
 	it("detects when an active Syncplay member is waiting", () => {
 		const group = {
@@ -887,6 +978,55 @@ describe("video player controls", () => {
 			await Promise.resolve();
 		});
 		expect(onNext).toHaveBeenCalledWith(next);
+	});
+
+	it("automatically advances to the next episode when enabled", async () => {
+		const { view, onNext, onClose } = renderEpisodePlayer();
+		await flushPlayerEffects();
+
+		fireEvent.ended(view.container.querySelector("video")!);
+
+		expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ Id: "episode-2" }));
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it("keeps Next Up manual when next-episode autoplay is disabled", async () => {
+		const { view, onNext, onClose } = renderEpisodePlayer({
+			autoplayNextEpisode: false,
+		});
+		await flushPlayerEffects();
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "duration", {
+			configurable: true,
+			value: 120,
+		});
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 120,
+		});
+		fireEvent.loadedMetadata(video);
+		fireEvent.timeUpdate(video);
+
+		expect(view.getByTestId("next-up")).toBeInTheDocument();
+		fireEvent.ended(video);
+		expect(onNext).not.toHaveBeenCalled();
+		expect(onClose).not.toHaveBeenCalled();
+
+		fireEvent.click(view.getByRole("button", { name: "Play Next" }));
+		expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ Id: "episode-2" }));
+	});
+
+	it("closes at the end when no next episode exists", async () => {
+		const { view, onClose } = renderEpisodePlayer({
+			autoplayNextEpisode: false,
+			withNext: false,
+		});
+		await flushPlayerEffects();
+
+		fireEvent.ended(view.container.querySelector("video")!);
+
+		expect(onClose).toHaveBeenCalledOnce();
 	});
 
 	it("holds a scheduled Syncplay start until its server timestamp", () => {

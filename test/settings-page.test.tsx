@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "@/components/pages/settings-page";
-import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
+import {
+	PlaybackBehaviorPreferencesProvider,
+	playbackBehaviorStorageKey,
+} from "@/components/playback-behavior-preferences-provider";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { I18nProvider, translate } from "@/lib/i18n";
 import * as mediaApi from "@/lib/media-api";
@@ -95,6 +98,14 @@ describe("SettingsPage", () => {
 		});
 		fireEvent.click(autoplay);
 		expect(autoplay).toHaveAttribute("aria-checked", "false");
+		const browseAutoplay = screen.getByRole("switch", {
+			name: "Autoplay on Browse",
+		});
+		fireEvent.click(browseAutoplay);
+		expect(browseAutoplay).toHaveAttribute("aria-checked", "false");
+		expect(
+			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
+		).toBe(JSON.stringify({ autoplayNextEpisode: false, autoplayBrowse: false }));
 		fireEvent.click(screen.getByRole("button", { name: "Back" }));
 		expect(
 			screen.getByRole("navigation", { name: "Settings" }),

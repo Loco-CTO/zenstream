@@ -127,10 +127,18 @@ function formatEventTime(
 	});
 }
 
+function episodePosition(event: CalendarEvent) {
+	if (event.kind !== "episode") return null;
+	if (event.seasonNumber == null || event.episodeNumber == null) return null;
+	return `S${event.seasonNumber} · Ep ${event.episodeNumber}`;
+}
+
 function eventTitle(event: CalendarEvent, t: Translator) {
 	return (
 		event.title ||
-		(event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"))
+		(event.kind === "movie"
+			? t("calendarMovie")
+			: episodePosition(event) || t("calendarEpisode"))
 	);
 }
 
@@ -519,12 +527,15 @@ function EventBlock({
 }) {
 	const color = eventColor(event);
 	const title = eventTitle(event, t);
+	const position = episodePosition(event);
 	const primaryTitle = event.seriesTitle || title;
 	const secondaryTitle = event.seriesTitle
-		? title
+		? event.title || position
 		: event.kind === "movie"
 			? event.releaseType || t("calendarMovie")
-			: t("calendarEpisode");
+			: event.title
+				? position
+				: null;
 	const episodeLabel =
 		event.kind === "episode" && event.episodeNumber != null
 			? `Ep ${event.episodeNumber}`
@@ -546,7 +557,7 @@ function EventBlock({
 			>
 				{primaryTitle}
 			</p>
-			{!compact && (
+			{!compact && secondaryTitle && (
 				<p className="mt-0.5 truncate text-[10px] leading-snug text-white/55">
 					{secondaryTitle}
 				</p>

@@ -1,6 +1,22 @@
 home: Home
 library: Library
 favorites: Favorites
+calendar: Calendar
+calendarWeek: Week
+calendarMonth: Month
+calendarDay: Day
+calendarToday: Today
+calendarPrevious: Previous
+calendarNext: Next
+calendarLoadFailed: Could not load the calendar
+calendarEmpty: No releases in this period
+calendarFuture: Upcoming
+calendarCatalog: In catalog
+calendarAllDay: All day
+calendarEpisode: Episode
+calendarMovie: Movie
+calendarAirDate: Air date
+calendarRelease: Release
 list: List
 search: Search
 notifications: Notifications

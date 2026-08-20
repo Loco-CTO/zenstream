@@ -53,6 +53,10 @@ const FavoritesPage = dynamic(
 	() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage),
 	{ ssr: false },
 );
+const CalendarPage = dynamic(
+	() => import("@/components/pages/calendar-page").then((m) => m.CalendarPage),
+	{ ssr: false },
+);
 const SearchPage = dynamic(
 	() => import("@/components/pages/search-page").then((m) => m.SearchPage),
 	{ ssr: false },
@@ -507,7 +511,11 @@ export function AppShell() {
 					if (pathname === "/search") setSearchData(searchQuery);
 					setStatus("ready");
 				}
-			} else if (pathname === "/library" || pathname === "/favorites") {
+			} else if (
+				pathname === "/library" ||
+				pathname === "/favorites" ||
+				pathname === "/calendar"
+			) {
 				void primeResourceTicket(session);
 				if (generation === routeLoadGeneration.current) setStatus("ready");
 			} else await loadHome(session, generation);
@@ -543,7 +551,11 @@ export function AppShell() {
 				setSearchData(searchQuery);
 				setStatus("ready");
 			}
-		} else if (pathname === "/library" || pathname === "/favorites") {
+		} else if (
+			pathname === "/library" ||
+			pathname === "/favorites" ||
+			pathname === "/calendar"
+		) {
 			if (generation === routeLoadGeneration.current) setStatus("ready");
 		} else await loadHome(nextSession, generation);
 	};
@@ -882,17 +894,21 @@ export function AppShell() {
 										{status === "ready" && pathname === "/library" && (
 											<LibraryPage session={session} />
 										)}
-										{status === "ready" && pathname === "/favorites" && (
-											<FavoritesPage session={session} />
-										)}
-										{status === "ready" && pathname === "/search" && (
+						{status === "ready" && pathname === "/favorites" && (
+							<FavoritesPage session={session} />
+						)}
+						{status === "ready" && pathname === "/calendar" && (
+							<CalendarPage session={session} />
+						)}
+						{status === "ready" && pathname === "/search" && (
 											<SearchPage session={session} query={searchData ?? searchQuery} />
 										)}
 										{homeData &&
-											!detailId &&
-											pathname !== "/library" &&
-											pathname !== "/favorites" &&
-											pathname !== "/search" && (
+							!detailId &&
+							pathname !== "/library" &&
+							pathname !== "/favorites" &&
+							pathname !== "/calendar" &&
+							pathname !== "/search" && (
 												<HomePage data={homeData} session={session} />
 											)}
 									</div>

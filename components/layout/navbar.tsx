@@ -58,6 +58,12 @@ export function Navbar({
 						>
 							{t("favorites")}
 						</Link>
+						<Link
+							href="/calendar"
+							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/calendar" ? "text-white" : "text-white/35 hover:text-white/70"}`}
+						>
+							{t("calendar")}
+						</Link>
 					</div>
 					<div className="flex-1" />
 					<div

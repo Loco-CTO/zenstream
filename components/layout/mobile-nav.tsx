@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, Home, Library } from "lucide-react";
+import { CalendarDays, Heart, Home, Library } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 
@@ -35,6 +35,15 @@ export function MobileNav() {
 				<Heart className="h-[22px] w-[22px]" />
 				<span className="text-xs font-medium uppercase tracking-[0.16em]">
 					{t("favorites")}
+				</span>
+			</Link>
+			<Link
+				href="/calendar"
+				className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 px-1 py-2 ${pathname === "/calendar" ? "text-violet-400" : "text-white/30"}`}
+			>
+				<CalendarDays className="h-[22px] w-[22px]" />
+				<span className="text-xs font-medium uppercase tracking-[0.16em]">
+					{t("calendar")}
 				</span>
 			</Link>
 		</nav>

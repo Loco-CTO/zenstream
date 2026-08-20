@@ -1,4 +1,20 @@
 home: ホーム
+calendar: カレンダー
+calendarWeek: 週
+calendarMonth: 月
+calendarDay: 日
+calendarToday: 今日
+calendarPrevious: 前へ
+calendarNext: 次へ
+calendarLoadFailed: カレンダーを読み込めませんでした
+calendarEmpty: この期間に公開予定はありません
+calendarFuture: 公開予定
+calendarCatalog: カタログ内
+calendarAllDay: 終日
+calendarEpisode: エピソード
+calendarMovie: 映画
+calendarAirDate: 放送日
+calendarRelease: 公開
 collectionItems: "{count} 件"
 collectionEmpty: コレクションは空です。
 library: ライブラリ

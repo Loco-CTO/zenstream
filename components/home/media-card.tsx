@@ -229,7 +229,7 @@ export function MediaCardOverlay({
 	} | null>(null);
 	const following =
 		followingOverride?.itemId === item?.Id
-			? followingOverride.value
+			? followingOverride?.value ?? false
 			: Boolean(item?.UserData?.IsFollowing);
 
 	async function toggleFollowing(event: React.MouseEvent<HTMLButtonElement>) {

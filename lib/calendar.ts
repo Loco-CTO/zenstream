@@ -3,10 +3,10 @@ import { catalogRequest } from "@/lib/catalog";
 
 export type CalendarEvent = {
 	id: string;
-	provider: "sonarr" | "radarr" | string;
+	provider: "sonarr" | "radarr" | "catalog" | string;
 	libraryId: string;
 	libraryName: string;
-	kind: "episode" | "movie" | string;
+	kind: "episode" | "movie" | "series" | string;
 	releaseType: string;
 	eventAt: string;
 	eventDate: string;
@@ -45,4 +45,3 @@ export function getCalendar(
 		{ signal },
 	);
 }
-

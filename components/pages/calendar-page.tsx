@@ -133,12 +133,28 @@ function episodePosition(event: CalendarEvent) {
 	return `S${event.seasonNumber} · Ep ${event.episodeNumber}`;
 }
 
+function releaseLabel(event: CalendarEvent, t: Translator) {
+	if (event.kind === "series") {
+		return event.releaseType === "premiere"
+			? t("calendarPremiere")
+			: event.releaseType || t("calendarSeries");
+	}
+	if (event.kind === "movie") {
+		return event.releaseType === "release"
+			? t("calendarRelease")
+			: event.releaseType || t("calendarMovie");
+	}
+	return t("calendarRelease");
+}
+
 function eventTitle(event: CalendarEvent, t: Translator) {
 	return (
 		event.title ||
 		(event.kind === "movie"
 			? t("calendarMovie")
-			: episodePosition(event) || t("calendarEpisode"))
+			: event.kind === "series"
+				? t("calendarSeries")
+				: episodePosition(event) || t("calendarEpisode"))
 	);
 }
 
@@ -528,18 +544,19 @@ function EventBlock({
 	const color = eventColor(event);
 	const title = eventTitle(event, t);
 	const position = episodePosition(event);
-	const primaryTitle = event.seriesTitle || title;
-	const secondaryTitle = event.seriesTitle
-		? event.title || position
-		: event.kind === "movie"
-			? event.releaseType || t("calendarMovie")
-			: event.title
-				? position
-				: null;
+	const primaryTitle = event.kind === "episode" ? event.seriesTitle || title : title;
+	const secondaryTitle =
+		event.kind === "episode"
+			? event.seriesTitle
+				? event.title || position
+				: event.title
+					? position
+					: null
+			: releaseLabel(event, t);
 	const episodeLabel =
 		event.kind === "episode" && event.episodeNumber != null
 			? `Ep ${event.episodeNumber}`
-			: t("calendarRelease");
+			: releaseLabel(event, t);
 
 	return (
 		<button
@@ -601,9 +618,11 @@ function SelectionPanel({
 					</p>
 					<p className="mt-0.5 text-xs text-white/40">
 						{event.kind === "episode" &&
-						event.seasonNumber != null &&
-						event.episodeNumber != null
+						 event.seasonNumber != null &&
+						 event.episodeNumber != null
 							? `S${event.seasonNumber} · Ep ${event.episodeNumber} · `
+							: event.kind === "series"
+								? `${releaseLabel(event, t)} · `
 							: ""}
 						{formatDay(new Date(event.eventAt), locale, {
 							weekday: "long",

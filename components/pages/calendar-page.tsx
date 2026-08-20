@@ -6,10 +6,7 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
-	Clock3,
-	Film,
 	RefreshCw,
-	Tv,
 } from "lucide-react";
 import { getCalendar, type CalendarEvent } from "@/lib/calendar";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
@@ -72,11 +69,18 @@ function rangeFor(view: CalendarView, anchor: Date): CalendarRange {
 	if (view === "month") {
 		const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
 		const start = startOfWeek(monthStart);
-		const end = addDays(start, 42);
+		const daysInMonth = new Date(
+			anchor.getFullYear(),
+			anchor.getMonth() + 1,
+			0,
+		).getDate();
+		const totalCells = Math.ceil((start.getDay() + daysInMonth) / 7) * 7;
 		return {
 			start,
-			end,
-			days: Array.from({ length: 42 }, (_, index) => addDays(start, index)),
+			end: addDays(start, totalCells),
+			days: Array.from({ length: totalCells }, (_, index) =>
+				addDays(start, index),
+			),
 		};
 	}
 	const start = startOfWeek(anchor);
@@ -88,22 +92,39 @@ function rangeFor(view: CalendarView, anchor: Date): CalendarRange {
 }
 
 function moveAnchor(anchor: Date, view: CalendarView, amount: number) {
-	const result = new Date(anchor);
-	if (view === "month") result.setMonth(result.getMonth() + amount);
-	else result.setDate(result.getDate() + amount * (view === "week" ? 7 : 1));
-	return result;
+	if (view === "month") {
+		return new Date(anchor.getFullYear(), anchor.getMonth() + amount, 1);
+	}
+	return addDays(anchor, amount * (view === "week" ? 7 : 1));
 }
 
-function formatDay(value: Date, locale: string, options: Intl.DateTimeFormatOptions) {
+function formatDay(
+	value: Date,
+	locale: string,
+	options: Intl.DateTimeFormatOptions,
+) {
 	return new Intl.DateTimeFormat(locale, options).format(value);
 }
 
 function eventColor(event: CalendarEvent) {
 	let hash = 0;
-	for (const character of `${event.libraryId}:${event.title || event.id}`) {
+	for (const character of `${event.libraryId}:${event.seriesTitle || event.title || event.id}`) {
 		hash = (hash * 31 + character.charCodeAt(0)) | 0;
 	}
 	return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
+}
+
+function formatEventTime(event: CalendarEvent, locale: string, allDayLabel: string) {
+	if (event.allDay) return allDayLabel;
+	return formatDay(new Date(event.eventAt), locale, {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	});
+}
+
+function eventTitle(event: CalendarEvent, t: Translator) {
+	return event.title || (event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"));
 }
 
 export function CalendarPage({ session }: { session: AuthSession }) {
@@ -125,11 +146,12 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 			try {
 				const response = await getCalendar(session, range.start, range.end, signal);
 				if (signal?.aborted) return;
-				setEvents(response.events || []);
+				const nextEvents = response.events || [];
+				setEvents(nextEvents);
 				setSelectedId((current) =>
-					current && response.events.some((event) => event.id === current)
+					current && nextEvents.some((event) => event.id === current)
 						? current
-						: response.events[0]?.id || null,
+						: null,
 				);
 			} catch (nextError) {
 				if (!signal?.aborted) {
@@ -164,69 +186,153 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 		}
 		return grouped;
 	}, [events]);
+
 	const selected = events.find((event) => event.id === selectedId) || null;
 	const rangeTitle =
 		view === "month"
 			? formatDay(anchor, locale, { month: "long", year: "numeric" })
 			: view === "day"
-				? formatDay(anchor, locale, { weekday: "long", month: "long", day: "numeric" })
-				: `${formatDay(range.start, locale, { month: "short", day: "numeric" })} – ${formatDay(addDays(range.end, -1), locale, { month: "short", day: "numeric", year: "numeric" })}`;
+				? formatDay(anchor, locale, {
+						weekday: "long",
+						month: "long",
+						day: "numeric",
+						year: "numeric",
+					})
+				: `${formatDay(range.start, locale, { month: "short", day: "numeric" })} – ${formatDay(addDays(range.end, -1), locale, { month: "short", day: "numeric" })}, ${addDays(range.end, -1).getFullYear()}`;
 
 	function resetToday() {
 		setAnchor(new Date());
 	}
 
 	return (
-		<main className="min-h-screen px-4 pb-28 pt-24 sm:px-6 md:px-10 md:pb-8">
-			<div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
-				<div>
-					<div className="flex items-center gap-3 text-violet-300/80">
-						<CalendarDays className="h-5 w-5" />
-						<span className="text-xs font-semibold uppercase tracking-[0.22em]">{t("calendar")}</span>
-					</div>
-					<h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">{rangeTitle}</h1>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
-					<button type="button" onClick={resetToday} className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/75 transition hover:bg-white/[0.09]">{t("calendarToday")}</button>
-					<div className="flex items-center rounded-full border border-white/10 bg-white/[0.04] p-1">
-						<button type="button" aria-label={t("calendarPrevious")} onClick={() => setAnchor((current) => moveAnchor(current, view, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/55 hover:bg-white/10 hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
-						<button type="button" aria-label={t("calendarNext")} onClick={() => setAnchor((current) => moveAnchor(current, view, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-white/55 hover:bg-white/10 hover:text-white"><ChevronRight className="h-4 w-4" /></button>
-					</div>
-					<div className="flex items-center rounded-full border border-white/10 bg-white/[0.04] p-1">
-						{(["week", "month", "day"] as const).map((value) => (
-							<button key={value} type="button" onClick={() => setView(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === value ? "bg-white text-black" : "text-white/50 hover:text-white"}`}>
-								{value === "week" ? t("calendarWeek") : value === "month" ? t("calendarMonth") : t("calendarDay")}
-							</button>
-						))}
-					</div>
-				</div>
-			</div>
+		<main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--c-page)] pb-[calc(4rem+env(safe-area-inset-bottom))] pt-16 md:pb-0 md:pt-20">
+			<CalendarToolbar
+				view={view}
+				rangeTitle={rangeTitle}
+				onToday={resetToday}
+				onPrevious={() => setAnchor((current) => moveAnchor(current, view, -1))}
+				onNext={() => setAnchor((current) => moveAnchor(current, view, 1))}
+				onViewChange={(nextView) => {
+					setView(nextView);
+					setSelectedId(null);
+				}}
+				t={t}
+			/>
 
 			{error ? (
-				<div className="rounded-2xl border border-red-400/20 bg-red-400/5 p-6 text-sm text-red-100">
-					<div className="flex items-center justify-between gap-4">
-						<span>{error}</span>
-						<button type="button" onClick={() => void load()} className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white/75 hover:bg-white/10"><RefreshCw className="h-3.5 w-3.5" />{t("retry")}</button>
+				<div className="flex min-h-0 flex-1 items-center justify-center p-6">
+					<div className="w-full max-w-xl rounded-lg border border-red-400/20 bg-red-400/[0.05] p-5 text-sm text-red-100">
+						<div className="flex items-center justify-between gap-4">
+							<span>{error}</span>
+							<button
+								type="button"
+								onClick={() => void load()}
+								className="flex shrink-0 items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-white/25 hover:text-white"
+							>
+								<RefreshCw className="h-3.5 w-3.5" />
+								{t("retry")}
+							</button>
+						</div>
 					</div>
 				</div>
 			) : (
-				<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-					<div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-2xl shadow-black/20">
-						{view === "day" ? (
-							<DayView day={range.days[0]} events={eventsByDay.get(localKey(range.days[0])) || []} locale={locale} onSelect={setSelectedId} t={t} />
-						) : (
-							<GridView view={view} days={range.days} anchor={anchor} eventsByDay={eventsByDay} locale={locale} onSelect={setSelectedId} t={t} />
-						)}
-						{loading && <div className="border-t border-white/10 px-4 py-2 text-xs text-white/35">Loading…</div>}
-					</div>
-					<DetailPanel event={selected} locale={locale} t={t} />
+				<div className="relative flex min-h-0 flex-1 flex-col">
+					{view === "day" ? (
+						<DayView
+							events={eventsByDay.get(localKey(range.days[0])) || []}
+							locale={locale}
+							onSelect={setSelectedId}
+							t={t}
+						/>
+					) : (
+						<CalendarGrid
+							view={view}
+							days={range.days}
+							anchor={anchor}
+							eventsByDay={eventsByDay}
+							locale={locale}
+							onSelect={setSelectedId}
+							t={t}
+						/>
+					)}
+					{selected && <SelectionPanel event={selected} locale={locale} t={t} />}
+					{loading && (
+						<div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/25">
+							Loading…
+						</div>
+					)}
 				</div>
 			)}
 		</main>
 	);
 }
 
-function GridView({
+function CalendarToolbar({
+	view,
+	rangeTitle,
+	onToday,
+	onPrevious,
+	onNext,
+	onViewChange,
+	t,
+}: {
+	view: CalendarView;
+	rangeTitle: string;
+	onToday: () => void;
+	onPrevious: () => void;
+	onNext: () => void;
+	onViewChange: (view: CalendarView) => void;
+	t: Translator;
+}) {
+	return (
+		<div className="flex h-11 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[var(--c-nav-from)] px-4 md:px-7">
+			<button
+				type="button"
+				onClick={onToday}
+				className="rounded border border-white/[0.12] px-3 py-1.5 text-[11px] font-semibold text-white/55 transition hover:border-white/25 hover:text-white"
+			>
+				{t("calendarToday")}
+			</button>
+			<div className="flex items-center">
+				<button
+					type="button"
+					aria-label={t("calendarPrevious")}
+					onClick={onPrevious}
+					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white"
+				>
+					<ChevronLeft className="h-4 w-4" />
+				</button>
+				<button
+					type="button"
+					aria-label={t("calendarNext")}
+					onClick={onNext}
+					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white"
+				>
+					<ChevronRight className="h-4 w-4" />
+				</button>
+			</div>
+			<span className="min-w-0 truncate text-sm font-semibold text-white/65">{rangeTitle}</span>
+			<div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
+				{(["week", "month", "day"] as const).map((value) => (
+					<button
+						key={value}
+						type="button"
+						onClick={() => onViewChange(value)}
+						className={`rounded-md px-3 py-1 text-[11px] font-semibold transition ${view === value ? "bg-white/[0.12] text-white" : "text-white/30 hover:text-white/60"}`}
+					>
+						{value === "week"
+							? t("calendarWeek")
+							: value === "month"
+								? t("calendarMonth")
+								: t("calendarDay")}
+					</button>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function CalendarGrid({
 	view,
 	days,
 	anchor,
@@ -235,7 +341,7 @@ function GridView({
 	onSelect,
 	t,
 }: {
-	view: CalendarView;
+	view: "week" | "month";
 	days: Date[];
 	anchor: Date;
 	eventsByDay: Map<string, CalendarEvent[]>;
@@ -243,51 +349,127 @@ function GridView({
 	onSelect: (id: string) => void;
 	t: Translator;
 }) {
-	const weekdays = days.slice(0, 7);
+	const headerDays = days.slice(0, 7);
+	const todayKey = localKey(new Date());
+
 	return (
-		<div className={`grid ${view === "month" ? "grid-cols-7" : "grid-cols-7"}`}>
-			{weekdays.map((day) => (
-				<div key={day.getDay()} className="border-b border-white/10 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 sm:px-3">
-					<span className="sm:hidden">{formatDay(day, locale, { weekday: "narrow" })}</span>
-					<span className="hidden sm:inline">{formatDay(day, locale, { weekday: "short" })}</span>
+		<div className="min-h-0 flex-1 overflow-auto" style={{ scrollbarWidth: "thin" }}>
+			<div className={view === "month" ? "min-w-[560px]" : "min-w-[700px]"}>
+				<div className="sticky top-0 z-10 grid grid-cols-7 border-b border-white/[0.06] bg-[var(--c-page)]">
+					{headerDays.map((day) => {
+						const isToday = localKey(day) === todayKey;
+						return (
+							<div
+								key={localKey(day)}
+								className={`border-r border-white/[0.05] px-3 py-2.5 last:border-0 ${isToday ? "bg-violet-500/[0.08]" : ""}`}
+							>
+								<span className={`text-[10px] font-semibold uppercase tracking-widest ${isToday ? "text-violet-400" : "text-white/25"}`}>
+									{formatDay(day, locale, { weekday: "short" })}
+								</span>
+								<span className={`ml-1.5 text-sm font-black ${isToday ? "text-violet-300" : "text-white/50"}`}>
+									{day.getDate()}
+								</span>
+							</div>
+						);
+					})}
 				</div>
-			))}
-			{days.map((day) => {
-				const dayEvents = eventsByDay.get(localKey(day)) || [];
-				const muted = view === "month" && day.getMonth() !== anchor.getMonth();
-				return (
-					<div key={localKey(day)} className={`min-h-[118px] border-b border-r border-white/[0.07] p-1.5 sm:min-h-[150px] sm:p-2 ${muted ? "bg-white/[0.012] opacity-45" : ""}`}>
-						<div className={`mb-1 flex h-6 items-center justify-center text-xs font-semibold ${localKey(day) === localKey(new Date()) ? "mx-auto w-6 rounded-full bg-violet-500 text-white" : "text-white/45"}`}>{day.getDate()}</div>
-						<div className="space-y-1">
-							{dayEvents.map((event) => <EventBlock key={event.id} event={event} locale={locale} onSelect={onSelect} t={t} compact={view === "month"} />)}
-						</div>
+
+				{view === "week" ? (
+					<div
+						className="grid grid-cols-7 divide-x divide-white/[0.05]"
+						style={{ minHeight: "calc(100dvh - 8.125rem)" }}
+					>
+						{days.map((day) => {
+							const isToday = localKey(day) === todayKey;
+							return (
+								<div
+									key={localKey(day)}
+									className={`flex min-w-0 flex-col gap-1 p-1 ${isToday ? "bg-violet-500/[0.04]" : ""}`}
+								>
+									{(eventsByDay.get(localKey(day)) || []).map((event) => (
+										<EventBlock
+											key={event.id}
+											event={event}
+											locale={locale}
+											onSelect={onSelect}
+											t={t}
+										/>
+									))}
+								</div>
+							);
+						})}
 					</div>
-				);
-			})}
+				) : (
+					<div className="grid grid-cols-7 divide-x divide-white/[0.04]">
+						{days.map((day) => {
+							const inMonth = day.getMonth() === anchor.getMonth();
+							const isToday = localKey(day) === todayKey;
+							return (
+								<div
+									key={localKey(day)}
+									className={`min-h-[118px] border-b border-white/[0.04] p-1.5 ${!inMonth ? "bg-white/[0.01] opacity-45" : isToday ? "bg-violet-500/[0.05]" : ""}`}
+								>
+									<span className={`mb-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-violet-500 text-white" : "text-white/40"}`}>
+										{day.getDate()}
+									</span>
+									<div className="flex flex-col gap-1">
+										{(eventsByDay.get(localKey(day)) || []).slice(0, 3).map((event) => (
+											<EventBlock
+												key={event.id}
+												event={event}
+												locale={locale}
+												onSelect={onSelect}
+												t={t}
+												compact
+											/>
+										))}
+										{(eventsByDay.get(localKey(day)) || []).length > 3 && (
+											<span className="pl-1 text-[9px] text-white/25">
+												+{(eventsByDay.get(localKey(day)) || []).length - 3} more
+											</span>
+										)}
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }
 
 function DayView({
-	day,
 	events,
 	locale,
 	onSelect,
 	t,
 }: {
-	day: Date;
 	events: CalendarEvent[];
 	locale: string;
 	onSelect: (id: string) => void;
 	t: Translator;
 }) {
 	return (
-		<div>
-			<div className="border-b border-white/10 px-5 py-4">
-				<p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300/80">{formatDay(day, locale, { weekday: "long" })}</p>
-				<p className="mt-1 text-xl font-bold text-white">{formatDay(day, locale, { month: "long", day: "numeric", year: "numeric" })}</p>
-			</div>
-			{events.length ? <div className="divide-y divide-white/[0.07]">{events.map((event) => <EventRow key={event.id} event={event} locale={locale} onSelect={onSelect} t={t} />)}</div> : <EmptyDay t={t} />}
+		<div className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-10" style={{ scrollbarWidth: "thin" }}>
+			{events.length ? (
+				<div className="max-w-xl space-y-1.5">
+					{events.map((event) => (
+						<EventBlock
+							key={event.id}
+							event={event}
+							locale={locale}
+							onSelect={onSelect}
+							t={t}
+						/>
+					))}
+				</div>
+			) : (
+				<div className="flex h-64 flex-col items-center justify-center text-center">
+					<CalendarDays className="mb-3 h-8 w-8 text-white/10" />
+					<p className="text-sm text-white/25">{t("calendarEmpty")}</p>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -297,7 +479,7 @@ function EventBlock({
 	locale,
 	onSelect,
 	t,
-	compact,
+	compact = false,
 }: {
 	event: CalendarEvent;
 	locale: string;
@@ -305,77 +487,101 @@ function EventBlock({
 	t: Translator;
 	compact?: boolean;
 }) {
-	const title = event.title || (event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"));
+	const color = eventColor(event);
+	const title = eventTitle(event, t);
+	const primaryTitle = event.seriesTitle || title;
+	const secondaryTitle = event.seriesTitle
+		? title
+		: event.kind === "movie"
+			? event.releaseType || t("calendarMovie")
+			: t("calendarEpisode");
+	const episodeLabel =
+		event.kind === "episode" && event.episodeNumber != null
+			? `Ep ${event.episodeNumber}`
+			: t("calendarRelease");
+
 	return (
-		<button type="button" onClick={() => onSelect(event.id)} className="block w-full overflow-hidden rounded-md px-2 py-1.5 text-left text-white shadow-lg transition hover:brightness-125" style={{ backgroundColor: eventColor(event) }}>
-			<div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white/65">
-				{event.kind === "movie" ? <Film className="h-3 w-3" /> : <Tv className="h-3 w-3" />}
-				{event.allDay ? t("calendarAllDay") : formatDay(new Date(event.eventAt), locale, { hour: "numeric", minute: "2-digit" })}
-			</div>
-			<p className="mt-0.5 truncate text-xs font-semibold">{event.seriesTitle && !compact ? `${event.seriesTitle} · ` : ""}{title}</p>
-			{!compact && event.kind === "episode" && event.seasonNumber != null && event.episodeNumber != null && <p className="mt-0.5 text-[10px] text-white/65">S{event.seasonNumber} E{event.episodeNumber}</p>}
+		<button
+			type="button"
+			onClick={() => onSelect(event.id)}
+			className={`block w-full shrink-0 overflow-hidden rounded-[4px] text-left transition hover:brightness-125 ${compact ? "px-1.5 py-0.5" : "px-2 py-1.5"}`}
+			style={{
+				backgroundColor: `${color}20`,
+				borderLeft: `2.5px solid ${color}`,
+			}}
+		>
+			<p className={`truncate font-bold leading-tight ${compact ? "text-[10px]" : "text-[11px]"}`} style={{ color }}>
+				{primaryTitle}
+			</p>
+			{!compact && (
+				<p className="mt-0.5 truncate text-[10px] leading-snug text-white/55">
+					{secondaryTitle}
+				</p>
+			)}
+			{!compact && (
+				<p className="mt-0.5 truncate text-[9px] tabular-nums text-white/28">
+					{formatEventTime(event, locale, t("calendarAllDay"))} · {episodeLabel}
+				</p>
+			)}
 		</button>
 	);
 }
 
-function EventRow({
+function SelectionPanel({
 	event,
 	locale,
-	onSelect,
 	t,
 }: {
 	event: CalendarEvent;
 	locale: string;
-	onSelect: (id: string) => void;
 	t: Translator;
 }) {
-	const title = event.title || (event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"));
-	return (
-		<button type="button" onClick={() => onSelect(event.id)} className="flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-white/[0.04]">
-			<div className="w-20 shrink-0 text-xs font-semibold text-white/45">{event.allDay ? t("calendarAllDay") : formatDay(new Date(event.eventAt), locale, { hour: "numeric", minute: "2-digit" })}</div>
-			<div className="h-10 w-1 shrink-0 rounded-full" style={{ backgroundColor: eventColor(event) }} />
-			<div className="min-w-0 flex-1">
-				<p className="truncate text-sm font-bold text-white">{event.seriesTitle ? `${event.seriesTitle} · ` : ""}{title}</p>
-				<p className="mt-1 text-xs text-white/40">{event.kind === "episode" && event.seasonNumber != null && event.episodeNumber != null ? `S${event.seasonNumber} E${event.episodeNumber}` : t("calendarRelease")} · {event.libraryName}</p>
-			</div>
-		</button>
-	);
-}
-
-function EmptyDay({ t }: { t: Translator }) {
-	return <div className="px-5 py-14 text-center text-sm text-white/35">{t("calendarEmpty")}</div>;
-}
-
-function DetailPanel({
-	event,
-	locale,
-	t,
-}: {
-	event: CalendarEvent | null;
-	locale: string;
-	t: Translator;
-}) {
-	if (!event) return <div className="hidden rounded-2xl border border-white/10 bg-black/20 p-6 lg:block" />;
-	const title = event.title || (event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode"));
+	const color = eventColor(event);
+	const title = eventTitle(event, t);
 	const href = event.catalogItemId
 		? event.kind === "episode" && event.catalogSeriesId
 			? `/show/${event.catalogSeriesId}/episode/${event.catalogItemId}`
 			: `/show/${event.catalogItemId}`
 		: null;
+
 	return (
-		<aside className="rounded-2xl border border-white/10 bg-black/20 p-5 lg:sticky lg:top-24 lg:self-start">
-			<div className="flex items-start justify-between gap-3">
-				<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-violet-300/75"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: eventColor(event) }} />{event.kind === "movie" ? t("calendarMovie") : t("calendarEpisode")}</div>
-				<span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${event.state === "existing" ? "bg-emerald-400/10 text-emerald-200" : "bg-white/8 text-white/55"}`}>{event.state === "existing" ? t("calendarCatalog") : t("calendarFuture")}</span>
+		<div
+			className="mx-4 my-3 shrink-0 overflow-hidden rounded-lg border border-white/[0.08] border-l-[3px] bg-white/[0.02] md:mx-8"
+			style={{ borderLeftColor: color }}
+		>
+			<div className="flex items-start gap-4 p-4">
+				<div className="min-w-0 flex-1">
+					<p className="truncate text-sm font-semibold text-white">
+						{event.seriesTitle ? `${event.seriesTitle} · ` : ""}{title}
+					</p>
+					<p className="mt-0.5 text-xs text-white/40">
+						{event.kind === "episode" && event.seasonNumber != null && event.episodeNumber != null
+							? `S${event.seasonNumber} · Ep ${event.episodeNumber} · `
+							: ""}
+						{formatDay(new Date(event.eventAt), locale, {
+							weekday: "long",
+							month: "long",
+							day: "numeric",
+						})}
+					</p>
+					<p className="mt-1 text-[11px] tabular-nums text-white/25">
+						{formatEventTime(event, locale, t("calendarAllDay"))} · {event.libraryName}
+					</p>
+				</div>
+				<div className="flex shrink-0 items-center gap-2">
+					<span className="hidden rounded border border-white/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 sm:inline">
+						{event.state === "existing" ? t("calendarCatalog") : t("calendarFuture")}
+					</span>
+					{href && (
+						<Link
+							href={href}
+							className="rounded border border-white/[0.1] px-3 py-1.5 text-[11px] font-semibold text-white/60 transition hover:border-white/25 hover:text-white"
+						>
+							{t("info")}
+						</Link>
+					)}
+				</div>
 			</div>
-			<h2 className="mt-5 text-xl font-bold leading-tight text-white">{title}</h2>
-			{event.seriesTitle && <p className="mt-2 text-sm text-white/55">{event.seriesTitle}</p>}
-			<div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm">
-				<div className="flex items-start gap-3 text-white/65"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-white/35" /><span>{event.allDay ? t("calendarAllDay") : formatDay(new Date(event.eventAt), locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span></div>
-				{event.kind === "episode" && event.seasonNumber != null && event.episodeNumber != null && <div className="flex items-center gap-3 text-white/65"><Tv className="h-4 w-4 text-white/35" /><span>S{event.seasonNumber} E{event.episodeNumber}</span></div>}
-				<div className="flex items-center gap-3 text-white/65"><CalendarDays className="h-4 w-4 text-white/35" /><span>{event.libraryName}</span></div>
-			</div>
-			{href && <Link href={href} className="mt-7 flex w-full items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-bold text-black transition hover:bg-violet-200">{t("info")}</Link>}
-		</aside>
+		</div>
 	);
 }

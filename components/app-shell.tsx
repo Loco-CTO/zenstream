@@ -894,21 +894,21 @@ export function AppShell() {
 										{status === "ready" && pathname === "/library" && (
 											<LibraryPage session={session} />
 										)}
-						{status === "ready" && pathname === "/favorites" && (
-							<FavoritesPage session={session} />
-						)}
-						{status === "ready" && pathname === "/calendar" && (
-							<CalendarPage session={session} />
-						)}
-						{status === "ready" && pathname === "/search" && (
+										{status === "ready" && pathname === "/favorites" && (
+											<FavoritesPage session={session} />
+										)}
+										{status === "ready" && pathname === "/calendar" && (
+											<CalendarPage session={session} />
+										)}
+										{status === "ready" && pathname === "/search" && (
 											<SearchPage session={session} query={searchData ?? searchQuery} />
 										)}
 										{homeData &&
-							!detailId &&
-							pathname !== "/library" &&
-							pathname !== "/favorites" &&
-							pathname !== "/calendar" &&
-							pathname !== "/search" && (
+											!detailId &&
+											pathname !== "/library" &&
+											pathname !== "/favorites" &&
+											pathname !== "/calendar" &&
+											pathname !== "/search" && (
 												<HomePage data={homeData} session={session} />
 											)}
 									</div>

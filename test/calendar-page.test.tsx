@@ -135,7 +135,9 @@ describe("CalendarPage", () => {
 
 		const event = await screen.findByRole("button", { name: /Episode title/ });
 		expect(event.style.backgroundColor).not.toBe("transparent");
-		const unavailable = screen.getByRole("button", { name: /Unreleased episode/ });
+		const unavailable = screen.getByRole("button", {
+			name: /Unreleased episode/,
+		});
 		expect(unavailable.style.backgroundColor).toBe("transparent");
 		expect(unavailable).toHaveClass("border");
 		fireEvent.click(event);

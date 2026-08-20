@@ -61,6 +61,12 @@ function eventDayKey(event: CalendarEvent) {
 	return event.allDay ? event.eventDate : localKey(new Date(event.eventAt));
 }
 
+function eventCalendarDate(event: CalendarEvent) {
+	return event.allDay
+		? new Date(`${event.eventDate}T00:00:00`)
+		: new Date(event.eventAt);
+}
+
 function rangeFor(view: CalendarView, anchor: Date): CalendarRange {
 	if (view === "day") {
 		const start = startOfDay(anchor);
@@ -624,7 +630,7 @@ function SelectionPanel({
 							: event.kind === "series"
 								? `${releaseLabel(event, t)} · `
 							: ""}
-						{formatDay(new Date(event.eventAt), locale, {
+						{formatDay(eventCalendarDate(event), locale, {
 							weekday: "long",
 							month: "long",
 							day: "numeric",

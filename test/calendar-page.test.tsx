@@ -56,6 +56,27 @@ describe("CalendarPage", () => {
 					catalogItemId: "series-1",
 					metadataStatus: "catalog",
 				},
+				{
+					id: "catalog-episode",
+					provider: "catalog",
+					libraryId: "library",
+					libraryName: "Library",
+					kind: "episode",
+					releaseType: "air",
+					eventAt: `${eventDate}T00:00:00+00:00`,
+					eventDate,
+					allDay: true,
+					seasonNumber: 1,
+					episodeNumber: 2,
+					hasFile: true,
+					monitored: false,
+					state: "existing",
+					title: "Episode title",
+					seriesTitle: "Series premiere",
+					catalogItemId: "episode-1",
+					catalogSeriesId: "series-1",
+					metadataStatus: "catalog",
+				},
 			],
 		});
 
@@ -67,7 +88,8 @@ describe("CalendarPage", () => {
 			</I18nProvider>,
 		);
 
-		await waitFor(() => expect(screen.getByText("Series premiere")).toBeInTheDocument());
+		await waitFor(() => expect(screen.getAllByText("Series premiere").length).toBeGreaterThan(0));
+		expect(screen.getByText("Episode title")).toBeInTheDocument();
 		expect(screen.getAllByText("Premiere").length).toBeGreaterThan(0);
 		expect(screen.queryByText("Episode")).not.toBeInTheDocument();
 	});

@@ -7,6 +7,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	RefreshCw,
+	X,
 } from "lucide-react";
 import { getCalendar, type CalendarEvent } from "@/lib/calendar";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
@@ -303,7 +304,14 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 							t={t}
 						/>
 					)}
-					{selected && <SelectionPanel event={selected} locale={locale} t={t} />}
+					{selected && (
+						<SelectionPanel
+							event={selected}
+							locale={locale}
+							onClose={() => setSelectedId(null)}
+							t={t}
+						/>
+					)}
 					{loading && (
 						<div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/25">
 							Loading…
@@ -558,10 +566,12 @@ function EventBlock({
 function SelectionPanel({
 	event,
 	locale,
+	onClose,
 	t,
 }: {
 	event: CalendarEvent;
 	locale: string;
+	onClose: () => void;
 	t: Translator;
 }) {
 	const color = eventColor(event);
@@ -575,7 +585,7 @@ function SelectionPanel({
 
 	return (
 		<div
-			className="mx-4 my-3 shrink-0 overflow-hidden rounded-lg border border-white/[0.08] border-l-[3px] bg-white/[0.02] md:mx-8"
+			className="pointer-events-auto absolute inset-x-4 bottom-3 z-20 overflow-hidden rounded-lg border border-white/[0.08] border-l-[3px] bg-[var(--c-page)] shadow-2xl md:inset-x-8"
 			style={{ borderLeftColor: color }}
 		>
 			<div className="flex items-start gap-4 p-4">
@@ -597,7 +607,7 @@ function SelectionPanel({
 						{event.libraryName}
 					</p>
 				</div>
-				<div className="flex shrink-0 items-center gap-2">
+				<div className="flex shrink-0 items-start gap-2">
 					<span className="hidden rounded border border-white/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 sm:inline">
 						{event.state === "existing" ? t("calendarCatalog") : t("calendarFuture")}
 					</span>
@@ -609,6 +619,14 @@ function SelectionPanel({
 							{t("info")}
 						</Link>
 					)}
+					<button
+						type="button"
+						aria-label={t("close")}
+						onClick={onClose}
+						className="rounded p-1 text-white/40 transition hover:bg-white/[0.08] hover:text-white"
+					>
+						<X className="h-4 w-4" />
+					</button>
 				</div>
 			</div>
 		</div>

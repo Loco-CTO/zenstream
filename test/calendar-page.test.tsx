@@ -83,4 +83,43 @@ describe("CalendarPage", () => {
 		}
 		await waitFor(() => expect(next).toBeDisabled());
 	});
+
+	it("overlays the selected event and supports closing it", async () => {
+		vi.spyOn(calendar, "getCalendar").mockResolvedValue({
+			start: "2026-08-16T00:00:00.000Z",
+			end: "2026-08-23T00:00:00.000Z",
+			events: [
+				{
+					id: "event-1",
+					provider: "sonarr",
+					libraryId: "library",
+					libraryName: "Anime",
+					kind: "episode",
+					releaseType: "air",
+					eventAt: "2026-08-20T12:00:00.000Z",
+					eventDate: "2026-08-20",
+					allDay: false,
+					seasonNumber: 1,
+					episodeNumber: 2,
+					hasFile: false,
+					monitored: true,
+					state: "future",
+					title: "Episode title",
+					seriesTitle: "Series title",
+					metadataStatus: "future",
+				},
+			],
+		});
+		renderPage();
+
+		const event = await screen.findByRole("button", { name: /Episode title/ });
+		fireEvent.click(event);
+
+		const close = screen.getByRole("button", { name: "Close" });
+		expect(close.closest("div.absolute")).toHaveClass("bottom-3");
+		fireEvent.click(close);
+		expect(
+			screen.queryByRole("button", { name: "Close" }),
+		).not.toBeInTheDocument();
+	});
 });

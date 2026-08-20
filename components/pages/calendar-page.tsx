@@ -13,7 +13,7 @@ import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useProgress } from "@/components/status/progress-indicator";
 
-type CalendarView = "week" | "month" | "day";
+type CalendarView = "week" | "day";
 
 type CalendarRange = {
 	start: Date;
@@ -34,6 +34,9 @@ const EVENT_COLORS = [
 	"#3b82b6",
 	"#8e7d36",
 ];
+
+const MIN_WEEK_OFFSET = -1;
+const MAX_WEEK_OFFSET = 16;
 
 function startOfDay(value: Date) {
 	const result = new Date(value);
@@ -57,6 +60,35 @@ function localKey(value: Date) {
 	return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 }
 
+function compareDates(left: Date, right: Date) {
+	return startOfDay(left).getTime() - startOfDay(right).getTime();
+}
+
+function calendarBounds(now = new Date()) {
+	const currentWeek = startOfWeek(now);
+	return {
+		minimum: addDays(currentWeek, MIN_WEEK_OFFSET * 7),
+		maximum: addDays(currentWeek, MAX_WEEK_OFFSET * 7 + 6),
+	};
+}
+
+function clampAnchor(value: Date, view: CalendarView, now = new Date()) {
+	const bounds = calendarBounds(now);
+	const candidate = view === "week" ? startOfWeek(value) : startOfDay(value);
+	if (compareDates(candidate, bounds.minimum) < 0) return bounds.minimum;
+	if (compareDates(candidate, bounds.maximum) > 0) return bounds.maximum;
+	return candidate;
+}
+
+function navigationState(view: CalendarView, anchor: Date, now = new Date()) {
+	const bounds = calendarBounds(now);
+	const candidate = view === "week" ? startOfWeek(anchor) : startOfDay(anchor);
+	return {
+		atStart: compareDates(candidate, bounds.minimum) <= 0,
+		atEnd: compareDates(candidate, bounds.maximum) >= 0,
+	};
+}
+
 function eventDayKey(event: CalendarEvent) {
 	return event.allDay ? event.eventDate : localKey(new Date(event.eventAt));
 }
@@ -65,23 +97,6 @@ function rangeFor(view: CalendarView, anchor: Date): CalendarRange {
 	if (view === "day") {
 		const start = startOfDay(anchor);
 		return { start, end: addDays(start, 1), days: [start] };
-	}
-	if (view === "month") {
-		const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-		const start = startOfWeek(monthStart);
-		const daysInMonth = new Date(
-			anchor.getFullYear(),
-			anchor.getMonth() + 1,
-			0,
-		).getDate();
-		const totalCells = Math.ceil((start.getDay() + daysInMonth) / 7) * 7;
-		return {
-			start,
-			end: addDays(start, totalCells),
-			days: Array.from({ length: totalCells }, (_, index) =>
-				addDays(start, index),
-			),
-		};
 	}
 	const start = startOfWeek(anchor);
 	return {
@@ -92,10 +107,8 @@ function rangeFor(view: CalendarView, anchor: Date): CalendarRange {
 }
 
 function moveAnchor(anchor: Date, view: CalendarView, amount: number) {
-	if (view === "month") {
-		return new Date(anchor.getFullYear(), anchor.getMonth() + amount, 1);
-	}
-	return addDays(anchor, amount * (view === "week" ? 7 : 1));
+	const next = addDays(anchor, amount * (view === "week" ? 7 : 1));
+	return clampAnchor(next, view);
 }
 
 function formatDay(
@@ -153,6 +166,10 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const range = useMemo(() => rangeFor(view, anchor), [anchor, view]);
+	const navigation = useMemo(
+		() => navigationState(view, anchor),
+		[anchor, view],
+	);
 
 	useEffect(() => {
 		translatorRef.current = t;
@@ -213,9 +230,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 
 	const selected = events.find((event) => event.id === selectedId) || null;
 	const rangeTitle =
-		view === "month"
-			? formatDay(anchor, locale, { month: "long", year: "numeric" })
-			: view === "day"
+		view === "day"
 				? formatDay(anchor, locale, {
 						weekday: "long",
 						month: "long",
@@ -225,7 +240,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 				: `${formatDay(range.start, locale, { month: "short", day: "numeric" })} – ${formatDay(addDays(range.end, -1), locale, { month: "short", day: "numeric" })}, ${addDays(range.end, -1).getFullYear()}`;
 
 	function resetToday() {
-		setAnchor(new Date());
+		setAnchor(clampAnchor(new Date(), view));
 	}
 
 	return (
@@ -236,8 +251,11 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 				onToday={resetToday}
 				onPrevious={() => setAnchor((current) => moveAnchor(current, view, -1))}
 				onNext={() => setAnchor((current) => moveAnchor(current, view, 1))}
+				disablePrevious={navigation.atStart}
+				disableNext={navigation.atEnd}
 				onViewChange={(nextView) => {
 					setView(nextView);
+					setAnchor((current) => clampAnchor(current, nextView));
 					setSelectedId(null);
 				}}
 				t={t}
@@ -270,9 +288,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 						/>
 					) : (
 						<CalendarGrid
-							view={view}
 							days={range.days}
-							anchor={anchor}
 							eventsByDay={eventsByDay}
 							locale={locale}
 							onSelect={setSelectedId}
@@ -297,6 +313,8 @@ function CalendarToolbar({
 	onToday,
 	onPrevious,
 	onNext,
+	disablePrevious,
+	disableNext,
 	onViewChange,
 	t,
 }: {
@@ -305,6 +323,8 @@ function CalendarToolbar({
 	onToday: () => void;
 	onPrevious: () => void;
 	onNext: () => void;
+	disablePrevious: boolean;
+	disableNext: boolean;
 	onViewChange: (view: CalendarView) => void;
 	t: Translator;
 }) {
@@ -322,7 +342,8 @@ function CalendarToolbar({
 					type="button"
 					aria-label={t("calendarPrevious")}
 					onClick={onPrevious}
-					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white"
+					disabled={disablePrevious}
+					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white disabled:cursor-not-allowed disabled:text-white/10 disabled:hover:text-white/10"
 				>
 					<ChevronLeft className="h-4 w-4" />
 				</button>
@@ -330,7 +351,8 @@ function CalendarToolbar({
 					type="button"
 					aria-label={t("calendarNext")}
 					onClick={onNext}
-					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white"
+					disabled={disableNext}
+					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white disabled:cursor-not-allowed disabled:text-white/10 disabled:hover:text-white/10"
 				>
 					<ChevronRight className="h-4 w-4" />
 				</button>
@@ -339,18 +361,14 @@ function CalendarToolbar({
 				{rangeTitle}
 			</span>
 			<div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
-				{(["week", "month", "day"] as const).map((value) => (
+				{(["week", "day"] as const).map((value) => (
 					<button
 						key={value}
 						type="button"
 						onClick={() => onViewChange(value)}
 						className={`rounded-md px-3 py-1 text-[11px] font-semibold transition ${view === value ? "bg-white/[0.12] text-white" : "text-white/30 hover:text-white/60"}`}
 					>
-						{value === "week"
-							? t("calendarWeek")
-							: value === "month"
-								? t("calendarMonth")
-								: t("calendarDay")}
+						{value === "week" ? t("calendarWeek") : t("calendarDay")}
 					</button>
 				))}
 			</div>
@@ -359,17 +377,13 @@ function CalendarToolbar({
 }
 
 function CalendarGrid({
-	view,
 	days,
-	anchor,
 	eventsByDay,
 	locale,
 	onSelect,
 	t,
 }: {
-	view: "week" | "month";
 	days: Date[];
-	anchor: Date;
 	eventsByDay: Map<string, CalendarEvent[]>;
 	locale: string;
 	onSelect: (id: string) => void;
@@ -383,7 +397,7 @@ function CalendarGrid({
 			className="min-h-0 flex-1 overflow-auto"
 			style={{ scrollbarWidth: "thin" }}
 		>
-			<div className={view === "month" ? "min-w-[560px]" : "min-w-[700px]"}>
+			<div className="min-w-[700px]">
 				<div className="sticky top-0 z-10 grid grid-cols-7 border-b border-white/[0.06] bg-[var(--c-page)]">
 					{headerDays.map((day) => {
 						const isToday = localKey(day) === todayKey;
@@ -407,68 +421,30 @@ function CalendarGrid({
 					})}
 				</div>
 
-				{view === "week" ? (
-					<div
-						className="grid grid-cols-7 divide-x divide-white/[0.05]"
-						style={{ minHeight: "calc(100dvh - 8.125rem)" }}
-					>
-						{days.map((day) => {
-							const isToday = localKey(day) === todayKey;
-							return (
-								<div
-									key={localKey(day)}
-									className={`flex min-w-0 flex-col gap-1 p-1 ${isToday ? "bg-violet-500/[0.04]" : ""}`}
-								>
-									{(eventsByDay.get(localKey(day)) || []).map((event) => (
-										<EventBlock
-											key={event.id}
-											event={event}
-											locale={locale}
-											onSelect={onSelect}
-											t={t}
-										/>
-									))}
-								</div>
-							);
-						})}
-					</div>
-				) : (
-					<div className="grid grid-cols-7 divide-x divide-white/[0.04]">
-						{days.map((day) => {
-							const inMonth = day.getMonth() === anchor.getMonth();
-							const isToday = localKey(day) === todayKey;
-							return (
-								<div
-									key={localKey(day)}
-									className={`min-h-[118px] border-b border-white/[0.04] p-1.5 ${!inMonth ? "bg-white/[0.01] opacity-45" : isToday ? "bg-violet-500/[0.05]" : ""}`}
-								>
-									<span
-										className={`mb-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-violet-500 text-white" : "text-white/40"}`}
-									>
-										{day.getDate()}
-									</span>
-									<div className="flex flex-col gap-1">
-										{(eventsByDay.get(localKey(day)) || []).slice(0, 3).map((event) => (
-											<EventBlock
-												key={event.id}
-												event={event}
-												locale={locale}
-												onSelect={onSelect}
-												t={t}
-												compact
-											/>
-										))}
-										{(eventsByDay.get(localKey(day)) || []).length > 3 && (
-											<span className="pl-1 text-[9px] text-white/25">
-												+{(eventsByDay.get(localKey(day)) || []).length - 3} more
-											</span>
-										)}
-									</div>
-								</div>
-							);
-						})}
-					</div>
-				)}
+				<div
+					className="grid grid-cols-7 divide-x divide-white/[0.05]"
+					style={{ minHeight: "calc(100dvh - 8.125rem)" }}
+				>
+					{days.map((day) => {
+						const isToday = localKey(day) === todayKey;
+						return (
+							<div
+								key={localKey(day)}
+								className={`flex min-w-0 flex-col gap-1 p-1 ${isToday ? "bg-violet-500/[0.04]" : ""}`}
+							>
+								{(eventsByDay.get(localKey(day)) || []).map((event) => (
+									<EventBlock
+										key={event.id}
+										event={event}
+										locale={locale}
+										onSelect={onSelect}
+										t={t}
+									/>
+								))}
+							</div>
+						);
+					})}
+				</div>
 			</div>
 		</div>
 	);

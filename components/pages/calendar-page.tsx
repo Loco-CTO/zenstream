@@ -252,6 +252,10 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 		setAnchor(clampAnchor(new Date(), view));
 	}
 
+	function toggleSelection(id: string) {
+		setSelectedId((current) => (current === id ? null : id));
+	}
+
 	return (
 		<main className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--c-page)] pb-[calc(4rem+env(safe-area-inset-bottom))] pt-20 md:pb-0">
 			<CalendarToolbar
@@ -292,15 +296,15 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 						<DayView
 							events={eventsByDay.get(localKey(range.days[0])) || []}
 							locale={locale}
-							onSelect={setSelectedId}
+							onSelect={toggleSelection}
 							t={t}
 						/>
 					) : (
 						<CalendarGrid
-							days={range.days}
-							eventsByDay={eventsByDay}
-							locale={locale}
-							onSelect={setSelectedId}
+								days={range.days}
+								eventsByDay={eventsByDay}
+								locale={locale}
+								onSelect={toggleSelection}
 							t={t}
 						/>
 					)}

@@ -97,7 +97,11 @@ export function useHoverPreview(
 	}, [autoplayBrowse, itemId, runtimeTicks, session, stop]);
 
 	useEffect(() => {
-		if (!autoplayBrowse) stop();
+		if (!autoplayBrowse) {
+			// Disabling the preference must synchronously release any active media.
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			stop();
+		}
 	}, [autoplayBrowse, stop]);
 
 	useEffect(() => () => stop(), [stop]);

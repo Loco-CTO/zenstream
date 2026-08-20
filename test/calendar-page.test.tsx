@@ -101,10 +101,31 @@ describe("CalendarPage", () => {
 					allDay: false,
 					seasonNumber: 1,
 					episodeNumber: 2,
-					hasFile: false,
+					hasFile: true,
 					monitored: true,
 					state: "future",
 					title: "Episode title",
+					seriesTitle: "Series title",
+					catalogItemId: "episode-1",
+					catalogSeriesId: "series-1",
+					metadataStatus: "future",
+				},
+				{
+					id: "event-2",
+					provider: "sonarr",
+					libraryId: "library",
+					libraryName: "Anime",
+					kind: "episode",
+					releaseType: "air",
+					eventAt: "2026-08-21T12:00:00.000Z",
+					eventDate: "2026-08-21",
+					allDay: false,
+					seasonNumber: 1,
+					episodeNumber: 3,
+					hasFile: false,
+					monitored: true,
+					state: "future",
+					title: "Unreleased episode",
 					seriesTitle: "Series title",
 					metadataStatus: "future",
 				},
@@ -113,9 +134,17 @@ describe("CalendarPage", () => {
 		renderPage();
 
 		const event = await screen.findByRole("button", { name: /Episode title/ });
+		expect(event.style.backgroundColor).not.toBe("transparent");
+		const unavailable = screen.getByRole("button", { name: /Unreleased episode/ });
+		expect(unavailable.style.backgroundColor).toBe("transparent");
+		expect(unavailable).toHaveClass("border");
 		fireEvent.click(event);
 
 		const close = screen.getByRole("button", { name: "Close" });
+		expect(screen.getByRole("link", { name: "Open episode" })).toHaveAttribute(
+			"href",
+			"/show/series-1/episode/episode-1",
+		);
 		expect(close.closest("div.absolute")).toHaveClass("bottom-3");
 		fireEvent.click(event);
 		expect(

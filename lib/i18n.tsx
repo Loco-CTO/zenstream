@@ -27,6 +27,7 @@ export const TRANSLATION_KEYS = [
 	"calendarMovie",
 	"calendarAirDate",
 	"calendarRelease",
+	"calendarOpenEpisode",
 	"list",
 	"search",
 	"notifications",

@@ -301,10 +301,10 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 						/>
 					) : (
 						<CalendarGrid
-								days={range.days}
-								eventsByDay={eventsByDay}
-								locale={locale}
-								onSelect={toggleSelection}
+							days={range.days}
+							eventsByDay={eventsByDay}
+							locale={locale}
+							onSelect={toggleSelection}
 							t={t}
 						/>
 					)}
@@ -541,9 +541,10 @@ function EventBlock({
 		<button
 			type="button"
 			onClick={() => onSelect(event.id)}
-			className={`block w-full shrink-0 overflow-hidden rounded-[4px] text-left transition hover:brightness-125 ${compact ? "px-1.5 py-0.5" : "px-2 py-1.5"}`}
+			className={`block w-full shrink-0 overflow-hidden rounded-[4px] text-left transition hover:brightness-125 ${compact ? "px-1.5 py-0.5" : "px-2 py-1.5"} ${event.hasFile ? "" : "border"}`}
 			style={{
-				backgroundColor: `${color}20`,
+				backgroundColor: event.hasFile ? `${color}20` : "transparent",
+				borderColor: event.hasFile ? "transparent" : color,
 				borderLeft: `2.5px solid ${color}`,
 			}}
 		>
@@ -586,6 +587,8 @@ function SelectionPanel({
 			? `/show/${event.catalogSeriesId}/episode/${event.catalogItemId}`
 			: `/show/${event.catalogItemId}`
 		: null;
+	const openEpisodeHref =
+		event.kind === "episode" && event.hasFile ? href : null;
 
 	return (
 		<div
@@ -612,10 +615,19 @@ function SelectionPanel({
 					</p>
 				</div>
 				<div className="flex shrink-0 items-start gap-2">
-					<span className="hidden rounded border border-white/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 sm:inline">
-						{event.state === "existing" ? t("calendarCatalog") : t("calendarFuture")}
-					</span>
-					{href && (
+					{openEpisodeHref ? (
+						<Link
+							href={openEpisodeHref}
+							className="rounded border border-white/[0.1] px-3 py-1.5 text-[11px] font-semibold text-white/60 transition hover:border-white/25 hover:text-white"
+						>
+							{t("calendarOpenEpisode")}
+						</Link>
+					) : (
+						<span className="hidden rounded border border-white/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 sm:inline">
+							{event.state === "existing" ? t("calendarCatalog") : t("calendarFuture")}
+						</span>
+					)}
+					{href && !openEpisodeHref && (
 						<Link
 							href={href}
 							className="rounded border border-white/[0.1] px-3 py-1.5 text-[11px] font-semibold text-white/60 transition hover:border-white/25 hover:text-white"

@@ -15,6 +15,7 @@ calendarEpisode: エピソード
 calendarMovie: 映画
 calendarAirDate: 放送日
 calendarRelease: 公開
+calendarOpenEpisode: エピソードを開く
 collectionItems: "{count} 件"
 collectionEmpty: コレクションは空です。
 library: ライブラリ

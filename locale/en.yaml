@@ -17,6 +17,7 @@ calendarEpisode: Episode
 calendarMovie: Movie
 calendarAirDate: Air date
 calendarRelease: Release
+calendarOpenEpisode: Open episode
 list: List
 search: Search
 notifications: Notifications

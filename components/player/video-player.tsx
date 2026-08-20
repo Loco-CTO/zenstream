@@ -397,6 +397,7 @@ export function VideoPlayer({
 	onPlayedChange,
 }: Props) {
 	const { t } = useI18n();
+	const mediaPlaybackFailedMessage = t("mediaPlaybackFailed");
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
 	const syncplay = useSyncplay();
 	const syncplayActive = syncplay.active;
@@ -405,6 +406,8 @@ export function VideoPlayer({
 	const syncplayGeneration = syncplayActive?.mediaGeneration ?? 0;
 	const syncplayTimelineRevision =
 		syncplayActive?.timelineRevision ?? syncplayActive?.revision;
+	const syncplayCanControl = syncplay.canControl;
+	const syncplayCommand = syncplay.command;
 	const syncplayServerNow = syncplay.serverNow;
 	const applyingSyncRef = useRef(false);
 	const suppressSyncPlayRef = useRef(false);
@@ -539,9 +542,7 @@ export function VideoPlayer({
 	}, [playbackSessionId]);
 	useEffect(() => {
 		try {
-			const stored = window.localStorage.getItem(
-				PLAYER_TIME_DISPLAY_STORAGE_KEY,
-			);
+			const stored = window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
 			if (isTimeDisplayMode(stored)) {
 				// eslint-disable-next-line react-hooks/set-state-in-effect
 				setTimeDisplayMode(stored);
@@ -767,19 +768,22 @@ export function VideoPlayer({
 		},
 		[duration, item.Id, knownDuration, session],
 	);
-	const updateBufferedRanges = (video: HTMLVideoElement) => {
-		const ranges: BufferedTimeRange[] = [];
-		for (let index = 0; index < video.buffered.length; index += 1) {
-			const start = video.buffered.start(index);
-			const end = video.buffered.end(index);
-			if (Number.isFinite(start) && Number.isFinite(end) && end > start)
-				ranges.push([start, end]);
-		}
-		setBufferedRanges({
-			itemId: item.Id,
-			ranges: normalizeBufferedRanges(ranges),
-		});
-	};
+	const updateBufferedRanges = useCallback(
+		(video: HTMLVideoElement) => {
+			const ranges: BufferedTimeRange[] = [];
+			for (let index = 0; index < video.buffered.length; index += 1) {
+				const start = video.buffered.start(index);
+				const end = video.buffered.end(index);
+				if (Number.isFinite(start) && Number.isFinite(end) && end > start)
+					ranges.push([start, end]);
+			}
+			setBufferedRanges({
+				itemId: item.Id,
+				ranges: normalizeBufferedRanges(ranges),
+			});
+		},
+		[item.Id],
+	);
 	const cancelPendingBufferingReport = useCallback(
 		(reason: string) => {
 			if (bufferingTimerRef.current !== undefined) {
@@ -831,6 +835,220 @@ export function VideoPlayer({
 			});
 		},
 		[clearMediaWaitTimers, item.Id],
+	);
+	const reportBuffering = useCallback(
+		(loading: boolean) => {
+			cancelPendingBufferingReport(
+				loading ? "new loading signal" : "new ready signal",
+			);
+			const state = syncplayStateRef.current;
+			if (
+				!loading &&
+				state?.pauseReason === "seek" &&
+				settlingTimelineRef.current != null
+			)
+				return;
+			if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
+				return;
+			const itemId = item.Id;
+			const generation = state.mediaGeneration ?? 0;
+			const timelineRevision = state.timelineRevision ?? state.revision;
+			const epoch = bufferingEpochRef.current;
+			const report = {
+				groupId: state.id,
+				itemId,
+				mediaGeneration: generation,
+				timelineRevision,
+				epoch,
+			};
+			playerDebug("buffering changed", {
+				loading,
+				groupId: state.id,
+				itemId,
+				generation,
+				timelineRevision,
+				epoch,
+			});
+			bufferingTimerRef.current = window.setTimeout(
+				() => {
+					bufferingTimerRef.current = undefined;
+					const current = syncplayStateRef.current;
+					if (
+						!syncplayBufferingReportIsCurrent(
+							report,
+							current,
+							bufferingEpochRef.current,
+						)
+					) {
+						playerDebug("buffering report discarded", {
+							loading,
+							...report,
+							currentGeneration: current?.mediaGeneration,
+							currentTimelineRevision: current?.timelineRevision ?? current?.revision,
+						});
+						return;
+					}
+					bufferedRef.current = loading;
+					playerDebug("buffering report sent", {
+						loading,
+						groupId: state.id,
+						itemId,
+						generation,
+						timelineRevision,
+						epoch,
+					});
+					void syncplayApiRef.current
+						.presence(true, loading, generation, timelineRevision)
+						.catch(() => undefined);
+				},
+				loading ? 750 : 300,
+			);
+		},
+		[cancelPendingBufferingReport, item.Id],
+	);
+	const fetchTranscodedPlayback = useCallback(
+		async (audioStreamId?: number, previousSource?: MediaSource) => {
+			let playback: Awaited<ReturnType<typeof getPlaybackInfo>> | undefined;
+			try {
+				playback = await getPlaybackInfo(session, item.Id, {
+					sourceId: previousSource?.Id ?? sourceRef.current?.Id,
+					audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
+					requestedMode: "video-transcode",
+					startPositionSeconds: resumeTimeRef.current ?? savedPositionSeconds,
+				});
+				if (playback.sessionId && playback.source?.sessionState === "starting") {
+					const status = await waitForPlaybackReady(session, playback.sessionId);
+					playerDebug("fallback HLS session ready", {
+						sessionId: status.sessionId,
+						mode: playback.source.mode,
+						sessionState: status.sessionState,
+						playlistReady: status.playlistReady,
+						segmentCount: status.segmentCount,
+					});
+					playback.source.sessionState = "ready";
+				}
+				const parsed = playbackStreams(playback);
+				if (!parsed.source || parsed.source.mode === "direct")
+					throw new Error("The server did not return a transcoded session.");
+				return {
+					...parsed,
+					source: preserveTrickplay(
+						parsed.source,
+						previousSource ?? sourceRef.current,
+					),
+				};
+			} catch (error) {
+				if (
+					playback?.sessionId &&
+					playback.sessionId !== sourceRef.current?.sessionId
+				) {
+					await cancelPlaybackSession(session, playback.sessionId).catch(
+						() => undefined,
+					);
+					playerDebug("canceled uncommitted fallback session", {
+						sessionId: playback.sessionId,
+						reason: error instanceof Error ? error.message : String(error),
+					});
+				}
+				throw error;
+			}
+		},
+		[audio, item.Id, savedPositionSeconds, session],
+	);
+	const requestTranscodedPlayback = useCallback(
+		async (
+			expectedLoadId = mediaLoadIdRef.current,
+			expectedSourceId = sourceRef.current?.Id,
+		) => {
+			const isCurrentLoad = () =>
+				mediaLoadActiveRef.current &&
+				mediaLoadIdRef.current === expectedLoadId &&
+				(expectedSourceId == null || sourceRef.current?.Id === expectedSourceId);
+			if (!isCurrentLoad()) return false;
+			if (transcodedFallbackRef.current) return transcodedFallbackRef.current;
+			if (transcodeAttemptRef.current) {
+				if (isCurrentLoad()) {
+					setBuffering(false);
+					setError(mediaPlaybackFailedMessage);
+				}
+				return false;
+			}
+			transcodeAttemptRef.current = true;
+			const previousSource = sourceRef.current;
+			const video = videoRef.current;
+			if (video && Number.isFinite(video.currentTime))
+				resumeTimeRef.current = video.currentTime;
+			setError("");
+			setBuffering(true);
+			const fallback = (async () => {
+				try {
+					const next = await fetchTranscodedPlayback(undefined, previousSource);
+					if (!next.source) throw new Error("Missing transcoded source.");
+					if (!isCurrentLoad()) {
+						if (next.source.sessionId)
+							await cancelPlaybackSession(session, next.source.sessionId).catch(
+								() => undefined,
+							);
+						return false;
+					}
+					invalidateMediaLoad("transcoded fallback");
+					sourceRef.current = next.source;
+					setInfo((previous) => ({
+						...next,
+						qualities: previous?.qualities ?? next.qualities,
+					}));
+					setQuality("1");
+					setUrl(playbackUrl(next.source));
+					return true;
+				} catch (error) {
+					if (!isCurrentLoad()) return false;
+					playerDebug("video fallback failed", {
+						error: error instanceof Error ? error.message : String(error),
+						fallbackCount: 1,
+					});
+					setBuffering(false);
+					setError(mediaPlaybackFailedMessage);
+					return false;
+				}
+			})();
+			transcodedFallbackRef.current = fallback;
+			try {
+				return await fallback;
+			} finally {
+				if (transcodedFallbackRef.current === fallback)
+					transcodedFallbackRef.current = null;
+			}
+		},
+		[
+			fetchTranscodedPlayback,
+			invalidateMediaLoad,
+			session,
+			mediaPlaybackFailedMessage,
+		],
+	);
+	const startSyncedPlayback = useCallback(
+		(video: HTMLVideoElement) => {
+			playerDebug("sync timeline requested playback", {
+				currentTime: video.currentTime,
+				readyState: video.readyState,
+				networkState: video.networkState,
+			});
+			suppressSyncPlayRef.current = true;
+			void startSyncedMedia(
+				video,
+				() => setMuted(true),
+				() => {
+					// A rejected play() means this member is not ready, even if the
+					// media element previously emitted canplay. Clear the optimistic
+					// readiness flag so the barrier receives the loading transition.
+					bufferedRef.current = false;
+					reportBuffering(true);
+				},
+			).then((started) => {
+				if (!started) suppressSyncPlayRef.current = false;
+			});
+		},
+		[reportBuffering],
 	);
 
 	useEffect(() => {
@@ -920,10 +1138,10 @@ export function VideoPlayer({
 		async (automatic = false) => {
 			const target = nextItem;
 			if (advancingToNextRef.current) return;
-			if (target && syncplay.active) {
+			if (target && syncplayActive) {
 				if (
-					!syncplay.canControl ||
-					(automatic && syncplay.active.hostUserId !== session.userId)
+					!syncplayCanControl ||
+					(automatic && syncplayActive.hostUserId !== session.userId)
 				)
 					return;
 				advancingToNextRef.current = true;
@@ -936,8 +1154,7 @@ export function VideoPlayer({
 				setDuration(0);
 				invalidateMediaLoad("next episode");
 				setUrl(undefined);
-				void syncplay
-					.command(nextEpisodeSyncplayCommand(target))
+				void syncplayCommand(nextEpisodeSyncplayCommand(target))
 					.then(() => advanceToNextEpisode(target, onNext, onClose))
 					.catch(() => {
 						advancingToNextRef.current = false;
@@ -957,9 +1174,9 @@ export function VideoPlayer({
 			nextItem,
 			onClose,
 			onNext,
-			syncplay.active,
-			syncplay.canControl,
-			syncplay.command,
+			syncplayActive,
+			syncplayCanControl,
+			syncplayCommand,
 			invalidateMediaLoad,
 			session.userId,
 		],
@@ -1178,7 +1395,13 @@ export function VideoPlayer({
 			window.clearTimeout(startTimer);
 			video.playbackRate = 1;
 		};
-	}, [syncplayActive, item.Id, syncplayServerNow, cancelPendingBufferingReport]);
+	}, [
+		syncplayActive,
+		item.Id,
+		syncplayServerNow,
+		cancelPendingBufferingReport,
+		startSyncedPlayback,
+	]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -1403,7 +1626,16 @@ export function VideoPlayer({
 				hlsRef.current = null;
 			}
 		};
-	}, [clearMediaWaitTimers, url, item.Id, savedPositionSeconds, knownDuration]);
+	}, [
+		clearMediaWaitTimers,
+		requestTranscodedPlayback,
+		startSyncedPlayback,
+		updateBufferedRanges,
+		url,
+		item.Id,
+		savedPositionSeconds,
+		knownDuration,
+	]);
 
 	useEffect(() => {
 		if (videoRef.current) videoRef.current.volume = volume;
@@ -1549,122 +1781,6 @@ export function VideoPlayer({
 			if (!settingsOpen && !trackMenu) setControlsVisible(false);
 		}, 2500);
 	}
-	function reportBuffering(loading: boolean) {
-		cancelPendingBufferingReport(
-			loading ? "new loading signal" : "new ready signal",
-		);
-		const state = syncplayStateRef.current;
-		if (
-			!loading &&
-			state?.pauseReason === "seek" &&
-			settlingTimelineRef.current != null
-		)
-			return;
-		if (!state || state.itemId !== item.Id || bufferedRef.current === loading)
-			return;
-		const itemId = item.Id;
-		const generation = state.mediaGeneration ?? 0;
-		const timelineRevision = state.timelineRevision ?? state.revision;
-		const epoch = bufferingEpochRef.current;
-		const report = {
-			groupId: state.id,
-			itemId,
-			mediaGeneration: generation,
-			timelineRevision,
-			epoch,
-		};
-		playerDebug("buffering changed", {
-			loading,
-			groupId: state.id,
-			itemId,
-			generation,
-			timelineRevision,
-			epoch,
-		});
-		bufferingTimerRef.current = window.setTimeout(
-			() => {
-				bufferingTimerRef.current = undefined;
-				const current = syncplayStateRef.current;
-				if (
-					!syncplayBufferingReportIsCurrent(
-						report,
-						current,
-						bufferingEpochRef.current,
-					)
-				) {
-					playerDebug("buffering report discarded", {
-						loading,
-						...report,
-						currentGeneration: current?.mediaGeneration,
-						currentTimelineRevision: current?.timelineRevision ?? current?.revision,
-					});
-					return;
-				}
-				bufferedRef.current = loading;
-				playerDebug("buffering report sent", {
-					loading,
-					groupId: state.id,
-					itemId,
-					generation,
-					timelineRevision,
-					epoch,
-				});
-				void syncplayApiRef.current
-					.presence(true, loading, generation, timelineRevision)
-					.catch(() => undefined);
-			},
-			loading ? 750 : 300,
-		);
-	}
-	async function fetchTranscodedPlayback(
-		audioStreamId?: number,
-		previousSource?: MediaSource,
-	) {
-		let playback: Awaited<ReturnType<typeof getPlaybackInfo>> | undefined;
-		try {
-			playback = await getPlaybackInfo(session, item.Id, {
-				sourceId: previousSource?.Id ?? sourceRef.current?.Id,
-				audioStreamId: audioStreamId ?? (audio ? Number(audio) : undefined),
-				requestedMode: "video-transcode",
-				startPositionSeconds: resumeTimeRef.current ?? savedPositionSeconds,
-			});
-			if (playback.sessionId && playback.source?.sessionState === "starting") {
-				const status = await waitForPlaybackReady(session, playback.sessionId);
-				playerDebug("fallback HLS session ready", {
-					sessionId: status.sessionId,
-					mode: playback.source.mode,
-					sessionState: status.sessionState,
-					playlistReady: status.playlistReady,
-					segmentCount: status.segmentCount,
-				});
-				playback.source.sessionState = "ready";
-			}
-			const parsed = playbackStreams(playback);
-			if (!parsed.source || parsed.source.mode === "direct")
-				throw new Error("The server did not return a transcoded session.");
-			return {
-				...parsed,
-				source: preserveTrickplay(
-					parsed.source,
-					previousSource ?? sourceRef.current,
-				),
-			};
-		} catch (error) {
-			if (
-				playback?.sessionId &&
-				playback.sessionId !== sourceRef.current?.sessionId
-			) {
-				await cancelPlaybackSession(session, playback.sessionId).catch(
-					() => undefined,
-				);
-				playerDebug("canceled uncommitted fallback session", {
-					sessionId: playback.sessionId,
-					reason: error instanceof Error ? error.message : String(error),
-				});
-			}
-			throw error;
-		}
-	}
 	function seekPlayback(target: number) {
 		const video = videoRef.current;
 		const source = sourceRef.current;
@@ -1685,90 +1801,6 @@ export function VideoPlayer({
 		});
 		video.currentTime = boundedTarget;
 		setError("");
-	}
-	async function requestTranscodedPlayback(
-		expectedLoadId = mediaLoadIdRef.current,
-		expectedSourceId = sourceRef.current?.Id,
-	) {
-		const isCurrentLoad = () =>
-			mediaLoadActiveRef.current &&
-			mediaLoadIdRef.current === expectedLoadId &&
-			(expectedSourceId == null || sourceRef.current?.Id === expectedSourceId);
-		if (!isCurrentLoad()) return false;
-		if (transcodedFallbackRef.current) return transcodedFallbackRef.current;
-		if (transcodeAttemptRef.current) {
-			if (isCurrentLoad()) {
-				setBuffering(false);
-				setError(t("mediaPlaybackFailed"));
-			}
-			return false;
-		}
-		transcodeAttemptRef.current = true;
-		const previousSource = sourceRef.current;
-		const video = videoRef.current;
-		if (video && Number.isFinite(video.currentTime))
-			resumeTimeRef.current = video.currentTime;
-		setError("");
-		setBuffering(true);
-		const fallback = (async () => {
-			try {
-				const next = await fetchTranscodedPlayback(undefined, previousSource);
-				if (!next.source) throw new Error("Missing transcoded source.");
-				if (!isCurrentLoad()) {
-					if (next.source.sessionId)
-						await cancelPlaybackSession(session, next.source.sessionId).catch(
-							() => undefined,
-						);
-					return false;
-				}
-				invalidateMediaLoad("transcoded fallback");
-				sourceRef.current = next.source;
-				setInfo((previous) => ({
-					...next,
-					qualities: previous?.qualities ?? next.qualities,
-				}));
-				setQuality("1");
-				setUrl(playbackUrl(next.source));
-				return true;
-			} catch (error) {
-				if (!isCurrentLoad()) return false;
-				playerDebug("video fallback failed", {
-					error: error instanceof Error ? error.message : String(error),
-					fallbackCount: 1,
-				});
-				setBuffering(false);
-				setError(t("mediaPlaybackFailed"));
-				return false;
-			}
-		})();
-		transcodedFallbackRef.current = fallback;
-		try {
-			return await fallback;
-		} finally {
-			if (transcodedFallbackRef.current === fallback)
-				transcodedFallbackRef.current = null;
-		}
-	}
-	function startSyncedPlayback(video: HTMLVideoElement) {
-		playerDebug("sync timeline requested playback", {
-			currentTime: video.currentTime,
-			readyState: video.readyState,
-			networkState: video.networkState,
-		});
-		suppressSyncPlayRef.current = true;
-		void startSyncedMedia(
-			video,
-			() => setMuted(true),
-			() => {
-				// A rejected play() means this member is not ready, even if the
-				// media element previously emitted canplay. Clear the optimistic
-				// readiness flag so the barrier receives the loading transition.
-				bufferedRef.current = false;
-				reportBuffering(true);
-			},
-		).then((started) => {
-			if (!started) suppressSyncPlayRef.current = false;
-		});
 	}
 	function togglePlay() {
 		const video = videoRef.current;
@@ -2233,8 +2265,7 @@ export function VideoPlayer({
 				}}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
-					if (Number.isFinite(value) && value > 0)
-						setDuration(value);
+					if (Number.isFinite(value) && value > 0) setDuration(value);
 				}}
 				onSeeking={(event) => {
 					playerDebug("media seeking", {

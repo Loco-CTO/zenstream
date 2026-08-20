@@ -520,7 +520,7 @@ function EventBlock({
 				: null;
 	const episodeLabel =
 		event.kind === "episode" && event.episodeNumber != null
-			? `Ep ${event.episodeNumber}`
+			? `E${event.episodeNumber}`
 			: t("calendarRelease");
 
 	return (

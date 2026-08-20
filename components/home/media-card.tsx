@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bookmark, Check, Play } from "lucide-react";
 import {
 	landscapeImage,
@@ -223,23 +223,25 @@ export function MediaCardOverlay({
 	const router = useRouter();
 	const { t } = useI18n();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
-	const [followingOverride, setFollowingOverride] = useState<boolean | null>(null);
-	const following = followingOverride ?? Boolean(item?.UserData?.IsFollowing);
-
-	useEffect(() => {
-		setFollowingOverride(null);
-	}, [item?.Id, item?.UserData?.IsFollowing]);
+	const [followingOverride, setFollowingOverride] = useState<{
+		itemId: string;
+		value: boolean;
+	} | null>(null);
+	const following =
+		followingOverride?.itemId === item?.Id
+			? followingOverride.value
+			: Boolean(item?.UserData?.IsFollowing);
 
 	async function toggleFollowing(event: React.MouseEvent<HTMLButtonElement>) {
 		event.preventDefault();
 		event.stopPropagation();
 		if (!item || !session) return;
 		const next = !following;
-		setFollowingOverride(next);
+		setFollowingOverride({ itemId: item.Id, value: next });
 		try {
 			await setFollowing(session, item.Id, next);
 		} catch {
-			setFollowingOverride(following);
+			setFollowingOverride({ itemId: item.Id, value: following });
 		}
 	}
 

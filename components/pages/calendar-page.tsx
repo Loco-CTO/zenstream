@@ -66,26 +66,32 @@ function compareDates(left: Date, right: Date) {
 
 function calendarBounds(now = new Date()) {
 	const currentWeek = startOfWeek(now);
+	const minimum = addDays(currentWeek, MIN_WEEK_OFFSET * 7);
+	const maximumWeek = addDays(currentWeek, MAX_WEEK_OFFSET * 7);
+	const maximum = addDays(maximumWeek, 6);
 	return {
-		minimum: addDays(currentWeek, MIN_WEEK_OFFSET * 7),
-		maximum: addDays(currentWeek, MAX_WEEK_OFFSET * 7 + 6),
+		minimum,
+		maximum,
+		maximumWeek,
 	};
 }
 
 function clampAnchor(value: Date, view: CalendarView, now = new Date()) {
 	const bounds = calendarBounds(now);
 	const candidate = view === "week" ? startOfWeek(value) : startOfDay(value);
+	const maximum = view === "week" ? bounds.maximumWeek : bounds.maximum;
 	if (compareDates(candidate, bounds.minimum) < 0) return bounds.minimum;
-	if (compareDates(candidate, bounds.maximum) > 0) return bounds.maximum;
+	if (compareDates(candidate, maximum) > 0) return maximum;
 	return candidate;
 }
 
 function navigationState(view: CalendarView, anchor: Date, now = new Date()) {
 	const bounds = calendarBounds(now);
 	const candidate = view === "week" ? startOfWeek(anchor) : startOfDay(anchor);
+	const maximum = view === "week" ? bounds.maximumWeek : bounds.maximum;
 	return {
 		atStart: compareDates(candidate, bounds.minimum) <= 0,
-		atEnd: compareDates(candidate, bounds.maximum) >= 0,
+		atEnd: compareDates(candidate, maximum) >= 0,
 	};
 }
 

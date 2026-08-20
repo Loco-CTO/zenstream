@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "@/components/pages/settings-page";
+import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { I18nProvider, translate } from "@/lib/i18n";
 import * as mediaApi from "@/lib/media-api";
@@ -23,6 +24,7 @@ describe("SettingsPage", () => {
 	beforeEach(() => {
 		router.back.mockClear();
 		router.push.mockClear();
+		window.localStorage.clear();
 	});
 
 	it("shows a settings index and opens Appearance for language changes", async () => {
@@ -63,13 +65,15 @@ describe("SettingsPage", () => {
 	it("returns to the index from a category and keeps logout on the index", () => {
 		const onLogout = vi.fn();
 		render(
-			<SettingsPage
-				displayName="Alex"
-				userId="user-1"
-				locale="en"
-				onLocaleChange={vi.fn()}
-				onLogout={onLogout}
-			/>,
+			<PlaybackBehaviorPreferencesProvider userId="user-1">
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="en"
+					onLocaleChange={vi.fn()}
+					onLogout={onLogout}
+				/>
+			</PlaybackBehaviorPreferencesProvider>,
 		);
 
 		openSection("Playback");

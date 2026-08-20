@@ -86,6 +86,7 @@ import {
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
+import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
 import { ToastProvider } from "@/components/ui/toast";
@@ -823,9 +824,13 @@ export function AppShell() {
 					) : status === "login" || !session ? (
 						<LoginPage onLogin={handleLogin} />
 					) : (
-						<SyncplayProvider session={session}>
-							<SyncplayPlaybackFollower />
-							{pathname === "/settings" ? (
+						<PlaybackBehaviorPreferencesProvider
+							key={session.userId}
+							userId={session.userId}
+						>
+							<SyncplayProvider session={session}>
+								<SyncplayPlaybackFollower />
+								{pathname === "/settings" ? (
 								<SettingsPage
 									displayName={session.username}
 									userId={session.userId}
@@ -843,7 +848,7 @@ export function AppShell() {
 									onPasswordChanged={handlePasswordChanged}
 									onLogout={handleLogout}
 								/>
-							) : (
+								) : (
 								<div className="min-h-screen bg-background text-foreground">
 									<Navbar
 										displayName={session.username}
@@ -891,8 +896,9 @@ export function AppShell() {
 											<HomePage data={homeData} session={session} />
 										)}
 								</div>
-							)}
-						</SyncplayProvider>
+								)}
+							</SyncplayProvider>
+						</PlaybackBehaviorPreferencesProvider>
 					)}
 				</SubtitlePreferencesProvider>
 			</ToastProvider>

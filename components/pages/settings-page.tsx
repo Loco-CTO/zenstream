@@ -9,6 +9,7 @@ import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
 import { ChangePasswordModal } from "@/components/account/change-password-modal";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
+import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
 import {
 	SUBTITLE_FONT_STACKS,
 	subtitleOuterShadow,
@@ -80,10 +81,14 @@ export function SettingsPage({
 		update: updateSubtitleStyle,
 		error: subtitleError,
 	} = useSubtitlePreferences();
+	const {
+		autoplayNextEpisode,
+		autoplayBrowse,
+		setAutoplayNextEpisode,
+		setAutoplayBrowse,
+	} = usePlaybackBehaviorPreferences();
 	const [localeError, setLocaleError] = useState(false);
 	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
-	const [autoplayNext, setAutoplayNext] = useState(true);
-	const [autoplayBrowse, setAutoplayBrowse] = useState(true);
 	const [newEpisodes, setNewEpisodes] = useState(true);
 	const [newSeasons, setNewSeasons] = useState(true);
 	const [reminders, setReminders] = useState(false);
@@ -341,8 +346,8 @@ export function SettingsPage({
 								right={
 									<Toggle
 										label={t("autoplayNextEpisode")}
-										checked={autoplayNext}
-										onChange={setAutoplayNext}
+										checked={autoplayNextEpisode}
+										onChange={setAutoplayNextEpisode}
 									/>
 								}
 							/>

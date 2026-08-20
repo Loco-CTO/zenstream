@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPlaybackInfo, playbackUrl } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
+import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
 
 const HOVER_DELAY = 100;
 const PREVIEW_START_MIN = 0.4;
@@ -19,6 +20,7 @@ export function useHoverPreview(
 	const timerRef = useRef<number | undefined>(undefined);
 	const requestRef = useRef<AbortController | undefined>(undefined);
 	const [active, setActive] = useState(false);
+	const { autoplayBrowse } = usePlaybackBehaviorPreferences();
 
 	const stop = useCallback(() => {
 		window.clearTimeout(timerRef.current);
@@ -35,12 +37,14 @@ export function useHoverPreview(
 
 	const start = useCallback(() => {
 		if (
+			!autoplayBrowse ||
 			!session ||
 			!window.matchMedia("(pointer: fine) and (hover: hover)").matches
 		)
 			return;
 		window.clearTimeout(timerRef.current);
 		timerRef.current = window.setTimeout(async () => {
+			if (!autoplayBrowse) return;
 			activePreview?.stop();
 			activePreview = { stop };
 			const controller = new AbortController();
@@ -90,7 +94,11 @@ export function useHoverPreview(
 				stop();
 			}
 		}, HOVER_DELAY);
-	}, [itemId, runtimeTicks, session, stop]);
+	}, [autoplayBrowse, itemId, runtimeTicks, session, stop]);
+
+	useEffect(() => {
+		if (!autoplayBrowse) stop();
+	}, [autoplayBrowse, stop]);
 
 	useEffect(() => () => stop(), [stop]);
 	return { videoRef, active, start, stop };

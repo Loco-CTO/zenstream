@@ -52,6 +52,7 @@ import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
+import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import {
 	parseWebVttCues,
@@ -399,6 +400,7 @@ export function VideoPlayer({
 	const { t } = useI18n();
 	const mediaPlaybackFailedMessage = t("mediaPlaybackFailed");
 	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
+	const { autoplayNextEpisode } = usePlaybackBehaviorPreferences();
 	const syncplay = useSyncplay();
 	const syncplayActive = syncplay.active;
 	const syncplayGroupId = syncplayActive?.id;
@@ -2312,8 +2314,11 @@ export function VideoPlayer({
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onEnded={() => {
-					if (nextChecked && nextItem) void playNext(true);
-					else onClose();
+					if (nextChecked && nextItem) {
+						if (autoplayNextEpisode) void playNext(true);
+						return;
+					}
+					onClose();
 				}}
 				onPlay={(e) => {
 					if (url && !mediaLoadActiveRef.current) return;

@@ -357,13 +357,6 @@ function CalendarToolbar({
 }) {
 	return (
 		<div className="flex h-11 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[var(--c-nav-from)] px-4 md:px-7">
-			<button
-				type="button"
-				onClick={onToday}
-				className="rounded border border-white/[0.12] px-3 py-1.5 text-[11px] font-semibold text-white/55 transition hover:border-white/25 hover:text-white"
-			>
-				{t("calendarToday")}
-			</button>
 			<div className="flex items-center">
 				<button
 					type="button"
@@ -384,9 +377,17 @@ function CalendarToolbar({
 					<ChevronRight className="h-4 w-4" />
 				</button>
 			</div>
+			<button
+				type="button"
+				onClick={onToday}
+				className="rounded border border-white/[0.12] px-3 py-1.5 text-[11px] font-semibold text-white/55 transition hover:border-white/25 hover:text-white"
+			>
+				{t("calendarToday")}
+			</button>
 			<span className="min-w-0 truncate text-sm font-semibold text-white/65">
 				{rangeTitle}
 			</span>
+
 			<div className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
 				{(["week", "day"] as const).map((value) => (
 					<button

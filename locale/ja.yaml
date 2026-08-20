@@ -13,10 +13,8 @@ calendarCatalog: カタログ内
 calendarAllDay: 終日
 calendarEpisode: エピソード
 calendarMovie: 映画
-calendarSeries: シリーズ
 calendarAirDate: 放送日
 calendarRelease: 公開
-calendarPremiere: 初回放送
 collectionItems: "{count} 件"
 collectionEmpty: コレクションは空です。
 library: ライブラリ

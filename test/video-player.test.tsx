@@ -1013,7 +1013,7 @@ describe("video player controls", () => {
 		expect(onNext).not.toHaveBeenCalled();
 		expect(onClose).not.toHaveBeenCalled();
 
-		fireEvent.click(view.getByRole("button", { name: "Play Next" }));
+		fireEvent.click(view.getByRole("button", { name: /Play next/i }));
 		expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ Id: "episode-2" }));
 	});
 

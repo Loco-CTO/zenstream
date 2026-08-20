@@ -23,6 +23,19 @@ vi.mock("@/lib/media-api", async () => {
 
 const session = { token: "token", userId: "user-1", username: "Alex" };
 
+function installLocalStorage() {
+	const storage = new Map<string, string>();
+	Object.defineProperty(window, "localStorage", {
+		configurable: true,
+		value: {
+			getItem: (key: string) => storage.get(key) ?? null,
+			setItem: (key: string, value: string) => storage.set(key, value),
+			removeItem: (key: string) => storage.delete(key),
+			clear: () => storage.clear(),
+		},
+	});
+}
+
 function PreferenceProbe() {
 	const {
 		autoplayNextEpisode,
@@ -68,9 +81,9 @@ function HoverPreviewHarness() {
 	);
 }
 
-describe("playback behavior preferences", () => {
+	describe("playback behavior preferences", () => {
 	beforeEach(() => {
-		window.localStorage.clear();
+		installLocalStorage();
 		vi.useFakeTimers();
 		vi.mocked(getPlaybackInfo).mockReset();
 		vi.mocked(playbackUrl).mockReset();
@@ -179,13 +192,14 @@ describe("playback behavior preferences", () => {
 				configurable: true,
 				value: originalStorage,
 			});
+			installLocalStorage();
 		}
 	});
 });
 
-describe("hover preview autoplay", () => {
+	describe("hover preview autoplay", () => {
 	beforeEach(() => {
-		window.localStorage.clear();
+		installLocalStorage();
 		vi.useFakeTimers();
 		vi.mocked(getPlaybackInfo).mockReset().mockResolvedValue({
 			source: { Id: "source", mode: "direct", url: "/movie.mp4" },

@@ -12,6 +12,19 @@ const router = vi.hoisted(() => ({
 }));
 const session = { token: "token", userId: "user-1", username: "Alex" };
 
+function installLocalStorage() {
+	const storage = new Map<string, string>();
+	Object.defineProperty(window, "localStorage", {
+		configurable: true,
+		value: {
+			getItem: (key: string) => storage.get(key) ?? null,
+			setItem: (key: string, value: string) => storage.set(key, value),
+			removeItem: (key: string) => storage.delete(key),
+			clear: () => storage.clear(),
+		},
+	});
+}
+
 vi.mock("next/navigation", () => ({
 	useRouter: () => router,
 }));
@@ -24,7 +37,7 @@ describe("SettingsPage", () => {
 	beforeEach(() => {
 		router.back.mockClear();
 		router.push.mockClear();
-		window.localStorage.clear();
+		installLocalStorage();
 	});
 
 	it("shows a settings index and opens Appearance for language changes", async () => {

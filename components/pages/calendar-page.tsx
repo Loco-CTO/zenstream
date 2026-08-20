@@ -536,7 +536,7 @@ function EventBlock({
 			}}
 		>
 			<p
-				className="truncate font-bold text-[13px] leading-tight"
+				className="truncate font-bold text-[12px] leading-tight"
 				style={{ color }}
 			>
 				{primaryTitle}

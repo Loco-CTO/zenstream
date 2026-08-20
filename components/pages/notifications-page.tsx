@@ -46,7 +46,8 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 	);
 
 	useEffect(() => {
-		void load();
+		const timer = window.setTimeout(() => void load(), 0);
+		return () => window.clearTimeout(timer);
 	}, [load]);
 
 	async function toggleRead(item: NotificationItem) {
@@ -193,4 +194,3 @@ function NotificationRow({
 		</div>
 	);
 }
-

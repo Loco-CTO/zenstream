@@ -97,6 +97,8 @@ metadataLanguageSaveFailed: メタデータ言語設定を保存できません�
 playback: 再生
 subtitles: 字幕
 mediaPlaybackFailed: このメディアを再生できませんでした。
+showElapsedTime: 経過時間を表示
+showRemainingTime: 残り時間を表示
 pictureInPicture: ピクチャー イン ピクチャー
 exitPictureInPicture: ピクチャー イン ピクチャーを終了
 pictureInPictureUnavailable: ピクチャー イン ピクチャーは利用できません。

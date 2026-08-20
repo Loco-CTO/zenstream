@@ -115,6 +115,8 @@ export const TRANSLATION_KEYS = [
 	"playback",
 	"subtitles",
 	"mediaPlaybackFailed",
+	"showElapsedTime",
+	"showRemainingTime",
 	"pictureInPicture",
 	"exitPictureInPicture",
 	"pictureInPictureUnavailable",

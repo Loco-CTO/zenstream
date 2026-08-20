@@ -105,6 +105,8 @@ metadataLanguageSaveFailed: Could not save your metadata language setting.
 playback: Playback
 subtitles: Subtitles
 mediaPlaybackFailed: This media could not be played.
+showElapsedTime: Show elapsed time
+showRemainingTime: Show remaining time
 pictureInPicture: Picture in Picture
 exitPictureInPicture: Exit Picture in Picture
 pictureInPictureUnavailable: Picture in Picture is unavailable.

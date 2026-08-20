@@ -65,6 +65,7 @@ const defaultPlaybackStreams = {
 	subtitles: [],
 	qualities: [],
 } as ReturnType<typeof playbackStreams>;
+const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";
 
 describe("video player controls", () => {
 	it("recognizes the transient decoder window after a seek", () => {
@@ -100,6 +101,17 @@ describe("video player controls", () => {
 	});
 	beforeEach(() => {
 		vi.useFakeTimers();
+		const storage = new Map<string, string>();
+		Object.defineProperty(window, "localStorage", {
+			configurable: true,
+			value: {
+				getItem: (key: string) => storage.get(key) ?? null,
+				setItem: (key: string, value: string) => storage.set(key, value),
+				removeItem: (key: string) => storage.delete(key),
+				clear: () => storage.clear(),
+			},
+		});
+		window.localStorage.removeItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
 		vi
 			.mocked(playbackStreams)
 			.mockReset()
@@ -316,6 +328,108 @@ describe("video player controls", () => {
 		fireEvent.pointerMove(timeline, { clientX: 1 });
 
 		expect(queryByText("Preview unavailable")).not.toBeInTheDocument();
+	});
+
+	it("toggles and remembers elapsed and remaining timer formats", async () => {
+		const item = {
+			Id: "movie",
+			Name: "Movie",
+			Type: "Movie",
+			RunTimeTicks: 1_500 * 10_000_000,
+		} as MediaItem;
+		const streams = {
+			source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as never;
+		const renderPlayer = () =>
+			render(
+				<I18nProvider locale="en">
+					<SubtitlePreferencesProvider>
+						<VideoPlayer
+							item={item}
+							session={{ token: "token", userId: "user", username: "Alex" }}
+							initialStreams={streams}
+							onClose={vi.fn()}
+						/>
+					</SubtitlePreferencesProvider>
+				</I18nProvider>,
+			);
+
+		const first = renderPlayer();
+		const firstVideo = first.container.querySelector("video")!;
+		Object.defineProperty(firstVideo, "duration", {
+			configurable: true,
+			value: 1_425,
+		});
+		Object.defineProperty(firstVideo, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 83,
+		});
+		fireEvent.loadedMetadata(firstVideo);
+		fireEvent.timeUpdate(firstVideo);
+
+		const firstTimer = first.getByTestId("player-time");
+		expect(firstTimer).toHaveTextContent("-22:22/23:45");
+		expect(firstTimer).toHaveAccessibleName("Show elapsed time");
+		expect(firstTimer).toHaveAttribute("aria-pressed", "false");
+
+		fireEvent.click(firstTimer);
+		expect(firstTimer).toHaveTextContent("1:23/23:45");
+		expect(firstTimer).toHaveAccessibleName("Show remaining time");
+		expect(firstTimer).toHaveAttribute("aria-pressed", "true");
+		expect(window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY)).toBe(
+			"elapsed",
+		);
+
+		first.unmount();
+		const second = renderPlayer();
+		await act(async () => {
+			await Promise.resolve();
+		});
+		const secondVideo = second.container.querySelector("video")!;
+		Object.defineProperty(secondVideo, "duration", {
+			configurable: true,
+			value: 1_425,
+		});
+		Object.defineProperty(secondVideo, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 83,
+		});
+		fireEvent.loadedMetadata(secondVideo);
+		fireEvent.timeUpdate(secondVideo);
+
+		const secondTimer = second.getByTestId("player-time");
+		expect(secondTimer).toHaveTextContent("1:23/23:45");
+	});
+
+	it("falls back to remaining mode for an invalid stored timer preference", () => {
+		window.localStorage.setItem(PLAYER_TIME_DISPLAY_STORAGE_KEY, "invalid");
+		const { getByTestId } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{
+								Id: "movie",
+								Name: "Movie",
+								Type: "Movie",
+								RunTimeTicks: 1_425 * 10_000_000,
+							} as MediaItem
+						}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		const timer = getByTestId("player-time");
+		expect(timer).toHaveTextContent("-23:45/23:45");
+		expect(timer).toHaveAccessibleName("Show elapsed time");
 	});
 
 	it("adds the selected VTT stream as a native subtitle track", () => {
@@ -546,16 +660,21 @@ describe("video player controls", () => {
 		const toolbarButtons = toolbar
 			? Array.from(toolbar.querySelectorAll("button"))
 			: [];
+		const timerButton = toolbar?.querySelector('[data-testid="player-time"]');
+		const iconButtons = toolbar
+			? Array.from(toolbar.querySelectorAll('button:not([data-testid="player-time"])'))
+			: [];
 
 		expect(controls).toHaveClass("zenstream-player-controls");
 		expect(toolbar).toHaveClass("zenstream-player-toolbar");
 		expect(toolbarButtons.length).toBeGreaterThan(0);
 		expect(
-			toolbarButtons.every(
+			iconButtons.every(
 				(button) =>
 					button.classList.contains("h-10") && button.classList.contains("w-10"),
 			),
 		).toBe(true);
+		expect(timerButton).toHaveClass("h-10", "min-w-[5.5rem]");
 	});
 
 	it("does not toggle playback when the video is touched", () => {

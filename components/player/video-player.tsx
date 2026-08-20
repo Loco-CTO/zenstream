@@ -74,6 +74,13 @@ type Props = {
 	onPlayedChange?: (played: boolean) => void;
 };
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
+type TimeDisplayMode = "elapsed" | "remaining";
+const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";
+
+function isTimeDisplayMode(value: string | null): value is TimeDisplayMode {
+	return value === "elapsed" || value === "remaining";
+}
+
 export const HLS_TEXT_TRACK_CONFIG = {
 	enableWebVTT: false,
 	enableCEA708Captions: false,
@@ -483,6 +490,8 @@ export function VideoPlayer({
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
+	const [timeDisplayMode, setTimeDisplayMode] =
+		useState<TimeDisplayMode>("remaining");
 	const [bufferedRanges, setBufferedRanges] = useState<{
 		itemId: string;
 		ranges: Array<[number, number]>;
@@ -508,6 +517,19 @@ export function VideoPlayer({
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =
 		seekPreview?.itemId === item.Id ? seekPreview.value : currentTime;
+	const totalDuration = duration > 0 ? duration : knownDuration;
+	const timerPosition =
+		totalDuration > 0
+			? Math.max(0, Math.min(displayedCurrentTime, totalDuration))
+			: Math.max(0, displayedCurrentTime);
+	const timerText =
+		timeDisplayMode === "elapsed"
+			? `${formatPlayerTime(timerPosition)}/${formatPlayerTime(totalDuration)}`
+			: `-${formatPlayerTime(Math.max(0, totalDuration - timerPosition))}/${formatPlayerTime(totalDuration)}`;
+	const timeDisplayActionLabel =
+		timeDisplayMode === "remaining"
+			? t("showElapsedTime")
+			: t("showRemainingTime");
 	const debugSource = sourceRef.current ?? info?.source;
 	const playbackSessionId = info?.source?.sessionId;
 	const viewerSessionId = info?.source?.viewerSessionId;
@@ -515,6 +537,30 @@ export function VideoPlayer({
 	useEffect(() => {
 		playbackSessionIdRef.current = playbackSessionId;
 	}, [playbackSessionId]);
+	useEffect(() => {
+		try {
+			const stored = window.localStorage.getItem(
+				PLAYER_TIME_DISPLAY_STORAGE_KEY,
+			);
+			if (isTimeDisplayMode(stored)) {
+				// eslint-disable-next-line react-hooks/set-state-in-effect
+				setTimeDisplayMode(stored);
+			}
+		} catch {
+			// Storage may be disabled; the in-memory default remains usable.
+		}
+	}, []);
+	const toggleTimeDisplay = useCallback(() => {
+		setTimeDisplayMode((current) => {
+			const next = current === "remaining" ? "elapsed" : "remaining";
+			try {
+				window.localStorage.setItem(PLAYER_TIME_DISPLAY_STORAGE_KEY, next);
+			} catch {
+				// Storage may be disabled; keep the selection for this player session.
+			}
+			return next;
+		});
+	}, []);
 	const selectedSubtitleStream = info?.subtitles.find(
 		(stream) => stream.Index === Number(subtitle),
 	);
@@ -1223,7 +1269,7 @@ export function VideoPlayer({
 					video.currentTime = requestedPosition;
 				}
 				resumeTimeRef.current = null;
-				setDuration(Math.max(knownDuration, mediaDuration));
+				setDuration(mediaDuration > 0 ? mediaDuration : knownDuration);
 				const shouldPlay = resumePlayingRef.current ?? true;
 				resumePlayingRef.current = null;
 				if (shouldPlay) void Promise.resolve(video.play()).catch(() => undefined);
@@ -2067,7 +2113,8 @@ export function VideoPlayer({
 				muted={muted}
 				onLoadedMetadata={() => {
 					const value = videoRef.current?.duration ?? 0;
-					setDuration(Math.max(knownDuration, Number.isFinite(value) ? value : 0));
+					const mediaDuration = Number.isFinite(value) && value > 0 ? value : 0;
+					setDuration(mediaDuration > 0 ? mediaDuration : knownDuration);
 					if (videoRef.current) updateBufferedRanges(videoRef.current);
 				}}
 				onProgress={(event) => updateBufferedRanges(event.currentTarget)}
@@ -2187,7 +2234,7 @@ export function VideoPlayer({
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
 					if (Number.isFinite(value) && value > 0)
-						setDuration(Math.max(knownDuration, value));
+						setDuration(value);
 				}}
 				onSeeking={(event) => {
 					playerDebug("media seeking", {
@@ -2682,9 +2729,17 @@ export function VideoPlayer({
 					>
 						<SkipForward />
 					</button>
-					<span className="min-w-10 shrink-0 text-xs tabular-nums text-white/80 sm:text-sm">
-						-{formatPlayerTime(Math.max(0, duration - displayedCurrentTime))}
-					</span>
+					<button
+						type="button"
+						data-testid="player-time"
+						aria-label={timeDisplayActionLabel}
+						aria-pressed={timeDisplayMode === "elapsed"}
+						title={timeDisplayActionLabel}
+						onClick={toggleTimeDisplay}
+						className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center rounded px-1 text-xs tabular-nums text-white/80 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black sm:min-w-[6.25rem] sm:text-sm"
+					>
+						{timerText}
+					</button>
 					<span className="min-w-2 flex-1" />
 					{(info?.audio.length ?? 0) > 1 && (
 						<button

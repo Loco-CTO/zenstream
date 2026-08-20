@@ -539,7 +539,9 @@ export function VideoPlayer({
 	}, [playbackSessionId]);
 	useEffect(() => {
 		try {
-			const stored = window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
+			const stored = window.localStorage.getItem(
+				PLAYER_TIME_DISPLAY_STORAGE_KEY,
+			);
 			if (isTimeDisplayMode(stored)) {
 				// eslint-disable-next-line react-hooks/set-state-in-effect
 				setTimeDisplayMode(stored);
@@ -2231,7 +2233,8 @@ export function VideoPlayer({
 				}}
 				onDurationChange={() => {
 					const value = videoRef.current?.duration ?? 0;
-					if (Number.isFinite(value) && value > 0) setDuration(value);
+					if (Number.isFinite(value) && value > 0)
+						setDuration(value);
 				}}
 				onSeeking={(event) => {
 					playerDebug("media seeking", {

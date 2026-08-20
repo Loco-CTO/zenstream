@@ -662,7 +662,9 @@ describe("video player controls", () => {
 			: [];
 		const timerButton = toolbar?.querySelector('[data-testid="player-time"]');
 		const iconButtons = toolbar
-			? Array.from(toolbar.querySelectorAll('button:not([data-testid="player-time"])'))
+			? Array.from(
+					toolbar.querySelectorAll('button:not([data-testid="player-time"])'),
+				)
 			: [];
 
 		expect(controls).toHaveClass("zenstream-player-controls");

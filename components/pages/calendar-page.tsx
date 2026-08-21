@@ -464,10 +464,7 @@ function CalendarGrid({
 	const todayKey = localKey(new Date());
 
 	return (
-		<div
-			className="min-h-0 flex-1 overflow-auto"
-			style={{ scrollbarWidth: "thin" }}
-		>
+		<div className="min-h-0 flex-1 overflow-auto">
 			<div className="min-w-[700px]">
 				<div className="sticky top-0 z-10 grid grid-cols-7 border-b border-white/[0.06] bg-[var(--c-page)]">
 					{headerDays.map((day) => {
@@ -533,10 +530,7 @@ function DayView({
 	t: Translator;
 }) {
 	return (
-		<div
-			className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-10"
-			style={{ scrollbarWidth: "thin" }}
-		>
+		<div className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-10">
 			{events.length ? (
 				<div className="max-w-xl space-y-1.5">
 					{events.map((event) => (

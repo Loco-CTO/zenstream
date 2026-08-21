@@ -473,73 +473,49 @@ export function NotificationRow({
 					</time>
 				)}
 			</div>
-			{compact ? (
-				<div ref={actionsRef} className="relative shrink-0">
-					<button
-						type="button"
-						aria-label={t("notificationActions")}
-						aria-expanded={actionsOpen}
-						onClick={() => setActionsOpen((value) => !value)}
-						className="flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70"
+			<div ref={actionsRef} className="relative shrink-0">
+				<button
+					type="button"
+					aria-label={t("notificationActions")}
+					aria-haspopup="menu"
+					aria-expanded={actionsOpen}
+					onClick={() => setActionsOpen((value) => !value)}
+					className={`flex items-center justify-center rounded-full text-white/45 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 ${compact ? "h-8 w-8" : "h-9 w-9"}`}
+				>
+					<MoreVertical className="h-4 w-4" />
+				</button>
+				{actionsOpen && (
+					<div
+						role="menu"
+						className={`absolute right-0 z-10 min-w-36 overflow-hidden rounded-lg border border-white/10 bg-black/70 p-1 shadow-2xl shadow-black/50 backdrop-blur-xl ${compact ? "top-9" : "top-10"}`}
 					>
-						<MoreVertical className="h-4 w-4" />
-					</button>
-					{actionsOpen && (
-						<div
-							role="menu"
-							className="absolute right-0 top-9 z-10 min-w-32 overflow-hidden rounded-lg border border-white/10 bg-black/70 p-1 shadow-2xl shadow-black/50 backdrop-blur-xl"
+						<button
+							type="button"
+							role="menuitem"
+							onClick={() => {
+								setActionsOpen(false);
+								onToggleRead();
+							}}
+							className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-white/70 transition hover:bg-white/[.08] hover:text-white ${compact ? "text-[10px]" : "text-xs"}`}
 						>
-							<button
-								type="button"
-								role="menuitem"
-								onClick={() => {
-									setActionsOpen(false);
-									onToggleRead();
-								}}
-								className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-white/70 transition hover:bg-white/[.08] hover:text-white"
-							>
-								<ActionIcon className="h-3.5 w-3.5" />
-								{actionLabel}
-							</button>
-							<button
-								type="button"
-								role="menuitem"
-								onClick={() => {
-									setActionsOpen(false);
-									onRemove();
-								}}
-								className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-red-200/75 transition hover:bg-red-400/[.08] hover:text-red-100"
-							>
-								<Trash2 className="h-3.5 w-3.5" />
-								{t("removeNotification")}
-							</button>
-						</div>
-					)}
-				</div>
-			) : (
-				<div className="flex shrink-0 items-center gap-1">
-					<button
-						type="button"
-						aria-label={actionLabel}
-						title={actionLabel}
-						onClick={onToggleRead}
-						className="flex h-11 w-11 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-auto sm:w-auto sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-[10px] sm:font-semibold"
-					>
-						<ActionIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-						<span className="hidden sm:inline">{actionLabel}</span>
-					</button>
-					<button
-						type="button"
-						aria-label={t("removeNotification")}
-						title={t("removeNotification")}
-						onClick={onRemove}
-						className="flex h-11 w-11 items-center justify-center rounded-full text-red-200/60 transition hover:bg-red-400/[.08] hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-auto sm:w-auto sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-[10px] sm:font-semibold"
-					>
-						<Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-						<span className="hidden sm:inline">{t("removeNotification")}</span>
-					</button>
-				</div>
-			)}
+							<ActionIcon className="h-3.5 w-3.5" />
+							{actionLabel}
+						</button>
+						<button
+							type="button"
+							role="menuitem"
+							onClick={() => {
+								setActionsOpen(false);
+								onRemove();
+							}}
+							className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-red-200/75 transition hover:bg-red-400/[.08] hover:text-red-100 ${compact ? "text-[10px]" : "text-xs"}`}
+						>
+							<Trash2 className="h-3.5 w-3.5" />
+							{t("removeNotification")}
+						</button>
+					</div>
+				)}
+			</div>
 		</article>
 	);
 }

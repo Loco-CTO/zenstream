@@ -295,9 +295,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 				),
 			);
 			setFollowError(
-				nextError instanceof Error
-					? nextError.message
-					: t("calendarLoadFailed"),
+				nextError instanceof Error ? nextError.message : t("calendarLoadFailed"),
 			);
 		}
 	}

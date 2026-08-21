@@ -908,12 +908,12 @@ export function AppShell() {
 										{status === "ready" && pathname === "/favorites" && (
 											<FavoritesPage session={session} />
 										)}
-						{status === "ready" && pathname === "/calendar" && (
-							<CalendarPage session={session} />
-						)}
-						{status === "ready" && pathname === "/notifications" && (
-							<NotificationsPage session={session} />
-						)}
+										{status === "ready" && pathname === "/calendar" && (
+											<CalendarPage session={session} />
+										)}
+										{status === "ready" && pathname === "/notifications" && (
+											<NotificationsPage session={session} />
+										)}
 										{status === "ready" && pathname === "/search" && (
 											<SearchPage session={session} query={searchData ?? searchQuery} />
 										)}
@@ -921,8 +921,8 @@ export function AppShell() {
 											!detailId &&
 											pathname !== "/library" &&
 											pathname !== "/favorites" &&
-							pathname !== "/calendar" &&
-							pathname !== "/notifications" &&
+											pathname !== "/calendar" &&
+											pathname !== "/notifications" &&
 											pathname !== "/search" && (
 												<HomePage data={homeData} session={session} />
 											)}

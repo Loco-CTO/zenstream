@@ -31,11 +31,17 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 			setError(null);
 			try {
 				const result = await getNotifications(session, 50, cursor);
-				setItems((current) => (cursor ? [...current, ...result.items] : result.items));
+				setItems((current) =>
+					cursor ? [...current, ...result.items] : result.items,
+				);
 				setUnreadCount(result.unreadCount);
 				setNextCursor(result.nextCursor);
 			} catch (nextError) {
-				setError(nextError instanceof Error ? nextError.message : t("notificationsLoadFailed"));
+				setError(
+					nextError instanceof Error
+						? nextError.message
+						: t("notificationsLoadFailed"),
+				);
 			} finally {
 				setLoading(false);
 				setLoadingMore(false);
@@ -74,7 +80,10 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 
 	async function markAllRead() {
 		setItems((current) =>
-			current.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })),
+			current.map((item) => ({
+				...item,
+				readAt: item.readAt ?? new Date().toISOString(),
+			})),
 		);
 		setUnreadCount(0);
 		try {
@@ -91,10 +100,16 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 					<div>
 						<div className="mb-2 flex items-center gap-2 text-violet-300">
 							<Bell className="h-4 w-4" />
-							<span className="text-xs font-semibold uppercase tracking-[.14em]">{t("notifications")}</span>
+							<span className="text-xs font-semibold uppercase tracking-[.14em]">
+								{t("notifications")}
+							</span>
 						</div>
-						<h1 className="text-3xl font-black tracking-tight text-white">{t("notificationInbox")}</h1>
-						<p className="mt-2 text-sm text-white/40">{t("notificationInboxDescription")}</p>
+						<h1 className="text-3xl font-black tracking-tight text-white">
+							{t("notificationInbox")}
+						</h1>
+						<p className="mt-2 text-sm text-white/40">
+							{t("notificationInboxDescription")}
+						</p>
 					</div>
 					<div className="flex shrink-0 items-center gap-2">
 						{unreadCount > 0 && (
@@ -119,14 +134,22 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 				</div>
 
 				{error ? (
-					<div className="rounded-lg border border-red-400/20 bg-red-400/[.05] p-5 text-sm text-red-100">{error}</div>
+					<div className="rounded-lg border border-red-400/20 bg-red-400/[.05] p-5 text-sm text-red-100">
+						{error}
+					</div>
 				) : loading ? (
-					<div className="py-20 text-center text-sm text-white/30">{t("loadingMore")}</div>
+					<div className="py-20 text-center text-sm text-white/30">
+						{t("loadingMore")}
+					</div>
 				) : items.length === 0 ? (
 					<div className="flex flex-col items-center rounded-xl border border-white/[.08] bg-white/[.02] px-6 py-20 text-center">
 						<Bell className="mb-4 h-8 w-8 text-white/15" />
-						<p className="text-sm font-semibold text-white/60">{t("notificationsEmpty")}</p>
-						<p className="mt-2 max-w-sm text-xs text-white/30">{t("notificationsEmptyDescription")}</p>
+						<p className="text-sm font-semibold text-white/60">
+							{t("notificationsEmpty")}
+						</p>
+						<p className="mt-2 max-w-sm text-xs text-white/30">
+							{t("notificationsEmptyDescription")}
+						</p>
 					</div>
 				) : (
 					<div className="overflow-hidden rounded-xl border border-white/[.08] bg-white/[.02]">
@@ -137,7 +160,7 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 								locale={locale}
 								onToggleRead={() => void toggleRead(item)}
 							/>
-							))}
+						))}
 					</div>
 				)}
 				{nextCursor && !loading && (
@@ -166,8 +189,12 @@ function NotificationRow({
 }) {
 	const { t } = useI18n();
 	return (
-		<div className={`flex items-start gap-3 border-b border-white/[.06] p-4 last:border-b-0 ${item.readAt ? "opacity-60" : "bg-violet-400/[.05]"}`}>
-			<span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.readAt ? "bg-white/15" : "bg-violet-300"}`} />
+		<div
+			className={`flex items-start gap-3 border-b border-white/[.06] p-4 last:border-b-0 ${item.readAt ? "opacity-60" : "bg-violet-400/[.05]"}`}
+		>
+			<span
+				className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.readAt ? "bg-white/15" : "bg-violet-300"}`}
+			/>
 			<div className="min-w-0 flex-1">
 				<Link
 					href={item.navigationTarget}
@@ -178,9 +205,14 @@ function NotificationRow({
 				>
 					{item.title}
 				</Link>
-				{item.subtitle && <p className="mt-1 text-xs text-white/45">{item.subtitle}</p>}
+				{item.subtitle && (
+					<p className="mt-1 text-xs text-white/45">{item.subtitle}</p>
+				)}
 				<p className="mt-2 text-[10px] text-white/25">
-					{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt))}
+					{new Intl.DateTimeFormat(locale, {
+						dateStyle: "medium",
+						timeStyle: "short",
+					}).format(new Date(item.createdAt))}
 				</p>
 			</div>
 			<button

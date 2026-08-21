@@ -102,7 +102,8 @@ export async function registerBrowserPush(
 		Notification.permission === "granted"
 			? "granted"
 			: await Notification.requestPermission();
-	if (permission !== "granted") throw new Error("Browser notifications are blocked.");
+	if (permission !== "granted")
+		throw new Error("Browser notifications are blocked.");
 	const registration = await navigator.serviceWorker.ready;
 	const existing = await registration.pushManager.getSubscription();
 	const subscription =
@@ -135,4 +136,3 @@ export function notifyNotificationsChanged() {
 	if (typeof window === "undefined") return;
 	window.dispatchEvent(new Event("zenstream:notifications-changed"));
 }
-

@@ -816,7 +816,13 @@ function Toggle({
 function BrowserPushControl({ session }: { session?: AuthSession }) {
 	const { t } = useI18n();
 	const [status, setStatus] = useState<
-		"loading" | "unsupported" | "unconfigured" | "blocked" | "enabled" | "disabled" | "error"
+		| "loading"
+		| "unsupported"
+		| "unconfigured"
+		| "blocked"
+		| "enabled"
+		| "disabled"
+		| "error"
 	>(() => (!session || !browserPushSupported() ? "unsupported" : "loading"));
 	const [publicKey, setPublicKey] = useState<string | null>(null);
 
@@ -879,18 +885,32 @@ function BrowserPushControl({ session }: { session?: AuthSession }) {
 			</button>
 		);
 	if (status === "unconfigured")
-		return <span className="text-xs text-white/30">{t("browserNotificationsUnavailable")}</span>;
+		return (
+			<span className="text-xs text-white/30">
+				{t("browserNotificationsUnavailable")}
+			</span>
+		);
 	if (status === "blocked")
-		return <span className="text-xs text-amber-200/70">{t("browserNotificationsBlocked")}</span>;
+		return (
+			<span className="text-xs text-amber-200/70">
+				{t("browserNotificationsBlocked")}
+			</span>
+		);
 	if (status === "unsupported")
-		return <span className="text-xs text-white/30">{t("browserNotificationsUnsupported")}</span>;
+		return (
+			<span className="text-xs text-white/30">
+				{t("browserNotificationsUnsupported")}
+			</span>
+		);
 	return (
 		<button
 			type="button"
 			onClick={() => void toggle()}
 			className="rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-white/25 hover:text-white"
 		>
-			{status === "error" ? t("browserNotificationsRetry") : t("enableBrowserNotifications")}
+			{status === "error"
+				? t("browserNotificationsRetry")
+				: t("enableBrowserNotifications")}
 		</button>
 	);
 }

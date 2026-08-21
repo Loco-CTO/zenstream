@@ -381,7 +381,7 @@ export function DetailPage({
 									/>
 								}
 							/>
-			{isFollowable && (
+							{isFollowable && (
 								<ActionButton
 									active={Boolean(item.UserData?.IsFollowing)}
 									label={t(item.UserData?.IsFollowing ? "unfollow" : "follow")}

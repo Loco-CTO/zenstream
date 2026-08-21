@@ -104,6 +104,16 @@ describe("SyncplayGroupMenu", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("closes when a pointer lands outside the panel", () => {
+		render(<SyncplayGroupMenu userId="viewer" />);
+		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
+		expect(screen.getByTestId("syncplay-group-popup")).toBeInTheDocument();
+
+		fireEvent.pointerDown(document.body);
+
+		expect(screen.queryByTestId("syncplay-group-popup")).not.toBeInTheDocument();
+	});
+
 	it("opens a redacted public group without crashing", () => {
 		syncplayState.groups = [
 			{

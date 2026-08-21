@@ -110,6 +110,25 @@ describe("NotificationMenu", () => {
 		expect(screen.getByRole("link", { name: "Episode two" })).toBeInTheDocument();
 	});
 
+	it("closes when a pointer lands outside the panel", async () => {
+		vi.spyOn(notifications, "getNotificationSummary").mockResolvedValue({
+			unreadCount: 0,
+		});
+		vi.spyOn(notifications, "getNotifications").mockResolvedValue({
+			items: [],
+			unreadCount: 0,
+			nextCursor: null,
+		});
+
+		renderMenu();
+		fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+		await screen.findByTestId("notification-popup");
+
+		fireEvent.pointerDown(document.body);
+
+		expect(screen.queryByTestId("notification-popup")).not.toBeInTheDocument();
+	});
+
 	it("marks an unread notification read and closes after navigation", async () => {
 		vi.spyOn(notifications, "getNotificationSummary").mockResolvedValue({
 			unreadCount: 1,

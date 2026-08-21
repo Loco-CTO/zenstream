@@ -252,6 +252,29 @@ describe("SettingsPage", () => {
 		expect(onPasswordChanged).toHaveBeenCalledOnce();
 	});
 
+	it("closes the change-password modal when a pointer lands outside it", () => {
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				session={session}
+				locale="en"
+				onLocaleChange={vi.fn()}
+				onLogout={() => undefined}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Account/ }));
+		fireEvent.click(screen.getByRole("button", { name: "Change Password" }));
+		expect(screen.getByRole("dialog", { name: "Change Password" })).toBeInTheDocument();
+
+		fireEvent.pointerDown(document.body);
+
+		expect(
+			screen.queryByRole("dialog", { name: "Change Password" }),
+		).not.toBeInTheDocument();
+	});
+
 	it("saves the selected subtitle renderer", async () => {
 		const style = {
 			renderer: "native" as const,

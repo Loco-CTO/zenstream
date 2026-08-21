@@ -632,6 +632,7 @@ function SelectionPanel({
 	onClose: () => void;
 	t: Translator;
 }) {
+	const panelRef = useRef<HTMLDivElement>(null);
 	const color = eventColor(event);
 	const title = eventTitle(event, t);
 	const position = episodePosition(event);
@@ -643,8 +644,18 @@ function SelectionPanel({
 	const openEpisodeHref =
 		event.kind === "episode" && event.hasFile ? href : null;
 
+	useEffect(() => {
+		const closeOnOutsidePointer = (pointerEvent: PointerEvent) => {
+			if (!panelRef.current?.contains(pointerEvent.target as Node)) onClose();
+		};
+		document.addEventListener("pointerdown", closeOnOutsidePointer);
+		return () =>
+			document.removeEventListener("pointerdown", closeOnOutsidePointer);
+	}, [onClose]);
+
 	return (
 		<div
+			ref={panelRef}
 			className="pointer-events-auto absolute inset-x-4 bottom-3 z-20 overflow-hidden rounded-lg border border-white/[0.08] border-l-[3px] bg-[var(--c-page)] shadow-2xl md:inset-x-8"
 			style={{ borderLeftColor: color }}
 		>

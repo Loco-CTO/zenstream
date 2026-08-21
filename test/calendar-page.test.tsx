@@ -155,6 +155,13 @@ describe("CalendarPage", () => {
 
 		fireEvent.click(event);
 		expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+		fireEvent.pointerDown(document.body);
+		expect(
+			screen.queryByRole("button", { name: "Close" }),
+		).not.toBeInTheDocument();
+
+		fireEvent.click(event);
+		expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
 		const reopenedClose = screen.getByRole("button", { name: "Close" });
 		fireEvent.click(reopenedClose);
 		expect(

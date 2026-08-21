@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserAvatar } from "@/components/account/user-avatar";
 import {
@@ -32,6 +32,8 @@ export function SyncplayGroupMenu({
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [showGroupList, setShowGroupList] = useState(true);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const panelRef = useRef<HTMLDivElement>(null);
 	const {
 		groups,
 		active,
@@ -47,6 +49,31 @@ export function SyncplayGroupMenu({
 	const panelClass = playerContext
 		? "fixed inset-x-3 bottom-3 z-[90] max-h-[calc(100dvh-1.5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-[22rem] md:max-w-[calc(100vw-2rem)] md:overflow-hidden"
 		: "fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-[22rem] md:max-w-[calc(100vw-2rem)] md:overflow-hidden";
+
+	useEffect(() => {
+		if (!open) return;
+		const closeOnOutsidePointer = (event: PointerEvent) => {
+			const target = event.target as Node;
+			if (
+				panelRef.current?.contains(target) ||
+				triggerRef.current?.contains(target)
+			)
+				return;
+			setOpen(false);
+		};
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			setOpen(false);
+			triggerRef.current?.focus();
+		};
+		document.addEventListener("pointerdown", closeOnOutsidePointer);
+		document.addEventListener("keydown", closeOnEscape);
+		return () => {
+			document.removeEventListener("pointerdown", closeOnOutsidePointer);
+			document.removeEventListener("keydown", closeOnEscape);
+		};
+	}, [open]);
 
 	async function returnToView(group = active) {
 		if (!group?.itemId) return;
@@ -67,7 +94,10 @@ export function SyncplayGroupMenu({
 	return (
 		<div className="relative" data-player-context={playerContext || undefined}>
 			<button
+				ref={triggerRef}
+				type="button"
 				aria-label={t("syncplayGroups")}
+				aria-expanded={open}
 				onClick={() => {
 					setOpen((value) => !value);
 					setShowGroupList(!active);
@@ -82,6 +112,7 @@ export function SyncplayGroupMenu({
 			</button>
 			{open && (
 				<div
+					ref={panelRef}
 					data-testid="syncplay-group-popup"
 					data-player-context={playerContext || undefined}
 					className={panelClass}

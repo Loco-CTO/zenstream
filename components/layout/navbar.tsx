@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Search, Settings } from "lucide-react";
@@ -28,6 +28,28 @@ export function Navbar({
 	const pathname = usePathname();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
+	const profileRef = useRef<HTMLDivElement>(null);
+	const profileTriggerRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		if (!profileOpen) return;
+		const closeOnOutsidePointer = (event: PointerEvent) => {
+			if (!profileRef.current?.contains(event.target as Node))
+				setProfileOpen(false);
+		};
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			setProfileOpen(false);
+			profileTriggerRef.current?.focus();
+		};
+		document.addEventListener("pointerdown", closeOnOutsidePointer);
+		document.addEventListener("keydown", closeOnEscape);
+		return () => {
+			document.removeEventListener("pointerdown", closeOnOutsidePointer);
+			document.removeEventListener("keydown", closeOnEscape);
+		};
+	}, [profileOpen]);
 
 	return (
 		<>
@@ -80,9 +102,12 @@ export function Navbar({
 							<Search className="h-[22px] w-[22px]" />
 						</button>
 						<NotificationMenu displayPath={pathname} session={session} />
-						<div className="relative">
+						<div ref={profileRef} className="relative">
 							<button
+								ref={profileTriggerRef}
+								type="button"
 								aria-label={t("profile")}
+								aria-expanded={profileOpen}
 								onClick={() => setProfileOpen((open) => !open)}
 								className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 text-white/70 transition hover:border-violet-400/60"
 							>

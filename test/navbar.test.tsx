@@ -83,6 +83,16 @@ describe("Navbar", () => {
 		);
 	});
 
+	it("closes the profile popup when a pointer lands outside it", () => {
+		renderNavbar();
+		fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+		expect(screen.getByTestId("profile-popup")).toBeInTheDocument();
+
+		fireEvent.pointerDown(document.body);
+
+		expect(screen.queryByTestId("profile-popup")).not.toBeInTheDocument();
+	});
+
 	it("keeps the mobile groups panel inside the viewport", () => {
 		renderNavbar();
 		fireEvent.click(screen.getByRole("button", { name: "Groups" }));

@@ -598,11 +598,11 @@ describe("video player controls", () => {
 			qualities: [],
 		} as never;
 		vi.mocked(playbackStreams).mockReturnValue(streams);
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(
-				"WEBVTT\n\n00:00:00.000 --> 00:00:10.000\nStill here\n",
-			),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response("WEBVTT\n\n00:00:00.000 --> 00:00:10.000\nStill here\n"),
+			);
 
 		try {
 			const view = render(

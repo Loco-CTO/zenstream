@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	type RefObject,
+} from "react";
 import {
 	AlertTriangle,
 	Film,
@@ -49,10 +55,7 @@ function dedupeItems(items: NotificationItem[]) {
 
 export function useNotificationFeed(
 	session: AuthSession | null,
-	{
-		enabled = true,
-		start,
-	}: { enabled?: boolean; start?: ProgressStarter } = {},
+	{ enabled = true, start }: { enabled?: boolean; start?: ProgressStarter } = {},
 ): NotificationFeed {
 	const { t } = useI18n();
 	const [items, setItems] = useState<NotificationItem[]>([]);
@@ -73,7 +76,6 @@ export function useNotificationFeed(
 		loadingRef.current = true;
 		loadingMoreRef.current = false;
 		nextCursorRef.current = null;
-		await Promise.resolve();
 		setLoading(true);
 		setLoadingMore(false);
 		setError(null);
@@ -139,7 +141,10 @@ export function useNotificationFeed(
 
 	useEffect(() => {
 		if (!enabled || !session) return;
-		void refresh();
+		const refreshTimer = window.setTimeout(() => {
+			void refresh();
+		}, 0);
+		return () => window.clearTimeout(refreshTimer);
 	}, [enabled, refresh, session]);
 
 	const toggleRead = useCallback(
@@ -155,9 +160,7 @@ export function useNotificationFeed(
 						: value,
 				),
 			);
-			setUnreadCount((current) =>
-				Math.max(0, current + (nextRead ? -1 : 1)),
-			);
+			setUnreadCount((current) => Math.max(0, current + (nextRead ? -1 : 1)));
 			if (!session) return;
 			try {
 				await setNotificationRead(session, item.id, nextRead);
@@ -167,9 +170,7 @@ export function useNotificationFeed(
 						value.id === item.id ? { ...value, readAt: item.readAt } : value,
 					),
 				);
-				setUnreadCount((current) =>
-					Math.max(0, current + (nextRead ? 1 : -1)),
-				);
+				setUnreadCount((current) => Math.max(0, current + (nextRead ? 1 : -1)));
 			}
 		},
 		[session],
@@ -264,15 +265,27 @@ export function NotificationLoadMore({
 	);
 }
 
-export function NotificationListSkeleton({ compact = false }: { compact?: boolean }) {
+export function NotificationListSkeleton({
+	compact = false,
+}: {
+	compact?: boolean;
+}) {
 	return (
-		<div className={compact ? "space-y-0" : "overflow-hidden rounded-xl border border-white/10 bg-white/[0.025]"}>
+		<div
+			className={
+				compact
+					? "space-y-0"
+					: "overflow-hidden rounded-xl border border-white/10 bg-white/[0.025]"
+			}
+		>
 			{Array.from({ length: compact ? 5 : 4 }, (_, index) => (
 				<div
 					key={index}
 					className={`flex items-start gap-3 border-b border-white/[.07] last:border-b-0 ${compact ? "min-h-[76px] px-3 py-3" : "min-h-[88px] p-4 sm:min-h-24 sm:px-5"}`}
 				>
-					<div className={`${compact ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl"} shrink-0 animate-pulse bg-white/[.06]`} />
+					<div
+						className={`${compact ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl"} shrink-0 animate-pulse bg-white/[.06]`}
+					/>
 					<div className="min-w-0 flex-1 space-y-2.5 pt-1">
 						<div className="h-3.5 w-3/4 animate-pulse rounded-full bg-white/[.07]" />
 						<div className="h-3 w-1/2 animate-pulse rounded-full bg-white/[.045]" />
@@ -323,7 +336,11 @@ export function NotificationErrorState({
 	);
 }
 
-export function NotificationEmptyState({ compact = false }: { compact?: boolean }) {
+export function NotificationEmptyState({
+	compact = false,
+}: {
+	compact?: boolean;
+}) {
 	const { t } = useI18n();
 	return (
 		<div
@@ -408,7 +425,9 @@ export function NotificationRow({
 					)}
 				</div>
 				{item.subtitle && (
-					<p className={`mt-1 ${compact ? "line-clamp-1 text-[10px]" : "text-xs"} leading-5 text-white/55`}>
+					<p
+						className={`mt-1 ${compact ? "line-clamp-1 text-[10px]" : "text-xs"} leading-5 text-white/55`}
+					>
 						{item.subtitle}
 					</p>
 				)}

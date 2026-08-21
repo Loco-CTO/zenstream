@@ -10,9 +10,9 @@ vi.mock("@/lib/catalog", async () => {
 });
 
 import {
-	 catalogStatusChanges,
-	 parseCatalogEvent,
-	 startCatalogEvents,
+	catalogStatusChanges,
+	parseCatalogEvent,
+	startCatalogEvents,
 	type CatalogEvent,
 } from "@/lib/catalog-events";
 

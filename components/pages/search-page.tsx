@@ -28,7 +28,13 @@ export function SearchPage({
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const finish = start();
+		const finishProgress = start();
+		let finished = false;
+		const finish = () => {
+			if (finished) return;
+			finished = true;
+			finishProgress();
+		};
 		getSearchItems(session, query, { signal: controller.signal })
 			.then((results) => {
 				if (controller.signal.aborted) return;
@@ -41,7 +47,8 @@ export function SearchPage({
 					setErrorKey(requestKey);
 					setLoadedKey(requestKey);
 				}
-			});
+			})
+			.finally(finish);
 		return () => {
 			controller.abort();
 			finish();

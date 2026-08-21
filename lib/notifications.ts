@@ -67,6 +67,19 @@ export async function setNotificationRead(
 	return result;
 }
 
+export async function deleteNotification(
+	session: AuthSession,
+	notificationId: string,
+) {
+	const result = await catalogRequest<{ id: string; removed: boolean }>(
+		session,
+		`/api/notifications/${encodeURIComponent(notificationId)}`,
+		{ method: "DELETE" },
+	);
+	notifyNotificationsChanged();
+	return result;
+}
+
 export async function markAllNotificationsRead(session: AuthSession) {
 	const result = await catalogRequest<{ unreadCount: number }>(
 		session,

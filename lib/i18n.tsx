@@ -42,6 +42,7 @@ export const TRANSLATION_KEYS = [
 	"markAllRead",
 	"markRead",
 	"markUnread",
+	"removeNotification",
 	"loadMore",
 	"follow",
 	"unfollow",

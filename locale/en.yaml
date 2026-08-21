@@ -32,6 +32,7 @@ notificationsLoadFailed: Could not load notifications
 markAllRead: Mark all read
 markRead: Mark as read
 markUnread: Mark as unread
+removeNotification: Remove notification
 loadMore: Load more
 follow: Follow
 unfollow: Unfollow

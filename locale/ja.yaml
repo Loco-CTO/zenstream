@@ -34,6 +34,7 @@ notificationsLoadFailed: 通知を読み込めませんでした
 markAllRead: すべて既読にする
 markRead: 既読にする
 markUnread: 未読にする
+removeNotification: 通知を削除
 loadMore: さらに読み込む
 follow: フォロー
 unfollow: フォローを解除

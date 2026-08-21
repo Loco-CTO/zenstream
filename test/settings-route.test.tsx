@@ -50,6 +50,7 @@ async function openAppearance() {
 vi.mock("next/navigation", () => ({
 	usePathname: () => "/settings",
 	useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
+	useSearchParams: () => new URLSearchParams(),
 }));
 
 describe("settings route", () => {

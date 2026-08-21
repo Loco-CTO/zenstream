@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { sessionFromAuth } from "@/lib/auth";
 import {
@@ -119,6 +119,7 @@ const EMPTY_PLAYBACK_PREFERENCE: PlaybackPreference = {
 
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
+	const searchParams = useSearchParams();
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
@@ -346,12 +347,9 @@ export function AppShell() {
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
-	const searchQuery =
-		typeof window !== "undefined"
-			? (new URLSearchParams(window.location.search).get("q") ?? "")
-			: "";
-	const currentSearch =
-		typeof window !== "undefined" ? window.location.search : "";
+	const searchQuery = searchParams.get("q") ?? "";
+	const serializedSearch = searchParams.toString();
+	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
 	const fetchDetailPayload = useCallback(
 		async (
 			nextSession: AuthSession,

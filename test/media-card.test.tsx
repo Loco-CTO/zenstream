@@ -131,13 +131,11 @@ describe("media card sizing", () => {
 	});
 
 	it("does not render a Follow action on cards", () => {
-		render(
-			<PosterCard
-				item={{ ...item, UserData: { IsFollowing: true } }}
-			/>,
-		);
+		render(<PosterCard item={{ ...item, UserData: { IsFollowing: true } }} />);
 
-		expect(screen.queryByRole("button", { name: "Unfollow" })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "Unfollow" }),
+		).not.toBeInTheDocument();
 	});
 
 	it("shows a year instead of season and episode numbers for stacked releases", () => {

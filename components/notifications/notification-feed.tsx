@@ -16,10 +16,12 @@ import {
 	MailOpen,
 	MoreVertical,
 	RefreshCw,
+	Trash2,
 } from "lucide-react";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { catalogImage } from "@/lib/media-api";
 import {
+	deleteNotification,
 	getNotifications,
 	markAllNotificationsRead,
 	setNotificationRead,
@@ -41,6 +43,7 @@ export type NotificationFeed = {
 	refresh: () => Promise<void>;
 	loadMore: () => Promise<void>;
 	toggleRead: (item: NotificationItem) => Promise<void>;
+	remove: (item: NotificationItem) => Promise<void>;
 	markAllRead: () => Promise<void>;
 };
 
@@ -192,6 +195,23 @@ export function useNotificationFeed(
 		}
 	}, [refresh, session]);
 
+	const remove = useCallback(
+		async (item: NotificationItem) => {
+			if (!session) return;
+			const wasUnread = !item.readAt;
+			setItems((current) => current.filter((value) => value.id !== item.id));
+			if (wasUnread) {
+				setUnreadCount((current) => Math.max(0, current - 1));
+			}
+			try {
+				await deleteNotification(session, item.id);
+			} catch {
+				void refresh();
+			}
+		},
+		[refresh, session],
+	);
+
 	return {
 		items,
 		unreadCount,
@@ -203,6 +223,7 @@ export function useNotificationFeed(
 		refresh,
 		loadMore,
 		toggleRead,
+		remove,
 		markAllRead,
 	};
 }
@@ -367,12 +388,14 @@ export function NotificationRow({
 	item,
 	locale,
 	onToggleRead,
+	onRemove,
 	onNavigate,
 	compact = false,
 }: {
 	item: NotificationItem;
 	locale: string;
 	onToggleRead: () => void;
+	onRemove: () => void;
 	onNavigate?: () => void;
 	compact?: boolean;
 }) {

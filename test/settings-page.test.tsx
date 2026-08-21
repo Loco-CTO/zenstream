@@ -165,9 +165,7 @@ describe("SettingsPage", () => {
 		const toggle = screen.getByRole("switch", { name: "Watch History" });
 		expect(toggle).toHaveAttribute("aria-checked", "true");
 		fireEvent.click(toggle);
-		await waitFor(() =>
-			expect(onWatchHistoryChange).toHaveBeenCalledWith(false),
-		);
+		await waitFor(() => expect(onWatchHistoryChange).toHaveBeenCalledWith(false));
 		expect(toggle).toHaveAttribute("aria-checked", "true");
 		expect(screen.queryByText("Data Saver")).not.toBeInTheDocument();
 	});

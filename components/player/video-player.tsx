@@ -773,7 +773,14 @@ export function VideoPlayer({
 				durationSeconds,
 			).catch(() => undefined);
 		},
-		[duration, item.Id, knownDuration, session, watchHistoryEnabled, watchHistoryLoaded],
+		[
+			duration,
+			item.Id,
+			knownDuration,
+			session,
+			watchHistoryEnabled,
+			watchHistoryLoaded,
+		],
 	);
 	const updateBufferedRanges = useCallback(
 		(video: HTMLVideoElement) => {

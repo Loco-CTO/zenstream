@@ -570,7 +570,10 @@ export function SettingsPage({
 								}
 							/>
 							{watchHistoryError && (
-								<p role="alert" className="border-b border-white/5 px-4 pb-3 text-xs text-red-300">
+								<p
+									role="alert"
+									className="border-b border-white/5 px-4 pb-3 text-xs text-red-300"
+								>
 									{t("watchHistorySaveFailed")}
 								</p>
 							)}

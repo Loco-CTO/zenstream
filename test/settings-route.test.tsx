@@ -220,7 +220,9 @@ describe("settings route", () => {
 			.mockImplementationOnce(() => second.promise);
 		renderSettings();
 
-		fireEvent.click(await screen.findByRole("button", { name: "Privacy & Data" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "Privacy & Data" }),
+		);
 		const toggle = await screen.findByRole("switch", { name: "Watch History" });
 		fireEvent.click(toggle);
 		fireEvent.click(toggle);
@@ -231,9 +233,7 @@ describe("settings route", () => {
 		await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
 		expect(save.mock.calls[1]?.[1]).toBe(true);
 		await act(async () => second.resolve({ enabled: true }));
-		await waitFor(() =>
-			expect(toggle).toHaveAttribute("aria-checked", "true"),
-		);
+		await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
 		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 	});
 
@@ -243,7 +243,9 @@ describe("settings route", () => {
 			.mockRejectedValue(new Error("save failed"));
 		renderSettings();
 
-		fireEvent.click(await screen.findByRole("button", { name: "Privacy & Data" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "Privacy & Data" }),
+		);
 		const toggle = await screen.findByRole("switch", { name: "Watch History" });
 		fireEvent.click(toggle);
 

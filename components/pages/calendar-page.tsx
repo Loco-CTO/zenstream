@@ -701,7 +701,7 @@ function SelectionPanel({
 							{t("calendarOpenEpisode")}
 						</Link>
 					) : (
-						<span className="hidden rounded border border-white/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 sm:inline">
+						<span className="hidden rounded border border-white/[0.08] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40 sm:inline">
 							{event.state === "existing" ? t("calendarCatalog") : t("calendarFuture")}
 						</span>
 					)}

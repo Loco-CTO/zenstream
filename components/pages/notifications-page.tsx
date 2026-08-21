@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
-	Bell,
 	CheckCheck,
 	ChevronDown,
 	AlertTriangle,

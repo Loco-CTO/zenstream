@@ -1412,7 +1412,7 @@ export async function reportPlayback(
 	void isPaused;
 	await catalogRequest(
 		session,
-		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/progress`,
 		{
 			method: "PATCH",
 			body: JSON.stringify({
@@ -1426,6 +1426,20 @@ export async function reportPlayback(
 		},
 	);
 	clearMediaClientCache({ rootEntityId: itemId });
+}
+
+export async function clearWatchHistory(session: AuthSession): Promise<void> {
+	await catalogRequest<null>(session, "/api/account/watch-history", {
+		method: "DELETE",
+	});
+	clearMediaClientCache();
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { type: "catalog.changed", reason: "refresh", rootEntityId: null },
+			}),
+		);
+	}
 }
 
 export async function getPlaybackMarkers(

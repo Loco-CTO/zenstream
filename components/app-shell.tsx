@@ -11,6 +11,7 @@ import {
 	fetchHomeData,
 	clearMediaClientCache,
 	clearMediaClientSession,
+	clearWatchHistory,
 	primeResourceTicket,
 	revokeAuthSession,
 	validateBrowserSession,
@@ -81,10 +82,12 @@ import {
 	getMetadataLanguagePreference,
 	getMetadataLanguages,
 	getPlaybackPreference,
+	getWatchHistoryPreference,
 	getStoredLocale,
 	setLocalePreference,
 	setMetadataLanguagePreference,
 	setPlaybackPreference as savePlaybackPreference,
+	setWatchHistoryPreference as saveWatchHistoryPreference,
 	storeLocale,
 	clearPreferenceCache,
 	type MetadataLanguagePreference,
@@ -131,6 +134,8 @@ export function AppShell() {
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
 	const [playbackPreference, setPlaybackPreference] =
 		useState<PlaybackPreference>(EMPTY_PLAYBACK_PREFERENCE);
+	const [watchHistoryEnabled, setWatchHistoryEnabled] = useState(true);
+	const [watchHistoryLoaded, setWatchHistoryLoaded] = useState(false);
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
@@ -157,6 +162,10 @@ export function AppShell() {
 	const playbackPreferenceMutationQueue = useRef<Promise<void>>(
 		Promise.resolve(),
 	);
+	const watchHistoryEnabledRef = useRef(true);
+	const confirmedWatchHistoryEnabled = useRef(true);
+	const watchHistoryMutationGeneration = useRef(0);
+	const watchHistoryMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const localeMutationGeneration = useRef(0);
 	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const confirmedLocale = useRef<Locale>("en");
@@ -194,6 +203,8 @@ export function AppShell() {
 		const metadataLanguageGeneration = metadataLanguageMutationGeneration.current;
 		const playbackMutationGeneration =
 			playbackPreferenceMutationGeneration.current;
+		const watchHistoryMutationGenerationAtLoad =
+			watchHistoryMutationGeneration.current;
 		const commit = (callback: () => void) => {
 			if (
 				generation === preferencesGeneration.current &&
@@ -227,6 +238,21 @@ export function AppShell() {
 					confirmedPlaybackPreference.current = value;
 					playbackPreferenceRef.current = value;
 					setPlaybackPreference(value);
+				});
+			})
+			.catch(() => undefined);
+		void getWatchHistoryPreference(nextSession)
+			.then((value) => {
+				if (
+					watchHistoryMutationGenerationAtLoad !==
+					watchHistoryMutationGeneration.current
+				)
+					return;
+				commit(() => {
+					confirmedWatchHistoryEnabled.current = value.enabled;
+					watchHistoryEnabledRef.current = value.enabled;
+					setWatchHistoryEnabled(value.enabled);
+					setWatchHistoryLoaded(true);
 				});
 			})
 			.catch(() => undefined);
@@ -585,9 +611,11 @@ export function AppShell() {
 			localeMutationGeneration.current += 1;
 			metadataLanguageMutationGeneration.current += 1;
 			playbackPreferenceMutationGeneration.current += 1;
+			watchHistoryMutationGeneration.current += 1;
 			localeMutationQueue.current = Promise.resolve();
 			metadataLanguageMutationQueue.current = Promise.resolve();
 			playbackPreferenceMutationQueue.current = Promise.resolve();
+			watchHistoryMutationQueue.current = Promise.resolve();
 			detailRefreshGeneration.current += 1;
 			detailRefreshController.current?.abort();
 			sessionRef.current = null;
@@ -597,6 +625,10 @@ export function AppShell() {
 			playbackPreferenceRef.current = EMPTY_PLAYBACK_PREFERENCE;
 			confirmedPlaybackPreference.current = EMPTY_PLAYBACK_PREFERENCE;
 			setPlaybackPreference(EMPTY_PLAYBACK_PREFERENCE);
+			watchHistoryEnabledRef.current = true;
+			confirmedWatchHistoryEnabled.current = true;
+			setWatchHistoryEnabled(true);
+			setWatchHistoryLoaded(false);
 			homeDataRef.current = null;
 			homeTrailingRefresh.current = false;
 			homeTrailingRequest.current = null;
@@ -824,6 +856,46 @@ export function AppShell() {
 		}
 	};
 
+	const handleWatchHistoryChange = async (enabled: boolean) => {
+		const activeSession = session;
+		if (!activeSession) return;
+		const generation = ++watchHistoryMutationGeneration.current;
+		watchHistoryEnabledRef.current = enabled;
+		setWatchHistoryEnabled(enabled);
+		const mutation = watchHistoryMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return saveWatchHistoryPreference(activeSession, enabled);
+		});
+		watchHistoryMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
+		try {
+			const saved = await mutation;
+			if (saved === null || sessionRef.current !== activeSession) return;
+			confirmedWatchHistoryEnabled.current = saved.enabled;
+			setWatchHistoryLoaded(true);
+			if (generation !== watchHistoryMutationGeneration.current) return;
+			watchHistoryEnabledRef.current = saved.enabled;
+			setWatchHistoryEnabled(saved.enabled);
+		} catch (error) {
+			if (
+				generation !== watchHistoryMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			watchHistoryEnabledRef.current = confirmedWatchHistoryEnabled.current;
+			setWatchHistoryEnabled(confirmedWatchHistoryEnabled.current);
+			throw error;
+		}
+	};
+
+	const handleClearWatchHistory = useCallback(async () => {
+		const activeSession = sessionRef.current ?? session;
+		if (!activeSession) return;
+		await clearWatchHistory(activeSession);
+	}, [session]);
+
 	return (
 		<I18nProvider locale={locale}>
 			<ToastProvider>
@@ -867,6 +939,9 @@ export function AppShell() {
 										onMetadataLanguageChange={handleMetadataLanguageChange}
 										playbackPreference={playbackPreference}
 										onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+										watchHistoryEnabled={watchHistoryEnabled}
+										onWatchHistoryChange={handleWatchHistoryChange}
+										onClearWatchHistory={handleClearWatchHistory}
 										onPlaybackPreferenceLoad={() => loadPreferences(session)}
 										onPasswordChanged={handlePasswordChanged}
 										onLogout={handleLogout}
@@ -891,7 +966,12 @@ export function AppShell() {
 											/>
 										)}
 										{status === "ready" && detailData && playId && (
-											<PlayerPage initialData={detailData} session={session} />
+											<PlayerPage
+												initialData={detailData}
+												session={session}
+												watchHistoryEnabled={watchHistoryEnabled}
+												watchHistoryLoaded={watchHistoryLoaded}
+											/>
 										)}
 										{status === "ready" &&
 											detailData &&

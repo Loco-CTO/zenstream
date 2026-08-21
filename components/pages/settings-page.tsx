@@ -7,6 +7,7 @@ import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
 import { ChangePasswordModal } from "@/components/account/change-password-modal";
+import { ClearWatchHistoryModal } from "@/components/account/clear-watch-history-modal";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
@@ -38,6 +39,9 @@ type SettingsPageProps = {
 		value: string | null,
 	) => Promise<void>;
 	onPlaybackPreferenceLoad?: () => void;
+	watchHistoryEnabled?: boolean;
+	onWatchHistoryChange?: (enabled: boolean) => Promise<void>;
+	onClearWatchHistory?: () => Promise<void>;
 	onPasswordChanged?: () => void;
 	onLogout: () => void;
 };
@@ -71,6 +75,9 @@ export function SettingsPage({
 	},
 	onPlaybackPreferenceChange = async () => undefined,
 	onPlaybackPreferenceLoad = () => undefined,
+	watchHistoryEnabled = true,
+	onWatchHistoryChange = async () => undefined,
+	onClearWatchHistory = async () => undefined,
 	onPasswordChanged = () => undefined,
 	onLogout,
 }: SettingsPageProps) {
@@ -89,12 +96,12 @@ export function SettingsPage({
 	} = usePlaybackBehaviorPreferences();
 	const [localeError, setLocaleError] = useState(false);
 	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
-	const [watchHistory, setWatchHistory] = useState(true);
-	const [dataSaver, setDataSaver] = useState(false);
+	const [watchHistoryError, setWatchHistoryError] = useState(false);
 	const [subtitlePreview, setSubtitlePreview] = useState(false);
 	const [section, setSection] = useState<SettingsSectionName>("root");
 	const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 	const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+	const [clearHistoryModalOpen, setClearHistoryModalOpen] = useState(false);
 	const [orchestratorVersion, setOrchestratorVersion] = useState<string | null>(
 		null,
 	);
@@ -144,6 +151,15 @@ export function SettingsPage({
 			await onPlaybackPreferenceChange(field, nextValue);
 		} catch {
 			// The parent restores the last confirmed value and can surface its own error.
+		}
+	};
+
+	const changeWatchHistory = async (enabled: boolean) => {
+		setWatchHistoryError(false);
+		try {
+			await onWatchHistoryChange(enabled);
+		} catch {
+			setWatchHistoryError(true);
 		}
 	};
 
@@ -548,27 +564,25 @@ export function SettingsPage({
 								right={
 									<Toggle
 										label={t("watchHistory")}
-										checked={watchHistory}
-										onChange={setWatchHistory}
+										checked={watchHistoryEnabled}
+										onChange={(value) => void changeWatchHistory(value)}
 									/>
 								}
 							/>
-							<SettingsRow
-								label={t("dataSaver")}
-								sub={t("dataSaverDescription")}
-								right={
-									<Toggle
-										label={t("dataSaver")}
-										checked={dataSaver}
-										onChange={setDataSaver}
-									/>
-								}
-							/>
+							{watchHistoryError && (
+								<p role="alert" className="border-b border-white/5 px-4 pb-3 text-xs text-red-300">
+									{t("watchHistorySaveFailed")}
+								</p>
+							)}
 							<SettingsRow
 								label={t("clearWatchHistory")}
 								border={false}
 								right={
-									<button className="text-xs font-medium text-red-400/70 transition hover:text-red-400">
+									<button
+										type="button"
+										onClick={() => setClearHistoryModalOpen(true)}
+										className="text-xs font-medium text-red-400/70 transition hover:text-red-400"
+									>
 										{t("clear")}
 									</button>
 								}
@@ -615,6 +629,12 @@ export function SettingsPage({
 					session={avatarSession}
 					onClose={() => setPasswordModalOpen(false)}
 					onContinueToLogin={onPasswordChanged}
+				/>
+			)}
+			{clearHistoryModalOpen && (
+				<ClearWatchHistoryModal
+					onClose={() => setClearHistoryModalOpen(false)}
+					onConfirm={onClearWatchHistory}
 				/>
 			)}
 		</>

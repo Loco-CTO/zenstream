@@ -197,7 +197,9 @@ export async function setPlaybackPreference(
 	return next;
 }
 
-function isWatchHistoryPreference(value: unknown): value is WatchHistoryPreference {
+function isWatchHistoryPreference(
+	value: unknown,
+): value is WatchHistoryPreference {
 	return (
 		typeof value === "object" &&
 		value !== null &&

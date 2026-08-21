@@ -203,9 +203,13 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 							type="button"
 							disabled={loadingMore}
 							onClick={() => void load(nextCursor)}
-							className="mx-auto mt-5 flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 text-xs font-semibold text-white/55 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white disabled:opacity-40"
+							className="mx-auto mt-5 flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 text-xs font-semibold text-white/55 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-40 sm:min-h-9"
 						>
-							<ChevronDown className="h-3.5 w-3.5" />
+							{loadingMore ? (
+								<LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+							) : (
+								<ChevronDown className="h-3.5 w-3.5" />
+							)}
 							{loadingMore ? t("loadingMore") : t("loadMore")}
 						</button>
 					)}
@@ -217,11 +221,11 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 
 function NotificationListSkeleton() {
 	return (
-		<div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/20">
+		<div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.025]">
 			{Array.from({ length: 4 }, (_, index) => (
 				<div
 					key={index}
-					className="flex items-start gap-4 border-b border-white/[.06] p-4 last:border-b-0 sm:p-5"
+					className="flex min-h-[88px] items-start gap-3 border-b border-white/[.07] p-4 last:border-b-0 sm:min-h-24 sm:gap-4 sm:px-5"
 				>
 					<div className="h-10 w-10 shrink-0 animate-pulse rounded-xl bg-white/[.06]" />
 					<div className="min-w-0 flex-1 space-y-2.5 pt-1">
@@ -229,6 +233,7 @@ function NotificationListSkeleton() {
 						<div className="h-3 w-1/2 animate-pulse rounded-full bg-white/[.045]" />
 						<div className="h-2.5 w-24 animate-pulse rounded-full bg-white/[.035]" />
 					</div>
+					<div className="h-8 w-16 shrink-0 animate-pulse rounded-full bg-white/[.045]" />
 				</div>
 			))}
 		</div>
@@ -246,13 +251,15 @@ function NotificationRow({
 }) {
 	const { t } = useI18n();
 	const Icon = item.kind === "new_movie" ? Film : Tv;
+	const ActionIcon = item.readAt ? Mail : MailOpen;
+	const actionLabel = t(item.readAt ? "markUnread" : "markRead");
 	const formattedDate = new Intl.DateTimeFormat(locale, {
 		dateStyle: "medium",
 		timeStyle: "short",
 	}).format(new Date(item.createdAt));
 	return (
 		<article
-			className={`group flex items-start gap-3 border-b border-white/[.06] border-l-2 p-4 transition last:border-b-0 sm:gap-4 sm:p-5 ${item.readAt ? "border-l-transparent bg-transparent hover:bg-white/[.035]" : "border-l-violet-300 bg-violet-400/[.055] hover:bg-violet-400/[.09]"}`}
+			className={`group flex min-h-[88px] items-start gap-3 border-b border-white/[.07] border-l-2 p-4 transition last:border-b-0 sm:min-h-24 sm:gap-4 sm:px-5 ${item.readAt ? "border-l-transparent bg-transparent hover:bg-white/[.035]" : "border-l-violet-300 bg-violet-400/[.055] hover:bg-violet-400/[.09]"}`}
 		>
 			<div
 				className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${item.readAt ? "border-white/10 bg-white/[.045] text-white/30" : "border-violet-300/20 bg-violet-300/10 text-violet-200"}`}
@@ -270,21 +277,23 @@ function NotificationRow({
 					>
 						{item.title}
 					</Link>
-					<time className="shrink-0 text-[10px] text-white/25 sm:pt-1">
+					<time className="shrink-0 text-[10px] text-white/50 sm:pt-1">
 						{formattedDate}
 					</time>
 				</div>
 				{item.subtitle && (
-					<p className="mt-1 text-xs leading-5 text-white/40">{item.subtitle}</p>
+					<p className="mt-1 text-xs leading-5 text-white/55">{item.subtitle}</p>
 				)}
 			</div>
 			<button
 				type="button"
-				aria-label={t(item.readAt ? "markUnread" : "markRead")}
+				aria-label={actionLabel}
+				title={actionLabel}
 				onClick={onToggleRead}
-				className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white/30 transition hover:bg-white/[.07] hover:text-white"
+				className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-auto sm:w-auto sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-[10px] sm:font-semibold"
 			>
-				{t(item.readAt ? "markUnread" : "markRead")}
+				<ActionIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+				<span className="hidden sm:inline">{actionLabel}</span>
 			</button>
 		</article>
 	);

@@ -16,6 +16,9 @@ function item(id: string, readAt: string | null = null): NotificationItem {
 		createdAt: "2026-08-21T00:00:00.000Z",
 		readAt,
 		navigationTarget: `/show/${id}`,
+		thumbnail: {
+			url: `/api/catalog/items/${id}/images/Primary?language=en`,
+		},
 	};
 }
 
@@ -52,6 +55,7 @@ describe("NotificationMenu", () => {
 		fireEvent.click(trigger);
 		await waitFor(() => expect(getNotifications).toHaveBeenCalledTimes(1));
 		expect(trigger).toHaveAttribute("aria-expanded", "true");
+		expect(screen.getByTestId("notification-thumbnail-one")).toBeInTheDocument();
 		expect(screen.getByTestId("notification-popup")).toHaveClass(
 			"fixed",
 			"inset-x-3",

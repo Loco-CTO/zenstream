@@ -10,15 +10,15 @@ import {
 } from "react";
 import {
 	AlertTriangle,
-	Film,
 	Inbox,
 	LoaderCircle,
 	Mail,
 	MailOpen,
 	MoreVertical,
 	RefreshCw,
-	Tv,
 } from "lucide-react";
+import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { catalogImage } from "@/lib/media-api";
 import {
 	getNotifications,
 	markAllNotificationsRead,
@@ -284,7 +284,7 @@ export function NotificationListSkeleton({
 					className={`flex items-start gap-3 border-b border-white/[.07] last:border-b-0 ${compact ? "min-h-[76px] px-3 py-3" : "min-h-[88px] p-4 sm:min-h-24 sm:px-5"}`}
 				>
 					<div
-						className={`${compact ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl"} shrink-0 animate-pulse bg-white/[.06]`}
+						className={`${compact ? "h-9 w-16 rounded-lg" : "h-14 w-24 rounded-xl sm:h-16 sm:w-28"} shrink-0 animate-pulse bg-white/[.06]`}
 					/>
 					<div className="min-w-0 flex-1 space-y-2.5 pt-1">
 						<div className="h-3.5 w-3/4 animate-pulse rounded-full bg-white/[.07]" />
@@ -379,13 +379,18 @@ export function NotificationRow({
 	const { t } = useI18n();
 	const [actionsOpen, setActionsOpen] = useState(false);
 	const actionsRef = useRef<HTMLDivElement>(null);
-	const Icon = item.kind === "new_movie" ? Film : Tv;
+	const thumbnail = item.thumbnail?.url
+		? catalogImage(item.thumbnail.url, item.thumbnail.blurHash)
+		: null;
 	const ActionIcon = item.readAt ? Mail : MailOpen;
 	const actionLabel = t(item.readAt ? "markUnread" : "markRead");
-	const formattedDate = new Intl.DateTimeFormat(locale, {
-		dateStyle: compact ? "short" : "medium",
-		timeStyle: compact ? undefined : "short",
-	}).format(new Date(item.createdAt));
+	const parsedDate = new Date(item.createdAt);
+	const formattedDate = Number.isNaN(parsedDate.getTime())
+		? item.createdAt
+		: new Intl.DateTimeFormat(locale, {
+				dateStyle: compact ? "short" : "medium",
+				timeStyle: "short",
+			}).format(parsedDate);
 
 	useEffect(() => {
 		if (!actionsOpen) return;
@@ -402,9 +407,17 @@ export function NotificationRow({
 			className={`group flex items-start gap-2.5 border-b border-white/[.07] border-l-2 transition last:border-b-0 ${compact ? "min-h-[76px] px-3 py-3" : "min-h-[88px] gap-3 p-4 sm:min-h-24 sm:gap-4 sm:px-5"} ${item.readAt ? "border-l-transparent bg-transparent hover:bg-white/[.035]" : "border-l-violet-300 bg-violet-400/[.055] hover:bg-violet-400/[.09]"}`}
 		>
 			<div
-				className={`mt-0.5 flex shrink-0 items-center justify-center border ${compact ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl"} ${item.readAt ? "border-white/10 bg-white/[.045] text-white/30" : "border-violet-300/20 bg-violet-300/10 text-violet-200"}`}
+				data-testid={`notification-thumbnail-${item.id}`}
+				className={`relative mt-0.5 shrink-0 overflow-hidden border ${compact ? "h-9 w-16 rounded-lg" : "h-14 w-24 rounded-xl sm:h-16 sm:w-28"} ${item.readAt ? "border-white/10 bg-white/[.045]" : "border-violet-300/20 bg-violet-300/10"}`}
 			>
-				<Icon className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+				{thumbnail && (
+					<BlurHashImage
+						image={thumbnail}
+						alt=""
+						aria-hidden="true"
+						className="h-full w-full object-cover"
+					/>
+				)}
 			</div>
 			<div className="min-w-0 flex-1">
 				<div className="flex items-start justify-between gap-2">

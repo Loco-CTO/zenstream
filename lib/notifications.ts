@@ -13,6 +13,10 @@ export type NotificationItem = {
 	createdAt: string;
 	readAt?: string | null;
 	navigationTarget: string;
+	thumbnail?: {
+		url: string;
+		blurHash?: string | null;
+	} | null;
 };
 
 export type NotificationPage = {

@@ -1714,6 +1714,17 @@ export function personImageUrl(person: MediaPerson) {
 	return personImage(person);
 }
 
+/** Resolves an authenticated catalog artwork URL returned by the Orchestrator. */
+export function catalogImage(
+	tag: string | null | undefined,
+	blurHash?: string | null,
+): MediaImage | null {
+	if (!tag || !tag.startsWith("/api/")) return null;
+	const url = new URL(tag, orchestratorBaseUrl());
+	addResourceTicket(url.searchParams);
+	return { src: url.toString(), blurHash: blurHash ?? undefined };
+}
+
 export function personImage(person: MediaPerson) {
 	const tag = person.PrimaryImageTag;
 	if (!tag) return null;

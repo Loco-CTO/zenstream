@@ -38,8 +38,6 @@ removeNotification: 通知を削除
 loadMore: さらに読み込む
 follow: フォロー
 unfollow: フォローを解除
-followNotifications: フォローで通知を選択
-followNotificationsDescription: シリーズや映画のフォローから受け取る通知を選択します。
 profile: プロフィール
 settings: 設定
 language: 言語

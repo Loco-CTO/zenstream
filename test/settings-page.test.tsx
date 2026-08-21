@@ -63,6 +63,9 @@ describe("SettingsPage", () => {
 			screen.getByRole("button", { name: "Appearance" }),
 		).toBeInTheDocument();
 		expect(
+			screen.queryByRole("button", { name: "Notifications" }),
+		).not.toBeInTheDocument();
+		expect(
 			screen.queryByRole("region", { name: "Playback" }),
 		).not.toBeInTheDocument();
 

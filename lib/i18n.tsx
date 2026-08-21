@@ -46,8 +46,6 @@ export const TRANSLATION_KEYS = [
 	"loadMore",
 	"follow",
 	"unfollow",
-	"followNotifications",
-	"followNotificationsDescription",
 	"profile",
 	"settings",
 	"language",

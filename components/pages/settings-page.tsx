@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AvatarEditModal } from "@/components/account/avatar-edit-modal";
@@ -52,7 +52,6 @@ type SettingsSectionName =
 	| "appearance"
 	| "playback"
 	| "subtitles"
-	| "notifications"
 	| "privacy"
 	| "versions";
 
@@ -207,11 +206,9 @@ export function SettingsPage({
 										? t("playback")
 										: section === "subtitles"
 											? t("subtitles")
-											: section === "notifications"
-												? t("notifications")
-												: section === "privacy"
-													? t("privacyData")
-													: t("versions")}
+													: section === "privacy"
+														? t("privacyData")
+														: t("versions")}
 					</h1>
 				</header>
 
@@ -545,17 +542,6 @@ export function SettingsPage({
 						</SettingsSection>
 					)}
 
-					{section === "notifications" && (
-						<SettingsSection title={t("notifications")}>
-							<SettingsRow
-								label={t("followNotifications")}
-								sub={t("followNotificationsDescription")}
-								border={false}
-								right={<Bell className="h-4 w-4 text-violet-300/70" />}
-							/>
-						</SettingsSection>
-					)}
-
 					{section === "privacy" && (
 						<SettingsSection title={t("privacyData")}>
 							<SettingsRow
@@ -707,10 +693,6 @@ function SettingsIndex({
 				<SettingsMenuItem
 					label={t("subtitles")}
 					onClick={() => onOpenSection("subtitles")}
-				/>
-				<SettingsMenuItem
-					label={t("notifications")}
-					onClick={() => onOpenSection("notifications")}
 				/>
 				<SettingsMenuItem
 					label={t("privacyData")}

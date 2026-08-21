@@ -36,8 +36,6 @@ removeNotification: Remove notification
 loadMore: Load more
 follow: Follow
 unfollow: Unfollow
-followNotifications: Follow controls notification selection
-followNotificationsDescription: Use Follow on a series or movie to choose what appears in your inbox.
 profile: Profile
 settings: Settings
 language: Language

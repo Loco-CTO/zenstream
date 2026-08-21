@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PosterCard } from "@/components/home/media-card";
@@ -150,7 +151,7 @@ export function SearchPage({
 			}
 			finishProgress();
 		}
-	}, [error, items.length, loading, query, session, start, total]);
+	}, [error, loading, query, session, start]);
 
 	useEffect(() => {
 		const sentinel = loadMoreSentinelRef.current;

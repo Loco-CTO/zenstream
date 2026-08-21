@@ -38,14 +38,6 @@ removeNotification: 通知を削除
 loadMore: さらに読み込む
 follow: フォロー
 unfollow: フォローを解除
-browserNotifications: ブラウザー通知
-browserNotificationsDescription: 新しいフォロー通知をブラウザーのプッシュ通知で受け取ります。
-browserNotificationsEnabled: 有効 · 無効にする
-browserNotificationsUnavailable: 未設定
-browserNotificationsBlocked: ブラウザーの権限がブロックされています
-browserNotificationsUnsupported: このブラウザーでは利用できません
-browserNotificationsRetry: 再試行
-enableBrowserNotifications: 有効にする
 followNotifications: フォローで通知を選択
 followNotificationsDescription: シリーズや映画のフォローから受け取る通知を選択します。
 profile: プロフィール

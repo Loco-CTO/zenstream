@@ -36,14 +36,6 @@ removeNotification: Remove notification
 loadMore: Load more
 follow: Follow
 unfollow: Unfollow
-browserNotifications: Browser notifications
-browserNotificationsDescription: Deliver new Follow notifications as browser push messages.
-browserNotificationsEnabled: Enabled · Disable
-browserNotificationsUnavailable: Not configured
-browserNotificationsBlocked: Browser permission is blocked
-browserNotificationsUnsupported: Not supported in this browser
-browserNotificationsRetry: Retry
-enableBrowserNotifications: Enable
 followNotifications: Follow controls notification selection
 followNotificationsDescription: Use Follow on a series or movie to choose what appears in your inbox.
 profile: Profile

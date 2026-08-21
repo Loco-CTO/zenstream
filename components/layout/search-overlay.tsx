@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getSearchItems, posterImage, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
@@ -111,18 +111,8 @@ export function SearchOverlay({
 							<X className="h-4 w-4" />
 						</button>
 					</div>
-					{(loading || error || resultQuery) && (
+					{(error || resultQuery) && (
 						<div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-black/25 p-1 shadow-2xl backdrop-blur-xl">
-							{loading && (
-								<div
-									role="status"
-									aria-label={t("searchLoading")}
-									className="flex items-center gap-2 px-3 py-2 text-xs text-white/45"
-								>
-									<LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-									{t("searchLoading")}
-								</div>
-							)}
 							{error && (
 								<p className="px-4 py-3 text-xs text-red-200/70">
 									{t("searchLoadFailed")}

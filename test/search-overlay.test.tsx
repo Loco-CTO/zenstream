@@ -62,10 +62,7 @@ describe("SearchOverlay", () => {
 		fireEvent.change(input, { target: { value: "ab" } });
 		await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 		expect(screen.getByText("Alpha")).toBeInTheDocument();
-		expect(screen.getByRole("status")).toHaveAttribute(
-			"aria-label",
-			"Searching...",
-		);
+		expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
 		second.resolve([item("two", "About Time")]);
 		await screen.findByText("About Time");

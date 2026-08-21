@@ -3,9 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const catalogRequest = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/catalog", async () => {
-	const actual = await vi.importActual<typeof import("@/lib/catalog")>(
-		"@/lib/catalog",
-	);
+	const actual =
+		await vi.importActual<typeof import("@/lib/catalog")>("@/lib/catalog");
 	return { ...actual, catalogRequest };
 });
 
@@ -97,20 +96,20 @@ describe("catalog events", () => {
 		firstSocket.emit(status);
 		firstSocket.emit(status);
 		await vi.advanceTimersByTimeAsync(250);
-			expect(changes).toHaveLength(1);
+		expect(changes).toHaveLength(1);
 
 		firstSocket.emit(
 			'{"type":"catalog.updated","libraryId":"tv","rootEntityId":"series-1","reason":"refresh"}',
 		);
 		await vi.advanceTimersByTimeAsync(250);
-			expect(changes).toHaveLength(2);
+		expect(changes).toHaveLength(2);
 
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(1_000);
 		await vi.waitFor(() => expect(TestWebSocket.instances).toHaveLength(2));
 		TestWebSocket.instances[1].emit(status);
 		await vi.advanceTimersByTimeAsync(250);
-			expect(changes).toHaveLength(3);
+		expect(changes).toHaveLength(3);
 
 		stop();
 		window.removeEventListener("zenstream:catalog-changed", handleChange);

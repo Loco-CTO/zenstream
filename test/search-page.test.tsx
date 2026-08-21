@@ -15,9 +15,8 @@ vi.mock("@/lib/i18n", () => ({
 }));
 
 vi.mock("@/lib/media-api", async () => {
-	const actual = await vi.importActual<typeof import("@/lib/media-api")>(
-		"@/lib/media-api",
-	);
+	const actual =
+		await vi.importActual<typeof import("@/lib/media-api")>("@/lib/media-api");
 	return { ...actual, getSearchItems: vi.fn() };
 });
 

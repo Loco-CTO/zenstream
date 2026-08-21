@@ -69,9 +69,9 @@ describe("search route", () => {
 		});
 		vi.spyOn(sessionApi, "setAuthCookies").mockImplementation(() => undefined);
 		vi.spyOn(mediaApi, "primeResourceTicket").mockResolvedValue(null);
-		vi.spyOn(subtitlePreferences, "getSubtitlePreference").mockResolvedValue(
-			DEFAULT_SUBTITLE_STYLE,
-		);
+		vi
+			.spyOn(subtitlePreferences, "getSubtitlePreference")
+			.mockResolvedValue(DEFAULT_SUBTITLE_STYLE);
 	});
 
 	it("updates the mounted results page when only the q parameter changes", async () => {

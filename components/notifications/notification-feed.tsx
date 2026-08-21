@@ -496,12 +496,24 @@ export function NotificationRow({
 									setActionsOpen(false);
 									onToggleRead();
 								}}
-								className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-white/70 transition hover:bg-white/[.08] hover:text-white"
-							>
-								<ActionIcon className="h-3.5 w-3.5" />
-								{actionLabel}
-							</button>
-						</div>
+									className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-white/70 transition hover:bg-white/[.08] hover:text-white"
+								>
+									<ActionIcon className="h-3.5 w-3.5" />
+									{actionLabel}
+								</button>
+								<button
+									type="button"
+									role="menuitem"
+									onClick={() => {
+										setActionsOpen(false);
+										onRemove();
+									}}
+									className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[10px] text-red-200/75 transition hover:bg-red-400/[.08] hover:text-red-100"
+								>
+									<Trash2 className="h-3.5 w-3.5" />
+									{t("removeNotification")}
+								</button>
+							</div>
 					)}
 				</div>
 			) : (

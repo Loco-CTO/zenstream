@@ -73,6 +73,7 @@ export function useNotificationFeed(
 		loadingRef.current = true;
 		loadingMoreRef.current = false;
 		nextCursorRef.current = null;
+		await Promise.resolve();
 		setLoading(true);
 		setLoadingMore(false);
 		setError(null);

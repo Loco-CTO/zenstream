@@ -197,7 +197,7 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 								/>
 							))}
 						</div>
-					)}
+					) : null}
 					{nextCursor && !loading && !error && (
 						<button
 							type="button"

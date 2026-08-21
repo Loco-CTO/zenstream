@@ -69,8 +69,12 @@ describe("NotificationsPage", () => {
 		expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
 
 		fireEvent.click(actions);
-		expect(screen.getByRole("menuitem", { name: "Mark as read" })).toBeInTheDocument();
-		expect(screen.getByRole("menuitem", { name: "Remove notification" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("menuitem", { name: "Mark as read" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("menuitem", { name: "Remove notification" }),
+		).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole("menuitem", { name: "Mark as read" }));
 		await waitFor(() =>

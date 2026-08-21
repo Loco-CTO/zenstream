@@ -758,7 +758,7 @@ export function VideoPlayer({
 	}, [session, viewerSessionId]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
-			if (watchHistoryLoaded && !watchHistoryEnabled) return;
+			if (!watchHistoryEnabled) return;
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
 				return;
 			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
@@ -773,7 +773,7 @@ export function VideoPlayer({
 				durationSeconds,
 			).catch(() => undefined);
 		},
-		[duration, item.Id, knownDuration, session, watchHistoryEnabled, watchHistoryLoaded],
+		[duration, item.Id, knownDuration, session, watchHistoryEnabled],
 	);
 	const updateBufferedRanges = useCallback(
 		(video: HTMLVideoElement) => {

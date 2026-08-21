@@ -118,10 +118,7 @@ export function SearchOverlay({
 									{t("searchLoadFailed")}
 								</p>
 							)}
-							{!loading &&
-								!error &&
-								suggestions.length === 0 &&
-								resultQuery === query.trim() && (
+							{!error && suggestions.length === 0 && resultQuery && (
 									<p className="px-4 py-3 text-xs text-white/45">
 										{t("noSearchResults")}
 									</p>

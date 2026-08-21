@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Bookmark, Check, Play } from "lucide-react";
+import { Check, Play } from "lucide-react";
 import {
 	landscapeImage,
 	seriesPosterImage,
-	setFollowing,
 	type MediaItem,
 } from "@/lib/media-api";
 import { progressPercent, subtitle } from "@/lib/media";
@@ -223,27 +221,6 @@ export function MediaCardOverlay({
 	const router = useRouter();
 	const { t } = useI18n();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
-	const [followingOverride, setFollowingOverride] = useState<{
-		itemId: string;
-		value: boolean;
-	} | null>(null);
-	const following =
-		followingOverride?.itemId === item?.Id
-			? (followingOverride?.value ?? false)
-			: Boolean(item?.UserData?.IsFollowing);
-
-	async function toggleFollowing(event: React.MouseEvent<HTMLButtonElement>) {
-		event.preventDefault();
-		event.stopPropagation();
-		if (!item || !session) return;
-		const next = !following;
-		setFollowingOverride({ itemId: item.Id, value: next });
-		try {
-			await setFollowing(session, item.Id, next);
-		} catch {
-			setFollowingOverride({ itemId: item.Id, value: following });
-		}
-	}
 
 	return (
 		<div

@@ -49,10 +49,6 @@ export function NotificationMenu({
 	}, [session]);
 
 	useEffect(() => {
-		if (open && feed.loaded) setSummaryUnreadCount(feed.unreadCount);
-	}, [feed.loaded, feed.unreadCount, open]);
-
-	useEffect(() => {
 		if (!open) return;
 		const closeOnOutsideClick = (event: PointerEvent) => {
 			const target = event.target as Node;
@@ -74,7 +70,8 @@ export function NotificationMenu({
 		};
 	}, [open]);
 
-	const badge = summaryUnreadCount > 99 ? "99+" : summaryUnreadCount;
+	const badgeCount = open && feed.loaded ? feed.unreadCount : summaryUnreadCount;
+	const badge = badgeCount > 99 ? "99+" : badgeCount;
 
 	if (!session) {
 		return (

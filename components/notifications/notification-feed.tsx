@@ -487,7 +487,7 @@ export function NotificationRow({
 				{actionsOpen && (
 					<div
 						role="menu"
-						className={`absolute right-0 z-10 min-w-36 overflow-hidden rounded-lg border border-white/10 bg-black/70 p-1 shadow-2xl shadow-black/50 backdrop-blur-xl ${compact ? "top-9" : "top-10"}`}
+						className={`absolute right-0 z-10 min-w-36 overflow-hidden rounded-lg border border-white/10 bg-black p-1 shadow-2xl shadow-black/50 ${compact ? "top-9" : "top-10"}`}
 					>
 						<button
 							type="button"

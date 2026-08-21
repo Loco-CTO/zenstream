@@ -100,7 +100,7 @@ export function NotificationMenu({
 				className={`relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${displayPath === "/notifications" || open ? "text-white" : ""}`}
 			>
 				<Bell className="h-[22px] w-[22px]" />
-				{summaryUnreadCount > 0 && (
+				{badgeCount > 0 && (
 					<span className="absolute right-2 top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-violet-400 px-0.5 text-[9px] font-bold leading-none text-black">
 						{badge}
 					</span>
@@ -126,7 +126,7 @@ export function NotificationMenu({
 							</p>
 							{summaryUnreadCount > 0 && (
 								<p className="mt-0.5 text-[10px] text-white/40">
-									{summaryUnreadCount} {t("unreadNotifications")}
+									{badgeCount} {t("unreadNotifications")}
 								</p>
 							)}
 						</div>

@@ -266,9 +266,13 @@ describe("SettingsPage", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /Account/ }));
 		fireEvent.click(screen.getByRole("button", { name: "Change Password" }));
-		expect(screen.getByRole("dialog", { name: "Change Password" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("dialog", { name: "Change Password" }),
+		).toBeInTheDocument();
 
-		fireEvent.pointerDown(document.body);
+		fireEvent.pointerDown(
+			screen.getByRole("dialog", { name: "Change Password" }).parentElement!,
+		);
 
 		expect(
 			screen.queryByRole("dialog", { name: "Change Password" }),

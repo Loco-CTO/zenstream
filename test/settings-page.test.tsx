@@ -147,6 +147,100 @@ describe("SettingsPage", () => {
 		);
 	});
 
+	it("uses the persisted Watch History toggle and removes Data Saver", async () => {
+		const onWatchHistoryChange = vi.fn().mockResolvedValue(undefined);
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				locale="en"
+				onLocaleChange={vi.fn()}
+				watchHistoryEnabled
+				onWatchHistoryChange={onWatchHistoryChange}
+				onLogout={() => undefined}
+			/>,
+		);
+
+		openSection("Privacy & Data");
+		const toggle = screen.getByRole("switch", { name: "Watch History" });
+		expect(toggle).toHaveAttribute("aria-checked", "true");
+		fireEvent.click(toggle);
+		await waitFor(() =>
+			expect(onWatchHistoryChange).toHaveBeenCalledWith(false),
+		);
+		expect(toggle).toHaveAttribute("aria-checked", "true");
+		expect(screen.queryByText("Data Saver")).not.toBeInTheDocument();
+	});
+
+	it("requires confirmation before clearing watch history", async () => {
+		const onClearWatchHistory = vi.fn().mockResolvedValue(undefined);
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				locale="en"
+				onLocaleChange={vi.fn()}
+				onClearWatchHistory={onClearWatchHistory}
+				onLogout={() => undefined}
+			/>,
+		);
+
+		openSection("Privacy & Data");
+		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		const dialog = screen.getByRole("dialog", { name: "Clear watch history?" });
+		expect(dialog).toHaveTextContent(
+			"This permanently removes your playback progress, watched status, play counts, and watched timestamps. This action is irreversible.",
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+		expect(onClearWatchHistory).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.pointerDown(screen.getByRole("dialog").parentElement!);
+		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+		expect(onClearWatchHistory).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.keyDown(window, { key: "Escape" });
+		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear watch history", exact: true }),
+		);
+		await waitFor(() => expect(onClearWatchHistory).toHaveBeenCalledOnce());
+		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+	});
+
+	it("keeps the clear modal open and reports failures", async () => {
+		const onClearWatchHistory = vi
+			.fn()
+			.mockRejectedValue(new Error("clear failed"));
+		render(
+			<SettingsPage
+				displayName="Alex"
+				userId="user-1"
+				locale="en"
+				onLocaleChange={vi.fn()}
+				onClearWatchHistory={onClearWatchHistory}
+				onLogout={() => undefined}
+			/>,
+		);
+
+		openSection("Privacy & Data");
+		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear watch history", exact: true }),
+		);
+		await waitFor(() =>
+			expect(screen.getByRole("alert")).toHaveTextContent(
+				"Could not clear watch history. Please try again.",
+			),
+		);
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+	});
+
 	it("shows subtitle controls only in the Subtitles category and saves changes", async () => {
 		const style = {
 			renderer: "native" as const,

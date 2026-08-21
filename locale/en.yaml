@@ -183,10 +183,13 @@ watchRemindersDescription: Nudges to continue watching
 appUpdates: App Updates & News
 privacyData: Privacy & Data
 watchHistory: Watch History
-watchHistoryDescription: Used to personalize recommendations
-dataSaver: Data Saver
-dataSaverDescription: Reduces streaming quality on mobile
+watchHistoryDescription: Automatically saves playback progress and watched status
+watchHistorySaveFailed: Could not save the Watch History setting.
 clearWatchHistory: Clear Watch History
+clearWatchHistoryTitle: Clear watch history?
+clearWatchHistoryDescription: This permanently removes your playback progress, watched status, play counts, and watched timestamps. This action is irreversible.
+clearWatchHistoryConfirm: Clear watch history
+clearWatchHistoryFailed: Could not clear watch history. Please try again.
 clear: Clear
 dangerZone: Danger Zone
 versions: Versions

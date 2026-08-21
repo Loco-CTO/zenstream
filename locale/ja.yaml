@@ -175,10 +175,13 @@ watchRemindersDescription: 視聴の続きをお知らせします
 appUpdates: アプリの更新とニュース
 privacyData: プライバシーとデータ
 watchHistory: 視聴履歴
-watchHistoryDescription: おすすめのパーソナライズに使用します
-dataSaver: データセーバー
-dataSaverDescription: モバイルでのストリーミング品質を下げます
+watchHistoryDescription: 再生の進捗と視聴済み状態を自動的に保存します
+watchHistorySaveFailed: 視聴履歴の設定を保存できませんでした。
 clearWatchHistory: 視聴履歴を消去
+clearWatchHistoryTitle: 視聴履歴を消去しますか？
+clearWatchHistoryDescription: 再生の進捗、視聴済み状態、再生回数、視聴日時を完全に削除します。この操作は元に戻せません。
+clearWatchHistoryConfirm: 視聴履歴を消去
+clearWatchHistoryFailed: 視聴履歴を消去できませんでした。もう一度お試しください。
 clear: 消去
 dangerZone: 危険な操作
 versions: バージョン

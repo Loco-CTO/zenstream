@@ -70,6 +70,8 @@ type Props = {
 	initialAudioStreamId?: number;
 	initialSubtitleStreamIndex?: number | null;
 	initialStreams?: ReturnType<typeof playbackStreams>;
+	watchHistoryEnabled?: boolean;
+	watchHistoryLoaded?: boolean;
 	onClose: () => void;
 	onNext?: (item: MediaItem) => void;
 	onPlayedChange?: (played: boolean) => void;
@@ -393,6 +395,8 @@ export function VideoPlayer({
 	initialAudioStreamId,
 	initialSubtitleStreamIndex,
 	initialStreams,
+	watchHistoryEnabled = true,
+	watchHistoryLoaded = false,
 	onClose,
 	onNext,
 	onPlayedChange,
@@ -754,6 +758,7 @@ export function VideoPlayer({
 	}, [session, viewerSessionId]);
 	const reportCurrentProgress = useCallback(
 		(video: HTMLVideoElement | null) => {
+			if (watchHistoryLoaded && !watchHistoryEnabled) return;
 			if (!video || !Number.isFinite(video.currentTime) || video.currentTime <= 0)
 				return;
 			const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0;
@@ -768,7 +773,7 @@ export function VideoPlayer({
 				durationSeconds,
 			).catch(() => undefined);
 		},
-		[duration, item.Id, knownDuration, session],
+		[duration, item.Id, knownDuration, session, watchHistoryEnabled, watchHistoryLoaded],
 	);
 	const updateBufferedRanges = useCallback(
 		(video: HTMLVideoElement) => {
@@ -1879,7 +1884,13 @@ export function VideoPlayer({
 	}
 	function handlePlay() {
 		setPlaying(true);
-		if (!item.UserData?.Played || clearedPlayedRef.current) return;
+		if (
+			!watchHistoryLoaded ||
+			!watchHistoryEnabled ||
+			!item.UserData?.Played ||
+			clearedPlayedRef.current
+		)
+			return;
 		clearedPlayedRef.current = true;
 		void setPlayed(session, item.Id, false)
 			.then(() => onPlayedChange?.(false))

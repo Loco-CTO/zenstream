@@ -43,6 +43,8 @@ import {
 	getPlaybackInfo,
 	getSeasons,
 	playbackStreams,
+	reportPlayback,
+	setPlayed,
 	type MediaItem,
 } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
@@ -57,6 +59,8 @@ vi.mock("@/lib/media-api", async () => {
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getSeasons: vi.fn().mockResolvedValue([]),
 		getTrickplayInfo: vi.fn().mockResolvedValue(undefined),
+		reportPlayback: vi.fn().mockResolvedValue(undefined),
+		setPlayed: vi.fn().mockResolvedValue(undefined),
 		playbackStreams: vi.fn().mockReturnValue({
 			source: { TranscodingUrl: "/video.m3u8" },
 			audio: [],
@@ -126,6 +130,8 @@ describe("video player controls", () => {
 			.mockReturnValue(defaultPlaybackStreams);
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
+		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);
+		vi.mocked(setPlayed).mockReset().mockResolvedValue(undefined);
 	});
 	afterEach(() => vi.useRealTimers());
 
@@ -209,6 +215,65 @@ describe("video player controls", () => {
 		);
 		return { view, onNext, onClose };
 	}
+
+	it("suppresses automatic history writes and replay unwatch when disabled", () => {
+		const videoItem = {
+			Id: "movie",
+			Name: "Movie",
+			Type: "Movie",
+			UserData: { Played: true },
+		} as MediaItem;
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={videoItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						watchHistoryEnabled={false}
+						watchHistoryLoaded
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		const video = container.querySelector("video")!;
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			value: 15,
+		});
+		fireEvent.pause(video);
+		fireEvent.play(video);
+
+		expect(reportPlayback).not.toHaveBeenCalled();
+		expect(setPlayed).not.toHaveBeenCalled();
+	});
+
+	it("does not unwatch on replay until Watch History has loaded", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{
+								Id: "movie",
+								Name: "Movie",
+								Type: "Movie",
+								UserData: { Played: true },
+							} as MediaItem
+						}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						watchHistoryEnabled
+						watchHistoryLoaded={false}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		fireEvent.play(container.querySelector("video")!);
+		expect(setPlayed).not.toHaveBeenCalled();
+	});
 
 	it("detects when an active Syncplay member is waiting", () => {
 		const group = {

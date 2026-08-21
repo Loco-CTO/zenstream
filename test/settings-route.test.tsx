@@ -71,6 +71,9 @@ describe("settings route", () => {
 		vi
 			.spyOn(preferences, "getPlaybackPreference")
 			.mockResolvedValue(playbackPreference);
+		vi
+			.spyOn(preferences, "getWatchHistoryPreference")
+			.mockResolvedValue({ enabled: true });
 	});
 
 	it("does not render the home navigation while home data is loading", async () => {
@@ -206,6 +209,50 @@ describe("settings route", () => {
 				screen.getByRole("combobox", { name: "Subtitle Language" }),
 			).toHaveTextContent("Japanese"),
 		);
+	});
+
+	it("serializes Watch History changes and keeps the latest value", async () => {
+		const first = deferred<preferences.WatchHistoryPreference>();
+		const second = deferred<preferences.WatchHistoryPreference>();
+		const save = vi
+			.spyOn(preferences, "setWatchHistoryPreference")
+			.mockImplementationOnce(() => first.promise)
+			.mockImplementationOnce(() => second.promise);
+		renderSettings();
+
+		fireEvent.click(await screen.findByRole("button", { name: "Privacy & Data" }));
+		const toggle = await screen.findByRole("switch", { name: "Watch History" });
+		fireEvent.click(toggle);
+		fireEvent.click(toggle);
+
+		await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+		expect(save.mock.calls[0]?.[1]).toBe(false);
+		await act(async () => first.resolve({ enabled: false }));
+		await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+		expect(save.mock.calls[1]?.[1]).toBe(true);
+		await act(async () => second.resolve({ enabled: true }));
+		await waitFor(() =>
+			expect(toggle).toHaveAttribute("aria-checked", "true"),
+		);
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+	});
+
+	it("rolls Watch History back when saving fails", async () => {
+		vi
+			.spyOn(preferences, "setWatchHistoryPreference")
+			.mockRejectedValue(new Error("save failed"));
+		renderSettings();
+
+		fireEvent.click(await screen.findByRole("button", { name: "Privacy & Data" }));
+		const toggle = await screen.findByRole("switch", { name: "Watch History" });
+		fireEvent.click(toggle);
+
+		await waitFor(() =>
+			expect(screen.getByRole("alert")).toHaveTextContent(
+				"Could not save the Watch History setting.",
+			),
+		);
+		expect(toggle).toHaveAttribute("aria-checked", "true");
 	});
 
 	it("serializes metadata-language changes and ignores a stale failed mutation", async () => {

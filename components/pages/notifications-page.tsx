@@ -70,6 +70,7 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 									item={item}
 									locale={locale}
 									onToggleRead={() => void feed.toggleRead(item)}
+									onRemove={() => void feed.remove(item)}
 								/>
 							))}
 						</div>

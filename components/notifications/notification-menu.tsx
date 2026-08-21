@@ -164,6 +164,7 @@ export function NotificationMenu({
 									locale={locale}
 									compact
 									onToggleRead={() => void feed.toggleRead(item)}
+									onRemove={() => void feed.remove(item)}
 									onNavigate={() => setOpen(false)}
 								/>
 							))

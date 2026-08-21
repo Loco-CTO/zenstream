@@ -517,16 +517,28 @@ export function NotificationRow({
 					)}
 				</div>
 			) : (
-				<button
-					type="button"
-					aria-label={actionLabel}
-					title={actionLabel}
-					onClick={onToggleRead}
-					className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-auto sm:w-auto sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-[10px] sm:font-semibold"
-				>
-					<ActionIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-					<span className="hidden sm:inline">{actionLabel}</span>
-				</button>
+				<div className="flex shrink-0 items-center gap-1">
+					<button
+						type="button"
+						aria-label={actionLabel}
+						title={actionLabel}
+						onClick={onToggleRead}
+						className="flex h-11 w-11 items-center justify-center rounded-full text-white/55 transition hover:bg-white/[.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-auto sm:w-auto sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-[10px] sm:font-semibold"
+					>
+						<ActionIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+						<span className="hidden sm:inline">{actionLabel}</span>
+					</button>
+					<button
+						type="button"
+						aria-label={t("removeNotification")}
+						title={t("removeNotification")}
+						onClick={onRemove}
+						className="flex h-11 w-11 items-center justify-center rounded-full text-red-200/60 transition hover:bg-red-400/[.08] hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-auto sm:w-auto sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-[10px] sm:font-semibold"
+					>
+						<Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+						<span className="hidden sm:inline">{t("removeNotification")}</span>
+					</button>
+				</div>
 			)}
 		</article>
 	);

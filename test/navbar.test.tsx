@@ -1,5 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { vi } from "vitest";
 import { Navbar } from "@/components/layout/navbar";
+import * as notifications from "@/lib/notifications";
 
 describe("Navbar", () => {
 	const renderNavbar = () =>
@@ -86,6 +88,38 @@ describe("Navbar", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Groups" }));
 
 		expect(screen.getByTestId("syncplay-group-popup")).toHaveClass(
+			"fixed",
+			"inset-x-3",
+			"md:absolute",
+		);
+	});
+
+	it("opens the notification modal from the authenticated bell", async () => {
+		vi.spyOn(notifications, "getNotificationSummary").mockResolvedValue({
+			unreadCount: 0,
+		});
+		vi.spyOn(notifications, "getNotifications").mockResolvedValue({
+			items: [],
+			unreadCount: 0,
+			nextCursor: null,
+		});
+
+		render(
+			<Navbar
+				displayName="Test User"
+				userId="user-123"
+				onLogout={() => undefined}
+				session={{ token: "token", userId: "user-123", username: "Test User" }}
+			/>,
+		);
+		const trigger = screen.getByRole("button", { name: "Notifications" });
+		fireEvent.click(trigger);
+
+		await waitFor(() =>
+			expect(screen.getByTestId("notification-popup")).toBeInTheDocument(),
+		);
+		expect(trigger).toHaveAttribute("aria-expanded", "true");
+		expect(screen.getByTestId("notification-popup")).toHaveClass(
 			"fixed",
 			"inset-x-3",
 			"md:absolute",

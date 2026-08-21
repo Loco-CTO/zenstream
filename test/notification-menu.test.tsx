@@ -168,12 +168,16 @@ describe("NotificationMenu", () => {
 		renderMenu();
 		fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
 		await screen.findByRole("link", { name: "Episode one" });
+		fireEvent.click(screen.getByRole("button", { name: "Notification actions" }));
 		fireEvent.click(
-			screen.getByRole("button", { name: "Notification actions" }),
+			screen.getByRole("menuitem", { name: "Remove notification" }),
 		);
-		fireEvent.click(screen.getByRole("menuitem", { name: "Remove notification" }));
 
-		await waitFor(() => expect(deleteNotification).toHaveBeenCalledWith(session, "one"));
-		expect(screen.queryByRole("link", { name: "Episode one" })).not.toBeInTheDocument();
+		await waitFor(() =>
+			expect(deleteNotification).toHaveBeenCalledWith(session, "one"),
+		);
+		expect(
+			screen.queryByRole("link", { name: "Episode one" }),
+		).not.toBeInTheDocument();
 	});
 });

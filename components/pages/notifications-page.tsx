@@ -110,21 +110,9 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 			<div className="mx-auto max-w-3xl">
 				<header className="mb-8 flex flex-col items-start gap-4 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-end sm:justify-between">
 					<div className="min-w-0">
-						<div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-violet-300/65">
-							<Bell className="h-3.5 w-3.5" />
-							{t("notifications")}
-							{unreadCount > 0 && (
-								<span className="rounded-full bg-violet-400/15 px-2 py-0.5 text-[10px] font-bold tracking-normal text-violet-200">
-									{unreadCount > 99 ? "99+" : unreadCount}
-								</span>
-							)}
-						</div>
 						<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
 							{t("notificationInbox")}
 						</h1>
-						<p className="mt-3 max-w-2xl text-sm leading-6 text-white/40">
-							{t("notificationInboxDescription")}
-						</p>
 					</div>
 					<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
 						{unreadCount > 0 && (

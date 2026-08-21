@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useCallback, useContext, type ReactNode } from "react";
 import en from "@/locale/en.yaml";
 import ja from "@/locale/ja.yaml";
 
@@ -337,9 +337,13 @@ export function I18nProvider({
 
 export function useI18n() {
 	const locale = useContext(I18nContext);
+	const t = useCallback(
+		(key: TranslationKey, values?: Record<string, string | number>) =>
+			translate(locale, key, values),
+		[locale],
+	);
 	return {
 		locale,
-		t: (key: TranslationKey, values?: Record<string, string | number>) =>
-			translate(locale, key, values),
+		t,
 	};
 }

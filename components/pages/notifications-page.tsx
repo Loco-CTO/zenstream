@@ -2,7 +2,19 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Bell, CheckCheck, RefreshCw } from "lucide-react";
+import {
+	Bell,
+	CheckCheck,
+	ChevronDown,
+	AlertTriangle,
+	Film,
+	Inbox,
+	LoaderCircle,
+	Mail,
+	MailOpen,
+	RefreshCw,
+	Tv,
+} from "lucide-react";
 import {
 	getNotifications,
 	markAllNotificationsRead,
@@ -94,29 +106,32 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 	}
 
 	return (
-		<main className="min-h-screen px-4 pb-24 pt-24 md:px-12 md:pt-28">
+		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8 md:pt-28">
 			<div className="mx-auto max-w-3xl">
-				<div className="mb-8 flex items-start justify-between gap-4">
-					<div>
-						<div className="mb-2 flex items-center gap-2 text-violet-300">
-							<Bell className="h-4 w-4" />
-							<span className="text-xs font-semibold uppercase tracking-[.14em]">
-								{t("notifications")}
-							</span>
+				<header className="mb-8 flex flex-col items-start gap-4 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-end sm:justify-between">
+					<div className="min-w-0">
+						<div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-violet-300/65">
+							<Bell className="h-3.5 w-3.5" />
+							{t("notifications")}
+							{unreadCount > 0 && (
+								<span className="rounded-full bg-violet-400/15 px-2 py-0.5 text-[10px] font-bold tracking-normal text-violet-200">
+									{unreadCount > 99 ? "99+" : unreadCount}
+								</span>
+							)}
 						</div>
-						<h1 className="text-3xl font-black tracking-tight text-white">
+						<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
 							{t("notificationInbox")}
 						</h1>
-						<p className="mt-2 text-sm text-white/40">
+						<p className="mt-3 max-w-2xl text-sm leading-6 text-white/40">
 							{t("notificationInboxDescription")}
 						</p>
 					</div>
-					<div className="flex shrink-0 items-center gap-2">
+					<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
 						{unreadCount > 0 && (
 							<button
 								type="button"
 								onClick={() => void markAllRead()}
-								className="flex items-center gap-2 rounded border border-white/10 px-3 py-2 text-xs font-semibold text-white/60 transition hover:border-white/25 hover:text-white"
+								className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3.5 text-xs font-semibold text-white/60 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:min-h-9 sm:flex-none"
 							>
 								<CheckCheck className="h-3.5 w-3.5" />
 								{t("markAllRead")}
@@ -126,55 +141,97 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 							type="button"
 							aria-label={t("retry")}
 							onClick={() => void load()}
-							className="rounded p-2 text-white/35 transition hover:bg-white/[.06] hover:text-white"
+							className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/40 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-9 sm:w-9"
 						>
-							<RefreshCw className="h-4 w-4" />
+							<RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
 						</button>
 					</div>
-				</div>
+				</header>
 
-				{error ? (
-					<div className="rounded-lg border border-red-400/20 bg-red-400/[.05] p-5 text-sm text-red-100">
-						{error}
-					</div>
-				) : loading ? (
-					<div className="py-20 text-center text-sm text-white/30">
-						{t("loadingMore")}
-					</div>
-				) : items.length === 0 ? (
-					<div className="flex flex-col items-center rounded-xl border border-white/[.08] bg-white/[.02] px-6 py-20 text-center">
-						<Bell className="mb-4 h-8 w-8 text-white/15" />
-						<p className="text-sm font-semibold text-white/60">
-							{t("notificationsEmpty")}
-						</p>
-						<p className="mt-2 max-w-sm text-xs text-white/30">
-							{t("notificationsEmptyDescription")}
-						</p>
-					</div>
-				) : (
-					<div className="overflow-hidden rounded-xl border border-white/[.08] bg-white/[.02]">
-						{items.map((item) => (
-							<NotificationRow
-								key={item.id}
-								item={item}
-								locale={locale}
-								onToggleRead={() => void toggleRead(item)}
-							/>
-						))}
-					</div>
-				)}
-				{nextCursor && !loading && (
-					<button
-						type="button"
-						disabled={loadingMore}
-						onClick={() => void load(nextCursor)}
-						className="mx-auto mt-5 block rounded border border-white/10 px-4 py-2 text-xs font-semibold text-white/55 transition hover:border-white/25 hover:text-white disabled:opacity-40"
-					>
-						{loadingMore ? t("loadingMore") : t("loadMore")}
-					</button>
-				)}
+				<section aria-label={t("notifications")}>
+					{error && (
+						<div
+							aria-live="polite"
+							className="mb-5 rounded-xl border border-red-400/20 bg-red-400/[.05] px-5 py-5"
+						>
+							<div className="flex items-start gap-4">
+								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-300/15 bg-red-300/10 text-red-200">
+									<AlertTriangle className="h-5 w-5" />
+								</div>
+								<div className="min-w-0">
+									<p className="text-sm leading-6 text-red-100">{error}</p>
+									<button
+										type="button"
+										onClick={() => void load()}
+										className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-xs font-semibold text-black transition hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:min-h-9"
+									>
+										<RefreshCw className="h-3.5 w-3.5" />
+										{t("retry")}
+									</button>
+								</div>
+							</div>
+						</div>
+					)}
+					{!error && loading && items.length === 0 ? (
+						<NotificationListSkeleton />
+					) : !error && items.length === 0 ? (
+						<div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center">
+							<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] text-white/25">
+								<Inbox className="h-5 w-5" />
+							</div>
+							<h2 className="mt-5 text-lg font-semibold text-white/80">
+								{t("notificationsEmpty")}
+							</h2>
+							<p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/30">
+								{t("notificationsEmptyDescription")}
+							</p>
+						</div>
+					) : items.length > 0 ? (
+						<div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.025]">
+							{items.map((item) => (
+								<NotificationRow
+									key={item.id}
+									item={item}
+									locale={locale}
+									onToggleRead={() => void toggleRead(item)}
+								/>
+							))}
+						</div>
+					)}
+					{nextCursor && !loading && !error && (
+						<button
+							type="button"
+							disabled={loadingMore}
+							onClick={() => void load(nextCursor)}
+							className="mx-auto mt-5 flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 text-xs font-semibold text-white/55 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white disabled:opacity-40"
+						>
+							<ChevronDown className="h-3.5 w-3.5" />
+							{loadingMore ? t("loadingMore") : t("loadMore")}
+						</button>
+					)}
+				</section>
 			</div>
 		</main>
+	);
+}
+
+function NotificationListSkeleton() {
+	return (
+		<div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] shadow-2xl shadow-black/20">
+			{Array.from({ length: 4 }, (_, index) => (
+				<div
+					key={index}
+					className="flex items-start gap-4 border-b border-white/[.06] p-4 last:border-b-0 sm:p-5"
+				>
+					<div className="h-10 w-10 shrink-0 animate-pulse rounded-xl bg-white/[.06]" />
+					<div className="min-w-0 flex-1 space-y-2.5 pt-1">
+						<div className="h-3.5 w-3/4 animate-pulse rounded-full bg-white/[.07]" />
+						<div className="h-3 w-1/2 animate-pulse rounded-full bg-white/[.045]" />
+						<div className="h-2.5 w-24 animate-pulse rounded-full bg-white/[.035]" />
+					</div>
+				</div>
+			))}
+		</div>
 	);
 }
 
@@ -188,41 +245,47 @@ function NotificationRow({
 	onToggleRead: () => void;
 }) {
 	const { t } = useI18n();
+	const Icon = item.kind === "new_movie" ? Film : Tv;
+	const formattedDate = new Intl.DateTimeFormat(locale, {
+		dateStyle: "medium",
+		timeStyle: "short",
+	}).format(new Date(item.createdAt));
 	return (
-		<div
-			className={`flex items-start gap-3 border-b border-white/[.06] p-4 last:border-b-0 ${item.readAt ? "opacity-60" : "bg-violet-400/[.05]"}`}
+		<article
+			className={`group flex items-start gap-3 border-b border-white/[.06] border-l-2 p-4 transition last:border-b-0 sm:gap-4 sm:p-5 ${item.readAt ? "border-l-transparent bg-transparent hover:bg-white/[.035]" : "border-l-violet-300 bg-violet-400/[.055] hover:bg-violet-400/[.09]"}`}
 		>
-			<span
-				className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.readAt ? "bg-white/15" : "bg-violet-300"}`}
-			/>
+			<div
+				className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${item.readAt ? "border-white/10 bg-white/[.045] text-white/30" : "border-violet-300/20 bg-violet-300/10 text-violet-200"}`}
+			>
+				<Icon className="h-4 w-4" />
+			</div>
 			<div className="min-w-0 flex-1">
-				<Link
-					href={item.navigationTarget}
-					onClick={() => {
-						if (!item.readAt) onToggleRead();
-					}}
-					className="block text-sm font-semibold text-white transition hover:text-violet-200"
-				>
-					{item.title}
-				</Link>
+				<div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+					<Link
+						href={item.navigationTarget}
+						onClick={() => {
+							if (!item.readAt) onToggleRead();
+						}}
+						className={`min-w-0 text-sm font-semibold leading-6 transition ${item.readAt ? "text-white/70 hover:text-white" : "text-white hover:text-violet-200"}`}
+					>
+						{item.title}
+					</Link>
+					<time className="shrink-0 text-[10px] text-white/25 sm:pt-1">
+						{formattedDate}
+					</time>
+				</div>
 				{item.subtitle && (
-					<p className="mt-1 text-xs text-white/45">{item.subtitle}</p>
+					<p className="mt-1 text-xs leading-5 text-white/40">{item.subtitle}</p>
 				)}
-				<p className="mt-2 text-[10px] text-white/25">
-					{new Intl.DateTimeFormat(locale, {
-						dateStyle: "medium",
-						timeStyle: "short",
-					}).format(new Date(item.createdAt))}
-				</p>
 			</div>
 			<button
 				type="button"
 				aria-label={t(item.readAt ? "markUnread" : "markRead")}
 				onClick={onToggleRead}
-				className="shrink-0 rounded px-2 py-1 text-[10px] font-semibold text-white/35 transition hover:bg-white/[.07] hover:text-white"
+				className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white/30 transition hover:bg-white/[.07] hover:text-white"
 			>
 				{t(item.readAt ? "markUnread" : "markRead")}
 			</button>
-		</div>
+		</article>
 	);
 }

@@ -151,4 +151,29 @@ describe("NotificationMenu", () => {
 		expect(setNotificationRead).toHaveBeenCalledWith(session, "one", true);
 		expect(screen.queryByTestId("notification-popup")).not.toBeInTheDocument();
 	});
+
+	it("removes a notification from the menu", async () => {
+		vi.spyOn(notifications, "getNotificationSummary").mockResolvedValue({
+			unreadCount: 1,
+		});
+		vi.spyOn(notifications, "getNotifications").mockResolvedValue({
+			items: [item("one")],
+			unreadCount: 1,
+			nextCursor: null,
+		});
+		const deleteNotification = vi
+			.spyOn(notifications, "deleteNotification")
+			.mockResolvedValue({ id: "one", removed: true });
+
+		renderMenu();
+		fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+		await screen.findByRole("link", { name: "Episode one" });
+		fireEvent.click(
+			screen.getByRole("button", { name: "Notification actions" }),
+		);
+		fireEvent.click(screen.getByRole("menuitem", { name: "Remove notification" }));
+
+		await waitFor(() => expect(deleteNotification).toHaveBeenCalledWith(session, "one"));
+		expect(screen.queryByRole("link", { name: "Episode one" })).not.toBeInTheDocument();
+	});
 });

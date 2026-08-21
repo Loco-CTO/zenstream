@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
+import { Suspense } from "react";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import "./globals.css";
@@ -39,7 +40,11 @@ export default function RootLayout({
 		<html lang="en" className={`dark ${notoSans.variable}`}>
 			<body>
 				<ServiceWorkerRegistration />
-				<ProgressProvider>{children}</ProgressProvider>
+				<ProgressProvider>
+					<Suspense fallback={<div className="min-h-screen bg-background" />}>
+						{children}
+					</Suspense>
+				</ProgressProvider>
 			</body>
 		</html>
 	);

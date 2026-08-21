@@ -44,7 +44,9 @@ export function NotificationsPage({ session }: { session: AuthSession }) {
 							onClick={() => void feed.refresh()}
 							className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/40 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:h-9 sm:w-9"
 						>
-							<RefreshCw className={`h-3.5 w-3.5 ${feed.loading ? "animate-spin" : ""}`} />
+							<RefreshCw
+								className={`h-3.5 w-3.5 ${feed.loading ? "animate-spin" : ""}`}
+							/>
 						</button>
 					</div>
 				</header>

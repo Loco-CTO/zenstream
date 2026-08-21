@@ -52,7 +52,10 @@ export function NotificationMenu({
 		if (!open) return;
 		const closeOnOutsideClick = (event: PointerEvent) => {
 			const target = event.target as Node;
-			if (panelRef.current?.contains(target) || triggerRef.current?.contains(target))
+			if (
+				panelRef.current?.contains(target) ||
+				triggerRef.current?.contains(target)
+			)
 				return;
 			setOpen(false);
 		};

@@ -119,10 +119,10 @@ export function SearchOverlay({
 								</p>
 							)}
 							{!error && suggestions.length === 0 && resultQuery && (
-									<p className="px-4 py-3 text-xs text-white/45">
-										{t("noSearchResults")}
-									</p>
-								)}
+								<p className="px-4 py-3 text-xs text-white/45">
+									{t("noSearchResults")}
+								</p>
+							)}
 							{suggestions.map((item) => (
 								<button
 									type="button"

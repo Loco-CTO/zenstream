@@ -60,10 +60,6 @@ export function SearchPage({
 			<div className="mx-auto max-w-[1800px]">
 				<header className="mb-8 flex flex-col items-start gap-4 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-end sm:justify-between">
 					<div className="min-w-0">
-						<div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-violet-300/65">
-							<Search className="h-3.5 w-3.5" />
-							{t("search")}
-						</div>
 						<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
 							{title}
 						</h1>

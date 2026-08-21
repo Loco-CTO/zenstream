@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bell, CheckCheck, X } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
 import {
 	NotificationEmptyState,
 	NotificationErrorState,
@@ -114,9 +114,9 @@ export function NotificationMenu({
 					aria-modal="false"
 					aria-labelledby="notification-menu-title"
 					data-testid="notification-popup"
-					className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] flex max-h-[calc(100dvh-5rem)] w-auto max-w-none flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-[calc(100dvh-5rem)] md:w-[22rem] md:max-w-[calc(100vw-2rem)]"
+					className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] flex max-h-[calc(100dvh-5rem)] w-auto max-w-none flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-[22rem] md:max-w-[calc(100vw-2rem)]"
 				>
-					<div className="flex shrink-0 items-center gap-2 border-b border-white/[0.08] px-3 pb-3 pt-2">
+					<div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-3 pb-3 pt-2">
 						<div className="min-w-0 flex-1">
 							<p
 								id="notification-menu-title"
@@ -136,22 +136,12 @@ export function NotificationMenu({
 									type="button"
 									aria-label={t("markAllRead")}
 									onClick={() => void feed.markAllRead()}
-									className="flex h-8 w-8 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70"
+									className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70"
 								>
-									<CheckCheck className="h-4 w-4" />
+									<CheckCheck className="h-3.5 w-3.5" />
+									<span>{t("markAllRead")}</span>
 								</button>
 							)}
-							<button
-								type="button"
-								aria-label={t("close")}
-								onClick={() => {
-									setOpen(false);
-									triggerRef.current?.focus();
-								}}
-								className="flex h-8 w-8 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70"
-							>
-								<X className="h-4 w-4" />
-							</button>
 						</div>
 					</div>
 					<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">

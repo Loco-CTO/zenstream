@@ -142,10 +142,10 @@ export function useNotificationFeed(
 	useEffect(() => {
 		if (!enabled || !session) return;
 		const refreshTimer = window.setTimeout(() => {
-		const timer = window.setTimeout(() => {
-			void refresh();
-		}, 0);
-		return () => window.clearTimeout(timer);
+			const timer = window.setTimeout(() => {
+				void refresh();
+			}, 0);
+			return () => window.clearTimeout(timer);
 		}, 0);
 		return () => window.clearTimeout(refreshTimer);
 	}, [enabled, refresh, session]);

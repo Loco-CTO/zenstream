@@ -94,6 +94,7 @@ export function Navbar({
 						className="flex items-center gap-2 sm:gap-3"
 					>
 						<SyncplayGroupMenu userId={userId} avatarVersion={avatarVersion} />
+						<NotificationMenu displayPath={pathname} session={session} />
 						<button
 							aria-label={t("search")}
 							onClick={() => setSearchOpen(true)}
@@ -101,7 +102,6 @@ export function Navbar({
 						>
 							<Search className="h-[22px] w-[22px]" />
 						</button>
-						<NotificationMenu displayPath={pathname} session={session} />
 						<div ref={profileRef} className="relative">
 							<button
 								ref={profileTriggerRef}

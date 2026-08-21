@@ -360,6 +360,63 @@ export interface LibraryPage {
 	totalRecordCount: number;
 }
 
+export interface SearchPage {
+	items: MediaItem[];
+	totalRecordCount: number;
+	page: number;
+	pageSize: number;
+}
+
+export async function getSearchPage(
+	session: AuthSession,
+	query: string,
+	options: {
+		page?: number;
+		pageSize?: number;
+		signal?: AbortSignal;
+	} = {},
+): Promise<SearchPage> {
+	const term = query.trim();
+	if (!term) {
+		return {
+			items: [],
+			totalRecordCount: 0,
+			page: options.page ?? 1,
+			pageSize: options.pageSize ?? 20,
+		};
+	}
+	const page = options.page ?? 1;
+	const pageSize = options.pageSize ?? 20;
+	const params = new URLSearchParams({
+		query: term,
+		page: String(page),
+		pageSize: String(pageSize),
+		view: "card",
+	});
+	return cachedClientRequest(
+		`search:${session.userId}:${term.toLocaleLowerCase()}:${page}:${pageSize}:card`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				items?: CatalogItem[];
+				total?: number;
+				page?: number;
+				pageSize?: number;
+			}>(session, `/api/catalog/search?${params}`, {
+				signal: combinedSignal(options.signal, signal),
+			});
+			const items = (result.items ?? []).map(toMediaItem);
+			return {
+				items,
+				totalRecordCount: Number.isFinite(result.total)
+					? Number(result.total)
+					: items.length,
+				page: result.page ?? page,
+				pageSize: result.pageSize ?? pageSize,
+			};
+		},
+	);
+}
+
 export async function getSearchItems(
 	session: AuthSession,
 	query: string,
@@ -367,18 +424,12 @@ export async function getSearchItems(
 ): Promise<MediaItem[]> {
 	const term = query.trim();
 	if (!term) return [];
-	const limit = options.limit ?? 40;
-	return cachedClientRequest(
-		`search:${session.userId}:${term.toLocaleLowerCase()}`,
-		async (signal) => {
-			const result = await catalogRequest<{ items: CatalogItem[] }>(
-				session,
-				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40&view=card`,
-				{ signal: combinedSignal(options.signal, signal) },
-			);
-			return result.items.map(toMediaItem);
-		},
-	).then((items) => items.slice(0, limit));
+	const pageSize = options.limit ?? 8;
+	return getSearchPage(session, term, {
+		page: 1,
+		pageSize,
+		signal: options.signal,
+	}).then((page) => page.items);
 }
 
 export interface NewlyAddedSection {

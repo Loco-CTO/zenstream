@@ -206,9 +206,9 @@ export function SettingsPage({
 										? t("playback")
 										: section === "subtitles"
 											? t("subtitles")
-													: section === "privacy"
-														? t("privacyData")
-														: t("versions")}
+											: section === "privacy"
+												? t("privacyData")
+												: t("versions")}
 					</h1>
 				</header>
 

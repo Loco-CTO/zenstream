@@ -2021,8 +2021,9 @@ export function VideoPlayer({
 	}
 	function chooseTrack(kind: "audio" | "subtitle", value: string) {
 		if (kind === "subtitle") {
+			const changed = subtitle !== value;
 			setSubtitle(value);
-			setSubtitleCueData(undefined);
+			if (changed) setSubtitleCueData(undefined);
 			setTrackMenu(null);
 			return;
 		}

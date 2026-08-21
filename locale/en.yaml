@@ -23,6 +23,9 @@ search: Search
 notifications: Notifications
 notificationInbox: Notification inbox
 notificationInboxDescription: New episodes and movies are listed here.
+unreadNotifications: unread
+notificationActions: Notification actions
+viewAllNotifications: View all notifications
 notificationsEmpty: No notifications yet
 notificationsEmptyDescription: Follow a series or movie to get notified when new playable media is added.
 notificationsLoadFailed: Could not load notifications

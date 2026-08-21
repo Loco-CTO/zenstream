@@ -25,6 +25,9 @@ search: 検索
 notifications: 通知
 notificationInbox: 通知一覧
 notificationInboxDescription: 新しいエピソードや映画がここに表示されます。
+unreadNotifications: 未読
+notificationActions: 通知の操作
+viewAllNotifications: 通知をすべて見る
 notificationsEmpty: 通知はありません
 notificationsEmptyDescription: シリーズや映画をフォローすると、新しい再生可能なメディアが追加されたときに通知されます。
 notificationsLoadFailed: 通知を読み込めませんでした

@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, Search, Settings } from "lucide-react";
+import { LogOut, Search, Settings } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { SearchOverlay } from "@/components/layout/search-overlay";
+import { NotificationMenu } from "@/components/notifications/notification-menu";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
-import { getNotificationSummary } from "@/lib/notifications";
 
 export function Navbar({
 	displayName,
@@ -28,25 +28,6 @@ export function Navbar({
 	const pathname = usePathname();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
-	const [unreadCount, setUnreadCount] = useState(0);
-
-	useEffect(() => {
-		if (!session) return;
-		let active = true;
-		const refresh = () => {
-			void getNotificationSummary(session)
-				.then((result) => {
-					if (active) setUnreadCount(result.unreadCount);
-				})
-				.catch(() => undefined);
-		};
-		refresh();
-		window.addEventListener("zenstream:notifications-changed", refresh);
-		return () => {
-			active = false;
-			window.removeEventListener("zenstream:notifications-changed", refresh);
-		};
-	}, [session]);
 
 	return (
 		<>
@@ -98,18 +79,7 @@ export function Navbar({
 						>
 							<Search className="h-[22px] w-[22px]" />
 						</button>
-						<Link
-							href="/notifications"
-							aria-label={t("notifications")}
-							className={`relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${pathname === "/notifications" ? "text-white" : ""}`}
-						>
-							<Bell className="h-[22px] w-[22px]" />
-							{unreadCount > 0 && (
-								<span className="absolute right-2 top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-violet-400 px-0.5 text-[9px] font-bold leading-none text-black">
-									{unreadCount > 99 ? "99+" : unreadCount}
-								</span>
-							)}
-						</Link>
+						<NotificationMenu displayPath={pathname} session={session} />
 						<div className="relative">
 							<button
 								aria-label={t("profile")}

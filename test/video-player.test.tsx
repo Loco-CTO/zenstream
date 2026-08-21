@@ -569,6 +569,70 @@ describe("video player controls", () => {
 		expect(track?.getAttribute("src")).toContain("/subtitles/subtitle-file.vtt");
 	});
 
+	it("keeps overlay subtitles when the active track is selected again", async () => {
+		const streams = {
+			source: {
+				Id: "source",
+				mode: "direct",
+				url: "/movie.mp4",
+				MediaStreams: [
+					{
+						Index: 3,
+						Type: "Subtitle",
+						FileId: "subtitle-file",
+						Language: "en",
+						DisplayTitle: "English",
+					},
+				],
+			},
+			audio: [],
+			subtitles: [
+				{
+					Index: 3,
+					Type: "Subtitle",
+					FileId: "subtitle-file",
+					Language: "en",
+					DisplayTitle: "English",
+				},
+			],
+			qualities: [],
+		} as never;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				"WEBVTT\n\n00:00:00.000 --> 00:00:10.000\nStill here\n",
+			),
+		);
+
+		try {
+			const view = render(
+				<I18nProvider locale="en">
+					<SubtitlePreferencesProvider
+						initialStyle={{ ...DEFAULT_SUBTITLE_STYLE, renderer: "overlay" }}
+					>
+						<VideoPlayer
+							item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+							session={{ token: "token", userId: "user", username: "Alex" }}
+							initialSubtitleStreamIndex={3}
+							initialStreams={streams}
+							onClose={vi.fn()}
+						/>
+					</SubtitlePreferencesProvider>
+				</I18nProvider>,
+			);
+
+			await flushPlayerEffects();
+			expect(view.getByTestId("subtitle-cue")).toHaveTextContent("Still here");
+
+			fireEvent.click(view.getByRole("button", { name: "Subtitles" }));
+			fireEvent.click(view.getByRole("button", { name: "English" }));
+
+			expect(view.getByTestId("subtitle-cue")).toHaveTextContent("Still here");
+		} finally {
+			fetchMock.mockRestore();
+		}
+	});
+
 	it("applies initial audio and subtitle choices that arrive after mount", async () => {
 		const source = {
 			Id: "source",

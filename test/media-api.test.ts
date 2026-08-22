@@ -53,7 +53,14 @@ describe("search pagination requests", () => {
 			),
 		);
 
-		await getSearchPage(session, "paged-search", { page: 2, pageSize: 20 });
+		await expect(
+			getSearchPage(session, "paged-search", { page: 2, pageSize: 20 }),
+		).resolves.toMatchObject({
+			items: [],
+			total: 41,
+			page: 2,
+			pageSize: 20,
+		});
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining(

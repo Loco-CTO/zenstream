@@ -73,9 +73,9 @@ export function SearchPage({
 					return;
 				const nextItems = uniqueItems(rankSearchResults(page.items, query));
 				itemsRef.current = nextItems;
-				totalRef.current = page.totalRecordCount;
+				totalRef.current = page.total;
 				setItems(nextItems);
-				setTotal(page.totalRecordCount);
+				setTotal(page.total);
 				loadedPageRef.current = page.page;
 				setErrorKey(null);
 				setLoadMoreError(false);
@@ -92,6 +92,7 @@ export function SearchPage({
 			})
 			.finally(finish);
 		return () => {
+			requestRef.current?.abort();
 			controller.abort();
 			finish();
 		};
@@ -132,9 +133,9 @@ export function SearchPage({
 				...rankSearchResults(page.items, query),
 			]);
 			itemsRef.current = nextItems;
-			totalRef.current = page.totalRecordCount;
+			totalRef.current = page.total;
 			setItems(nextItems);
-			setTotal(page.totalRecordCount);
+			setTotal(page.total);
 			loadedPageRef.current = nextPage;
 		} catch {
 			requestedPagesRef.current.delete(nextPage);
@@ -184,7 +185,7 @@ export function SearchPage({
 					</div>
 					<div className="flex shrink-0 items-center gap-2">
 						{!loading && !error && (
-							<p className="hidden pb-0.5 text-xs uppercase tracking-widest text-white/25 sm:block">
+							<p className="pb-0.5 text-xs uppercase tracking-widest text-white/25">
 								{t("items", { count: total })}
 							</p>
 						)}

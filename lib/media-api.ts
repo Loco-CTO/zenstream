@@ -362,7 +362,7 @@ export interface LibraryPage {
 
 export interface SearchPage {
 	items: MediaItem[];
-	totalRecordCount: number;
+	total: number;
 	page: number;
 	pageSize: number;
 }
@@ -380,7 +380,7 @@ export async function getSearchPage(
 	if (!term) {
 		return {
 			items: [],
-			totalRecordCount: 0,
+			total: 0,
 			page: options.page ?? 1,
 			pageSize: options.pageSize ?? 20,
 		};
@@ -407,7 +407,7 @@ export async function getSearchPage(
 			const items = (result.items ?? []).map(toMediaItem);
 			return {
 				items,
-				totalRecordCount: Number.isFinite(result.total)
+				total: Number.isFinite(result.total)
 					? Number(result.total)
 					: items.length,
 				page: result.page ?? page,

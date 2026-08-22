@@ -2,7 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { SearchPage } from "@/components/pages/search-page";
-import { getSearchPage, type MediaItem, type SearchPage as SearchPageData } from "@/lib/media-api";
+import {
+	getSearchPage,
+	type MediaItem,
+	type SearchPage as SearchPageData,
+} from "@/lib/media-api";
 
 vi.mock("@/components/home/media-card", () => ({
 	PosterCard: ({ item }: { item: MediaItem }) => <div>{item.Name}</div>,
@@ -35,7 +39,7 @@ function page(
 	total = items.length,
 	pageNumber = 1,
 ): SearchPageData {
-	return { items, totalRecordCount: total, page: pageNumber, pageSize: 20 };
+	return { items, total, page: pageNumber, pageSize: 20 };
 }
 
 describe("SearchPage", () => {

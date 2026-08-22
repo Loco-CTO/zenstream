@@ -46,6 +46,7 @@ export type CatalogItem = {
 	userState?: {
 		favorite?: boolean;
 		played?: boolean;
+		following?: boolean;
 		playCount?: number;
 		durationSeconds?: number;
 		lastPlayedAt?: string | null;
@@ -198,6 +199,10 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		UserData: {
 			IsFavorite: item.userState?.favorite,
 			Played: item.userState?.played,
+			IsFollowing:
+				item.type === "movie" || item.type === "series"
+					? item.userState?.following
+					: undefined,
 			UnplayedItemCount: item.userState?.unplayedItemCount,
 			PlayedPercentage: item.userState?.playedPercentage,
 			PlaybackPositionTicks: item.userState?.positionSeconds

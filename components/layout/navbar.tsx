@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, Search, Settings } from "lucide-react";
+import { LogOut, Search, Settings } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { SearchOverlay } from "@/components/layout/search-overlay";
+import { NotificationMenu } from "@/components/notifications/notification-menu";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
@@ -27,6 +28,28 @@ export function Navbar({
 	const pathname = usePathname();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
+	const profileRef = useRef<HTMLDivElement>(null);
+	const profileTriggerRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		if (!profileOpen) return;
+		const closeOnOutsidePointer = (event: PointerEvent) => {
+			if (!profileRef.current?.contains(event.target as Node))
+				setProfileOpen(false);
+		};
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			event.preventDefault();
+			setProfileOpen(false);
+			profileTriggerRef.current?.focus();
+		};
+		document.addEventListener("pointerdown", closeOnOutsidePointer);
+		document.addEventListener("keydown", closeOnEscape);
+		return () => {
+			document.removeEventListener("pointerdown", closeOnOutsidePointer);
+			document.removeEventListener("keydown", closeOnEscape);
+		};
+	}, [profileOpen]);
 
 	return (
 		<>
@@ -58,6 +81,12 @@ export function Navbar({
 						>
 							{t("favorites")}
 						</Link>
+						<Link
+							href="/calendar"
+							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/calendar" ? "text-white" : "text-white/35 hover:text-white/70"}`}
+						>
+							{t("calendar")}
+						</Link>
 					</div>
 					<div className="flex-1" />
 					<div
@@ -65,6 +94,7 @@ export function Navbar({
 						className="flex items-center gap-2 sm:gap-3"
 					>
 						<SyncplayGroupMenu userId={userId} avatarVersion={avatarVersion} />
+						<NotificationMenu displayPath={pathname} session={session} />
 						<button
 							aria-label={t("search")}
 							onClick={() => setSearchOpen(true)}
@@ -72,16 +102,12 @@ export function Navbar({
 						>
 							<Search className="h-[22px] w-[22px]" />
 						</button>
-						<button
-							aria-label={t("notifications")}
-							className="relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
-						>
-							<Bell className="h-[22px] w-[22px]" />
-							<span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-violet-400" />
-						</button>
-						<div className="relative">
+						<div ref={profileRef} className="relative">
 							<button
+								ref={profileTriggerRef}
+								type="button"
 								aria-label={t("profile")}
+								aria-expanded={profileOpen}
 								onClick={() => setProfileOpen((open) => !open)}
 								className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 text-white/70 transition hover:border-violet-400/60"
 							>

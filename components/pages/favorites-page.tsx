@@ -45,6 +45,12 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		return () => controller.abort();
 	}, [retryKey, session, sortBy, sortOrder, start]);
 
+	useEffect(() => {
+		const refresh = () => setRetryKey((value) => value + 1);
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, []);
+
 	const options: DropdownOption[] = [
 		{ value: "SortName", label: t("sortTitle") },
 		{ value: "DateCreated", label: t("sortDateAdded") },

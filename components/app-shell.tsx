@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { sessionFromAuth } from "@/lib/auth";
 import {
@@ -11,6 +11,7 @@ import {
 	fetchHomeData,
 	clearMediaClientCache,
 	clearMediaClientSession,
+	clearWatchHistory,
 	primeResourceTicket,
 	revokeAuthSession,
 	validateBrowserSession,
@@ -53,6 +54,17 @@ const FavoritesPage = dynamic(
 	() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage),
 	{ ssr: false },
 );
+const CalendarPage = dynamic(
+	() => import("@/components/pages/calendar-page").then((m) => m.CalendarPage),
+	{ ssr: false },
+);
+const NotificationsPage = dynamic(
+	() =>
+		import("@/components/pages/notifications-page").then(
+			(m) => m.NotificationsPage,
+		),
+	{ ssr: false },
+);
 const SearchPage = dynamic(
 	() => import("@/components/pages/search-page").then((m) => m.SearchPage),
 	{ ssr: false },
@@ -70,10 +82,12 @@ import {
 	getMetadataLanguagePreference,
 	getMetadataLanguages,
 	getPlaybackPreference,
+	getWatchHistoryPreference,
 	getStoredLocale,
 	setLocalePreference,
 	setMetadataLanguagePreference,
 	setPlaybackPreference as savePlaybackPreference,
+	setWatchHistoryPreference as saveWatchHistoryPreference,
 	storeLocale,
 	clearPreferenceCache,
 	type MetadataLanguagePreference,
@@ -105,6 +119,7 @@ const EMPTY_PLAYBACK_PREFERENCE: PlaybackPreference = {
 
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
+	const searchParams = useSearchParams();
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
@@ -120,6 +135,8 @@ export function AppShell() {
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
 	const [playbackPreference, setPlaybackPreference] =
 		useState<PlaybackPreference>(EMPTY_PLAYBACK_PREFERENCE);
+	const [watchHistoryEnabled, setWatchHistoryEnabled] = useState(true);
+	const [watchHistoryLoaded, setWatchHistoryLoaded] = useState(false);
 	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
 		DEFAULT_SUBTITLE_STYLE,
 	);
@@ -146,6 +163,10 @@ export function AppShell() {
 	const playbackPreferenceMutationQueue = useRef<Promise<void>>(
 		Promise.resolve(),
 	);
+	const watchHistoryEnabledRef = useRef(true);
+	const confirmedWatchHistoryEnabled = useRef(true);
+	const watchHistoryMutationGeneration = useRef(0);
+	const watchHistoryMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const localeMutationGeneration = useRef(0);
 	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const confirmedLocale = useRef<Locale>("en");
@@ -183,6 +204,8 @@ export function AppShell() {
 		const metadataLanguageGeneration = metadataLanguageMutationGeneration.current;
 		const playbackMutationGeneration =
 			playbackPreferenceMutationGeneration.current;
+		const watchHistoryMutationGenerationAtLoad =
+			watchHistoryMutationGeneration.current;
 		const commit = (callback: () => void) => {
 			if (
 				generation === preferencesGeneration.current &&
@@ -216,6 +239,21 @@ export function AppShell() {
 					confirmedPlaybackPreference.current = value;
 					playbackPreferenceRef.current = value;
 					setPlaybackPreference(value);
+				});
+			})
+			.catch(() => undefined);
+		void getWatchHistoryPreference(nextSession)
+			.then((value) => {
+				if (
+					watchHistoryMutationGenerationAtLoad !==
+					watchHistoryMutationGeneration.current
+				)
+					return;
+				commit(() => {
+					confirmedWatchHistoryEnabled.current = value.enabled;
+					watchHistoryEnabledRef.current = value.enabled;
+					setWatchHistoryEnabled(value.enabled);
+					setWatchHistoryLoaded(true);
 				});
 			})
 			.catch(() => undefined);
@@ -309,12 +347,9 @@ export function AppShell() {
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
-	const searchQuery =
-		typeof window !== "undefined"
-			? (new URLSearchParams(window.location.search).get("q") ?? "")
-			: "";
-	const currentSearch =
-		typeof window !== "undefined" ? window.location.search : "";
+	const searchQuery = searchParams.get("q") ?? "";
+	const serializedSearch = searchParams.toString();
+	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
 	const fetchDetailPayload = useCallback(
 		async (
 			nextSession: AuthSession,
@@ -502,12 +537,20 @@ export function AppShell() {
 		void (async () => {
 			if (detailId || playId)
 				await loadDetail(session, detailId ?? playId!, generation);
-			else if (pathname === "/search" || pathname === "/settings") {
+			else if (
+				pathname === "/search" ||
+				pathname === "/settings" ||
+				pathname === "/notifications"
+			) {
 				if (generation === routeLoadGeneration.current) {
 					if (pathname === "/search") setSearchData(searchQuery);
 					setStatus("ready");
 				}
-			} else if (pathname === "/library" || pathname === "/favorites") {
+			} else if (
+				pathname === "/library" ||
+				pathname === "/favorites" ||
+				pathname === "/calendar"
+			) {
 				void primeResourceTicket(session);
 				if (generation === routeLoadGeneration.current) setStatus("ready");
 			} else await loadHome(session, generation);
@@ -538,12 +581,16 @@ export function AppShell() {
 		void primeResourceTicket(nextSession);
 		if (detailId || playId)
 			await loadDetail(nextSession, detailId ?? playId!, generation);
-		else if (pathname === "/search") {
+		else if (pathname === "/search" || pathname === "/notifications") {
 			if (generation === routeLoadGeneration.current) {
 				setSearchData(searchQuery);
 				setStatus("ready");
 			}
-		} else if (pathname === "/library" || pathname === "/favorites") {
+		} else if (
+			pathname === "/library" ||
+			pathname === "/favorites" ||
+			pathname === "/calendar"
+		) {
 			if (generation === routeLoadGeneration.current) setStatus("ready");
 		} else await loadHome(nextSession, generation);
 	};
@@ -562,9 +609,11 @@ export function AppShell() {
 			localeMutationGeneration.current += 1;
 			metadataLanguageMutationGeneration.current += 1;
 			playbackPreferenceMutationGeneration.current += 1;
+			watchHistoryMutationGeneration.current += 1;
 			localeMutationQueue.current = Promise.resolve();
 			metadataLanguageMutationQueue.current = Promise.resolve();
 			playbackPreferenceMutationQueue.current = Promise.resolve();
+			watchHistoryMutationQueue.current = Promise.resolve();
 			detailRefreshGeneration.current += 1;
 			detailRefreshController.current?.abort();
 			sessionRef.current = null;
@@ -574,6 +623,10 @@ export function AppShell() {
 			playbackPreferenceRef.current = EMPTY_PLAYBACK_PREFERENCE;
 			confirmedPlaybackPreference.current = EMPTY_PLAYBACK_PREFERENCE;
 			setPlaybackPreference(EMPTY_PLAYBACK_PREFERENCE);
+			watchHistoryEnabledRef.current = true;
+			confirmedWatchHistoryEnabled.current = true;
+			setWatchHistoryEnabled(true);
+			setWatchHistoryLoaded(false);
 			homeDataRef.current = null;
 			homeTrailingRefresh.current = false;
 			homeTrailingRequest.current = null;
@@ -801,6 +854,46 @@ export function AppShell() {
 		}
 	};
 
+	const handleWatchHistoryChange = async (enabled: boolean) => {
+		const activeSession = session;
+		if (!activeSession) return;
+		const generation = ++watchHistoryMutationGeneration.current;
+		watchHistoryEnabledRef.current = enabled;
+		setWatchHistoryEnabled(enabled);
+		const mutation = watchHistoryMutationQueue.current.then(async () => {
+			if (sessionRef.current !== activeSession) return null;
+			return saveWatchHistoryPreference(activeSession, enabled);
+		});
+		watchHistoryMutationQueue.current = mutation.then(
+			() => undefined,
+			() => undefined,
+		);
+		try {
+			const saved = await mutation;
+			if (saved === null || sessionRef.current !== activeSession) return;
+			confirmedWatchHistoryEnabled.current = saved.enabled;
+			setWatchHistoryLoaded(true);
+			if (generation !== watchHistoryMutationGeneration.current) return;
+			watchHistoryEnabledRef.current = saved.enabled;
+			setWatchHistoryEnabled(saved.enabled);
+		} catch (error) {
+			if (
+				generation !== watchHistoryMutationGeneration.current ||
+				sessionRef.current !== activeSession
+			)
+				return;
+			watchHistoryEnabledRef.current = confirmedWatchHistoryEnabled.current;
+			setWatchHistoryEnabled(confirmedWatchHistoryEnabled.current);
+			throw error;
+		}
+	};
+
+	const handleClearWatchHistory = useCallback(async () => {
+		const activeSession = sessionRef.current ?? session;
+		if (!activeSession) return;
+		await clearWatchHistory(activeSession);
+	}, [session]);
+
 	return (
 		<I18nProvider locale={locale}>
 			<ToastProvider>
@@ -844,6 +937,9 @@ export function AppShell() {
 										onMetadataLanguageChange={handleMetadataLanguageChange}
 										playbackPreference={playbackPreference}
 										onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+										watchHistoryEnabled={watchHistoryEnabled}
+										onWatchHistoryChange={handleWatchHistoryChange}
+										onClearWatchHistory={handleClearWatchHistory}
 										onPlaybackPreferenceLoad={() => loadPreferences(session)}
 										onPasswordChanged={handlePasswordChanged}
 										onLogout={handleLogout}
@@ -868,7 +964,12 @@ export function AppShell() {
 											/>
 										)}
 										{status === "ready" && detailData && playId && (
-											<PlayerPage initialData={detailData} session={session} />
+											<PlayerPage
+												initialData={detailData}
+												session={session}
+												watchHistoryEnabled={watchHistoryEnabled}
+												watchHistoryLoaded={watchHistoryLoaded}
+											/>
 										)}
 										{status === "ready" &&
 											detailData &&
@@ -885,6 +986,12 @@ export function AppShell() {
 										{status === "ready" && pathname === "/favorites" && (
 											<FavoritesPage session={session} />
 										)}
+										{status === "ready" && pathname === "/calendar" && (
+											<CalendarPage session={session} />
+										)}
+										{status === "ready" && pathname === "/notifications" && (
+											<NotificationsPage session={session} />
+										)}
 										{status === "ready" && pathname === "/search" && (
 											<SearchPage session={session} query={searchData ?? searchQuery} />
 										)}
@@ -892,6 +999,8 @@ export function AppShell() {
 											!detailId &&
 											pathname !== "/library" &&
 											pathname !== "/favorites" &&
+											pathname !== "/calendar" &&
+											pathname !== "/notifications" &&
 											pathname !== "/search" && (
 												<HomePage data={homeData} session={session} />
 											)}

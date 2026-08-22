@@ -40,9 +40,13 @@ export function playbackTrackChoices(
 export function PlayerPage({
 	initialData,
 	session,
+	watchHistoryEnabled = true,
+	watchHistoryLoaded = false,
 }: {
 	initialData: DetailData;
 	session: AuthSession;
+	watchHistoryEnabled?: boolean;
+	watchHistoryLoaded?: boolean;
 }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -129,6 +133,8 @@ export function PlayerPage({
 			key={item.Id}
 			item={playerItem}
 			session={session}
+			watchHistoryEnabled={watchHistoryEnabled}
+			watchHistoryLoaded={watchHistoryLoaded}
 			// These are available as soon as the player mounts. Passing them here as
 			// well as through the initial negotiation prevents the player's fallback
 			// negotiation from briefly restoring the default tracks.

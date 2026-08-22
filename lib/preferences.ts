@@ -15,6 +15,10 @@ export type PlaybackPreference = {
 	subtitleLanguages: PlaybackLanguageOption[];
 };
 
+export type WatchHistoryPreference = {
+	enabled: boolean;
+};
+
 const PREFERENCE_TTL_MS = 30_000;
 type CacheEntry = { expiresAt: number; value: unknown };
 type InFlightEntry = { promise: Promise<unknown>; controller: AbortController };
@@ -191,6 +195,53 @@ export async function setPlaybackPreference(
 		throw new Error("Invalid playback preference response.");
 	clearPreferenceCache(session);
 	return next;
+}
+
+function isWatchHistoryPreference(
+	value: unknown,
+): value is WatchHistoryPreference {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		typeof (value as { enabled?: unknown }).enabled === "boolean"
+	);
+}
+
+export async function getWatchHistoryPreference(
+	session: AuthSession,
+): Promise<WatchHistoryPreference> {
+	return cachedPreference(session, "watch-history", async (signal) => {
+		const response = await authenticatedFetch(
+			session,
+			"/api/preferences/watch-history",
+			{ cache: "no-store", signal },
+		);
+		if (!response.ok) throw new Error("Could not load watch history preference.");
+		const value: unknown = await response.json();
+		if (!isWatchHistoryPreference(value))
+			throw new Error("Invalid watch history preference response.");
+		return value;
+	});
+}
+
+export async function setWatchHistoryPreference(
+	session: AuthSession,
+	enabled: boolean,
+): Promise<WatchHistoryPreference> {
+	const response = await authenticatedFetch(
+		session,
+		"/api/preferences/watch-history",
+		{
+			method: "PATCH",
+			body: JSON.stringify({ enabled }),
+		},
+	);
+	if (!response.ok) throw new Error("Could not save watch history preference.");
+	const value: unknown = await response.json();
+	if (!isWatchHistoryPreference(value))
+		throw new Error("Invalid watch history preference response.");
+	clearPreferenceCache(session);
+	return value;
 }
 
 export const LOCALE_STORAGE_KEY = "zenstream.locale";

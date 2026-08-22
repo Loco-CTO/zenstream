@@ -43,6 +43,8 @@ import {
 	getPlaybackInfo,
 	getSeasons,
 	playbackStreams,
+	reportPlayback,
+	setPlayed,
 	type MediaItem,
 } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
@@ -57,6 +59,8 @@ vi.mock("@/lib/media-api", async () => {
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getSeasons: vi.fn().mockResolvedValue([]),
 		getTrickplayInfo: vi.fn().mockResolvedValue(undefined),
+		reportPlayback: vi.fn().mockResolvedValue(undefined),
+		setPlayed: vi.fn().mockResolvedValue(undefined),
 		playbackStreams: vi.fn().mockReturnValue({
 			source: { TranscodingUrl: "/video.m3u8" },
 			audio: [],
@@ -126,6 +130,8 @@ describe("video player controls", () => {
 			.mockReturnValue(defaultPlaybackStreams);
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
+		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);
+		vi.mocked(setPlayed).mockReset().mockResolvedValue(undefined);
 	});
 	afterEach(() => vi.useRealTimers());
 
@@ -209,6 +215,65 @@ describe("video player controls", () => {
 		);
 		return { view, onNext, onClose };
 	}
+
+	it("suppresses automatic history writes and replay unwatch when disabled", () => {
+		const videoItem = {
+			Id: "movie",
+			Name: "Movie",
+			Type: "Movie",
+			UserData: { Played: true },
+		} as MediaItem;
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={videoItem}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						watchHistoryEnabled={false}
+						watchHistoryLoaded
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		const video = container.querySelector("video")!;
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			value: 15,
+		});
+		fireEvent.pause(video);
+		fireEvent.play(video);
+
+		expect(reportPlayback).not.toHaveBeenCalled();
+		expect(setPlayed).not.toHaveBeenCalled();
+	});
+
+	it("does not unwatch on replay until Watch History has loaded", () => {
+		const { container } = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{
+								Id: "movie",
+								Name: "Movie",
+								Type: "Movie",
+								UserData: { Played: true },
+							} as MediaItem
+						}
+						session={{ token: "token", userId: "user", username: "Alex" }}
+						watchHistoryEnabled
+						watchHistoryLoaded={false}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+
+		fireEvent.play(container.querySelector("video")!);
+		expect(setPlayed).not.toHaveBeenCalled();
+	});
 
 	it("detects when an active Syncplay member is waiting", () => {
 		const group = {
@@ -567,6 +632,70 @@ describe("video player controls", () => {
 		const track = container.querySelector("track");
 		expect(track).toHaveAttribute("kind", "subtitles");
 		expect(track?.getAttribute("src")).toContain("/subtitles/subtitle-file.vtt");
+	});
+
+	it("keeps overlay subtitles when the active track is selected again", async () => {
+		const streams = {
+			source: {
+				Id: "source",
+				mode: "direct",
+				url: "/movie.mp4",
+				MediaStreams: [
+					{
+						Index: 3,
+						Type: "Subtitle",
+						FileId: "subtitle-file",
+						Language: "en",
+						DisplayTitle: "English",
+					},
+				],
+			},
+			audio: [],
+			subtitles: [
+				{
+					Index: 3,
+					Type: "Subtitle",
+					FileId: "subtitle-file",
+					Language: "en",
+					DisplayTitle: "English",
+				},
+			],
+			qualities: [],
+		} as never;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response("WEBVTT\n\n00:00:00.000 --> 00:00:10.000\nStill here\n"),
+			);
+
+		try {
+			const view = render(
+				<I18nProvider locale="en">
+					<SubtitlePreferencesProvider
+						initialStyle={{ ...DEFAULT_SUBTITLE_STYLE, renderer: "overlay" }}
+					>
+						<VideoPlayer
+							item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+							session={{ token: "token", userId: "user", username: "Alex" }}
+							initialSubtitleStreamIndex={3}
+							initialStreams={streams}
+							onClose={vi.fn()}
+						/>
+					</SubtitlePreferencesProvider>
+				</I18nProvider>,
+			);
+
+			await flushPlayerEffects();
+			expect(view.getByTestId("subtitle-cue")).toHaveTextContent("Still here");
+
+			fireEvent.click(view.getByRole("button", { name: "Subtitles" }));
+			fireEvent.click(view.getByRole("button", { name: "English" }));
+
+			expect(view.getByTestId("subtitle-cue")).toHaveTextContent("Still here");
+		} finally {
+			fetchMock.mockRestore();
+		}
 	});
 
 	it("applies initial audio and subtitle choices that arrive after mount", async () => {

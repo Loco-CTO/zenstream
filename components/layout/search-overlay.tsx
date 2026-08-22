@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getSearchItems, posterImage, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
@@ -20,36 +20,54 @@ export function SearchOverlay({
 	const router = useRouter();
 	const [query, setQuery] = useState("");
 	const [suggestions, setSuggestions] = useState<MediaItem[]>([]);
+	const [resultQuery, setResultQuery] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const requestVersionRef = useRef(0);
 
 	useEffect(() => {
 		inputRef.current?.focus();
 	}, []);
 	useEffect(() => {
 		const value = query.trim();
-		if (value.length < 2) {
+		const requestVersion = ++requestVersionRef.current;
+		if (!value) {
 			setSuggestions([]);
+			setResultQuery("");
 			setLoading(false);
 			setError(false);
 			return;
 		}
 		const controller = new AbortController();
-		const timer = window.setTimeout(() => {
-			setLoading(true);
-			setError(false);
-			getSearchItems(session, value, { limit: 8, signal: controller.signal })
-				.then(setSuggestions)
-				.catch(() => {
-					if (!controller.signal.aborted) setError(true);
-				})
-				.finally(() => {
-					if (!controller.signal.aborted) setLoading(false);
-				});
-		}, 250);
+		setLoading(true);
+		setError(false);
+		getSearchItems(session, value, { limit: 8, signal: controller.signal })
+			.then((results) => {
+				if (
+					controller.signal.aborted ||
+					requestVersionRef.current !== requestVersion
+				)
+					return;
+				setSuggestions(results);
+				setResultQuery(value);
+				setError(false);
+			})
+			.catch(() => {
+				if (
+					!controller.signal.aborted &&
+					requestVersionRef.current === requestVersion
+				)
+					setError(true);
+			})
+			.finally(() => {
+				if (
+					!controller.signal.aborted &&
+					requestVersionRef.current === requestVersion
+				)
+					setLoading(false);
+			});
 		return () => {
-			window.clearTimeout(timer);
 			controller.abort();
 		};
 	}, [query, session]);
@@ -93,61 +111,48 @@ export function SearchOverlay({
 							<X className="h-4 w-4" />
 						</button>
 					</div>
-					{(loading ||
-						error ||
-						suggestions.length > 0 ||
-						(query.trim().length >= 2 && !loading)) && (
+					{(error || resultQuery) && (
 						<div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-black/25 p-1 shadow-2xl backdrop-blur-xl">
-							{loading && (
-								<div className="flex items-center gap-2 px-4 py-3 text-xs text-white/45">
-									<LoaderCircle className="h-4 w-4 animate-spin" />
-									{t("searchLoading")}
-								</div>
-							)}
 							{error && (
 								<p className="px-4 py-3 text-xs text-red-200/70">
 									{t("searchLoadFailed")}
 								</p>
 							)}
-							{!loading &&
-								!error &&
-								suggestions.length === 0 &&
-								query.trim().length >= 2 && (
-									<p className="px-4 py-3 text-xs text-white/45">
-										{t("noSearchResults")}
-									</p>
-								)}
-							{!loading &&
-								suggestions.map((item) => (
-									<button
-										type="button"
-										key={item.Id}
-										onClick={() => select(item)}
-										className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-white/[0.06]"
-									>
-										<div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-white/5">
-											{(() => {
-												const image = posterImage(item);
-												return image ? (
-													<BlurHashImage
-														image={image}
-														alt=""
-														className="h-full w-full object-cover"
-													/>
-												) : null;
-											})()}
-										</div>
-										<span className="min-w-0">
-											<span className="block truncate text-sm text-white/80">
-												{item.Name}
-											</span>
-											<span className="block text-xs text-white/35">
-												{item.Type === "Series" ? t("series") : t("movie")}
-												{item.ProductionYear ? ` · ${item.ProductionYear}` : ""}
-											</span>
+							{!error && suggestions.length === 0 && resultQuery && (
+								<p className="px-4 py-3 text-xs text-white/45">
+									{t("noSearchResults")}
+								</p>
+							)}
+							{suggestions.map((item) => (
+								<button
+									type="button"
+									key={item.Id}
+									onClick={() => select(item)}
+									className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-white/[0.06]"
+								>
+									<div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-white/5">
+										{(() => {
+											const image = posterImage(item);
+											return image ? (
+												<BlurHashImage
+													image={image}
+													alt=""
+													className="h-full w-full object-cover"
+												/>
+											) : null;
+										})()}
+									</div>
+									<span className="min-w-0">
+										<span className="block truncate text-sm text-white/80">
+											{item.Name}
 										</span>
-									</button>
-								))}
+										<span className="block text-xs text-white/35">
+											{item.Type === "Series" ? t("series") : t("movie")}
+											{item.ProductionYear ? ` · ${item.ProductionYear}` : ""}
+										</span>
+									</span>
+								</button>
+							))}
 						</div>
 					)}
 				</form>

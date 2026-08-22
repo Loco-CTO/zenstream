@@ -325,7 +325,7 @@ export function AvatarEditModal({
 	return (
 		<div
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm sm:p-6"
-			onMouseDown={(event) => {
+			onPointerDown={(event) => {
 				if (event.target === event.currentTarget) close();
 			}}
 		>

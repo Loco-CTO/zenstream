@@ -8,7 +8,10 @@ import {
 	clearPreferenceCache,
 	getPlaybackPreference,
 	setPlaybackPreference,
+	getWatchHistoryPreference,
+	setWatchHistoryPreference,
 } from "@/lib/preferences";
+import { clearWatchHistory } from "@/lib/media-api";
 import {
 	DEFAULT_SUBTITLE_STYLE,
 	getSubtitlePreference,
@@ -199,6 +202,57 @@ describe("playback language preferences", () => {
 				method: "PATCH",
 				body: JSON.stringify({ audioLanguage: "en", subtitleLanguage: "ja" }),
 			}),
+		);
+	});
+});
+
+describe("watch history preferences", () => {
+	it("loads a valid persisted value", async () => {
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify({ enabled: false })));
+
+		await expect(getWatchHistoryPreference(session)).resolves.toEqual({
+			enabled: false,
+		});
+	});
+
+	it("rejects an invalid persisted value", async () => {
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify({ enabled: "false" })));
+
+		await expect(getWatchHistoryPreference(session)).rejects.toThrow(
+			"Invalid watch history preference",
+		);
+	});
+
+	it("persists the toggle with PATCH", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify({ enabled: false })));
+
+		await expect(setWatchHistoryPreference(session, false)).resolves.toEqual({
+			enabled: false,
+		});
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/preferences/watch-history"),
+			expect.objectContaining({
+				method: "PATCH",
+				body: JSON.stringify({ enabled: false }),
+			}),
+		);
+	});
+
+	it("clears watch history with an account-wide DELETE", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(null, { status: 204 }));
+
+		await expect(clearWatchHistory(session)).resolves.toBeUndefined();
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/account/watch-history"),
+			expect.objectContaining({ method: "DELETE" }),
 		);
 	});
 });

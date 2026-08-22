@@ -1,9 +1,41 @@
 home: Home
 library: Library
 favorites: Favorites
+calendar: Calendar
+calendarWeek: Week
+calendarMonth: Month
+calendarDay: Day
+calendarToday: Today
+calendarPrevious: Previous
+calendarNext: Next
+calendarLoadFailed: Could not load the calendar
+calendarEmpty: No releases in this period
+calendarFuture: Upcoming
+calendarCatalog: In catalog
+calendarAllDay: All day
+calendarEpisode: Episode
+calendarMovie: Movie
+calendarAirDate: Air date
+calendarRelease: Release
+calendarOpenEpisode: Open episode
 list: List
 search: Search
 notifications: Notifications
+notificationInbox: Notification inbox
+notificationInboxDescription: New episodes and movies are listed here.
+unreadNotifications: unread
+notificationActions: Notification actions
+viewAllNotifications: View all notifications
+notificationsEmpty: No notifications yet
+notificationsEmptyDescription: Follow a series or movie to get notified when new playable media is added.
+notificationsLoadFailed: Could not load notifications
+markAllRead: Mark all read
+markRead: Mark as read
+markUnread: Mark as unread
+removeNotification: Remove notification
+loadMore: Load more
+follow: Follow
+unfollow: Unfollow
 profile: Profile
 settings: Settings
 language: Language
@@ -142,17 +174,20 @@ autoplayNextEpisode: Autoplay Next Episode
 autoplayBrowse: Autoplay on Browse
 autoplayBrowseDescription: Play previews while browsing
 newEpisodes: New Episodes
-newEpisodesDescription: When a show you watch releases
+newEpisodesDescription: Follow a series to receive new episode notifications
 newSeasons: New Seasons
 watchReminders: Watch Reminders
 watchRemindersDescription: Nudges to continue watching
 appUpdates: App Updates & News
 privacyData: Privacy & Data
 watchHistory: Watch History
-watchHistoryDescription: Used to personalize recommendations
-dataSaver: Data Saver
-dataSaverDescription: Reduces streaming quality on mobile
+watchHistoryDescription: Automatically saves playback progress and watched status
+watchHistorySaveFailed: Could not save the Watch History setting.
 clearWatchHistory: Clear Watch History
+clearWatchHistoryTitle: Clear watch history?
+clearWatchHistoryDescription: This permanently removes your playback progress, watched status, play counts, and watched timestamps. This action is irreversible.
+clearWatchHistoryConfirm: Clear watch history
+clearWatchHistoryFailed: Could not clear watch history. Please try again.
 clear: Clear
 dangerZone: Danger Zone
 versions: Versions

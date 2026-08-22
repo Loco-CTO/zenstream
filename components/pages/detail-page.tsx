@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
+import { Bookmark, Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
 import {
 	getPlaybackSource,
 	getEpisodes,
@@ -13,6 +13,7 @@ import {
 	personImage,
 	posterImage,
 	setFavorite,
+	setFollowing,
 	setPlayed,
 	titleLogoImage,
 	playbackStreams,
@@ -127,6 +128,7 @@ export function DetailPage({
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
+	const isFollowable = item.Type === "Movie" || item.Type === "Series";
 	const hasTrackSelection = item.Type === "Movie" || isEpisode;
 	const seriesId = isEpisode ? item.SeriesId : item.Id;
 	const background =
@@ -233,6 +235,21 @@ export function DetailPage({
 			await setPlayed(session, item.Id, !previous);
 		} catch {
 			setItem(updateUserData(item, { Played: previous }));
+			setMutationError(t("detailLoadFailed"));
+		} finally {
+			finish();
+		}
+	}
+
+	async function toggleFollowing() {
+		const previous = Boolean(item.UserData?.IsFollowing);
+		setItem(updateUserData(item, { IsFollowing: !previous }));
+		setMutationError("");
+		const finish = start();
+		try {
+			await setFollowing(session, item.Id, !previous);
+		} catch {
+			setItem(updateUserData(item, { IsFollowing: previous }));
 			setMutationError(t("detailLoadFailed"));
 		} finally {
 			finish();
@@ -364,6 +381,18 @@ export function DetailPage({
 									/>
 								}
 							/>
+							{isFollowable && (
+								<ActionButton
+									active={Boolean(item.UserData?.IsFollowing)}
+									label={t(item.UserData?.IsFollowing ? "unfollow" : "follow")}
+									onClick={toggleFollowing}
+									icon={
+										<Bookmark
+											className={`h-4 w-4 ${item.UserData?.IsFollowing ? "fill-violet-300" : ""}`}
+										/>
+									}
+								/>
+							)}
 						</div>
 						{hasTrackSelection &&
 							currentTrackChoices &&

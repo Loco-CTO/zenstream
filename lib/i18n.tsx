@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useCallback, useContext, type ReactNode } from "react";
 import en from "@/locale/en.yaml";
 import ja from "@/locale/ja.yaml";
 
@@ -11,9 +11,41 @@ export const TRANSLATION_KEYS = [
 	"home",
 	"library",
 	"favorites",
+	"calendar",
+	"calendarWeek",
+	"calendarMonth",
+	"calendarDay",
+	"calendarToday",
+	"calendarPrevious",
+	"calendarNext",
+	"calendarLoadFailed",
+	"calendarEmpty",
+	"calendarFuture",
+	"calendarCatalog",
+	"calendarAllDay",
+	"calendarEpisode",
+	"calendarMovie",
+	"calendarAirDate",
+	"calendarRelease",
+	"calendarOpenEpisode",
 	"list",
 	"search",
 	"notifications",
+	"notificationInbox",
+	"notificationInboxDescription",
+	"unreadNotifications",
+	"notificationActions",
+	"viewAllNotifications",
+	"notificationsEmpty",
+	"notificationsEmptyDescription",
+	"notificationsLoadFailed",
+	"markAllRead",
+	"markRead",
+	"markUnread",
+	"removeNotification",
+	"loadMore",
+	"follow",
+	"unfollow",
 	"profile",
 	"settings",
 	"language",
@@ -160,9 +192,12 @@ export const TRANSLATION_KEYS = [
 	"privacyData",
 	"watchHistory",
 	"watchHistoryDescription",
-	"dataSaver",
-	"dataSaverDescription",
+	"watchHistorySaveFailed",
 	"clearWatchHistory",
+	"clearWatchHistoryTitle",
+	"clearWatchHistoryDescription",
+	"clearWatchHistoryConfirm",
+	"clearWatchHistoryFailed",
 	"clear",
 	"dangerZone",
 	"versions",
@@ -299,9 +334,13 @@ export function I18nProvider({
 
 export function useI18n() {
 	const locale = useContext(I18nContext);
+	const t = useCallback(
+		(key: TranslationKey, values?: Record<string, string | number>) =>
+			translate(locale, key, values),
+		[locale],
+	);
 	return {
 		locale,
-		t: (key: TranslationKey, values?: Record<string, string | number>) =>
-			translate(locale, key, values),
+		t,
 	};
 }

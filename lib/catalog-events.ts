@@ -64,6 +64,7 @@ export function startCatalogEvents(session: AuthSession): () => void {
 	};
 
 	const connect = async () => {
+		let statusReceived = false;
 		try {
 			const { ticket } = await catalogRequest<{ ticket: string }>(
 				session,
@@ -78,6 +79,8 @@ export function startCatalogEvents(session: AuthSession): () => void {
 			socket.onmessage = (message) => {
 				const event = parseCatalogEvent(String(message.data));
 				if (event?.type === "catalog.status") {
+					if (statusReceived) return;
+					statusReceived = true;
 					for (const change of catalogStatusChanges(event)) {
 						pendingEvents.set(`status:${change.libraryId}`, change);
 					}

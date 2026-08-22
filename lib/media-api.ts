@@ -52,6 +52,7 @@ export interface MediaItem {
 	LocalTrailerCount?: number;
 	UserData?: {
 		IsFavorite?: boolean;
+		IsFollowing?: boolean;
 		UnplayedItemCount?: number;
 		PlayedPercentage?: number;
 		PlaybackPositionTicks?: number;
@@ -359,6 +360,61 @@ export interface LibraryPage {
 	totalRecordCount: number;
 }
 
+export interface SearchPage {
+	items: MediaItem[];
+	total: number;
+	page: number;
+	pageSize: number;
+}
+
+export async function getSearchPage(
+	session: AuthSession,
+	query: string,
+	options: {
+		page?: number;
+		pageSize?: number;
+		signal?: AbortSignal;
+	} = {},
+): Promise<SearchPage> {
+	const term = query.trim();
+	if (!term) {
+		return {
+			items: [],
+			total: 0,
+			page: options.page ?? 1,
+			pageSize: options.pageSize ?? 20,
+		};
+	}
+	const page = options.page ?? 1;
+	const pageSize = options.pageSize ?? 20;
+	const params = new URLSearchParams({
+		query: term,
+		page: String(page),
+		pageSize: String(pageSize),
+		view: "card",
+	});
+	return cachedClientRequest(
+		`search:${session.userId}:${term.toLocaleLowerCase()}:${page}:${pageSize}:card`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				items?: CatalogItem[];
+				total?: number;
+				page?: number;
+				pageSize?: number;
+			}>(session, `/api/catalog/search?${params}`, {
+				signal: combinedSignal(options.signal, signal),
+			});
+			const items = (result.items ?? []).map(toMediaItem);
+			return {
+				items,
+				total: Number.isFinite(result.total) ? Number(result.total) : items.length,
+				page: result.page ?? page,
+				pageSize: result.pageSize ?? pageSize,
+			};
+		},
+	);
+}
+
 export async function getSearchItems(
 	session: AuthSession,
 	query: string,
@@ -366,18 +422,12 @@ export async function getSearchItems(
 ): Promise<MediaItem[]> {
 	const term = query.trim();
 	if (!term) return [];
-	const limit = options.limit ?? 40;
-	return cachedClientRequest(
-		`search:${session.userId}:${term.toLocaleLowerCase()}`,
-		async (signal) => {
-			const result = await catalogRequest<{ items: CatalogItem[] }>(
-				session,
-				`/api/catalog/search?query=${encodeURIComponent(term)}&pageSize=40&view=card`,
-				{ signal: combinedSignal(options.signal, signal) },
-			);
-			return result.items.map(toMediaItem);
-		},
-	).then((items) => items.slice(0, limit));
+	const pageSize = options.limit ?? 8;
+	return getSearchPage(session, term, {
+		page: 1,
+		pageSize,
+		signal: options.signal,
+	}).then((page) => page.items);
 }
 
 export interface NewlyAddedSection {
@@ -1411,7 +1461,7 @@ export async function reportPlayback(
 	void isPaused;
 	await catalogRequest(
 		session,
-		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/progress`,
 		{
 			method: "PATCH",
 			body: JSON.stringify({
@@ -1425,6 +1475,20 @@ export async function reportPlayback(
 		},
 	);
 	clearMediaClientCache({ rootEntityId: itemId });
+}
+
+export async function clearWatchHistory(session: AuthSession): Promise<void> {
+	await catalogRequest<null>(session, "/api/account/watch-history", {
+		method: "DELETE",
+	});
+	clearMediaClientCache();
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { type: "catalog.changed", reason: "refresh", rootEntityId: null },
+			}),
+		);
+	}
 }
 
 export async function getPlaybackMarkers(
@@ -1611,6 +1675,22 @@ export async function setPlayed(
 	clearMediaClientCache();
 }
 
+export async function setFollowing(
+	session: AuthSession,
+	itemId: string,
+	following: boolean,
+) {
+	await catalogRequest(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/state`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ following }),
+		},
+	);
+	clearMediaClientCache();
+}
+
 export function landscapeImageUrl(item: MediaItem) {
 	return landscapeImage(item)?.src ?? null;
 }
@@ -1695,6 +1775,17 @@ export function userInitial(username?: string | null) {
 
 export function personImageUrl(person: MediaPerson) {
 	return personImage(person);
+}
+
+/** Resolves an authenticated catalog artwork URL returned by the Orchestrator. */
+export function catalogImage(
+	tag: string | null | undefined,
+	blurHash?: string | null,
+): MediaImage | null {
+	if (!tag || !tag.startsWith("/api/")) return null;
+	const url = new URL(tag, orchestratorBaseUrl());
+	addResourceTicket(url.searchParams);
+	return { src: url.toString(), blurHash: blurHash ?? undefined };
 }
 
 export function personImage(person: MediaPerson) {

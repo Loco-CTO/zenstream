@@ -214,11 +214,7 @@ export function SearchPage({
 						</div>
 						{items.length < total && (
 							<>
-								<div
-									ref={loadMoreSentinelRef}
-									aria-hidden="true"
-									className="h-px"
-								/>
+								<div ref={loadMoreSentinelRef} aria-hidden="true" className="h-px" />
 								{loadingMore && (
 									<div className="py-8 text-center" aria-live="polite">
 										<span className="text-xs uppercase tracking-widest text-white/35">
@@ -228,10 +224,7 @@ export function SearchPage({
 								)}
 								{loadMoreError && (
 									<div className="mt-5">
-										<ErrorPanel
-											message={t("searchLoadFailed")}
-											onRetry={loadMore}
-										/>
+										<ErrorPanel message={t("searchLoadFailed")} onRetry={loadMore} />
 									</div>
 								)}
 							</>

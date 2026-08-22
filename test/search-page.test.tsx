@@ -20,9 +20,8 @@ vi.mock("@/lib/i18n", () => ({
 }));
 
 vi.mock("@/lib/media-api", async () => {
-	const actual = await vi.importActual<typeof import("@/lib/media-api")>(
-		"@/lib/media-api",
-	);
+	const actual =
+		await vi.importActual<typeof import("@/lib/media-api")>("@/lib/media-api");
 	return { ...actual, getSearchPage: vi.fn() };
 });
 
@@ -100,7 +99,8 @@ describe("SearchPage", () => {
 				disconnect() {}
 			},
 		);
-		vi.mocked(getSearchPage)
+		vi
+			.mocked(getSearchPage)
 			.mockResolvedValueOnce(page([result], 2, 1))
 			.mockResolvedValueOnce(page([result, secondResult], 2, 2));
 
@@ -147,7 +147,8 @@ describe("SearchPage", () => {
 		vi.mocked(getSearchPage).mockImplementation((_session, _query, options) => {
 			const requestedPage = options?.page ?? 1;
 			requestedPages.push(requestedPage);
-			if (requestedPages.length === 1) return Promise.resolve(page([result], 2, 1));
+			if (requestedPages.length === 1)
+				return Promise.resolve(page([result], 2, 1));
 			if (requestedPages.length === 2)
 				return Promise.reject(new Error("page failed"));
 			return Promise.resolve(page([secondResult], 2, 2));
@@ -175,7 +176,8 @@ describe("SearchPage", () => {
 		const second = new Promise<SearchPageData>((resolve) => {
 			resolveSecond = resolve;
 		});
-		vi.mocked(getSearchPage)
+		vi
+			.mocked(getSearchPage)
 			.mockImplementationOnce(() => first)
 			.mockImplementationOnce(() => second);
 
@@ -193,6 +195,8 @@ describe("SearchPage", () => {
 		resolveSecond(page([secondResult]));
 		expect(await screen.findByText("Another Livid")).toBeInTheDocument();
 		resolveFirst(page([result]));
-		await waitFor(() => expect(screen.queryByText("A Livid")).not.toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.queryByText("A Livid")).not.toBeInTheDocument(),
+		);
 	});
 });

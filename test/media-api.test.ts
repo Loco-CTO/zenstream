@@ -46,12 +46,14 @@ describe("changeAccountPassword", () => {
 
 describe("search pagination requests", () => {
 	it("includes page, page size, and card view in result requests", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(
-				JSON.stringify({ items: [], total: 41, page: 2, pageSize: 20 }),
-				{ status: 200, headers: { "Content-Type": "application/json" } },
-			),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({ items: [], total: 41, page: 2, pageSize: 20 }),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				),
+			);
 
 		await expect(
 			getSearchPage(session, "paged-search", { page: 2, pageSize: 20 }),
@@ -71,12 +73,14 @@ describe("search pagination requests", () => {
 	});
 
 	it("uses one eight-item request for overlay search results", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response(
-				JSON.stringify({ items: [], total: 41, page: 1, pageSize: 8 }),
-				{ status: 200, headers: { "Content-Type": "application/json" } },
-			),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({ items: [], total: 41, page: 1, pageSize: 8 }),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				),
+			);
 
 		await getSearchItems(session, "overlay-search", { limit: 8 });
 

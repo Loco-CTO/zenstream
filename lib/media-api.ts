@@ -407,9 +407,7 @@ export async function getSearchPage(
 			const items = (result.items ?? []).map(toMediaItem);
 			return {
 				items,
-				total: Number.isFinite(result.total)
-					? Number(result.total)
-					: items.length,
+				total: Number.isFinite(result.total) ? Number(result.total) : items.length,
 				page: result.page ?? page,
 				pageSize: result.pageSize ?? pageSize,
 			};

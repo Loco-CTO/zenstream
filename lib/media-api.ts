@@ -1120,6 +1120,28 @@ export async function getPlaybackInfo(
 	};
 }
 
+export async function refreshPlaybackAccess(
+	session: AuthSession,
+	itemId: string,
+	source: MediaSource,
+): Promise<string> {
+	if (!source.Id) throw new Error("Playback source is missing its id.");
+	const response = await catalogRequest<{ ticket?: string }>(
+		session,
+		`/api/playback/items/${encodeURIComponent(itemId)}/access`,
+		{
+			method: "POST",
+			body: JSON.stringify({
+				sourceId: source.Id,
+				sessionId: source.mode === "direct" ? undefined : source.sessionId,
+			}),
+		},
+	);
+	if (typeof response.ticket !== "string" || !response.ticket)
+		throw new Error("Playback access renewal did not return a ticket.");
+	return playbackUrlWithAccess(source, response.ticket);
+}
+
 export async function getPlaybackSource(
 	session: AuthSession,
 	itemId: string,
@@ -1221,7 +1243,7 @@ export async function waitForPlaybackReady(
 	sessionId: string,
 	options: { timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<PlaybackSessionStatus> {
-	const deadline = Date.now() + (options.timeoutMs ?? 15_000);
+	const deadline = Date.now() + (options.timeoutMs ?? 30_000);
 	const intervalMs = options.intervalMs ?? 350;
 	let latest: PlaybackSessionStatus | undefined;
 	while (Date.now() <= deadline) {
@@ -1350,6 +1372,18 @@ export function playbackUrl(source?: MediaSource) {
 		if (resolved.origin === gatewayUrl.origin) return resolved.toString();
 	}
 	throw new Error("Canonical playback response did not include a usable URL.");
+}
+
+export function playbackUrlWithAccess(source: MediaSource, ticket: string) {
+	const negotiatedUrl = source.url;
+	if (!negotiatedUrl || !ticket)
+		throw new Error("Canonical playback response did not include a usable URL.");
+	const gatewayUrl = new URL(orchestratorBaseUrl());
+	const resolved = new URL(negotiatedUrl, gatewayUrl);
+	if (resolved.origin !== gatewayUrl.origin)
+		throw new Error("Canonical playback response did not include a usable URL.");
+	resolved.searchParams.set("access", ticket);
+	return resolved.toString();
 }
 
 export function subtitleUrl(

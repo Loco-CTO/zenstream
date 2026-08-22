@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
 	getPlaybackInfo,
+	refreshPlaybackAccess,
 	heartbeatPlaybackViewer,
 	isPlaybackViewerTerminalError,
 	endPlaybackViewer,
@@ -90,6 +91,27 @@ export const HLS_TEXT_TRACK_CONFIG = {
 	renderTextTracksNatively: false,
 	subtitleDisplay: false,
 };
+export const PLAYER_RECOVERY = {
+	directStallDelayMs: 8_000,
+	maxDirectSourceRetries: 1,
+	maxHlsRecoveries: 3,
+	hlsRetryBaseDelayMs: 1_000,
+	accessRefreshDelayMs: 12 * 60 * 1_000,
+} as const;
+
+export function isRecoverableMediaError(code?: number | null) {
+	// Aborted/network errors describe transport state, not media compatibility.
+	return code === 1 || code === 2;
+}
+
+type HlsErrorData = {
+	type?: string;
+	details?: string;
+	fatal?: boolean;
+	response?: { code?: number };
+	url?: string;
+};
+
 const playerDebug = (event: string, details?: unknown) => {
 	if (typeof window === "undefined") return;
 	const rendered =
@@ -160,6 +182,20 @@ export function bufferedSecondsAhead(
 		if (position < start || position > end) return maximum;
 		return Math.max(maximum, end - position);
 	}, 0);
+}
+
+function videoBufferedSecondsAhead(video: HTMLVideoElement | null) {
+	if (!video) return 0;
+	const ranges: BufferedTimeRange[] = [];
+	for (let index = 0; index < video.buffered.length; index += 1) {
+		try {
+			ranges.push([video.buffered.start(index), video.buffered.end(index)]);
+		} catch {
+			// A range can disappear between length/start reads while the source is
+			// being replaced. The remaining ranges are still useful diagnostics.
+		}
+	}
+	return bufferedSecondsAhead(ranges, video.currentTime);
 }
 
 export function syncplayWaitingForMembers(
@@ -444,6 +480,9 @@ export function VideoPlayer({
 	const bufferingEpochRef = useRef(0);
 	const waitingTimerRef = useRef<number | undefined>(undefined);
 	const directStallTimerRef = useRef<number | undefined>(undefined);
+	const hlsRecoveryTimerRef = useRef<number | undefined>(undefined);
+	const directSourceRetryRef = useRef(0);
+	const hlsRecoveryAttemptsRef = useRef(0);
 	const mediaWaitingRef = useRef(false);
 	const mediaLoadIdRef = useRef(0);
 	const mediaLoadActiveRef = useRef(false);
@@ -459,6 +498,7 @@ export function VideoPlayer({
 	const [url, setUrl] = useState<string | undefined>(() =>
 		initialStreams?.source ? playbackUrl(initialStreams.source) : undefined,
 	);
+	const [mediaReloadNonce, setMediaReloadNonce] = useState(0);
 	const [info, setInfo] = useState<
 		ReturnType<typeof playbackStreams> | undefined
 	>(initialStreams);
@@ -479,6 +519,8 @@ export function VideoPlayer({
 		lastFragment: "",
 		hlsErrors: 0,
 		lastHlsError: "",
+		lastMediaErrorCode: "",
+		lastRecovery: "",
 	});
 	const [trackMenu, setTrackMenu] = useState<"audio" | "subtitle" | null>(null);
 	const [playing, setPlaying] = useState(false);
@@ -815,6 +857,10 @@ export function VideoPlayer({
 			window.clearTimeout(directStallTimerRef.current);
 			directStallTimerRef.current = undefined;
 		}
+		if (hlsRecoveryTimerRef.current !== undefined) {
+			window.clearTimeout(hlsRecoveryTimerRef.current);
+			hlsRecoveryTimerRef.current = undefined;
+		}
 		mediaWaitingRef.current = false;
 	}, []);
 	const invalidateMediaLoad = useCallback(
@@ -913,6 +959,123 @@ export function VideoPlayer({
 		},
 		[cancelPendingBufferingReport, item.Id],
 	);
+	const releaseSyncplayPresence = useCallback(
+		(reason: string) => {
+			cancelPendingBufferingReport(`terminal playback: ${reason}`);
+			bufferedRef.current = false;
+			const state = syncplayStateRef.current;
+			if (state?.itemId !== item.Id) return;
+			playerDebug("SyncPlay presence released", {
+				groupId: state.id,
+				itemId: item.Id,
+				generation: state.mediaGeneration ?? 0,
+				timelineRevision: state.timelineRevision ?? state.revision,
+				reason,
+			});
+			void syncplayApiRef.current
+				.presence(
+					false,
+					false,
+					state.mediaGeneration ?? 0,
+					state.timelineRevision ?? state.revision,
+				)
+				.catch(() => undefined);
+		},
+		[cancelPendingBufferingReport, item.Id],
+	);
+	const failPlayback = useCallback(
+		(reason: string, diagnostics?: Record<string, unknown>) => {
+			clearMediaWaitTimers();
+			cancelPendingBufferingReport(`terminal playback: ${reason}`);
+			hlsRef.current?.stopLoad();
+			mediaLoadActiveRef.current = false;
+			releaseSyncplayPresence(reason);
+			setBuffering(false);
+			setError(mediaPlaybackFailedMessage);
+			playerDebug("playback terminal failure", {
+				...diagnostics,
+				reason,
+				mode: sourceRef.current?.mode,
+				sessionId: sourceRef.current?.sessionId,
+				sourceId: sourceRef.current?.Id,
+			});
+		},
+		[
+			cancelPendingBufferingReport,
+			clearMediaWaitTimers,
+			mediaPlaybackFailedMessage,
+			releaseSyncplayPresence,
+		],
+	);
+	useEffect(() => {
+		const source = sourceRef.current;
+		if (!source?.url || !source.Id) return;
+		let active = true;
+		let retryTimer: number | undefined;
+		const renew = async (retry = 0) => {
+			try {
+				const refreshedUrl = await refreshPlaybackAccess(
+					session,
+					item.Id,
+					sourceRef.current ?? source,
+				);
+				if (!active) return;
+				const current = sourceRef.current;
+				if (
+					!current ||
+					current.Id !== source.Id ||
+					current.sessionId !== source.sessionId
+				)
+					return;
+				const video = videoRef.current;
+				if (video && Number.isFinite(video.currentTime)) {
+					resumeTimeRef.current = video.currentTime;
+					resumePlayingRef.current = !video.paused;
+				}
+				const nextSource = { ...current, url: refreshedUrl };
+				sourceRef.current = nextSource;
+				setInfo((previous) => {
+					if (!previous || previous.source?.Id !== nextSource.Id)
+						return previous;
+					return { ...previous, source: nextSource };
+				});
+				invalidateMediaLoad("resource ticket refresh");
+				setUrl(playbackUrl(nextSource));
+				playerDebug("playback resource ticket refreshed", {
+					mode: nextSource.mode,
+					sessionId: nextSource.sessionId,
+					sourceId: nextSource.Id,
+				});
+			} catch (error) {
+				if (!active) return;
+				playerDebug("playback resource ticket refresh failed", {
+					mode: source.mode,
+					sessionId: source.sessionId,
+					attempt: retry + 1,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				if (retry < 2)
+					retryTimer = window.setTimeout(() => void renew(retry + 1), 30_000);
+			}
+		};
+		const timer = window.setTimeout(
+			() => void renew(),
+			PLAYER_RECOVERY.accessRefreshDelayMs,
+		);
+		return () => {
+			active = false;
+			window.clearTimeout(timer);
+			if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+		};
+	}, [
+		info?.source?.Id,
+		info?.source?.mode,
+		info?.source?.sessionId,
+		info?.source?.url,
+		invalidateMediaLoad,
+		item.Id,
+		session,
+	]);
 	const fetchTranscodedPlayback = useCallback(
 		async (audioStreamId?: number, previousSource?: MediaSource) => {
 			let playback: Awaited<ReturnType<typeof getPlaybackInfo>> | undefined;
@@ -975,8 +1138,7 @@ export function VideoPlayer({
 			if (transcodedFallbackRef.current) return transcodedFallbackRef.current;
 			if (transcodeAttemptRef.current) {
 				if (isCurrentLoad()) {
-					setBuffering(false);
-					setError(mediaPlaybackFailedMessage);
+					failPlayback("transcode fallback was already attempted");
 				}
 				return false;
 			}
@@ -1013,8 +1175,10 @@ export function VideoPlayer({
 						error: error instanceof Error ? error.message : String(error),
 						fallbackCount: 1,
 					});
-					setBuffering(false);
-					setError(mediaPlaybackFailedMessage);
+					failPlayback("transcode fallback failed", {
+						error: error instanceof Error ? error.message : String(error),
+						bufferedSeconds: videoBufferedSecondsAhead(video),
+					});
 					return false;
 				}
 			})();
@@ -1028,10 +1192,156 @@ export function VideoPlayer({
 		},
 		[
 			fetchTranscodedPlayback,
+			failPlayback,
 			invalidateMediaLoad,
 			session,
-			mediaPlaybackFailedMessage,
 		],
+	);
+	const retryDirectSourceOrFallback = useCallback(
+		(
+			expectedLoadId: number,
+			expectedSourceId: string | undefined,
+			reason: string,
+		) => {
+			const isCurrentLoad =
+				mediaLoadActiveRef.current &&
+				mediaLoadIdRef.current === expectedLoadId &&
+				(expectedSourceId == null || sourceRef.current?.Id === expectedSourceId);
+			if (!isCurrentLoad) return false;
+			const source = sourceRef.current;
+			const video = videoRef.current;
+			if (
+				source?.mode === "direct" &&
+				directSourceRetryRef.current < PLAYER_RECOVERY.maxDirectSourceRetries
+			) {
+				directSourceRetryRef.current += 1;
+				if (video && Number.isFinite(video.currentTime)) {
+					resumeTimeRef.current = video.currentTime;
+					resumePlayingRef.current = !video.paused;
+				}
+				setError("");
+				setBuffering(true);
+				setDebugStats((previous) => ({
+					...previous,
+					lastRecovery: `direct-source-retry/${directSourceRetryRef.current}`,
+				}));
+				playerDebug("retrying direct playback source", {
+					reason,
+					attempt: directSourceRetryRef.current,
+					currentTime: video?.currentTime,
+					bufferedSeconds: videoBufferedSecondsAhead(video),
+					mode: source.mode,
+					sessionId: source.sessionId,
+				});
+				invalidateMediaLoad(`direct source recovery: ${reason}`);
+				setMediaReloadNonce((value) => value + 1);
+				return true;
+			}
+			if (!transcodeAttemptRef.current && source?.mode === "direct") {
+				playerDebug("direct playback recovery exhausted; requesting transcode", {
+					reason,
+					currentTime: video?.currentTime,
+					bufferedSeconds: videoBufferedSecondsAhead(video),
+				});
+				void requestTranscodedPlayback(expectedLoadId, expectedSourceId);
+				return true;
+			}
+			failPlayback(`direct playback recovery exhausted: ${reason}`, {
+				nativeErrorCode: video?.error?.code,
+				currentTime: video?.currentTime,
+				bufferedSeconds: videoBufferedSecondsAhead(video),
+			});
+			return false;
+		},
+		[failPlayback, invalidateMediaLoad, requestTranscodedPlayback],
+	);
+	const recoverHlsError = useCallback(
+		(
+			hls: Hls,
+			data: HlsErrorData,
+			expectedLoadId: number,
+			expectedSourceId: string | undefined,
+		) => {
+			if (
+				!mediaLoadActiveRef.current ||
+				mediaLoadIdRef.current !== expectedLoadId ||
+				(expectedSourceId != null && sourceRef.current?.Id !== expectedSourceId)
+			)
+				return;
+			if (
+				hlsRecoveryAttemptsRef.current < PLAYER_RECOVERY.maxHlsRecoveries
+			) {
+				hlsRecoveryAttemptsRef.current += 1;
+				const attempt = hlsRecoveryAttemptsRef.current;
+				const video = videoRef.current;
+				const delay = PLAYER_RECOVERY.hlsRetryBaseDelayMs * 2 ** (attempt - 1);
+				if (hlsRecoveryTimerRef.current !== undefined)
+					window.clearTimeout(hlsRecoveryTimerRef.current);
+				setError("");
+				setBuffering(true);
+				setDebugStats((previous) => ({
+					...previous,
+					lastRecovery: `hls-${data.type ?? "unknown"}/${attempt}`,
+				}));
+				playerDebug("recovering HLS error", {
+					type: data.type,
+					details: data.details,
+					responseCode: data.response?.code,
+					attempt,
+					delay,
+					currentTime: video?.currentTime,
+					bufferedSeconds: videoBufferedSecondsAhead(video),
+					mode: sourceRef.current?.mode,
+					sessionId: sourceRef.current?.sessionId,
+				});
+				reportBuffering(true);
+				hlsRecoveryTimerRef.current = window.setTimeout(() => {
+					hlsRecoveryTimerRef.current = undefined;
+					if (
+						!mediaLoadActiveRef.current ||
+						mediaLoadIdRef.current !== expectedLoadId
+					)
+						return;
+					try {
+						if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
+							hls.recoverMediaError();
+						else
+							hls.startLoad(
+								video && Number.isFinite(video.currentTime)
+									? Math.max(0, video.currentTime)
+									: -1,
+							);
+					} catch (error) {
+						failPlayback("HLS recovery threw", {
+							type: data.type,
+							details: data.details,
+							error: error instanceof Error ? error.message : String(error),
+						});
+					}
+				}, delay);
+				return;
+			}
+			const video = videoRef.current;
+			if (!transcodeAttemptRef.current) {
+				playerDebug("HLS recovery exhausted; requesting transcode", {
+					type: data.type,
+					details: data.details,
+					responseCode: data.response?.code,
+					currentTime: video?.currentTime,
+					bufferedSeconds: videoBufferedSecondsAhead(video),
+				});
+				void requestTranscodedPlayback(expectedLoadId, expectedSourceId);
+				return;
+			}
+			failPlayback("HLS recovery exhausted", {
+				type: data.type,
+				details: data.details,
+				responseCode: data.response?.code,
+				currentTime: video?.currentTime,
+				bufferedSeconds: videoBufferedSecondsAhead(video),
+			});
+		},
+		[failPlayback, reportBuffering, requestTranscodedPlayback],
 	);
 	const startSyncedPlayback = useCallback(
 		(video: HTMLVideoElement) => {
@@ -1292,6 +1602,7 @@ export function VideoPlayer({
 				playerDebug("playback negotiation or readiness failed", {
 					error: error instanceof Error ? error.message : String(error),
 				});
+				releaseSyncplayPresence("playback negotiation failed");
 				setBuffering(false);
 				setError("Playback could not be loaded.");
 			});
@@ -1306,6 +1617,7 @@ export function VideoPlayer({
 		initialStreams,
 		savedPositionSeconds,
 		invalidateMediaLoad,
+		releaseSyncplayPresence,
 	]);
 	useEffect(() => {
 		if (!syncplayGroupId || syncplayItemId !== item.Id) return;
@@ -1427,7 +1739,10 @@ export function VideoPlayer({
 			lastFragment: "",
 			hlsErrors: 0,
 			lastHlsError: "",
+			lastMediaErrorCode: "",
+			lastRecovery: "",
 		});
+		hlsRecoveryAttemptsRef.current = 0;
 		clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
 		const sourceId = sourceRef.current?.Id;
@@ -1529,6 +1844,8 @@ export function VideoPlayer({
 		const onPlaying = () => {
 			if (!isCurrentLoad()) return;
 			clearMediaWaitTimers();
+			directSourceRetryRef.current = 0;
+			hlsRecoveryAttemptsRef.current = 0;
 			playerDebug("media first playable signal", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1537,11 +1854,20 @@ export function VideoPlayer({
 		};
 		const onMediaError = () => {
 			if (!isCurrentLoad()) return;
+			const mediaErrorCode = video.error?.code;
+			setDebugStats((previous) => ({
+				...previous,
+				lastMediaErrorCode:
+					mediaErrorCode == null ? "unknown" : String(mediaErrorCode),
+			}));
 			playerDebug("media error", {
 				readyState: video.readyState,
 				networkState: video.networkState,
-				code: video.error?.code,
+				nativeErrorCode: mediaErrorCode,
 				message: video.error?.message,
+				bufferedSeconds: videoBufferedSecondsAhead(video),
+				mode: sourceRef.current?.mode,
+				sessionId: sourceRef.current?.sessionId,
 			});
 		};
 		video.addEventListener("loadedmetadata", onMetadata, { once: true });
@@ -1578,6 +1904,7 @@ export function VideoPlayer({
 			hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
 				if (!isCurrentLoad()) return;
 				clearMediaWaitTimers();
+				hlsRecoveryAttemptsRef.current = 0;
 				playerDebug("HLS fragment buffered", {
 					url: data.frag?.url,
 					currentTime: video.currentTime,
@@ -1598,6 +1925,9 @@ export function VideoPlayer({
 					fatal: data.fatal,
 					responseCode: data.response?.code,
 					url: data.url,
+					bufferedSeconds: videoBufferedSecondsAhead(video),
+					mode: sourceRef.current?.mode,
+					sessionId: sourceRef.current?.sessionId,
 				});
 				setDebugStats((previous) => ({
 					...previous,
@@ -1605,8 +1935,7 @@ export function VideoPlayer({
 					lastHlsError: `${data.type}/${data.details}${data.fatal ? " (fatal)" : ""}`,
 				}));
 				if (!isCurrentLoad() || !data.fatal) return;
-				setBuffering(false);
-				void requestTranscodedPlayback(loadId, sourceId);
+				recoverHlsError(hls, data, loadId, sourceId);
 			});
 			hls.loadSource(url);
 			hls.attachMedia(video);
@@ -1618,6 +1947,7 @@ export function VideoPlayer({
 			active = false;
 			if (mediaLoadIdRef.current === loadId) mediaLoadActiveRef.current = false;
 			clearMediaWaitTimers();
+			releaseSyncplayPresence("media source cleanup");
 			video.removeEventListener("loadedmetadata", onMetadata);
 			video.removeEventListener("canplay", onCanPlay);
 			video.removeEventListener("playing", onPlaying);
@@ -1635,10 +1965,13 @@ export function VideoPlayer({
 		};
 	}, [
 		clearMediaWaitTimers,
+		releaseSyncplayPresence,
 		requestTranscodedPlayback,
+		recoverHlsError,
 		startSyncedPlayback,
 		updateBufferedRanges,
 		url,
+		mediaReloadNonce,
 		item.Id,
 		savedPositionSeconds,
 		knownDuration,
@@ -2200,6 +2533,9 @@ export function VideoPlayer({
 					playerDebug("video waiting", {
 						currentTime: video.currentTime,
 						readyState: video.readyState,
+						bufferedSeconds: videoBufferedSecondsAhead(video),
+						mode: sourceRef.current?.mode,
+						sessionId: sourceRef.current?.sessionId,
 					});
 					waitingTimerRef.current = window.setTimeout(() => {
 						waitingTimerRef.current = undefined;
@@ -2223,12 +2559,19 @@ export function VideoPlayer({
 									video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
 								)
 									return;
-								playerDebug("direct playback stalled; requesting transcode", {
+								playerDebug("direct playback stalled; starting recovery", {
 									currentTime: video.currentTime,
 									readyState: video.readyState,
+									bufferedSeconds: videoBufferedSecondsAhead(video),
+									mode: sourceRef.current?.mode,
+									sessionId: sourceRef.current?.sessionId,
 								});
-								void requestTranscodedPlayback(loadId, sourceId);
-							}, 1500);
+								retryDirectSourceOrFallback(
+									loadId,
+									sourceId,
+									"direct bandwidth stall",
+								);
+							}, PLAYER_RECOVERY.directStallDelayMs);
 						}
 					}, 250);
 				}}
@@ -2426,7 +2769,52 @@ export function VideoPlayer({
 				onError={() => {
 					if (!mediaLoadActiveRef.current) return;
 					const video = videoRef.current;
-					if (!transcodeAttemptRef.current && sourceRef.current?.mode === "direct") {
+					const nativeErrorCode = video?.error?.code;
+					playerDebug("video error event", {
+						nativeErrorCode,
+						readyState: video?.readyState,
+						networkState: video?.networkState,
+						bufferedSeconds: videoBufferedSecondsAhead(video),
+						mode: sourceRef.current?.mode,
+						sessionId: sourceRef.current?.sessionId,
+					});
+					if (isRecoverableMediaError(nativeErrorCode)) {
+						if (sourceRef.current?.mode === "direct") {
+							retryDirectSourceOrFallback(
+								mediaLoadIdRef.current,
+								sourceRef.current?.Id,
+								`native network error ${nativeErrorCode ?? "unknown"}`,
+							);
+							return;
+						}
+						if (video && video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+							const hls = hlsRef.current;
+							if (hls) {
+								if (hlsRecoveryTimerRef.current === undefined)
+									recoverHlsError(
+										hls,
+										{
+											type: Hls.ErrorTypes.NETWORK_ERROR,
+											details: "native media transport error",
+											fatal: true,
+										},
+										mediaLoadIdRef.current,
+										sourceRef.current?.Id,
+									);
+							} else {
+								failPlayback("native HLS transport error", {
+									nativeErrorCode,
+									bufferedSeconds: videoBufferedSecondsAhead(video),
+								});
+							}
+						}
+						return;
+					}
+					if (
+						sourceRef.current?.mode === "direct" &&
+						nativeErrorCode !== 1 &&
+						nativeErrorCode !== 2
+					) {
 						void requestTranscodedPlayback(
 							mediaLoadIdRef.current,
 							sourceRef.current?.Id,
@@ -2436,8 +2824,10 @@ export function VideoPlayer({
 					// Do not replace an already playable source with an error overlay
 					// when the browser has recovered and can play it.
 					if (video && video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return;
-					setBuffering(false);
-					setError(t("mediaPlaybackFailed"));
+					failPlayback("native media error", {
+						nativeErrorCode,
+						bufferedSeconds: videoBufferedSecondsAhead(video),
+					});
 				}}
 			>
 				{nativeSubtitleTrackUrl && (
@@ -2573,6 +2963,10 @@ export function VideoPlayer({
 							{debugStats.hlsErrors}
 							{debugStats.lastHlsError ? ` / ${debugStats.lastHlsError}` : ""}
 						</span>
+						<span className="text-white/50">Native error</span>
+						<span>{debugStats.lastMediaErrorCode || "-"}</span>
+						<span className="text-white/50">Recovery</span>
+						<span>{debugStats.lastRecovery || "-"}</span>
 					</div>
 				</div>
 			)}

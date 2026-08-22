@@ -12,6 +12,8 @@ import {
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
+	PLAYER_RECOVERY,
+	isRecoverableMediaError,
 	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
@@ -45,6 +47,7 @@ import {
 	playbackStreams,
 	reportPlayback,
 	setPlayed,
+	playbackUrl,
 	type MediaItem,
 } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
@@ -80,6 +83,13 @@ const defaultPlaybackStreams = {
 const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";
 
 describe("video player controls", () => {
+	it("classifies transport failures as recoverable and delays direct fallback", () => {
+		expect(isRecoverableMediaError(1)).toBe(true);
+		expect(isRecoverableMediaError(2)).toBe(true);
+		expect(isRecoverableMediaError(3)).toBe(false);
+		expect(PLAYER_RECOVERY.directStallDelayMs).toBeGreaterThan(1_500);
+	});
+
 	it("recognizes the transient decoder window after a seek", () => {
 		expect(syncplayWaitingIsSeekTransition(1500, 1000)).toBe(true);
 		expect(syncplayWaitingIsSeekTransition(1000, 1000)).toBe(false);
@@ -128,6 +138,7 @@ describe("video player controls", () => {
 			.mocked(playbackStreams)
 			.mockReset()
 			.mockReturnValue(defaultPlaybackStreams);
+		vi.mocked(playbackUrl).mockReset().mockReturnValue("/video.m3u8");
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
 		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);
@@ -215,6 +226,59 @@ describe("video player controls", () => {
 		);
 		return { view, onNext, onClose };
 	}
+
+	it("retries a direct source before requesting a transcode fallback", async () => {
+		vi.mocked(playbackStreams).mockReturnValue({
+			source: {
+				Id: "source-1",
+				mode: "direct",
+				url: "/episode-selected.mp4",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		});
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		const { view } = renderEpisodePlayer({ withNext: false });
+		await flushPlayerEffects();
+		await flushPlayerEffects();
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "readyState", {
+			configurable: true,
+			value: 1,
+		});
+		Object.defineProperty(video, "paused", {
+			configurable: true,
+			value: false,
+		});
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			value: 37,
+		});
+
+		fireEvent.waiting(video);
+		await act(async () => {
+			vi.advanceTimersByTime(250 + 1_500);
+			await Promise.resolve();
+		});
+		expect(getPlaybackInfo).not.toHaveBeenCalled();
+
+		await flushPlayerEffects();
+		fireEvent.waiting(video);
+		await act(async () => {
+			vi.advanceTimersByTime(250 + PLAYER_RECOVERY.directStallDelayMs);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		await flushPlayerEffects();
+		fireEvent.waiting(video);
+		await act(async () => {
+			vi.advanceTimersByTime(250 + PLAYER_RECOVERY.directStallDelayMs);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		expect(getPlaybackInfo).toHaveBeenCalledOnce();
+	});
 
 	it("suppresses automatic history writes and replay unwatch when disabled", () => {
 		const videoItem = {

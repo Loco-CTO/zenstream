@@ -1035,8 +1035,7 @@ export function VideoPlayer({
 				const nextSource = { ...current, url: refreshedUrl };
 				sourceRef.current = nextSource;
 				setInfo((previous) => {
-					if (!previous || previous.source?.Id !== nextSource.Id)
-						return previous;
+					if (!previous || previous.source?.Id !== nextSource.Id) return previous;
 					return { ...previous, source: nextSource };
 				});
 				invalidateMediaLoad("resource ticket refresh");
@@ -1190,12 +1189,7 @@ export function VideoPlayer({
 					transcodedFallbackRef.current = null;
 			}
 		},
-		[
-			fetchTranscodedPlayback,
-			failPlayback,
-			invalidateMediaLoad,
-			session,
-		],
+		[fetchTranscodedPlayback, failPlayback, invalidateMediaLoad, session],
 	);
 	const retryDirectSourceOrFallback = useCallback(
 		(
@@ -1268,9 +1262,7 @@ export function VideoPlayer({
 				(expectedSourceId != null && sourceRef.current?.Id !== expectedSourceId)
 			)
 				return;
-			if (
-				hlsRecoveryAttemptsRef.current < PLAYER_RECOVERY.maxHlsRecoveries
-			) {
+			if (hlsRecoveryAttemptsRef.current < PLAYER_RECOVERY.maxHlsRecoveries) {
 				hlsRecoveryAttemptsRef.current += 1;
 				const attempt = hlsRecoveryAttemptsRef.current;
 				const video = videoRef.current;
@@ -1303,8 +1295,7 @@ export function VideoPlayer({
 					)
 						return;
 					try {
-						if (data.type === Hls.ErrorTypes.MEDIA_ERROR)
-							hls.recoverMediaError();
+						if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
 						else
 							hls.startLoad(
 								video && Number.isFinite(video.currentTime)
@@ -2566,11 +2557,7 @@ export function VideoPlayer({
 									mode: sourceRef.current?.mode,
 									sessionId: sourceRef.current?.sessionId,
 								});
-								retryDirectSourceOrFallback(
-									loadId,
-									sourceId,
-									"direct bandwidth stall",
-								);
+								retryDirectSourceOrFallback(loadId, sourceId, "direct bandwidth stall");
 							}, PLAYER_RECOVERY.directStallDelayMs);
 						}
 					}, 250);

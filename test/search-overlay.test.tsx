@@ -28,9 +28,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("SearchOverlay", () => {
 	it("searches immediately for every non-empty query, including one character", async () => {
-		const search = vi
-			.spyOn(mediaApi, "getSearchItems")
-			.mockResolvedValue([]);
+		const search = vi.spyOn(mediaApi, "getSearchItems").mockResolvedValue([]);
 		renderOverlay();
 		const input = screen.getByRole("textbox", { name: "Search" });
 
@@ -122,7 +120,9 @@ describe("SearchOverlay", () => {
 		fireEvent.change(input, { target: { value: "ab" } });
 
 		await waitFor(() =>
-			expect(screen.getByText("Could not search your library")).toBeInTheDocument(),
+			expect(
+				screen.getByText("Could not search your library"),
+			).toBeInTheDocument(),
 		);
 		expect(screen.getByText("Alpha")).toBeInTheDocument();
 		expect(screen.queryByText("Search results · a")).not.toBeInTheDocument();

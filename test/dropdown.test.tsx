@@ -56,4 +56,24 @@ describe("Dropdown", () => {
 		fireEvent.keyDown(trigger, { key: "Escape" });
 		expect(trigger).toHaveAttribute("aria-expanded", "false");
 	});
+
+	it("renders an optional leading icon in an option", () => {
+		render(
+			<Dropdown
+				aria-label="Example"
+				value="one"
+				options={[
+					{
+						value: "one",
+						label: "First option",
+						leadingIcon: <span data-testid="leading-icon" />,
+					},
+				]}
+				onChange={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("combobox", { name: "Example" }));
+		expect(screen.getByTestId("leading-icon")).toBeInTheDocument();
+	});
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -8,6 +9,7 @@ export type DropdownOption = {
 	value: string;
 	label: string;
 	disabled?: boolean;
+	leadingIcon?: ReactNode;
 };
 
 const triggerClassName =
@@ -181,7 +183,10 @@ export function Dropdown({
 										: "text-white/65 hover:bg-white/[.06] hover:text-white"
 								} disabled:cursor-not-allowed disabled:opacity-35`}
 							>
-								<span>{option.label}</span>
+								<span className="flex min-w-0 items-center gap-2">
+									{option.leadingIcon}
+									<span className="truncate">{option.label}</span>
+								</span>
 								{option.value === value && (
 									<Check className="h-3.5 w-3.5 text-white/70" />
 								)}

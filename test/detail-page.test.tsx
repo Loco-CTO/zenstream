@@ -50,6 +50,151 @@ describe("detail views", () => {
 		);
 	});
 
+	it("shows the downloader as the final subtitle option without changing off", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "matched", hasLocalSubtitle: false },
+			streams: [{ index: 1, type: "audio", tags: { title: "English" } }],
+		});
+		renderDetail({
+			item: episode("episode-downloader", 1),
+			seasons: [],
+			episodes: [],
+			similar: [],
+		});
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		const selector = await screen.findByRole("combobox", {
+			name: "Subtitles",
+		});
+		fireEvent.click(selector);
+		const options = screen.getAllByRole("option");
+		expect(options.at(-1)).toHaveTextContent("Find subtitles");
+
+		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
+		expect(
+			screen.getByRole("dialog", { name: "Subtitle downloader" }),
+		).toBeInTheDocument();
+		expect(selector).toHaveTextContent("Subtitles off");
+	});
+
+	it("shows search results, keeps the modal open, and reports a queued download", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "matched", hasLocalSubtitle: false },
+			streams: [
+				{ index: 1, type: "audio", tags: { title: "English" } },
+				{ index: 2, type: "subtitle", tags: { title: "Japanese" } },
+			],
+			search: {
+				state: "matched",
+				sourceId: "source-1",
+				matches: [
+					{
+						matchId: "match-1",
+						name: "Japanese subtitle",
+						language: "ja",
+						provider: "opensubtitles",
+						format: "srt",
+					},
+				],
+			},
+		});
+		renderDetail({
+			item: episode("episode-results", 1),
+			seasons: [],
+			episodes: [],
+			similar: [],
+		});
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		fireEvent.click(screen.getByRole("combobox", { name: "Subtitles" }));
+		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
+		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
+
+		await screen.findByText("Japanese subtitle");
+		fireEvent.click(screen.getByRole("button", { name: "Download" }));
+
+		await waitFor(() =>
+			expect(
+				screen.getByText("Download queued; the library will refresh shortly"),
+			).toBeInTheDocument(),
+		);
+		expect(
+			screen.getByRole("dialog", { name: "Subtitle downloader" }),
+		).toBeInTheDocument();
+		expect(playback.downloadRequested()).toBe(true);
+	});
+
+	it("shows no-match and search-error states inside the modal", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "matched" },
+			streams: [{ index: 1, type: "audio" }],
+			search: { state: "matched", sourceId: "source-1", matches: [] },
+		});
+		renderDetail({
+			item: episode("episode-no-match", 1),
+			seasons: [],
+			episodes: [],
+			similar: [],
+		});
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		fireEvent.click(screen.getByRole("combobox", { name: "Subtitles" }));
+		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
+		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
+		expect(
+			await screen.findByText("No subtitle matches were found"),
+		).toBeInTheDocument();
+
+		playback.failSearch = true;
+		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
+		expect(
+			await screen.findByText("Could not search for subtitles"),
+		).toBeInTheDocument();
+	});
+
+	it("hides the selector when an episode has no matched downloader or tracks", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "unmatched" },
+			streams: [{ index: 1, type: "audio" }],
+		});
+		renderDetail({
+			item: episode("episode-unmatched", 1),
+			seasons: [],
+			episodes: [],
+			similar: [],
+		});
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		expect(
+				screen.queryByRole("combobox", { name: "Subtitles" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("keeps existing subtitle tracks without adding the downloader when unmatched", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "ambiguous" },
+			streams: [
+				{ index: 1, type: "audio" },
+				{ index: 2, type: "subtitle", tags: { title: "English" } },
+			],
+		});
+		renderDetail({
+			item: episode("episode-existing-track", 1),
+			seasons: [],
+			episodes: [],
+			similar: [],
+		});
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		const selector = await screen.findByRole("combobox", {
+			name: "Subtitles",
+		});
+		fireEvent.click(selector);
+		expect(
+			screen.queryByRole("option", { name: "Find subtitles" }),
+		).not.toBeInTheDocument();
+	});
+
 	it("uses browser history for the detail back button", () => {
 		window.history.pushState({}, "", "/library");
 		window.history.pushState({}, "", "/show/movie");
@@ -536,4 +681,62 @@ function episode(id: string, number: number): MediaItem {
 		Overview: "Episode overview",
 		ImageTags: { Primary: "thumb" },
 	};
+}
+
+function stubEpisodePlayback({
+	status,
+	streams,
+	search = { state: "matched", sourceId: "source-1", matches: [] },
+}: {
+	status: Record<string, unknown>;
+	streams: Array<Record<string, unknown>>;
+	search?: Record<string, unknown>;
+}) {
+	let statusRequested = false;
+	let downloadRequested = false;
+	let failSearch = false;
+	vi.mocked(fetch).mockImplementation(async (input) => {
+		const url = new URL(String(input), "http://localhost");
+		if (url.pathname.endsWith("/source")) {
+			return jsonResponse({ id: "source-1", streams });
+		}
+		if (url.pathname === "/api/preferences/playback") {
+			return jsonResponse({
+				audioLanguage: null,
+				subtitleLanguage: null,
+				audioLanguages: [],
+				subtitleLanguages: [],
+			});
+		}
+		if (url.pathname.endsWith("/bazarr/status")) {
+			statusRequested = true;
+			return jsonResponse(status);
+		}
+		if (url.pathname.endsWith("/bazarr/search")) {
+			if (failSearch) return new Response(null, { status: 500 });
+			return jsonResponse(search);
+		}
+		if (url.pathname.endsWith("/bazarr/download")) {
+			downloadRequested = true;
+			return jsonResponse({ state: "download_started" });
+		}
+		return new Response(null, { status: 204 });
+	});
+	return {
+		statusRequested: () => statusRequested,
+		downloadRequested: () => downloadRequested,
+		get failSearch() {
+			return failSearch;
+		},
+		set failSearch(value: boolean) {
+			failSearch = value;
+		},
+	};
+}
+
+function jsonResponse(value: unknown) {
+	return new Response(JSON.stringify(value), {
+		status: 200,
+		headers: { "content-type": "application/json" },
+	});
 }

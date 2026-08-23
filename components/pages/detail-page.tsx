@@ -40,6 +40,7 @@ import {
 } from "@/components/home/media-card";
 import { Dropdown } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { BazarrSubtitles } from "@/components/ui/bazarr-subtitles";
 import {
 	HoverPreviewVideo,
 	useHoverPreview,
@@ -122,6 +123,7 @@ export function DetailPage({
 	const [seasonLoading, setSeasonLoading] = useState(false);
 	const [trackChoices, setTrackChoices] = useState<{
 		itemId: string;
+		sourceId?: string;
 		streams: ReturnType<typeof playbackStreams>;
 	}>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
@@ -163,7 +165,7 @@ export function DetailPage({
 			.then(([source, preference]) => {
 				if (!active) return;
 				const parsed = playbackStreams({ source });
-				setTrackChoices({ itemId: item.Id, streams: parsed });
+				setTrackChoices({ itemId: item.Id, sourceId: source.Id, streams: parsed });
 				setSelectedTracks({
 					audio: preferredTrackIndex(parsed.audio, preference.audioLanguage),
 					subtitle: preferredSubtitleIndex(
@@ -404,6 +406,16 @@ export function DetailPage({
 									onChange={setSelectedTracks}
 								/>
 							)}
+						{isEpisode && (
+							<BazarrSubtitles
+								key={`${item.Id}:${trackChoices?.sourceId ?? "none"}`}
+								session={session}
+								itemId={item.Id}
+								sourceId={
+									trackChoices?.itemId === item.Id ? trackChoices.sourceId : undefined
+								}
+							/>
+						)}
 					</div>
 					{mutationError && (
 						<p role="alert" className="text-xs text-red-300">

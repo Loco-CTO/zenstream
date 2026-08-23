@@ -207,6 +207,17 @@ addFavorite: Add to favorites
 removeFavorite: Remove from favorites
 detailLoadFailed: Could not load this title
 itemNotFound: Title not found
+bazarrSubtitles: Subtitle downloader
+bazarrFindSubtitles: Find subtitles
+bazarrSearching: Searching…
+bazarrNoMatches: No subtitle matches were found
+bazarrNotConfigured: The subtitle downloader is not configured for this library
+bazarrPathConflict: The subtitle downloader has no unambiguous entry for this exact file
+bazarrExisting: A local subtitle is already indexed for this file
+bazarrDownload: Download
+bazarrDownloadQueued: Download queued; the library will refresh shortly
+bazarrSearchFailed: Could not search for subtitles
+bazarrDownloadFailed: Could not download that subtitle
 muteTrailer: Mute trailer
 unmuteTrailer: Unmute trailer
 sortBy: Sort by

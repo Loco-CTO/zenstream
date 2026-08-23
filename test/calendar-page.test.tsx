@@ -85,9 +85,19 @@ describe("CalendarPage", () => {
 	});
 
 	it("overlays the selected event and supports closing it", async () => {
+		const weekStart = new Date();
+		weekStart.setHours(0, 0, 0, 0);
+		weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+		const weekEnd = new Date(weekStart);
+		weekEnd.setDate(weekEnd.getDate() + 7);
+		const firstEventAt = new Date(weekStart);
+		firstEventAt.setDate(firstEventAt.getDate() + 4);
+		firstEventAt.setHours(12, 0, 0, 0);
+		const secondEventAt = new Date(firstEventAt);
+		secondEventAt.setDate(secondEventAt.getDate() + 1);
 		vi.spyOn(calendar, "getCalendar").mockResolvedValue({
-			start: "2026-08-16T00:00:00.000Z",
-			end: "2026-08-23T00:00:00.000Z",
+			start: weekStart.toISOString(),
+			end: weekEnd.toISOString(),
 			events: [
 				{
 					id: "event-1",
@@ -96,8 +106,8 @@ describe("CalendarPage", () => {
 					libraryName: "Anime",
 					kind: "episode",
 					releaseType: "air",
-					eventAt: "2026-08-20T12:00:00.000Z",
-					eventDate: "2026-08-20",
+					eventAt: firstEventAt.toISOString(),
+					eventDate: firstEventAt.toISOString().slice(0, 10),
 					allDay: false,
 					seasonNumber: 1,
 					episodeNumber: 2,
@@ -117,8 +127,8 @@ describe("CalendarPage", () => {
 					libraryName: "Anime",
 					kind: "episode",
 					releaseType: "air",
-					eventAt: "2026-08-21T12:00:00.000Z",
-					eventDate: "2026-08-21",
+					eventAt: secondEventAt.toISOString(),
+					eventDate: secondEventAt.toISOString().slice(0, 10),
 					allDay: false,
 					seasonNumber: 1,
 					episodeNumber: 3,

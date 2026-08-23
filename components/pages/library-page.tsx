@@ -94,6 +94,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		const controller = new AbortController();
 		libraryRequestRef.current = controller;
 		const finish = start();
+		await Promise.resolve();
+		if (controller.signal.aborted) {
+			finish();
+			return;
+		}
 		setLoading(true);
 		setError(null);
 		try {
@@ -201,13 +206,18 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		// Async hydration is intentionally owned by this route component.
-		void loadLibraries();
-		return () => libraryRequestRef.current?.abort();
+		let disposed = false;
+		queueMicrotask(() => {
+			if (!disposed) void loadLibraries();
+		});
+		return () => {
+			disposed = true;
+			libraryRequestRef.current?.abort();
+		};
 	}, [loadLibraries]);
 
 	const loadFirstPage = useCallback(
 		async (force = false) => {
-			setLoadingMore(false);
 			if (!activeLibrary) return;
 			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
 			const preserveCurrentItems = force && loadedQueryRef.current === queryKey;
@@ -220,6 +230,19 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			loadingMoreRef.current = false;
 			if (!preserveCurrentItems) requestedOffsetsRef.current = new Set([0]);
 			const finish = start();
+			await Promise.resolve();
+			if (
+				controller.signal.aborted ||
+				itemRequestGenerationRef.current !== requestGeneration
+			) {
+				if (itemRequestRef.current === controller) {
+					firstPageLoadingRef.current = false;
+					itemRequestRef.current = null;
+				}
+				finish();
+				return;
+			}
+			setLoadingMore(false);
 			setLoading(true);
 			if (!preserveCurrentItems) {
 				setItems([]);
@@ -290,7 +313,14 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
-		if (activeLibrary && sortReady && isSortAvailable) void loadFirstPage();
+		if (!activeLibrary || !sortReady || !isSortAvailable) return;
+		let disposed = false;
+		queueMicrotask(() => {
+			if (!disposed) void loadFirstPage();
+		});
+		return () => {
+			disposed = true;
+		};
 	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 
 	useEffect(() => {

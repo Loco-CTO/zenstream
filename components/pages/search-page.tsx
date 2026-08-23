@@ -47,10 +47,6 @@ export function SearchPage({
 		totalRef.current = 0;
 		requestedPagesRef.current = new Set([1]);
 		loadingMoreRef.current = false;
-		setItems([]);
-		setTotal(0);
-		setLoadingMore(false);
-		setLoadMoreError(false);
 		const finishProgress = start();
 		let finished = false;
 		const finish = () => {
@@ -95,6 +91,14 @@ export function SearchPage({
 			finish();
 		};
 	}, [query, requestKey, session, start]);
+
+	const retry = useCallback(() => {
+		setItems([]);
+		setTotal(0);
+		setLoadingMore(false);
+		setLoadMoreError(false);
+		setRetryKey((value) => value + 1);
+	}, []);
 
 	const loadMore = useCallback(async () => {
 		if (
@@ -171,6 +175,7 @@ export function SearchPage({
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
 	}, []);
 
+	const showLoadingMore = loadingMore && loadedKey === requestKey;
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
@@ -192,7 +197,7 @@ export function SearchPage({
 				{error ? (
 					<ErrorPanel
 						message={t("searchLoadFailed")}
-						onRetry={() => setRetryKey((value) => value + 1)}
+						onRetry={retry}
 					/>
 				) : loading ? (
 					<SearchGridSkeleton />
@@ -213,7 +218,7 @@ export function SearchPage({
 						{items.length < total && (
 							<>
 								<div ref={loadMoreSentinelRef} aria-hidden="true" className="h-px" />
-								{loadingMore && (
+								{showLoadingMore && (
 									<div className="py-8 text-center" aria-live="polite">
 										<span className="text-xs uppercase tracking-widest text-white/35">
 											{t("loadingMore")}

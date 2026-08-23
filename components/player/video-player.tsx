@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import Hls from "hls.js";
 import {
 	ArrowLeft,
@@ -83,6 +89,46 @@ const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";
 
 function isTimeDisplayMode(value: string | null): value is TimeDisplayMode {
 	return value === "elapsed" || value === "remaining";
+}
+
+const timeDisplayListeners = new Set<() => void>();
+let fallbackTimeDisplayMode: TimeDisplayMode = "remaining";
+
+function readTimeDisplayMode(): TimeDisplayMode {
+	if (typeof window === "undefined") return fallbackTimeDisplayMode;
+	try {
+		const stored = window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
+		if (isTimeDisplayMode(stored)) return stored;
+	} catch {
+		// Storage may be disabled; the in-memory default remains usable.
+	}
+	return fallbackTimeDisplayMode;
+}
+
+function subscribeToTimeDisplay(listener: () => void) {
+	timeDisplayListeners.add(listener);
+	const handleStorage = (event: StorageEvent) => {
+		if (event.key === PLAYER_TIME_DISPLAY_STORAGE_KEY) listener();
+	};
+	window.addEventListener("storage", handleStorage);
+	return () => {
+		timeDisplayListeners.delete(listener);
+		window.removeEventListener("storage", handleStorage);
+	};
+}
+
+function getServerTimeDisplayMode(): TimeDisplayMode {
+	return "remaining";
+}
+
+function storeTimeDisplayMode(next: TimeDisplayMode) {
+	fallbackTimeDisplayMode = next;
+	try {
+		window.localStorage.setItem(PLAYER_TIME_DISPLAY_STORAGE_KEY, next);
+	} catch {
+		// Storage may be disabled; keep the selection for this player session.
+	}
+	for (const listener of timeDisplayListeners) listener();
 }
 
 export const HLS_TEXT_TRACK_CONFIG = {
@@ -541,8 +587,11 @@ export function VideoPlayer({
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
-	const [timeDisplayMode, setTimeDisplayMode] =
-		useState<TimeDisplayMode>("remaining");
+	const timeDisplayMode = useSyncExternalStore(
+		subscribeToTimeDisplay,
+		readTimeDisplayMode,
+		getServerTimeDisplayMode,
+	);
 	const [bufferedRanges, setBufferedRanges] = useState<{
 		itemId: string;
 		ranges: Array<[number, number]>;
@@ -588,27 +637,11 @@ export function VideoPlayer({
 	useEffect(() => {
 		playbackSessionIdRef.current = playbackSessionId;
 	}, [playbackSessionId]);
-	useEffect(() => {
-		try {
-			const stored = window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
-			if (isTimeDisplayMode(stored)) {
-				setTimeDisplayMode(stored);
-			}
-		} catch {
-			// Storage may be disabled; the in-memory default remains usable.
-		}
-	}, []);
 	const toggleTimeDisplay = useCallback(() => {
-		setTimeDisplayMode((current) => {
-			const next = current === "remaining" ? "elapsed" : "remaining";
-			try {
-				window.localStorage.setItem(PLAYER_TIME_DISPLAY_STORAGE_KEY, next);
-			} catch {
-				// Storage may be disabled; keep the selection for this player session.
-			}
-			return next;
-		});
-	}, []);
+		storeTimeDisplayMode(
+			timeDisplayMode === "remaining" ? "elapsed" : "remaining",
+		);
+	}, [timeDisplayMode]);
 	const selectedSubtitleStream = info?.subtitles.find(
 		(stream) => stream.Index === Number(subtitle),
 	);

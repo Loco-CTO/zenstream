@@ -93,7 +93,6 @@ export function AvatarEditModal({
 	const cropSize = Math.min(viewportDimensions.w, viewportDimensions.h) * 0.6;
 	const cropLeft = (viewportDimensions.w - cropSize) / 2;
 	const cropTop = (viewportDimensions.h - cropSize) / 2;
-	const scale = Math.exp(zoom);
 
 	const getMinZoom = useCallback(() => {
 		if (effectiveWidth <= 0 || effectiveHeight <= 0 || cropSize <= 0) return 0;
@@ -121,6 +120,10 @@ export function AvatarEditModal({
 		},
 		[cropSize, effectiveHeight, effectiveWidth],
 	);
+	const minZoom = getMinZoom();
+	const maxZoom = getMaxZoom();
+	const displayZoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+	const scale = Math.exp(displayZoom);
 
 	const clearSelectedFile = () => {
 		if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -128,6 +131,7 @@ export function AvatarEditModal({
 		setFile(null);
 		setImageSrc(null);
 		setImageDimensions({ w: 0, h: 0 });
+		setViewportDimensions({ w: 0, h: 0 });
 		setOffset({ x: 0, y: 0 });
 		setZoom(0);
 		setRotation(0);
@@ -157,38 +161,18 @@ export function AvatarEditModal({
 			if (rect.width > 0 && rect.height > 0)
 				setViewportDimensions({ w: rect.width, h: rect.height });
 		};
-		measure();
 		if (typeof ResizeObserver === "undefined") {
+			const frame = window.requestAnimationFrame(measure);
 			window.addEventListener("resize", measure);
-			return () => window.removeEventListener("resize", measure);
+			return () => {
+				window.cancelAnimationFrame(frame);
+				window.removeEventListener("resize", measure);
+			};
 		}
 		const observer = new ResizeObserver(measure);
 		observer.observe(element);
 		return () => observer.disconnect();
 	}, [imageSrc]);
-
-	useEffect(() => {
-		if (!imageSrc || !imageDimensions.w || !viewportDimensions.w) return;
-		setZoom(getMinZoom());
-		setOffset({ x: 0, y: 0 });
-	}, [
-		getMinZoom,
-		imageDimensions.h,
-		imageDimensions.w,
-		imageSrc,
-		viewportDimensions.w,
-	]);
-
-	useEffect(() => {
-		if (!viewportDimensions.w) return;
-		const minZoom = getMinZoom();
-		const maxZoom = getMaxZoom();
-		setZoom((current) => {
-			const next = Math.max(minZoom, Math.min(maxZoom, current));
-			setOffset((currentOffset) => clampOffset(currentOffset, Math.exp(next)));
-			return next;
-		});
-	}, [clampOffset, getMaxZoom, getMinZoom, rotation, viewportDimensions]);
 
 	useEffect(() => {
 		const element = viewportRef.current;
@@ -229,6 +213,7 @@ export function AvatarEditModal({
 		setFile(nextFile);
 		setImageSrc(objectUrl);
 		setImageDimensions({ w: 0, h: 0 });
+		setViewportDimensions({ w: 0, h: 0 });
 		setOffset({ x: 0, y: 0 });
 		setZoom(0);
 		setRotation(0);
@@ -312,10 +297,10 @@ export function AvatarEditModal({
 		if (!saving) onClose();
 	};
 
-	const minZoom = getMinZoom();
-	const maxZoom = getMaxZoom();
 	const zoomPercent =
-		maxZoom <= minZoom ? 100 : Math.round(100 * Math.exp(zoom - minZoom));
+		maxZoom <= minZoom
+			? 100
+			: Math.round(100 * Math.exp(displayZoom - minZoom));
 	const clampedOffset = clampOffset(offset, scale);
 	const previewSize = 56;
 	const previewScale = cropSize > 0 ? previewSize / cropSize : 1;
@@ -524,7 +509,7 @@ export function AvatarEditModal({
 									min={minZoom}
 									max={maxZoom}
 									step="0.05"
-									value={zoom}
+									value={displayZoom}
 									onChange={(event) => updateZoom(Number(event.target.value))}
 									className="w-full accent-violet-300"
 								/>

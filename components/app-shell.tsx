@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { sessionFromAuth } from "@/lib/auth";
@@ -84,6 +90,7 @@ import {
 	getPlaybackPreference,
 	getWatchHistoryPreference,
 	getStoredLocale,
+	LOCALE_STORAGE_KEY,
 	setLocalePreference,
 	setMetadataLanguagePreference,
 	setPlaybackPreference as savePlaybackPreference,
@@ -117,6 +124,48 @@ const EMPTY_PLAYBACK_PREFERENCE: PlaybackPreference = {
 	subtitleLanguages: [],
 };
 
+function subscribeToStoredLocale(listener: () => void) {
+	const handleStorage = (event: StorageEvent) => {
+		if (event.key === LOCALE_STORAGE_KEY) listener();
+	};
+	window.addEventListener("storage", handleStorage);
+	return () => window.removeEventListener("storage", handleStorage);
+}
+
+function getClientStoredLocale(): Locale {
+	return getStoredLocale() ?? "en";
+}
+
+function getServerStoredLocale(): Locale {
+	return "en";
+}
+
+type BrowserAuthSnapshot = {
+	hydrated: boolean;
+	session: AuthSession | null;
+};
+
+const serverBrowserAuthSnapshot: BrowserAuthSnapshot = {
+	hydrated: false,
+	session: null,
+};
+let browserAuthSnapshot: BrowserAuthSnapshot | null = null;
+
+function subscribeToBrowserAuth() {
+	return () => undefined;
+}
+
+function getBrowserAuthSnapshot(): BrowserAuthSnapshot {
+	return (browserAuthSnapshot ??= {
+		hydrated: true,
+		session: getAuthSession(),
+	});
+}
+
+function getServerBrowserAuthSnapshot() {
+	return serverBrowserAuthSnapshot;
+}
+
 export function AppShell() {
 	const pathname = usePathname() ?? "/";
 	const searchParams = useSearchParams();
@@ -130,6 +179,18 @@ export function AppShell() {
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
+	const [localePreferenceLoaded, setLocalePreferenceLoaded] = useState(false);
+	const storedLocale = useSyncExternalStore(
+		subscribeToStoredLocale,
+		getClientStoredLocale,
+		getServerStoredLocale,
+	);
+	const browserAuth = useSyncExternalStore(
+		subscribeToBrowserAuth,
+		getBrowserAuthSnapshot,
+		getServerBrowserAuthSnapshot,
+	);
+	const effectiveLocale = localePreferenceLoaded ? locale : storedLocale;
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
@@ -220,6 +281,7 @@ export function AppShell() {
 					confirmedLocale.current = remoteLocale;
 					storeLocale(remoteLocale);
 					setLocale(remoteLocale);
+					setLocalePreferenceLoaded(true);
 				});
 			})
 			.catch(() => undefined);
@@ -473,14 +535,7 @@ export function AppShell() {
 		let disposed = false;
 		const finishProgress = start();
 		const stored = getAuthSession();
-		const storedLocale = getStoredLocale();
-		// Hydrate the locally cached interface language before authenticated content renders.
-		if (storedLocale) {
-			confirmedLocale.current = storedLocale;
-			setLocale(storedLocale);
-		}
 		if (!stored) {
-			setStatus("login");
 			finishProgress();
 			return () => {
 				disposed = true;
@@ -650,6 +705,13 @@ export function AppShell() {
 	const handlePasswordChanged = useCallback(() => {
 		clearLocalSession();
 	}, [clearLocalSession]);
+	const renderStatus =
+		status === "checking" &&
+		browserAuth.hydrated &&
+		!browserAuth.session &&
+		!session
+			? "login"
+			: status;
 
 	useEffect(() => {
 		const handleAuthExpired = (event: Event) => {
@@ -720,6 +782,7 @@ export function AppShell() {
 		const generation = ++localeMutationGeneration.current;
 		const finishProgress = start();
 		setLocale(nextLocale);
+		setLocalePreferenceLoaded(true);
 		storeLocale(nextLocale);
 		if (!activeSession) {
 			finishProgress();
@@ -775,7 +838,7 @@ export function AppShell() {
 		const generation = ++metadataLanguageMutationGeneration.current;
 		const optimistic = {
 			mode: language ? "explicit" : "auto",
-			language: language ?? locale,
+			language: language ?? effectiveLocale,
 		} as MetadataLanguagePreference;
 		metadataLanguageRef.current = optimistic;
 		setMetadataLanguage(optimistic);
@@ -894,16 +957,16 @@ export function AppShell() {
 	}, [session]);
 
 	return (
-		<I18nProvider locale={locale}>
+		<I18nProvider locale={effectiveLocale}>
 			<ToastProvider>
 				<SubtitlePreferencesProvider
 					key={JSON.stringify(subtitleStyle)}
 					session={session}
 					initialStyle={subtitleStyle}
 				>
-					{status === "checking" ? (
+					{renderStatus === "checking" ? (
 						<div className="min-h-screen bg-background" />
-					) : status === "bootstrap-error" ? (
+					) : renderStatus === "bootstrap-error" ? (
 						<ErrorPanel
 							title="Could not connect to ZenStream"
 							message={error}
@@ -913,7 +976,7 @@ export function AppShell() {
 								window.location.reload();
 							}}
 						/>
-					) : status === "login" || !session ? (
+					) : renderStatus === "login" || !session ? (
 						<LoginPage onLogin={handleLogin} />
 					) : (
 						<PlaybackBehaviorPreferencesProvider
@@ -929,7 +992,7 @@ export function AppShell() {
 										session={session}
 										avatarVersion={avatarVersion}
 										onAvatarVersionChange={handleAvatarVersionChange}
-										locale={locale}
+										locale={effectiveLocale}
 										onLocaleChange={handleLocaleChange}
 										metadataLanguages={metadataLanguages}
 										metadataLanguage={metadataLanguage}
@@ -953,7 +1016,7 @@ export function AppShell() {
 											session={session}
 										/>
 										<MobileNav />
-										{status === "error" && (
+										{renderStatus === "error" && (
 											<ErrorPanel
 												titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
 												message={error}
@@ -962,7 +1025,7 @@ export function AppShell() {
 												}
 											/>
 										)}
-										{status === "ready" && detailData && playId && (
+										{renderStatus === "ready" && detailData && playId && (
 											<PlayerPage
 												initialData={detailData}
 												session={session}
@@ -970,7 +1033,7 @@ export function AppShell() {
 												watchHistoryLoaded={watchHistoryLoaded}
 											/>
 										)}
-										{status === "ready" &&
+										{renderStatus === "ready" &&
 											detailData &&
 											detailId &&
 											!playId &&
@@ -979,19 +1042,19 @@ export function AppShell() {
 											) : (
 												<DetailPage initialData={detailData} session={session} />
 											))}
-										{status === "ready" && pathname === "/library" && (
+										{renderStatus === "ready" && pathname === "/library" && (
 											<LibraryPage session={session} />
 										)}
-										{status === "ready" && pathname === "/favorites" && (
+										{renderStatus === "ready" && pathname === "/favorites" && (
 											<FavoritesPage session={session} />
 										)}
-										{status === "ready" && pathname === "/calendar" && (
+										{renderStatus === "ready" && pathname === "/calendar" && (
 											<CalendarPage session={session} />
 										)}
-										{status === "ready" && pathname === "/notifications" && (
+										{renderStatus === "ready" && pathname === "/notifications" && (
 											<NotificationsPage session={session} />
 										)}
-										{status === "ready" && pathname === "/search" && (
+										{renderStatus === "ready" && pathname === "/search" && (
 											<SearchPage session={session} query={searchData ?? searchQuery} />
 										)}
 										{homeData &&

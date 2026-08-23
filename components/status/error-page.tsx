@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { AlertTriangle, Home, RotateCcw } from "lucide-react";
@@ -18,6 +18,46 @@ import {
 	type AuthSession,
 } from "@/lib/session";
 
+type ErrorPageSnapshot = {
+	hydrated: boolean;
+	locale: Locale;
+	session: AuthSession | null;
+};
+
+const serverErrorPageSnapshot: ErrorPageSnapshot = {
+	hydrated: false,
+	locale: "en",
+	session: null,
+};
+const errorPageListeners = new Set<() => void>();
+let browserErrorPageSnapshot: ErrorPageSnapshot | null = null;
+
+function getBrowserErrorPageSnapshot(): ErrorPageSnapshot {
+	return (browserErrorPageSnapshot ??= {
+		hydrated: true,
+		locale: getStoredLocale() ?? "en",
+		session: getAuthSession(),
+	});
+}
+
+function subscribeToErrorPage(listener: () => void) {
+	errorPageListeners.add(listener);
+	return () => errorPageListeners.delete(listener);
+}
+
+function getServerErrorPageSnapshot() {
+	return serverErrorPageSnapshot;
+}
+
+function refreshBrowserErrorPageSnapshot() {
+	browserErrorPageSnapshot = {
+		hydrated: true,
+		locale: getStoredLocale() ?? "en",
+		session: getAuthSession(),
+	};
+	for (const listener of errorPageListeners) listener();
+}
+
 export function ErrorPage({
 	statusCode,
 	titleKey,
@@ -27,21 +67,15 @@ export function ErrorPage({
 	titleKey: TranslationKey;
 	messageKey: TranslationKey;
 }) {
-	const [locale, setLocale] = useState<Locale>("en");
-	const [session, setSession] = useState<AuthSession | null>(null);
-	const [hydrated, setHydrated] = useState(false);
-
-	useEffect(() => {
-		const storedLocale = getStoredLocale();
-		// Cookie-backed auth and stored locale are only available after hydration.
-		if (storedLocale) setLocale(storedLocale);
-		setSession(getAuthSession());
-		setHydrated(true);
-	}, []);
+	const { hydrated, locale, session } = useSyncExternalStore(
+		subscribeToErrorPage,
+		getBrowserErrorPageSnapshot,
+		getServerErrorPageSnapshot,
+	);
 
 	const handleLogout = () => {
 		clearAuthCookies();
-		setSession(null);
+		refreshBrowserErrorPageSnapshot();
 	};
 
 	return (

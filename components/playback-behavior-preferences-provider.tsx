@@ -93,9 +93,6 @@ export function PlaybackBehaviorPreferencesProvider({
 	const [preferences, setPreferences] = useState(() => readPreferences(userId));
 
 	useEffect(() => {
-		// The provider is keyed by user in AppShell, but keeping this reset here also
-		// makes direct reuse safe when its userId prop changes.
-		setPreferences(readPreferences(userId));
 		const key = playbackBehaviorStorageKey(userId);
 		const handleStorage = (event: StorageEvent) => {
 			if (event.key !== key) return;

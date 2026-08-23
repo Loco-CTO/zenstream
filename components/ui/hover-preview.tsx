@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { getPlaybackInfo, playbackUrl } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
@@ -14,24 +14,32 @@ export function useHoverPreview(
 	runtimeTicks: number | undefined,
 	session: AuthSession | undefined,
 ) {
-	const videoRef = useRef<HTMLVideoElement>(null);
+	const videoId = useId();
 	const timerRef = useRef<number | undefined>(undefined);
 	const requestRef = useRef<AbortController | undefined>(undefined);
 	const [active, setActive] = useState(false);
 	const { autoplayBrowse } = usePlaybackBehaviorPreferences();
+	const getVideo = useCallback(() => {
+		const element = document.getElementById(videoId);
+		return element instanceof HTMLVideoElement ? element : null;
+	}, [videoId]);
 
-	const stop = useCallback(() => {
+	const stopMedia = useCallback(() => {
 		window.clearTimeout(timerRef.current);
 		requestRef.current?.abort();
 		requestRef.current = undefined;
-		const video = videoRef.current;
+		const video = getVideo();
 		if (video) {
 			video.pause();
 			video.removeAttribute("src");
 			video.load();
 		}
+	}, [getVideo]);
+
+	const stop = useCallback(() => {
+		stopMedia();
 		setActive(false);
-	}, []);
+	}, [stopMedia]);
 
 	const start = useCallback(() => {
 		if (
@@ -40,6 +48,7 @@ export function useHoverPreview(
 			!window.matchMedia("(pointer: fine) and (hover: hover)").matches
 		)
 			return;
+		setActive(false);
 		window.clearTimeout(timerRef.current);
 		timerRef.current = window.setTimeout(async () => {
 			if (!autoplayBrowse) return;
@@ -71,7 +80,7 @@ export function useHoverPreview(
 							),
 						)
 					: 0;
-				const video = videoRef.current;
+				const video = getVideo();
 				if (!video) return;
 				const startPlayback = async () => {
 					video.src = playbackUrl(source);
@@ -92,17 +101,16 @@ export function useHoverPreview(
 				stop();
 			}
 		}, HOVER_DELAY);
-	}, [autoplayBrowse, itemId, runtimeTicks, session, stop]);
+	}, [autoplayBrowse, getVideo, itemId, runtimeTicks, session, stop]);
 
 	useEffect(() => {
 		if (!autoplayBrowse) {
-			// Disabling the preference must synchronously release any active media.
-			stop();
+			stopMedia();
 		}
-	}, [autoplayBrowse, stop]);
+	}, [autoplayBrowse, stopMedia]);
 
 	useEffect(() => () => stop(), [stop]);
-	return { videoRef, active, start, stop };
+	return { videoId, active: autoplayBrowse && active, start, stop };
 }
 
 export function HoverPreviewVideo({
@@ -112,7 +120,7 @@ export function HoverPreviewVideo({
 }) {
 	return (
 		<video
-			ref={preview.videoRef}
+			id={preview.videoId}
 			muted
 			playsInline
 			loop

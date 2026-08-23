@@ -184,7 +184,6 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	const [anchor, setAnchor] = useState(() => new Date());
 	const [events, setEvents] = useState<CalendarEvent[]>([]);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [followError, setFollowError] = useState<string | null>(null);
 	const range = useMemo(() => rangeFor(view, anchor), [anchor, view]);
@@ -200,7 +199,6 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 	const load = useCallback(
 		async (signal?: AbortSignal) => {
 			const finish = startProgress();
-			setLoading(true);
 			setError(null);
 			try {
 				const response = await getCalendar(session, range.start, range.end, signal);
@@ -221,7 +219,6 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 					);
 				}
 			} finally {
-				if (!signal?.aborted) setLoading(false);
 				finish();
 			}
 		},
@@ -230,8 +227,6 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		// The data request owns this screen's loading state.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void load(controller.signal);
 		return () => controller.abort();
 	}, [load]);
@@ -364,11 +359,6 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 					{followError && (
 						<div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded border border-red-400/20 bg-black/80 px-3 py-2 text-[11px] text-red-200 shadow-xl">
 							{followError}
-						</div>
-					)}
-					{loading && (
-						<div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/25">
-							Loading…
 						</div>
 					)}
 				</div>

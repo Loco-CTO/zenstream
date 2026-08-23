@@ -195,10 +195,7 @@ export function SearchPage({
 					</div>
 				</header>
 				{error ? (
-					<ErrorPanel
-						message={t("searchLoadFailed")}
-						onRetry={retry}
-					/>
+					<ErrorPanel message={t("searchLoadFailed")} onRetry={retry} />
 				) : loading ? (
 					<SearchGridSkeleton />
 				) : items.length === 0 ? (

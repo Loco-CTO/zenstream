@@ -183,10 +183,7 @@ export function AvatarEditModal({
 			const delta = -event.deltaY * 0.00125;
 			setZoom((current) => {
 				const base = current ?? getMinZoom();
-				const next = Math.max(
-					getMinZoom(),
-					Math.min(getMaxZoom(), base + delta),
-				);
+				const next = Math.max(getMinZoom(), Math.min(getMaxZoom(), base + delta));
 				setOffset((currentOffset) => clampOffset(currentOffset, Math.exp(next)));
 				return next;
 			});
@@ -300,9 +297,7 @@ export function AvatarEditModal({
 	};
 
 	const zoomPercent =
-		maxZoom <= minZoom
-			? 100
-			: Math.round(100 * Math.exp(displayZoom - minZoom));
+		maxZoom <= minZoom ? 100 : Math.round(100 * Math.exp(displayZoom - minZoom));
 	const clampedOffset = clampOffset(offset, scale);
 	const previewSize = 56;
 	const previewScale = cropSize > 0 ? previewSize / cropSize : 1;

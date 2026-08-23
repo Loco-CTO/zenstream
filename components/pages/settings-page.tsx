@@ -459,7 +459,7 @@ export function SettingsPage({
 							)}
 							<SettingsRow
 								label={t("subtitleTextSize")}
-									right={
+								right={
 									<RangeControl
 										key={style.textScale}
 										label={t("subtitleTextSize")}
@@ -483,7 +483,7 @@ export function SettingsPage({
 							/>
 							<SettingsRow
 								label={t("subtitleBorderSize")}
-									right={
+								right={
 									<RangeControl
 										key={style.borderSize}
 										label={t("subtitleBorderSize")}
@@ -520,7 +520,7 @@ export function SettingsPage({
 							/>
 							<SettingsRow
 								label={t("subtitleBackgroundOpacity")}
-									right={
+								right={
 									<RangeControl
 										key={style.backgroundOpacity}
 										label={t("subtitleBackgroundOpacity")}

@@ -40,6 +40,28 @@ describe("CalendarPage", () => {
 		expect(getCalendar).toHaveBeenCalledTimes(1);
 	});
 
+	it("refreshes after a terminal catalog update but not during a scan", async () => {
+		const getCalendar = mockCalendar();
+
+		renderPage();
+
+		await waitFor(() => expect(getCalendar).toHaveBeenCalledTimes(1));
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { reason: "scan" },
+			}),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 40));
+		expect(getCalendar).toHaveBeenCalledTimes(1);
+
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { reason: "refresh" },
+			}),
+		);
+		await waitFor(() => expect(getCalendar).toHaveBeenCalledTimes(2));
+	});
+
 	it("only exposes week and day views and bounds week navigation", async () => {
 		mockCalendar();
 		renderPage();
@@ -85,6 +107,10 @@ describe("CalendarPage", () => {
 	});
 
 	it("overlays the selected event and supports closing it", async () => {
+		const firstEventAt = new Date();
+		firstEventAt.setHours(12, 0, 0, 0);
+		const secondEventAt = new Date(firstEventAt);
+		secondEventAt.setDate(secondEventAt.getDate() + 1);
 		vi.spyOn(calendar, "getCalendar").mockResolvedValue({
 			start: "2026-08-16T00:00:00.000Z",
 			end: "2026-08-23T00:00:00.000Z",
@@ -96,8 +122,8 @@ describe("CalendarPage", () => {
 					libraryName: "Anime",
 					kind: "episode",
 					releaseType: "air",
-					eventAt: "2026-08-20T12:00:00.000Z",
-					eventDate: "2026-08-20",
+					eventAt: firstEventAt.toISOString(),
+					eventDate: firstEventAt.toISOString().slice(0, 10),
 					allDay: false,
 					seasonNumber: 1,
 					episodeNumber: 2,
@@ -117,8 +143,8 @@ describe("CalendarPage", () => {
 					libraryName: "Anime",
 					kind: "episode",
 					releaseType: "air",
-					eventAt: "2026-08-21T12:00:00.000Z",
-					eventDate: "2026-08-21",
+					eventAt: secondEventAt.toISOString(),
+					eventDate: secondEventAt.toISOString().slice(0, 10),
 					allDay: false,
 					seasonNumber: 1,
 					episodeNumber: 3,

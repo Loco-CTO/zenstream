@@ -524,15 +524,19 @@ function InlineTrackChoices({
 		}));
 	const subtitleOptions: DropdownOption[] = [
 		{ value: "", label: t("subtitlesOff") },
+		...(subtitleDownloaderAvailable
+			? [
+					{
+						value: "__subtitle_downloader__",
+						label: t("bazarrFindSubtitles"),
+						leadingIcon: (
+							<Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+						),
+					},
+				]
+			: []),
 		...options("subtitle"),
 	];
-	if (subtitleDownloaderAvailable) {
-		subtitleOptions.push({
-			value: "__subtitle_downloader__",
-			label: t("bazarrFindSubtitles"),
-			leadingIcon: <Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />,
-		});
-	}
 	return (
 		<div className="w-full min-w-0 max-w-md space-y-2 md:w-fit">
 			{tracks.audio.length > 1 && (

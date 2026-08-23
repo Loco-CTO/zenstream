@@ -50,10 +50,13 @@ describe("detail views", () => {
 		);
 	});
 
-	it("shows the downloader as the final subtitle option without changing off", async () => {
+	it("shows the downloader after off without changing the selected track", async () => {
 		const playback = stubEpisodePlayback({
 			status: { state: "matched", hasLocalSubtitle: false },
-			streams: [{ index: 1, type: "audio", tags: { title: "English" } }],
+			streams: [
+				{ index: 1, type: "audio", tags: { title: "English" } },
+				{ index: 2, type: "subtitle", tags: { title: "Japanese" } },
+			],
 		});
 		renderDetail({
 			item: episode("episode-downloader", 1),
@@ -68,13 +71,17 @@ describe("detail views", () => {
 		});
 		fireEvent.click(selector);
 		const options = screen.getAllByRole("option");
-		expect(options.at(-1)).toHaveTextContent("Find subtitles");
+		expect(options.map((option) => option.textContent)).toEqual([
+			"Subtitles off",
+			"Find subtitles",
+			"Japanese",
+		]);
 
 		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
 		expect(
 			screen.getByRole("dialog", { name: "Subtitle downloader" }),
 		).toBeInTheDocument();
-		expect(selector).toHaveTextContent("Subtitles off");
+		expect(selector).toHaveTextContent("Japanese");
 	});
 
 	it("shows search results, keeps the modal open, and reports a queued download", async () => {
@@ -166,7 +173,7 @@ describe("detail views", () => {
 
 		await waitFor(() => expect(playback.statusRequested()).toBe(true));
 		expect(
-				screen.queryByRole("combobox", { name: "Subtitles" }),
+			screen.queryByRole("combobox", { name: "Subtitles" }),
 		).not.toBeInTheDocument();
 	});
 

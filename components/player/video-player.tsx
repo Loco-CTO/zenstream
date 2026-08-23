@@ -99,10 +99,11 @@ function readTimeDisplayMode(): TimeDisplayMode {
 	try {
 		const stored = window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
 		if (isTimeDisplayMode(stored)) return stored;
+		return "remaining";
 	} catch {
 		// Storage may be disabled; the in-memory default remains usable.
+		return fallbackTimeDisplayMode;
 	}
-	return fallbackTimeDisplayMode;
 }
 
 function subscribeToTimeDisplay(listener: () => void) {

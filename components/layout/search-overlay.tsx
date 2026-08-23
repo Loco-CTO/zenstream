@@ -25,9 +25,11 @@ export function SearchOverlay({
 
 	const handleQueryChange = (value: string) => {
 		setQuery(value);
-		setSuggestions([]);
-		setResultQuery("");
 		setError(false);
+		if (!value.trim()) {
+			setSuggestions([]);
+			setResultQuery("");
+		}
 	};
 
 	useEffect(() => {

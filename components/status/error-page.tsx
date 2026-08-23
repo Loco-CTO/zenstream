@@ -31,13 +31,24 @@ const serverErrorPageSnapshot: ErrorPageSnapshot = {
 };
 const errorPageListeners = new Set<() => void>();
 let browserErrorPageSnapshot: ErrorPageSnapshot | null = null;
+let browserErrorPageSnapshotKey: string | null = null;
 
 function getBrowserErrorPageSnapshot(): ErrorPageSnapshot {
-	return (browserErrorPageSnapshot ??= {
-		hydrated: true,
-		locale: getStoredLocale() ?? "en",
-		session: getAuthSession(),
-	});
+	const locale = getStoredLocale() ?? "en";
+	const session = getAuthSession();
+	const key = JSON.stringify([
+		locale,
+		session?.token ?? null,
+		session?.userId ?? null,
+		session?.username ?? null,
+		session?.avatarVersion ?? null,
+	]);
+	if (browserErrorPageSnapshot && browserErrorPageSnapshotKey === key) {
+		return browserErrorPageSnapshot;
+	}
+	browserErrorPageSnapshotKey = key;
+	browserErrorPageSnapshot = { hydrated: true, locale, session };
+	return browserErrorPageSnapshot;
 }
 
 function subscribeToErrorPage(listener: () => void) {
@@ -50,11 +61,9 @@ function getServerErrorPageSnapshot() {
 }
 
 function refreshBrowserErrorPageSnapshot() {
-	browserErrorPageSnapshot = {
-		hydrated: true,
-		locale: getStoredLocale() ?? "en",
-		session: getAuthSession(),
-	};
+	browserErrorPageSnapshot = null;
+	browserErrorPageSnapshotKey = null;
+	getBrowserErrorPageSnapshot();
 	for (const listener of errorPageListeners) listener();
 }
 

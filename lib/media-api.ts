@@ -130,6 +130,55 @@ export interface MediaSource {
 	Trickplay?: Record<string, TrickplayInfo>;
 }
 
+export interface BazarrSubtitleSummary {
+	language?: string | null;
+	name?: string | null;
+	provider?: string | null;
+	hearingImpaired?: boolean;
+	forced?: boolean;
+	format?: string | null;
+}
+
+export interface BazarrStatus {
+	state: string;
+	sourceId?: string;
+	relativePath?: string;
+	hasLocalSubtitle?: boolean;
+	localSubtitles?: Array<{
+		id: string;
+		relativePath: string;
+		role: string;
+		language?: string | null;
+	}>;
+	message?: string;
+	episode?: {
+		title?: string | null;
+		season?: number | null;
+		episode?: number | null;
+		subtitles?: BazarrSubtitleSummary[];
+	};
+}
+
+export interface BazarrSubtitleMatch {
+	matchId: string;
+	candidateId?: string;
+	provider?: string;
+	language?: string | null;
+	name: string;
+	hearingImpaired?: boolean;
+	forced?: boolean;
+	originalFormat?: boolean;
+	format?: string | null;
+	score?: number | null;
+}
+
+export interface BazarrSearchResult {
+	state: string;
+	sourceId: string;
+	relativePath?: string;
+	matches: BazarrSubtitleMatch[];
+}
+
 export interface TrickplayInfo {
 	state?: string;
 	sourceId?: string;
@@ -1150,6 +1199,49 @@ export async function getPlaybackSource(
 		Record<string, unknown> & { streams?: Array<Record<string, unknown>> }
 	>(session, `/api/playback/items/${encodeURIComponent(itemId)}/source`);
 	return mediaSourceFromPayload(response, itemId);
+}
+
+export async function getBazarrStatus(
+	session: AuthSession,
+	itemId: string,
+	sourceId: string,
+): Promise<BazarrStatus> {
+	const params = new URLSearchParams({ sourceId });
+	return catalogRequest<BazarrStatus>(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/bazarr/status?${params}`,
+	);
+}
+
+export async function searchBazarrSubtitles(
+	session: AuthSession,
+	itemId: string,
+	sourceId: string,
+): Promise<BazarrSearchResult> {
+	return catalogRequest<BazarrSearchResult>(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/bazarr/search`,
+		{
+			method: "POST",
+			body: JSON.stringify({ sourceId }),
+		},
+	);
+}
+
+export async function downloadBazarrSubtitle(
+	session: AuthSession,
+	itemId: string,
+	sourceId: string,
+	matchId: string,
+): Promise<{ state: string; reconcileQueued?: boolean }> {
+	return catalogRequest<{ state: string; reconcileQueued?: boolean }>(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/bazarr/download`,
+		{
+			method: "POST",
+			body: JSON.stringify({ sourceId, matchId }),
+		},
+	);
 }
 
 function mediaSourceFromPayload(

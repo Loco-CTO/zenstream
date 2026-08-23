@@ -236,6 +236,16 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 		};
 	}, [load]);
 
+	useEffect(() => {
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }>;
+			if (event.detail?.reason === "scan") return;
+			void load();
+		};
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, [load]);
+
 	const eventsByDay = useMemo(() => {
 		const grouped = new Map<string, CalendarEvent[]>();
 		for (const event of events) {

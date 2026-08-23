@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, Check, ChevronLeft, Heart, Play, Star } from "lucide-react";
+import {
+	Bookmark,
+	Check,
+	ChevronLeft,
+	Heart,
+	Play,
+	Search,
+	Star,
+} from "lucide-react";
 import {
 	getPlaybackSource,
 	getEpisodes,
@@ -38,8 +46,9 @@ import {
 	WatchedIndicator,
 	WatchProgress,
 } from "@/components/home/media-card";
-import { Dropdown } from "@/components/ui/dropdown";
+import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { BazarrSubtitles } from "@/components/ui/bazarr-subtitles";
 import {
 	HoverPreviewVideo,
 	useHoverPreview,
@@ -122,9 +131,13 @@ export function DetailPage({
 	const [seasonLoading, setSeasonLoading] = useState(false);
 	const [trackChoices, setTrackChoices] = useState<{
 		itemId: string;
+		sourceId?: string;
 		streams: ReturnType<typeof playbackStreams>;
 	}>();
 	const [selectedTracks, setSelectedTracks] = useState<TrackChoice>({});
+	const [subtitleDownloaderAvailable, setSubtitleDownloaderAvailable] =
+		useState(false);
+	const [subtitleDownloaderOpen, setSubtitleDownloaderOpen] = useState(false);
 	const { active, canControl, command } = useSyncplay();
 	const isEpisode = item.Type === "Episode";
 	const isSeries = item.Type === "Series";
@@ -163,7 +176,7 @@ export function DetailPage({
 			.then(([source, preference]) => {
 				if (!active) return;
 				const parsed = playbackStreams({ source });
-				setTrackChoices({ itemId: item.Id, streams: parsed });
+				setTrackChoices({ itemId: item.Id, sourceId: source.Id, streams: parsed });
 				setSelectedTracks({
 					audio: preferredTrackIndex(parsed.audio, preference.audioLanguage),
 					subtitle: preferredSubtitleIndex(
@@ -397,13 +410,29 @@ export function DetailPage({
 						{hasTrackSelection &&
 							currentTrackChoices &&
 							(currentTrackChoices.audio.length > 0 ||
-								currentTrackChoices.subtitles.length > 0) && (
+								currentTrackChoices.subtitles.length > 0 ||
+								subtitleDownloaderAvailable) && (
 								<InlineTrackChoices
 									tracks={currentTrackChoices}
 									selected={selectedTracks}
 									onChange={setSelectedTracks}
+									subtitleDownloaderAvailable={subtitleDownloaderAvailable}
+									onOpenSubtitleDownloader={() => setSubtitleDownloaderOpen(true)}
 								/>
 							)}
+						{isEpisode && (
+							<BazarrSubtitles
+								key={`${item.Id}:${trackChoices?.sourceId ?? "none"}`}
+								session={session}
+								itemId={item.Id}
+								open={subtitleDownloaderOpen}
+								onOpenChange={setSubtitleDownloaderOpen}
+								onAvailabilityChange={setSubtitleDownloaderAvailable}
+								sourceId={
+									trackChoices?.itemId === item.Id ? trackChoices.sourceId : undefined
+								}
+							/>
+						)}
 					</div>
 					{mutationError && (
 						<p role="alert" className="text-xs text-red-300">
@@ -475,10 +504,14 @@ function InlineTrackChoices({
 	tracks,
 	selected,
 	onChange,
+	subtitleDownloaderAvailable,
+	onOpenSubtitleDownloader,
 }: {
 	tracks: ReturnType<typeof playbackStreams>;
 	selected: TrackChoice;
 	onChange: (value: TrackChoice) => void;
+	subtitleDownloaderAvailable: boolean;
+	onOpenSubtitleDownloader: () => void;
 }) {
 	const { t } = useI18n();
 	const options = (kind: "audio" | "subtitle") =>
@@ -489,6 +522,21 @@ function InlineTrackChoices({
 				track.Language ??
 				t(kind === "audio" ? "audioTrack" : "subtitleTrack"),
 		}));
+	const subtitleOptions: DropdownOption[] = [
+		{ value: "", label: t("subtitlesOff") },
+		...(subtitleDownloaderAvailable
+			? [
+					{
+						value: "__subtitle_downloader__",
+						label: t("bazarrFindSubtitles"),
+						leadingIcon: (
+							<Search aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+						),
+					},
+				]
+			: []),
+		...options("subtitle"),
+	];
 	return (
 		<div className="w-full min-w-0 max-w-md space-y-2 md:w-fit">
 			{tracks.audio.length > 1 && (
@@ -499,17 +547,21 @@ function InlineTrackChoices({
 					onChange={(audio) => onChange({ ...selected, audio: Number(audio) })}
 				/>
 			)}
-			{tracks.subtitles.length > 0 && (
+			{(tracks.subtitles.length > 0 || subtitleDownloaderAvailable) && (
 				<TrackSelect
 					label={t("subtitleTrack")}
-					options={[{ value: "", label: t("subtitlesOff") }, ...options("subtitle")]}
+					options={subtitleOptions}
 					value={selected.subtitle ?? undefined}
-					onChange={(subtitle) =>
+					onChange={(subtitle) => {
+						if (subtitle === "__subtitle_downloader__") {
+							onOpenSubtitleDownloader();
+							return;
+						}
 						onChange({
 							...selected,
 							subtitle: subtitle ? Number(subtitle) : null,
-						})
-					}
+						});
+					}}
 				/>
 			)}
 		</div>
@@ -523,7 +575,7 @@ function TrackSelect({
 	onChange,
 }: {
 	label: string;
-	options: { value: string; label: string }[];
+	options: DropdownOption[];
 	value?: number | string;
 	onChange: (value: string) => void;
 }) {

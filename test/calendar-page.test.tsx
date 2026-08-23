@@ -40,6 +40,28 @@ describe("CalendarPage", () => {
 		expect(getCalendar).toHaveBeenCalledTimes(1);
 	});
 
+	it("refreshes after a terminal catalog update but not during a scan", async () => {
+		const getCalendar = mockCalendar();
+
+		renderPage();
+
+		await waitFor(() => expect(getCalendar).toHaveBeenCalledTimes(1));
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { reason: "scan" },
+			}),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 40));
+		expect(getCalendar).toHaveBeenCalledTimes(1);
+
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { reason: "refresh" },
+			}),
+		);
+		await waitFor(() => expect(getCalendar).toHaveBeenCalledTimes(2));
+	});
+
 	it("only exposes week and day views and bounds week navigation", async () => {
 		mockCalendar();
 		renderPage();

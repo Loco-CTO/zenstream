@@ -199,6 +199,17 @@ addFavorite: お気に入りに追加
 removeFavorite: お気に入りから削除
 detailLoadFailed: このタイトルを読み込めませんでした
 itemNotFound: タイトルが見つかりません
+bazarrSubtitles: 字幕ダウンローダー
+bazarrFindSubtitles: 字幕を検索
+bazarrSearching: 検索中…
+bazarrNoMatches: 字幕が見つかりませんでした
+bazarrNotConfigured: このライブラリには字幕ダウンローダーが設定されていません
+bazarrPathConflict: このファイルに一致する字幕ダウンローダーのエントリが一意に見つかりません
+bazarrExisting: このファイルにはローカル字幕が登録されています
+bazarrDownload: ダウンロード
+bazarrDownloadQueued: ダウンロードをキューに追加しました。まもなくライブラリを更新します
+bazarrSearchFailed: 字幕を検索できませんでした
+bazarrDownloadFailed: 字幕をダウンロードできませんでした
 muteTrailer: 予告編をミュート
 unmuteTrailer: 予告編のミュートを解除
 sortBy: 並び順

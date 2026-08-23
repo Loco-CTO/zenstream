@@ -1,0 +1,30 @@
+version = 1
+
+test_patterns = [
+  "test/**",
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "**/*.spec.ts",
+  "**/*.spec.tsx"
+]
+
+[[analyzers]]
+name = "secrets"
+
+[[analyzers]]
+name = "test-coverage"
+
+[[analyzers]]
+name = "javascript"
+
+[analyzers.meta]
+plugins = ["react"]
+environment = ["nodejs", "browser", "vitest"]
+module_system = "es-modules"
+dialect = "typescript"
+
+[[analyzers]]
+name = "docker"
+
+[analyzers.meta]
+dockerfile_paths = ["Dockerfile"]

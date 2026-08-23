@@ -80,7 +80,7 @@ export function AvatarEditModal({
 		h: 0,
 	});
 	const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
-	const [zoom, setZoom] = useState(0);
+	const [zoom, setZoom] = useState<number | null>(null);
 	const [rotation, setRotation] = useState(0);
 	const [pointerDown, setPointerDown] = useState(false);
 	const [dragActive, setDragActive] = useState(false);
@@ -122,7 +122,8 @@ export function AvatarEditModal({
 	);
 	const minZoom = getMinZoom();
 	const maxZoom = getMaxZoom();
-	const displayZoom = Math.max(minZoom, Math.min(maxZoom, zoom));
+	const displayZoom =
+		zoom === null ? minZoom : Math.max(minZoom, Math.min(maxZoom, zoom));
 	const scale = Math.exp(displayZoom);
 
 	const clearSelectedFile = () => {
@@ -133,7 +134,7 @@ export function AvatarEditModal({
 		setImageDimensions({ w: 0, h: 0 });
 		setViewportDimensions({ w: 0, h: 0 });
 		setOffset({ x: 0, y: 0 });
-		setZoom(0);
+		setZoom(null);
 		setRotation(0);
 		if (fileInputRef.current) fileInputRef.current.value = "";
 	};
@@ -181,9 +182,10 @@ export function AvatarEditModal({
 			event.preventDefault();
 			const delta = -event.deltaY * 0.00125;
 			setZoom((current) => {
+				const base = current ?? getMinZoom();
 				const next = Math.max(
 					getMinZoom(),
-					Math.min(getMaxZoom(), current + delta),
+					Math.min(getMaxZoom(), base + delta),
 				);
 				setOffset((currentOffset) => clampOffset(currentOffset, Math.exp(next)));
 				return next;
@@ -215,7 +217,7 @@ export function AvatarEditModal({
 		setImageDimensions({ w: 0, h: 0 });
 		setViewportDimensions({ w: 0, h: 0 });
 		setOffset({ x: 0, y: 0 });
-		setZoom(0);
+		setZoom(null);
 		setRotation(0);
 	};
 

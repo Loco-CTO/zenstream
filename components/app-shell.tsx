@@ -129,7 +129,9 @@ export function AppShell() {
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
-	const [locale, setLocale] = useState<Locale>("en");
+	const [locale, setLocale] = useState<Locale>(
+		() => getStoredLocale() ?? "en",
+	);
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
@@ -169,7 +171,7 @@ export function AppShell() {
 	const watchHistoryMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const localeMutationGeneration = useRef(0);
 	const localeMutationQueue = useRef<Promise<void>>(Promise.resolve());
-	const confirmedLocale = useRef<Locale>("en");
+	const confirmedLocale = useRef<Locale>(locale);
 	const metadataLanguageMutationGeneration = useRef(0);
 	const metadataLanguageMutationQueue = useRef<Promise<void>>(Promise.resolve());
 	const confirmedMetadataLanguage = useRef<MetadataLanguagePreference>({
@@ -473,34 +475,25 @@ export function AppShell() {
 		let disposed = false;
 		const finishProgress = start();
 		const stored = getAuthSession();
-		const storedLocale = getStoredLocale();
-		// Hydrate the locally cached interface language before authenticated content renders.
-		if (storedLocale) {
-			confirmedLocale.current = storedLocale;
-			setLocale(storedLocale);
-		}
-		if (!stored) {
-			setStatus("login");
-			finishProgress();
-			return () => {
-				disposed = true;
-			};
-		}
 		const validation =
-			bootstrapInFlight.current ??
-			(validateBrowserSession(stored).finally(() => {
-				bootstrapInFlight.current = null;
-			}) as Promise<AuthSession | null>);
+			stored
+				? (bootstrapInFlight.current ??
+						(validateBrowserSession(stored).finally(() => {
+							bootstrapInFlight.current = null;
+						}) as Promise<AuthSession | null>))
+				: Promise.resolve<AuthSession | null>(null);
 		bootstrapInFlight.current = validation;
 		void validation
 			.then((verified) => {
 				if (disposed) return;
 				if (!verified) {
-					clearAuthCookies();
-					clearMediaClientSession();
-					clearPreferenceCache();
-					clearSubtitlePreferenceCache();
-					setAvatarVersion(null);
+					if (stored) {
+						clearAuthCookies();
+						clearMediaClientSession();
+						clearPreferenceCache();
+						clearSubtitlePreferenceCache();
+						setAvatarVersion(null);
+					}
 					setStatus("login");
 					return;
 				}

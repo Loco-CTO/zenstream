@@ -95,7 +95,6 @@ export function PlaybackBehaviorPreferencesProvider({
 	useEffect(() => {
 		// The provider is keyed by user in AppShell, but keeping this reset here also
 		// makes direct reuse safe when its userId prop changes.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setPreferences(readPreferences(userId));
 		const key = playbackBehaviorStorageKey(userId);
 		const handleStorage = (event: StorageEvent) => {

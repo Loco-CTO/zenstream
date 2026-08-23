@@ -1,6 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PosterCard } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";

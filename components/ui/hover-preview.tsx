@@ -1,6 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/refs */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPlaybackInfo, playbackUrl } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
@@ -99,7 +97,6 @@ export function useHoverPreview(
 	useEffect(() => {
 		if (!autoplayBrowse) {
 			// Disabling the preference must synchronously release any active media.
-			// eslint-disable-next-line react-hooks/set-state-in-effect
 			stop();
 		}
 	}, [autoplayBrowse, stop]);

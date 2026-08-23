@@ -592,7 +592,6 @@ export function VideoPlayer({
 		try {
 			const stored = window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY);
 			if (isTimeDisplayMode(stored)) {
-				// eslint-disable-next-line react-hooks/set-state-in-effect
 				setTimeDisplayMode(stored);
 			}
 		} catch {

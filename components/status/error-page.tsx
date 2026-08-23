@@ -34,7 +34,6 @@ export function ErrorPage({
 	useEffect(() => {
 		const storedLocale = getStoredLocale();
 		// Cookie-backed auth and stored locale are only available after hydration.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (storedLocale) setLocale(storedLocale);
 		setSession(getAuthSession());
 		setHydrated(true);

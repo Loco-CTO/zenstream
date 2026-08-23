@@ -30,7 +30,6 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		const controller = new AbortController();
 		const finish = start();
 		// Loading state is reset when the sort query changes.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLoading(true);
 		setError(false);
 		getFavoriteItems(session, { sortBy, sortOrder, signal: controller.signal })

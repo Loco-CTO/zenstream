@@ -28,7 +28,6 @@ export function useSortPreference<T extends string>(
 		setPreference({ sortBy: defaultSortBy, sortOrder: defaultSortOrder });
 		if (!key) {
 			hydratedKeyRef.current = key;
-			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setHydratedKey(key);
 			return;
 		}

@@ -201,7 +201,6 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		// Async hydration is intentionally owned by this route component.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void loadLibraries();
 		return () => libraryRequestRef.current?.abort();
 	}, [loadLibraries]);
@@ -291,7 +290,6 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (activeLibrary && sortReady && isSortAvailable) void loadFirstPage();
 	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 

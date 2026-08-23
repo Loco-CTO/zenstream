@@ -1,6 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";

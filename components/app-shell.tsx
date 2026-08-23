@@ -477,7 +477,6 @@ export function AppShell() {
 		// Hydrate the locally cached interface language before authenticated content renders.
 		if (storedLocale) {
 			confirmedLocale.current = storedLocale;
-			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setLocale(storedLocale);
 		}
 		if (!stored) {

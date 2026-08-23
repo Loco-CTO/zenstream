@@ -178,7 +178,19 @@ export function AppShell() {
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
-	const [locale, setLocale] = useState<Locale>(() => getStoredLocale() ?? "en");
+	const [locale, setLocale] = useState<Locale>("en");
+	const [localePreferenceLoaded, setLocalePreferenceLoaded] = useState(false);
+	const storedLocale = useSyncExternalStore(
+		subscribeToStoredLocale,
+		getClientStoredLocale,
+		getServerStoredLocale,
+	);
+	const browserAuth = useSyncExternalStore(
+		subscribeToBrowserAuth,
+		getBrowserAuthSnapshot,
+		getServerBrowserAuthSnapshot,
+	);
+	const effectiveLocale = localePreferenceLoaded ? locale : storedLocale;
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });

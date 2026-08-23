@@ -461,6 +461,7 @@ export function SettingsPage({
 								label={t("subtitleTextSize")}
 								right={
 									<RangeControl
+										key={style.textScale}
 										label={t("subtitleTextSize")}
 										min={50}
 										max={200}
@@ -484,6 +485,7 @@ export function SettingsPage({
 								label={t("subtitleBorderSize")}
 								right={
 									<RangeControl
+										key={style.borderSize}
 										label={t("subtitleBorderSize")}
 										min={0}
 										max={8}
@@ -520,6 +522,7 @@ export function SettingsPage({
 								label={t("subtitleBackgroundOpacity")}
 								right={
 									<RangeControl
+										key={style.backgroundOpacity}
 										label={t("subtitleBackgroundOpacity")}
 										min={0}
 										max={100}
@@ -850,10 +853,6 @@ function RangeControl({
 	onChange: (value: number) => void;
 }) {
 	const [draft, setDraft] = useState(value);
-	// The remote value can change after an optimistic save or rollback.
-	useEffect(() => {
-		setDraft(value);
-	}, [value]);
 	const clamp = (next: number) =>
 		Math.min(max, Math.max(min, Number.isFinite(next) ? next : min));
 	const commit = () => {

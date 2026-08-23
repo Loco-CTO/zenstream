@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: web-ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +21,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -44,8 +47,14 @@ jobs:
       - name: Run lint
         run: pnpm lint
 
-      - name: Run tests
-        run: pnpm test
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+
+      - name: Install DeepSource CLI
+        run: curl -fsSL https://cli.deepsource.com/install | BINDIR=./bin sh
+
+      - name: Upload JavaScript coverage
+        run: ./bin/deepsource report --analyzer test-coverage --key javascript --value-file coverage/lcov.info --use-oidc
 
       - name: Build web client
         run: pnpm build

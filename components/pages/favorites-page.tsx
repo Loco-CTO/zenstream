@@ -22,27 +22,33 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		["SortName", "DateCreated", "PremiereDate", "CommunityRating"] as const,
 	);
 	const { sortBy, sortOrder } = sort;
-	const [error, setError] = useState(false);
-	const [loading, setLoading] = useState(true);
+	const [loadedKey, setLoadedKey] = useState<string | null>(null);
+	const [errorKey, setErrorKey] = useState<string | null>(null);
 	const [retryKey, setRetryKey] = useState(0);
+	const requestKey = `${session.userId}:${sortBy}:${sortOrder}:${retryKey}`;
+	const loading = loadedKey !== requestKey;
+	const error = errorKey === requestKey;
 
 	useEffect(() => {
 		const controller = new AbortController();
 		const finish = start();
-		// Loading state is reset when the sort query changes.
-		setLoading(true);
-		setError(false);
 		getFavoriteItems(session, { sortBy, sortOrder, signal: controller.signal })
-			.then((nextItems) => setItems(nextItems))
+			.then((nextItems) => {
+				setItems(nextItems);
+				setErrorKey(null);
+				setLoadedKey(requestKey);
+			})
 			.catch(() => {
-				if (!controller.signal.aborted) setError(true);
+				if (!controller.signal.aborted) {
+					setErrorKey(requestKey);
+					setLoadedKey(requestKey);
+				}
 			})
 			.finally(() => {
 				finish();
-				if (!controller.signal.aborted) setLoading(false);
 			});
 		return () => controller.abort();
-	}, [retryKey, session, sortBy, sortOrder, start]);
+	}, [requestKey, session, sortBy, sortOrder, start]);
 
 	useEffect(() => {
 		const refresh = () => setRetryKey((value) => value + 1);

@@ -112,8 +112,8 @@ describe("CalendarPage", () => {
 		const secondEventAt = new Date(firstEventAt);
 		secondEventAt.setDate(secondEventAt.getDate() + 1);
 		vi.spyOn(calendar, "getCalendar").mockResolvedValue({
-			start: "2026-08-16T00:00:00.000Z",
-			end: "2026-08-23T00:00:00.000Z",
+			start: weekStart.toISOString(),
+			end: weekEnd.toISOString(),
 			events: [
 				{
 					id: "event-1",

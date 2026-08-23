@@ -19,10 +19,18 @@ export function SearchOverlay({
 	const [query, setQuery] = useState("");
 	const [suggestions, setSuggestions] = useState<MediaItem[]>([]);
 	const [resultQuery, setResultQuery] = useState("");
-	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const requestVersionRef = useRef(0);
+
+	const handleQueryChange = (value: string) => {
+		setQuery(value);
+		setError(false);
+		if (!value.trim()) {
+			setSuggestions([]);
+			setResultQuery("");
+		}
+	};
 
 	useEffect(() => {
 		inputRef.current?.focus();
@@ -30,16 +38,8 @@ export function SearchOverlay({
 	useEffect(() => {
 		const value = query.trim();
 		const requestVersion = ++requestVersionRef.current;
-		if (!value) {
-			setSuggestions([]);
-			setResultQuery("");
-			setLoading(false);
-			setError(false);
-			return;
-		}
+		if (!value) return;
 		const controller = new AbortController();
-		setLoading(true);
-		setError(false);
 		getSearchItems(session, value, { limit: 8, signal: controller.signal })
 			.then((results) => {
 				if (
@@ -58,13 +58,7 @@ export function SearchOverlay({
 				)
 					setError(true);
 			})
-			.finally(() => {
-				if (
-					!controller.signal.aborted &&
-					requestVersionRef.current === requestVersion
-				)
-					setLoading(false);
-			});
+			.finally(() => undefined);
 		return () => {
 			controller.abort();
 		};
@@ -95,7 +89,7 @@ export function SearchOverlay({
 						<input
 							ref={inputRef}
 							value={query}
-							onChange={(event) => setQuery(event.target.value)}
+							onChange={(event) => handleQueryChange(event.target.value)}
 							placeholder={t("searchPlaceholder")}
 							className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25"
 							aria-label={t("search")}

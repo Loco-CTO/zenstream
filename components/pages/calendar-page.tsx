@@ -227,8 +227,13 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		void load(controller.signal);
-		return () => controller.abort();
+		const requestTimer = window.setTimeout(() => {
+			if (!controller.signal.aborted) void load(controller.signal);
+		}, 0);
+		return () => {
+			window.clearTimeout(requestTimer);
+			controller.abort();
+		};
 	}, [load]);
 
 	const eventsByDay = useMemo(() => {

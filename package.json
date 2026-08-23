@@ -12,7 +12,8 @@
 		"lint:fix": "eslint . --fix",
 		"format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,css,md}\"",
 		"format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,css,md}\"",
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"blurhash": "^2.0.5",
@@ -28,6 +29,7 @@
 		"@tailwindcss/postcss": "^4.3.3",
 		"@testing-library/jest-dom": "^7.0.1",
 		"@testing-library/react": "^16.1.0",
+		"@vitest/coverage-v8": "4.1.10",
 		"@types/node": "^26.2.0",
 		"@types/react": "^19.0.2",
 		"@types/react-dom": "^19.0.2",

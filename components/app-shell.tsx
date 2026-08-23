@@ -178,9 +178,7 @@ export function AppShell() {
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
-	const [locale, setLocale] = useState<Locale>(
-		() => getStoredLocale() ?? "en",
-	);
+	const [locale, setLocale] = useState<Locale>(() => getStoredLocale() ?? "en");
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
 		useState<MetadataLanguagePreference>({ mode: "auto", language: "en" });
@@ -525,13 +523,12 @@ export function AppShell() {
 		let disposed = false;
 		const finishProgress = start();
 		const stored = getAuthSession();
-		const validation =
-			stored
-				? (bootstrapInFlight.current ??
-						(validateBrowserSession(stored).finally(() => {
-							bootstrapInFlight.current = null;
-						}) as Promise<AuthSession | null>))
-				: Promise.resolve<AuthSession | null>(null);
+		const validation = stored
+			? (bootstrapInFlight.current ??
+				(validateBrowserSession(stored).finally(() => {
+					bootstrapInFlight.current = null;
+				}) as Promise<AuthSession | null>))
+			: Promise.resolve<AuthSession | null>(null);
 		bootstrapInFlight.current = validation;
 		void validation
 			.then((verified) => {

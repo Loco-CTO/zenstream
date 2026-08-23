@@ -243,8 +243,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 			void load();
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
-		return () =>
-			window.removeEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
 	}, [load]);
 
 	const eventsByDay = useMemo(() => {

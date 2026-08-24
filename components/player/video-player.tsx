@@ -625,8 +625,8 @@ export function VideoPlayer({
 			: Math.max(0, displayedCurrentTime);
 	const timerText =
 		timeDisplayMode === "elapsed"
-			? `${formatPlayerTime(timerPosition)}/${formatPlayerTime(totalDuration)}`
-			: `-${formatPlayerTime(Math.max(0, totalDuration - timerPosition))}/${formatPlayerTime(totalDuration)}`;
+			? `${formatPlayerTime(timerPosition)} / ${formatPlayerTime(totalDuration)}`
+			: `-${formatPlayerTime(Math.max(0, totalDuration - timerPosition))} / ${formatPlayerTime(totalDuration)}`;
 	const timeDisplayActionLabel =
 		timeDisplayMode === "remaining"
 			? t("showElapsedTime")
@@ -3198,7 +3198,7 @@ export function VideoPlayer({
 						aria-pressed={timeDisplayMode === "elapsed"}
 						title={timeDisplayActionLabel}
 						onClick={toggleTimeDisplay}
-						className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center rounded px-1 text-xs tabular-nums text-white/80 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black sm:min-w-[6.25rem] sm:text-sm"
+						className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center px-1 text-xs tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60 sm:min-w-[6.25rem] sm:text-sm"
 					>
 						{timerText}
 					</button>

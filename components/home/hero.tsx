@@ -21,6 +21,7 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
+import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
 import { useSyncplayPlayback } from "@/lib/syncplay-playback";
 
 const SLIDE_INTERVAL_MS = 7000;
@@ -30,6 +31,7 @@ type SlideDirection = "next" | "previous";
 type TrailerState = {
 	itemId: string;
 	generation: number;
+	preferenceRevision: number;
 	value: HeroTrailer;
 };
 type SlideLifecycle = {
@@ -61,6 +63,8 @@ export function Hero({
 }) {
 	const { locale, t } = useI18n();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
+	const { useHeroTrailer, heroPreferenceRevision } =
+		usePlaybackBehaviorPreferences();
 	const slides = useMemo(() => items.filter(hasVisualImage), [items]);
 	const [activeItemId, setActiveItemId] = useState<string | null>(
 		() => slides[0]?.Id ?? items[0]?.Id ?? null,
@@ -90,14 +94,16 @@ export function Hero({
 	);
 	const visibleIndex = indexedActiveSlide >= 0 ? indexedActiveSlide : 0;
 	const item = slides[visibleIndex] ?? items[0] ?? null;
-	const trailer =
-		trailerState && item && trailerState.itemId === item.Id
-			? trailerState.value
+	const activeTrailerState =
+		useHeroTrailer &&
+		trailerState &&
+		trailerState.preferenceRevision === heroPreferenceRevision &&
+		item &&
+		trailerState.itemId === item.Id
+			? trailerState
 			: null;
-	const trailerGeneration =
-		trailerState && item && trailerState.itemId === item.Id
-			? trailerState.generation
-			: null;
+	const trailer = activeTrailerState?.value ?? null;
+	const trailerGeneration = activeTrailerState?.generation ?? null;
 	const trailerMetadataKey = item
 		? item.RemoteTrailers === undefined
 			? "unknown"
@@ -231,7 +237,8 @@ export function Hero({
 			fallbackTimer: null,
 		};
 		lifecycleRef.current = lifecycle;
-		if (!canPlayTrailers) {
+		const preferenceRevision = heroPreferenceRevision;
+		if (!canPlayTrailers || !useHeroTrailer) {
 			scheduleAdvance(effectiveActiveItemId, generation, SLIDE_INTERVAL_MS);
 			return () => {
 				cancelled = true;
@@ -260,15 +267,18 @@ export function Hero({
 					if (
 						cancelled ||
 						lifecycleRef.current !== lifecycle ||
-						activeItemIdRef.current !== effectiveActiveItemId
+						activeItemIdRef.current !== effectiveActiveItemId ||
+						heroPreferenceRevision !== preferenceRevision
 					) {
 						return;
 					}
 					if (nextTrailer) {
 						clearLifecycleTimer(lifecycle);
+						setIsTrailerMuted(true);
 						setTrailerState({
 							itemId: effectiveActiveItemId,
 							generation,
+							preferenceRevision,
 							value: nextTrailer,
 						});
 						return;
@@ -283,7 +293,8 @@ export function Hero({
 					if (
 						!cancelled &&
 						lifecycleRef.current === lifecycle &&
-						activeItemIdRef.current === effectiveActiveItemId
+						activeItemIdRef.current === effectiveActiveItemId &&
+						heroPreferenceRevision === preferenceRevision
 					) {
 						scheduleAdvance(
 							effectiveActiveItemId,
@@ -308,6 +319,8 @@ export function Hero({
 		scheduleAdvance,
 		session,
 		trailerMetadataKey,
+		heroPreferenceRevision,
+		useHeroTrailer,
 	]);
 
 	useEffect(() => {
@@ -442,6 +455,7 @@ export function Hero({
 				/>
 			) : null}
 			{canPlayTrailers &&
+				useHeroTrailer &&
 				trailer &&
 				(trailer.kind === "youtube" ? (
 					<YouTubeTrailer
@@ -487,7 +501,7 @@ export function Hero({
 				))}
 			<div className="absolute inset-0 bg-[linear-gradient(105deg,var(--c-hero-side)_0%,var(--c-hero-side-mid)_30%,rgba(0,0,0,0.02)_55%,transparent_100%)]" />
 			<div className="absolute inset-0 bg-[linear-gradient(to_top,var(--c-hero-bottom)_0%,var(--c-hero-btm-mid)_22%,transparent_50%)]" />
-			{canPlayTrailers && trailer && (
+			{canPlayTrailers && useHeroTrailer && trailer && (
 				<button
 					type="button"
 					aria-label={isTrailerMuted ? t("unmuteTrailer") : t("muteTrailer")}

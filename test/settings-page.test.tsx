@@ -62,6 +62,7 @@ describe("SettingsPage", () => {
 		expect(
 			screen.getByRole("button", { name: "Appearance" }),
 		).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Home" })).toBeInTheDocument();
 		expect(
 			screen.queryByRole("button", { name: "Notifications" }),
 		).not.toBeInTheDocument();
@@ -108,13 +109,49 @@ describe("SettingsPage", () => {
 		expect(browseAutoplay).toHaveAttribute("aria-checked", "false");
 		expect(
 			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
-		).toBe(JSON.stringify({ autoplayNextEpisode: false, autoplayBrowse: false }));
+		).toBe(
+			JSON.stringify({
+				autoplayNextEpisode: false,
+				autoplayBrowse: false,
+				useHeroTrailer: true,
+			}),
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Back" }));
 		expect(
 			screen.getByRole("navigation", { name: "Settings" }),
 		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 		expect(onLogout).toHaveBeenCalledOnce();
+	});
+
+	it("shows and persists the Home hero trailer preference", () => {
+		render(
+			<PlaybackBehaviorPreferencesProvider userId="user-1">
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="en"
+					onLocaleChange={vi.fn()}
+					onLogout={() => undefined}
+				/>
+			</PlaybackBehaviorPreferencesProvider>,
+		);
+
+		openSection("Home");
+		const toggle = screen.getByRole("switch", { name: "Use trailers in hero" });
+		expect(toggle).toHaveAttribute("aria-checked", "true");
+		fireEvent.click(toggle);
+
+		expect(toggle).toHaveAttribute("aria-checked", "false");
+		expect(
+			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
+		).toBe(
+			JSON.stringify({
+				autoplayNextEpisode: true,
+				autoplayBrowse: true,
+				useHeroTrailer: false,
+			}),
+		);
 	});
 
 	it("shows only the server-provided playback languages and saves selections", async () => {
@@ -480,9 +517,11 @@ describe("SettingsPage", () => {
 
 	it("localizes the settings index and category controls", () => {
 		const settings = translate("ja", "settings");
+		const home = translate("ja", "home");
 		const playback = translate("ja", "playback");
 		const privacy = translate("ja", "privacyData");
 		const autoplay = translate("ja", "autoplayNextEpisode");
+		const heroUseTrailer = translate("ja", "heroUseTrailer");
 		render(
 			<I18nProvider locale="ja">
 				<SettingsPage
@@ -496,10 +535,18 @@ describe("SettingsPage", () => {
 		);
 
 		expect(screen.getByRole("heading", { name: settings })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: home })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: playback })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: privacy })).toBeInTheDocument();
 		openSection(playback);
 		expect(screen.getByRole("switch", { name: autoplay })).toBeInTheDocument();
+		fireEvent.click(
+			screen.getByRole("button", { name: translate("ja", "back") }),
+		);
+		openSection(home);
+		expect(
+			screen.getByRole("switch", { name: heroUseTrailer }),
+		).toBeInTheDocument();
 		expect(screen.queryByText("Change Password")).not.toBeInTheDocument();
 	});
 

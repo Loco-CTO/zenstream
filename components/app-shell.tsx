@@ -101,12 +101,6 @@ import {
 	type MetadataLanguagePreference,
 	type PlaybackPreference,
 } from "@/lib/preferences";
-import {
-	DEFAULT_SUBTITLE_STYLE,
-	getSubtitlePreference,
-	clearSubtitlePreferenceCache,
-	type SubtitleStyle,
-} from "@/lib/subtitle-preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
@@ -199,9 +193,6 @@ export function AppShell() {
 		useState<PlaybackPreference>(EMPTY_PLAYBACK_PREFERENCE);
 	const [watchHistoryEnabled, setWatchHistoryEnabled] = useState(true);
 	const [watchHistoryLoaded, setWatchHistoryLoaded] = useState(false);
-	const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(
-		DEFAULT_SUBTITLE_STYLE,
-	);
 	const [, setResourceTicketRevision] = useState(0);
 	const loadedPreferencesSession = useRef<AuthSession | null>(null);
 	const sessionRef = useRef<AuthSession | null>(null);
@@ -285,9 +276,6 @@ export function AppShell() {
 					setLocalePreferenceLoaded(true);
 				});
 			})
-			.catch(() => undefined);
-		void getSubtitlePreference(nextSession)
-			.then((value) => commit(() => setSubtitleStyle(value)))
 			.catch(() => undefined);
 		void getMetadataLanguages(nextSession)
 			.then((value) => commit(() => setMetadataLanguages(value)))
@@ -553,7 +541,6 @@ export function AppShell() {
 						clearAuthCookies();
 						clearMediaClientSession();
 						clearPreferenceCache();
-						clearSubtitlePreferenceCache();
 						setAvatarVersion(null);
 					}
 					setStatus("login");
@@ -658,7 +645,6 @@ export function AppShell() {
 			clearAuthCookies();
 			clearMediaClientSession();
 			clearPreferenceCache();
-			clearSubtitlePreferenceCache();
 			clearMediaClientCache();
 			routeLoadGeneration.current += 1;
 			preferencesGeneration.current += 1;
@@ -964,11 +950,7 @@ export function AppShell() {
 	return (
 		<I18nProvider locale={effectiveLocale}>
 			<ToastProvider>
-				<SubtitlePreferencesProvider
-					key={JSON.stringify(subtitleStyle)}
-					session={session}
-					initialStyle={subtitleStyle}
-				>
+				<SubtitlePreferencesProvider>
 					{renderStatus === "checking" ? (
 						<div className="min-h-screen bg-background" />
 					) : renderStatus === "bootstrap-error" ? (

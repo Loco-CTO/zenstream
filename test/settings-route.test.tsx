@@ -8,11 +8,9 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 import { ProgressProvider } from "@/components/status/progress-indicator";
-import { DEFAULT_SUBTITLE_STYLE } from "@/lib/subtitle-preferences";
 import * as jellyfin from "@/lib/media-api";
 import * as preferences from "@/lib/preferences";
 import * as session from "@/lib/session";
-import * as subtitlePreferences from "@/lib/subtitle-preferences";
 
 const playbackPreference: preferences.PlaybackPreference = {
 	audioLanguage: "en",
@@ -66,9 +64,6 @@ describe("settings route", () => {
 			mode: "auto",
 			language: "en",
 		});
-		vi
-			.spyOn(subtitlePreferences, "getSubtitlePreference")
-			.mockResolvedValue(DEFAULT_SUBTITLE_STYLE);
 		vi
 			.spyOn(preferences, "getPlaybackPreference")
 			.mockResolvedValue(playbackPreference);

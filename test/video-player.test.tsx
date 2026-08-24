@@ -29,6 +29,7 @@ import {
 import {
 	DEFAULT_SUBTITLE_STYLE,
 	parseWebVttCues,
+	SUBTITLE_STYLE_STORAGE_KEY,
 } from "@/lib/subtitle-preferences";
 import { I18nProvider } from "@/lib/i18n";
 import {
@@ -608,7 +609,7 @@ describe("video player controls", () => {
 	it("contains player overlays without creating a scrollbar", () => {
 		const { container } = render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider session={null}>
+				<SubtitlePreferencesProvider>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
@@ -855,11 +856,13 @@ describe("video player controls", () => {
 			);
 
 		try {
+			window.localStorage.setItem(
+				SUBTITLE_STYLE_STORAGE_KEY,
+				JSON.stringify({ ...DEFAULT_SUBTITLE_STYLE, renderer: "overlay" }),
+			);
 			const view = render(
 				<I18nProvider locale="en">
-					<SubtitlePreferencesProvider
-						initialStyle={{ ...DEFAULT_SUBTITLE_STYLE, renderer: "overlay" }}
-					>
+					<SubtitlePreferencesProvider>
 						<VideoPlayer
 							item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 							session={{ token: "token", userId: "user", username: "Alex" }}
@@ -1003,7 +1006,7 @@ describe("video player controls", () => {
 		vi.mocked(getPlaybackInfo).mockClear();
 		render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider session={null}>
+				<SubtitlePreferencesProvider>
 					<VideoPlayer
 						item={
 							{
@@ -1425,7 +1428,7 @@ describe("video player controls", () => {
 		expect(blocked).toHaveBeenCalledOnce();
 	});
 
-	it("loads subtitle preferences when playback opens", async () => {
+	it("uses locally stored subtitle preferences when playback opens", async () => {
 		const style = {
 			renderer: "native" as const,
 			fontFamily: "sans",
@@ -1437,14 +1440,14 @@ describe("video player controls", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(JSON.stringify(style)));
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
+		const fetchMock = vi.spyOn(globalThis, "fetch");
 		render(
 			<I18nProvider locale="en">
-				<SubtitlePreferencesProvider
-					session={{ token: "token", userId: "user", username: "Alex" }}
-				>
+				<SubtitlePreferencesProvider>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
@@ -1457,18 +1460,11 @@ describe("video player controls", () => {
 		await act(async () => {
 			await Promise.resolve();
 		});
-		expect(fetchMock).toHaveBeenCalled();
-		const [requestUrl, requestInit] = fetchMock.mock.calls[0] as [
-			string,
-			RequestInit,
-		];
-		expect(requestUrl).toContain("/api/preferences/subtitles");
-		expect(requestInit).toEqual(
-			expect.objectContaining({
-				cache: "no-store",
-				credentials: "include",
-			}),
-		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) =>
+				String(url).includes("/api/preferences/subtitles"),
+			),
+		).toHaveLength(0);
 	});
 
 	it("stacks active cues and applies the saved custom appearance", () => {

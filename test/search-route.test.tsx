@@ -3,11 +3,9 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 import { ProgressProvider } from "@/components/status/progress-indicator";
-import { DEFAULT_SUBTITLE_STYLE } from "@/lib/subtitle-preferences";
 import * as mediaApi from "@/lib/media-api";
 import * as preferences from "@/lib/preferences";
 import * as sessionApi from "@/lib/session";
-import * as subtitlePreferences from "@/lib/subtitle-preferences";
 
 const navigation = vi.hoisted(() => ({
 	pathname: "/search",
@@ -69,9 +67,6 @@ describe("search route", () => {
 		});
 		vi.spyOn(sessionApi, "setAuthCookies").mockImplementation(() => undefined);
 		vi.spyOn(mediaApi, "primeResourceTicket").mockResolvedValue(null);
-		vi
-			.spyOn(subtitlePreferences, "getSubtitlePreference")
-			.mockResolvedValue(DEFAULT_SUBTITLE_STYLE);
 	});
 
 	it("updates the mounted results page when only the q parameter changes", async () => {

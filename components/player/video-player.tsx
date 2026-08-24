@@ -475,7 +475,7 @@ export function VideoPlayer({
 }: Props) {
 	const { t } = useI18n();
 	const mediaPlaybackFailedMessage = t("mediaPlaybackFailed");
-	const { style, refresh: refreshSubtitleStyle } = useSubtitlePreferences();
+	const { style } = useSubtitlePreferences();
 	const { autoplayNextEpisode } = usePlaybackBehaviorPreferences();
 	const syncplay = useSyncplay();
 	const syncplayActive = syncplay.active;
@@ -1434,10 +1434,6 @@ export function VideoPlayer({
 			session.userId,
 		],
 	);
-
-	useEffect(() => {
-		void refreshSubtitleStyle();
-	}, [refreshSubtitleStyle]);
 
 	useEffect(() => {
 		let active = true;

@@ -5,9 +5,13 @@ import {
 	PlaybackBehaviorPreferencesProvider,
 	playbackBehaviorStorageKey,
 } from "@/components/playback-behavior-preferences-provider";
-import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
+import {
+	SubtitlePreferencesProvider,
+	useSubtitlePreferences,
+} from "@/components/subtitle-preferences-provider";
 import { I18nProvider, translate } from "@/lib/i18n";
 import * as mediaApi from "@/lib/media-api";
+import { SUBTITLE_STYLE_STORAGE_KEY } from "@/lib/subtitle-preferences";
 
 const router = vi.hoisted(() => ({
 	back: vi.fn(),
@@ -34,6 +38,15 @@ vi.mock("next/navigation", () => ({
 
 function openSection(name: string) {
 	fireEvent.click(screen.getByRole("button", { name }));
+}
+
+function SubtitleStyleProbe() {
+	const { style } = useSubtitlePreferences();
+	return (
+		<output data-testid="subtitle-style">
+			{style.fontFamily}:{style.renderer}
+		</output>
+	);
 }
 
 describe("SettingsPage", () => {
@@ -291,11 +304,13 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(JSON.stringify(style)));
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
+		const fetchMock = vi.spyOn(globalThis, "fetch");
 		render(
-			<SubtitlePreferencesProvider session={session} initialStyle={style}>
+			<SubtitlePreferencesProvider>
 				<SettingsPage
 					displayName="Alex"
 					userId="user-1"
@@ -313,15 +328,61 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("combobox", { name: "Subtitle font" }));
 		fireEvent.click(screen.getByRole("option", { name: "Noto Sans" }));
 		await waitFor(() =>
-			expect(fetchMock).toHaveBeenCalledWith(
-				expect.stringContaining("/api/preferences/subtitles"),
-				expect.objectContaining({
-					method: "PATCH",
-					body: JSON.stringify({ ...style, fontFamily: "sans" }),
-				}),
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
+				...style,
+				fontFamily: "sans",
+			}),
+		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) =>
+				String(url).includes("/api/preferences/subtitles"),
+			),
+		).toHaveLength(0);
+		expect(screen.queryByText("Autoplay Next Episode")).not.toBeInTheDocument();
+	});
+
+	it("updates from a subtitle style change in another browser tab", async () => {
+		const initialStyle = {
+			renderer: "native" as const,
+			fontFamily: "sans" as const,
+			bold: false,
+			textScale: 100,
+			fontColor: "#ffffff",
+			borderSize: 2,
+			borderColor: "#000000",
+			backgroundColor: "#000000",
+			backgroundOpacity: 0,
+		};
+		const nextStyle = { ...initialStyle, renderer: "overlay" as const };
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(initialStyle),
+		);
+		render(
+			<SubtitlePreferencesProvider>
+				<SubtitleStyleProbe />
+			</SubtitlePreferencesProvider>,
+		);
+		expect(screen.getByTestId("subtitle-style")).toHaveTextContent("sans:native");
+
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(nextStyle),
+		);
+		window.dispatchEvent(
+			new StorageEvent("storage", {
+				key: SUBTITLE_STYLE_STORAGE_KEY,
+				newValue: JSON.stringify(nextStyle),
+			}),
+		);
+
+		await waitFor(() =>
+			expect(screen.getByTestId("subtitle-style")).toHaveTextContent(
+				"sans:overlay",
 			),
 		);
-		expect(screen.queryByText("Autoplay Next Episode")).not.toBeInTheDocument();
 	});
 
 	it("opens the change-password form, validates it, and completes sign-in handoff", async () => {
@@ -423,13 +484,13 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response(JSON.stringify({ ...style, renderer: "overlay" })),
-			);
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
+		const fetchMock = vi.spyOn(globalThis, "fetch");
 		render(
-			<SubtitlePreferencesProvider session={session} initialStyle={style}>
+			<SubtitlePreferencesProvider>
 				<SettingsPage
 					displayName="Alex"
 					userId="user-1"
@@ -444,14 +505,18 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("combobox", { name: "Subtitle Renderer" }));
 		fireEvent.click(screen.getByRole("option", { name: /Overlay/ }));
 		await waitFor(() =>
-			expect(fetchMock).toHaveBeenCalledWith(
-				expect.stringContaining("/api/preferences/subtitles"),
-				expect.objectContaining({
-					method: "PATCH",
-					body: JSON.stringify({ ...style, renderer: "overlay" }),
-				}),
-			),
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
+				...style,
+				renderer: "overlay",
+			}),
 		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) =>
+				String(url).includes("/api/preferences/subtitles"),
+			),
+		).toHaveLength(0);
 	});
 
 	it("uses an in-app subtitle color popover", async () => {
@@ -466,13 +531,12 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response(JSON.stringify({ ...style, fontColor: "#818cf8" })),
-			);
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
 		render(
-			<SubtitlePreferencesProvider session={session} initialStyle={style}>
+			<SubtitlePreferencesProvider>
 				<SettingsPage
 					displayName="Alex"
 					userId="user-1"
@@ -497,21 +561,19 @@ describe("SettingsPage", () => {
 		const hexInput = screen.getByRole("textbox", {
 			name: "Subtitle font color hex",
 		});
-		const callsBeforeEdit = fetchMock.mock.calls.length;
+		const storageBeforeEdit = localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY);
 		fireEvent.change(hexInput, { target: { value: "#818cf8" } });
-		expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit);
+		expect(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)).toBe(
+			storageBeforeEdit,
+		);
 		fireEvent.blur(hexInput);
 		await waitFor(() =>
-			expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit + 1),
-		);
-		await waitFor(() =>
-			expect(fetchMock).toHaveBeenLastCalledWith(
-				expect.stringContaining("/api/preferences/subtitles"),
-				expect.objectContaining({
-					method: "PATCH",
-					body: JSON.stringify({ ...style, fontColor: "#818cf8" }),
-				}),
-			),
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
+				...style,
+				fontColor: "#818cf8",
+			}),
 		);
 	});
 

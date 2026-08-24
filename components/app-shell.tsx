@@ -18,6 +18,7 @@ import {
 	clearMediaClientCache,
 	clearMediaClientSession,
 	clearWatchHistory,
+	primeArtworkTicket,
 	primeResourceTicket,
 	revokeAuthSession,
 	validateBrowserSession,
@@ -365,6 +366,7 @@ export function AppShell() {
 				do {
 					homeTrailingRefresh.current = false;
 					try {
+						void primeArtworkTicket(nextSession);
 						void primeResourceTicket(nextSession);
 						const data = await fetchHomeData(nextSession, (section) => {
 							if (!isCurrent()) return;
@@ -419,6 +421,7 @@ export function AppShell() {
 			signal?: AbortSignal,
 			onSection?: (section: Partial<DetailData>) => void,
 		) => {
+			void primeArtworkTicket(nextSession);
 			void primeResourceTicket(nextSession);
 			if (pathname === "/search") return null;
 			return playId
@@ -602,6 +605,7 @@ export function AppShell() {
 				pathname === "/favorites" ||
 				pathname === "/calendar"
 			) {
+				void primeArtworkTicket(session);
 				void primeResourceTicket(session);
 				if (generation === routeLoadGeneration.current) setStatus("ready");
 			} else await loadHome(session, generation);
@@ -626,6 +630,7 @@ export function AppShell() {
 		sessionRef.current = nextSession;
 		authExpiryHandled.current = null;
 		setAvatarVersion(nextSession.avatarVersion ?? null);
+		await primeArtworkTicket(nextSession);
 		setSession(nextSession);
 		const generation = ++routeLoadGeneration.current;
 		loadPreferences(nextSession);
@@ -733,8 +738,11 @@ export function AppShell() {
 		const refreshImageUrls = () =>
 			setResourceTicketRevision((value) => value + 1);
 		window.addEventListener("zenstream:resource-ticket", refreshImageUrls);
-		return () =>
+		window.addEventListener("zenstream:artwork-ticket", refreshImageUrls);
+		return () => {
 			window.removeEventListener("zenstream:resource-ticket", refreshImageUrls);
+			window.removeEventListener("zenstream:artwork-ticket", refreshImageUrls);
+		};
 	}, []);
 
 	useEffect(() => {

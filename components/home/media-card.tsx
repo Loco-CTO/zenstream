@@ -54,6 +54,7 @@ export function WideCard({
 								image={image}
 								alt={item.Name}
 								draggable={false}
+								sizes="(max-width: 639px) 180px, (max-width: 767px) 240px, 320px"
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
@@ -100,6 +101,7 @@ export function PosterCard({
 								image={image}
 								alt={item.Name}
 								draggable={false}
+								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
@@ -150,6 +152,7 @@ export function StackedPosterCard({
 									image={image}
 									alt={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
 									draggable={false}
+									sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
 									className={`${MEDIA_CARD_IMAGE_CLASS}`}
 								/>
 							)}

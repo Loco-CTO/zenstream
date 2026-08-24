@@ -3,6 +3,24 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
+function artworkRemotePatterns(orchestratorUrl) {
+	if (!orchestratorUrl) return [];
+	try {
+		const parsed = new URL(orchestratorUrl);
+		const origin = {
+			protocol: parsed.protocol.replace(/:$/, ""),
+			hostname: parsed.hostname,
+			port: parsed.port,
+		};
+		return [
+			{ ...origin, pathname: "/api/catalog/items/*/images/*" },
+			{ ...origin, pathname: "/api/catalog/items/*/people/*/image" },
+		];
+	} catch {
+		return [];
+	}
+}
+
 export function buildContentSecurityPolicy(
 	orchestratorUrl,
 	isDevelopment = false,
@@ -34,6 +52,10 @@ const contentSecurityPolicy = buildContentSecurityPolicy(
 const nextConfig = {
 	reactStrictMode: true,
 	output: "standalone",
+	images: {
+		remotePatterns: artworkRemotePatterns(process.env.NEXT_PUBLIC_ZSO_URL),
+		minimumCacheTTL: 300,
+	},
 	turbopack: {
 		root: appRoot,
 		rules: {

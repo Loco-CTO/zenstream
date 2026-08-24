@@ -129,6 +129,7 @@ export function SearchOverlay({
 												<BlurHashImage
 													image={image}
 													alt=""
+													sizes="36px"
 													className="h-full w-full object-cover"
 												/>
 											) : null;

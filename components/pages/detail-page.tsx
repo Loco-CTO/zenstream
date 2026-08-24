@@ -327,6 +327,7 @@ export function DetailPage({
 						<BlurHashImage
 							image={background}
 							alt=""
+							sizes="100vw"
 							className="absolute inset-0 h-full w-full object-cover brightness-[.42]"
 						/>
 					)}
@@ -355,6 +356,8 @@ export function DetailPage({
 									<BlurHashImage
 										image={titleLogo}
 										alt={item.Name}
+										fill={false}
+										sizes="(max-width: 768px) 80vw, 32rem"
 										className="max-h-24 max-w-full object-contain object-left md:max-h-32"
 									/>
 								) : (
@@ -610,6 +613,7 @@ function DetailArtwork({
 			<BlurHashImage
 				image={image}
 				alt={item.Name}
+				sizes={episode ? "320px" : "160px"}
 				className="h-full w-full object-cover"
 			/>
 		</div>
@@ -819,6 +823,7 @@ export function EpisodeCard({
 						<BlurHashImage
 							image={image}
 							alt={episode.Name}
+							sizes={horizontal ? "320px" : "213px"}
 							className={
 								horizontal ? `${MEDIA_CARD_IMAGE_CLASS}` : "h-full w-full object-cover"
 							}
@@ -946,6 +951,7 @@ function PeopleSection({
 												<BlurHashImage
 													image={image}
 													alt={person.Name}
+													sizes="96px"
 													className="h-full w-full object-cover"
 												/>
 											)}

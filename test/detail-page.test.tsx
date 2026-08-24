@@ -386,7 +386,10 @@ describe("detail views", () => {
 		renderDetail({
 			item: {
 				...movie(),
-				ImageTags: { ...movie().ImageTags, Logo: "movie-logo" },
+				ImageTags: {
+					...movie().ImageTags,
+					Logo: "/api/catalog/items/movie/images/Logo?language=en&v=movie-logo",
+				},
 			},
 			seasons: [],
 			episodes: [],
@@ -396,13 +399,8 @@ describe("detail views", () => {
 		const heading = screen.getByRole("heading", { name: "Film" });
 		const logo = within(heading).getByAltText("Film");
 		expect(heading).toContainElement(logo);
-		expect(logo).toHaveAttribute(
-			"src",
-			expect.stringContaining("/api/assets/items/movie/images/Logo?"),
-		);
-		expect(logo).toHaveAttribute(
-			"src",
-			expect.stringContaining("tag=movie-logo"),
+		expect(decodeURIComponent(logo.getAttribute("src") ?? "")).toContain(
+			"/api/catalog/items/movie/images/Logo",
 		);
 		expect(logo).toHaveClass("max-h-24", "object-contain", "object-left");
 	});
@@ -547,17 +545,20 @@ describe("detail views", () => {
 				Id: "series",
 				Name: "Series",
 				Type: "Series",
-				BackdropImageTags: ["series-backdrop"],
+				BackdropImageTags: [
+					"/api/catalog/items/series/images/Backdrop?language=en&v=series-backdrop",
+				],
 			},
 			seasons: [],
 			episodes: [],
 			similar: [],
 		});
 
-		expect(container.querySelector("section > img")).toHaveAttribute(
-			"src",
-			expect.stringContaining("/api/assets/items/series/images/Backdrop?"),
-		);
+		expect(
+			decodeURIComponent(
+				container.querySelector("section > img")?.getAttribute("src") ?? "",
+			),
+		).toContain("/api/catalog/items/series/images/Backdrop");
 	});
 
 	it("uses the shared horizontal scroller for an episode season", async () => {
@@ -714,8 +715,12 @@ function movie(): MediaItem {
 		Genres: ["Drama"],
 		Studios: [{ Name: "Studio" }],
 		UserData: { IsFavorite: false, Played: false },
-		ImageTags: { Primary: "poster" },
-		BackdropImageTags: ["backdrop"],
+		ImageTags: {
+			Primary: "/api/catalog/items/movie/images/Primary?language=en&v=poster",
+		},
+		BackdropImageTags: [
+			"/api/catalog/items/movie/images/Backdrop?language=en&v=backdrop",
+		],
 	};
 }
 
@@ -728,7 +733,9 @@ function episode(id: string, number: number): MediaItem {
 		ParentIndexNumber: 1,
 		IndexNumber: number,
 		Overview: "Episode overview",
-		ImageTags: { Primary: "thumb" },
+		ImageTags: {
+			Primary: `/api/catalog/items/${id}/images/Primary?language=en&v=thumb`,
+		},
 	};
 }
 

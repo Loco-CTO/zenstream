@@ -26,6 +26,9 @@ importers:
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
+      sharp:
+        specifier: ^0.35.3
+        version: 0.35.3(@types/node@26.2.0)
       socket.io-client:
         specifier: ^4.8.3
         version: 4.8.3(supports-color@7.2.0)

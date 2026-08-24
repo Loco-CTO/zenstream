@@ -420,7 +420,7 @@ export function DetailPage({
 									onOpenSubtitleDownloader={() => setSubtitleDownloaderOpen(true)}
 								/>
 							)}
-						{isEpisode && (
+						{(item.Type === "Movie" || isEpisode) && (
 							<BazarrSubtitles
 								key={`${item.Id}:${trackChoices?.sourceId ?? "none"}`}
 								session={session}

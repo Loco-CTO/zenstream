@@ -98,6 +98,7 @@ describe("detail views", () => {
 					{
 						matchId: "match-1",
 						name: "Japanese subtitle",
+						releaseName: "[SubsPlease] Show - 01 [1080p].srt",
 						language: "ja",
 						provider: "opensubtitles",
 						format: "srt",
@@ -117,7 +118,7 @@ describe("detail views", () => {
 		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
 		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
 
-		await screen.findByText("Japanese subtitle");
+		await screen.findByText("[SubsPlease] Show - 01 [1080p].srt");
 		fireEvent.click(screen.getByRole("button", { name: "Download" }));
 
 		await waitFor(() =>
@@ -199,6 +200,47 @@ describe("detail views", () => {
 		fireEvent.click(selector);
 		expect(
 			screen.queryByRole("option", { name: "Find subtitles" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("supports movie subtitle search and queued download", async () => {
+		const playback = stubEpisodePlayback({
+			status: {
+				state: "matched",
+				movie: { movieId: 42, title: "Film" },
+			},
+			streams: [{ index: 1, type: "audio" }],
+			search: {
+				state: "matches",
+				sourceId: "source-1",
+				matches: [{ matchId: "movie-match", name: "English subtitle" }],
+			},
+		});
+		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		fireEvent.click(screen.getByRole("combobox", { name: "Subtitles" }));
+		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
+		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
+		await screen.findByText("English subtitle");
+		fireEvent.click(screen.getByRole("button", { name: "Download" }));
+
+		await waitFor(() => expect(playback.downloadRequested()).toBe(true));
+		expect(
+			screen.getByText("Download queued; the library will refresh shortly"),
+		).toBeInTheDocument();
+	});
+
+	it("hides the movie downloader when its mapping is unmatched", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "unmatched" },
+			streams: [{ index: 1, type: "audio" }],
+		});
+		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		expect(
+			screen.queryByRole("combobox", { name: "Subtitles" }),
 		).not.toBeInTheDocument();
 	});
 

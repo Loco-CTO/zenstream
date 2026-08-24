@@ -157,6 +157,11 @@ export interface BazarrStatus {
 		episode?: number | null;
 		subtitles?: BazarrSubtitleSummary[];
 	};
+	movie?: {
+		movieId?: number | null;
+		title?: string | null;
+		subtitles?: BazarrSubtitleSummary[];
+	};
 }
 
 export interface BazarrSubtitleMatch {
@@ -165,6 +170,7 @@ export interface BazarrSubtitleMatch {
 	provider?: string;
 	language?: string | null;
 	name: string;
+	releaseName?: string | null;
 	hearingImpaired?: boolean;
 	forced?: boolean;
 	originalFormat?: boolean;

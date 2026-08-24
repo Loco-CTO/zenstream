@@ -138,18 +138,7 @@ export const HLS_TEXT_TRACK_CONFIG = {
 	renderTextTracksNatively: false,
 	subtitleDisplay: false,
 };
-export const PLAYER_RECOVERY = {
-	directStallDelayMs: 8_000,
-	maxDirectSourceRetries: 1,
-	maxHlsRecoveries: 3,
-	hlsRetryBaseDelayMs: 1_000,
-	accessRefreshDelayMs: 12 * 60 * 1_000,
-} as const;
-
-export function isRecoverableMediaError(code?: number | null) {
-	// Aborted/network errors describe transport state, not media compatibility.
-	return code === 1 || code === 2;
-}
+const PLAYBACK_ACCESS_REFRESH_INTERVAL_MS = 12 * 60 * 1_000;
 
 type HlsErrorData = {
 	type?: string;
@@ -514,7 +503,7 @@ export function VideoPlayer({
 	});
 	const qualityRequestRef = useRef(0);
 	const sourceRef = useRef<MediaSource | undefined>(initialStreams?.source);
-	const transcodeAttemptRef = useRef(false);
+	const fallbackUsedRef = useRef(false);
 	const resumeTimeRef = useRef<number | null>(null);
 	const resumePlayingRef = useRef<boolean | null>(null);
 	const clearedPlayedRef = useRef(false);
@@ -526,10 +515,7 @@ export function VideoPlayer({
 	const bufferingTimerRef = useRef<number | undefined>(undefined);
 	const bufferingEpochRef = useRef(0);
 	const waitingTimerRef = useRef<number | undefined>(undefined);
-	const directStallTimerRef = useRef<number | undefined>(undefined);
-	const hlsRecoveryTimerRef = useRef<number | undefined>(undefined);
-	const directSourceRetryRef = useRef(0);
-	const hlsRecoveryAttemptsRef = useRef(0);
+	const hlsRecoveryUsedRef = useRef(false);
 	const mediaWaitingRef = useRef(false);
 	const mediaLoadIdRef = useRef(0);
 	const mediaLoadActiveRef = useRef(false);
@@ -545,7 +531,6 @@ export function VideoPlayer({
 	const [url, setUrl] = useState<string | undefined>(() =>
 		initialStreams?.source ? playbackUrl(initialStreams.source) : undefined,
 	);
-	const [mediaReloadNonce, setMediaReloadNonce] = useState(0);
 	const [info, setInfo] = useState<
 		ReturnType<typeof playbackStreams> | undefined
 	>(initialStreams);
@@ -564,10 +549,8 @@ export function VideoPlayer({
 		fragmentsBuffered: 0,
 		lastRequest: "",
 		lastFragment: "",
-		hlsErrors: 0,
 		lastHlsError: "",
 		lastMediaErrorCode: "",
-		lastRecovery: "",
 	});
 	const [trackMenu, setTrackMenu] = useState<"audio" | "subtitle" | null>(null);
 	const [playing, setPlaying] = useState(false);
@@ -886,14 +869,6 @@ export function VideoPlayer({
 			window.clearTimeout(waitingTimerRef.current);
 			waitingTimerRef.current = undefined;
 		}
-		if (directStallTimerRef.current !== undefined) {
-			window.clearTimeout(directStallTimerRef.current);
-			directStallTimerRef.current = undefined;
-		}
-		if (hlsRecoveryTimerRef.current !== undefined) {
-			window.clearTimeout(hlsRecoveryTimerRef.current);
-			hlsRecoveryTimerRef.current = undefined;
-		}
 		mediaWaitingRef.current = false;
 	}, []);
 	const invalidateMediaLoad = useCallback(
@@ -1044,8 +1019,10 @@ export function VideoPlayer({
 		const source = sourceRef.current;
 		if (!source?.url || !source.Id) return;
 		let active = true;
-		let retryTimer: number | undefined;
-		const renew = async (retry = 0) => {
+		let renewing = false;
+		const renew = async () => {
+			if (!active || renewing) return;
+			renewing = true;
 			try {
 				const refreshedUrl = await refreshPlaybackAccess(
 					session,
@@ -1083,21 +1060,19 @@ export function VideoPlayer({
 				playerDebug("playback resource ticket refresh failed", {
 					mode: source.mode,
 					sessionId: source.sessionId,
-					attempt: retry + 1,
 					error: error instanceof Error ? error.message : String(error),
 				});
-				if (retry < 2)
-					retryTimer = window.setTimeout(() => void renew(retry + 1), 30_000);
+			} finally {
+				renewing = false;
 			}
 		};
-		const timer = window.setTimeout(
+		const timer = window.setInterval(
 			() => void renew(),
-			PLAYER_RECOVERY.accessRefreshDelayMs,
+			PLAYBACK_ACCESS_REFRESH_INTERVAL_MS,
 		);
 		return () => {
 			active = false;
-			window.clearTimeout(timer);
-			if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+			window.clearInterval(timer);
 		};
 	}, [
 		info?.source?.Id,
@@ -1168,17 +1143,19 @@ export function VideoPlayer({
 				(expectedSourceId == null || sourceRef.current?.Id === expectedSourceId);
 			if (!isCurrentLoad()) return false;
 			if (transcodedFallbackRef.current) return transcodedFallbackRef.current;
-			if (transcodeAttemptRef.current) {
+			if (fallbackUsedRef.current) {
 				if (isCurrentLoad()) {
 					failPlayback("transcode fallback was already attempted");
 				}
 				return false;
 			}
-			transcodeAttemptRef.current = true;
+			fallbackUsedRef.current = true;
 			const previousSource = sourceRef.current;
 			const video = videoRef.current;
-			if (video && Number.isFinite(video.currentTime))
+			if (video && Number.isFinite(video.currentTime)) {
 				resumeTimeRef.current = video.currentTime;
+				resumePlayingRef.current = !video.paused;
+			}
 			setError("");
 			setBuffering(true);
 			const fallback = (async () => {
@@ -1205,7 +1182,6 @@ export function VideoPlayer({
 					if (!isCurrentLoad()) return false;
 					playerDebug("video fallback failed", {
 						error: error instanceof Error ? error.message : String(error),
-						fallbackCount: 1,
 					});
 					failPlayback("transcode fallback failed", {
 						error: error instanceof Error ? error.message : String(error),
@@ -1224,65 +1200,25 @@ export function VideoPlayer({
 		},
 		[fetchTranscodedPlayback, failPlayback, invalidateMediaLoad, session],
 	);
-	const retryDirectSourceOrFallback = useCallback(
-		(
-			expectedLoadId: number,
-			expectedSourceId: string | undefined,
-			reason: string,
-		) => {
-			const isCurrentLoad =
-				mediaLoadActiveRef.current &&
-				mediaLoadIdRef.current === expectedLoadId &&
-				(expectedSourceId == null || sourceRef.current?.Id === expectedSourceId);
-			if (!isCurrentLoad) return false;
+	const handlePlaybackFailure = useCallback(
+		(reason: string, diagnostics?: Record<string, unknown>) => {
+			if (!mediaLoadActiveRef.current) return false;
+			if (transcodedFallbackRef.current) return true;
 			const source = sourceRef.current;
-			const video = videoRef.current;
 			if (
-				source?.mode === "direct" &&
-				directSourceRetryRef.current < PLAYER_RECOVERY.maxDirectSourceRetries
+				!source ||
+				fallbackUsedRef.current ||
+				source.mode === "video-transcode"
 			) {
-				directSourceRetryRef.current += 1;
-				if (video && Number.isFinite(video.currentTime)) {
-					resumeTimeRef.current = video.currentTime;
-					resumePlayingRef.current = !video.paused;
-				}
-				setError("");
-				setBuffering(true);
-				setDebugStats((previous) => ({
-					...previous,
-					lastRecovery: `direct-source-retry/${directSourceRetryRef.current}`,
-				}));
-				playerDebug("retrying direct playback source", {
-					reason,
-					attempt: directSourceRetryRef.current,
-					currentTime: video?.currentTime,
-					bufferedSeconds: videoBufferedSecondsAhead(video),
-					mode: source.mode,
-					sessionId: source.sessionId,
-				});
-				invalidateMediaLoad(`direct source recovery: ${reason}`);
-				setMediaReloadNonce((value) => value + 1);
-				return true;
+				failPlayback(reason, diagnostics);
+				return false;
 			}
-			if (!transcodeAttemptRef.current && source?.mode === "direct") {
-				playerDebug("direct playback recovery exhausted; requesting transcode", {
-					reason,
-					currentTime: video?.currentTime,
-					bufferedSeconds: videoBufferedSecondsAhead(video),
-				});
-				void requestTranscodedPlayback(expectedLoadId, expectedSourceId);
-				return true;
-			}
-			failPlayback(`direct playback recovery exhausted: ${reason}`, {
-				nativeErrorCode: video?.error?.code,
-				currentTime: video?.currentTime,
-				bufferedSeconds: videoBufferedSecondsAhead(video),
-			});
-			return false;
+			void requestTranscodedPlayback(mediaLoadIdRef.current, source.Id);
+			return true;
 		},
-		[failPlayback, invalidateMediaLoad, requestTranscodedPlayback],
+		[failPlayback, requestTranscodedPlayback],
 	);
-	const recoverHlsError = useCallback(
+	const handleHlsError = useCallback(
 		(
 			hls: Hls,
 			data: HlsErrorData,
@@ -1295,77 +1231,53 @@ export function VideoPlayer({
 				(expectedSourceId != null && sourceRef.current?.Id !== expectedSourceId)
 			)
 				return;
-			if (hlsRecoveryAttemptsRef.current < PLAYER_RECOVERY.maxHlsRecoveries) {
-				hlsRecoveryAttemptsRef.current += 1;
-				const attempt = hlsRecoveryAttemptsRef.current;
-				const video = videoRef.current;
-				const delay = PLAYER_RECOVERY.hlsRetryBaseDelayMs * 2 ** (attempt - 1);
-				if (hlsRecoveryTimerRef.current !== undefined)
-					window.clearTimeout(hlsRecoveryTimerRef.current);
-				setError("");
-				setBuffering(true);
-				setDebugStats((previous) => ({
-					...previous,
-					lastRecovery: `hls-${data.type ?? "unknown"}/${attempt}`,
-				}));
-				playerDebug("recovering HLS error", {
-					type: data.type,
-					details: data.details,
-					responseCode: data.response?.code,
-					attempt,
-					delay,
-					currentTime: video?.currentTime,
-					bufferedSeconds: videoBufferedSecondsAhead(video),
-					mode: sourceRef.current?.mode,
-					sessionId: sourceRef.current?.sessionId,
-				});
-				reportBuffering(true);
-				hlsRecoveryTimerRef.current = window.setTimeout(() => {
-					hlsRecoveryTimerRef.current = undefined;
-					if (
-						!mediaLoadActiveRef.current ||
-						mediaLoadIdRef.current !== expectedLoadId
-					)
-						return;
-					try {
-						if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-						else
-							hls.startLoad(
-								video && Number.isFinite(video.currentTime)
-									? Math.max(0, video.currentTime)
-									: -1,
-							);
-					} catch (error) {
-						failPlayback("HLS recovery threw", {
-							type: data.type,
-							details: data.details,
-							error: error instanceof Error ? error.message : String(error),
-						});
-					}
-				}, delay);
-				return;
-			}
 			const video = videoRef.current;
-			if (!transcodeAttemptRef.current) {
-				playerDebug("HLS recovery exhausted; requesting transcode", {
-					type: data.type,
-					details: data.details,
-					responseCode: data.response?.code,
-					currentTime: video?.currentTime,
-					bufferedSeconds: videoBufferedSecondsAhead(video),
-				});
-				void requestTranscodedPlayback(expectedLoadId, expectedSourceId);
-				return;
-			}
-			failPlayback("HLS recovery exhausted", {
+			const diagnostics = {
 				type: data.type,
 				details: data.details,
 				responseCode: data.response?.code,
 				currentTime: video?.currentTime,
 				bufferedSeconds: videoBufferedSecondsAhead(video),
-			});
+			};
+			const networkError = data.type === Hls.ErrorTypes.NETWORK_ERROR;
+			const responseCode = data.response?.code;
+			if (
+				networkError &&
+				(responseCode === 0 || (responseCode != null && responseCode >= 400))
+			) {
+				handlePlaybackFailure("HLS network error", diagnostics);
+				return;
+			}
+			if (
+				!hlsRecoveryUsedRef.current &&
+				(data.type === Hls.ErrorTypes.MEDIA_ERROR || networkError)
+			) {
+				hlsRecoveryUsedRef.current = true;
+				setError("");
+				setBuffering(true);
+				reportBuffering(true);
+				playerDebug("recovering HLS error once", diagnostics);
+				try {
+					if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+						hls.recoverMediaError();
+					} else {
+						hls.startLoad(
+							video && Number.isFinite(video.currentTime)
+								? Math.max(0, video.currentTime)
+								: -1,
+						);
+					}
+				} catch (error) {
+					handlePlaybackFailure("HLS recovery threw", {
+						...diagnostics,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+				return;
+			}
+			handlePlaybackFailure("HLS fatal error", diagnostics);
 		},
-		[failPlayback, reportBuffering, requestTranscodedPlayback],
+		[handlePlaybackFailure, reportBuffering],
 	);
 	const startSyncedPlayback = useCallback(
 		(video: HTMLVideoElement) => {
@@ -1405,7 +1317,7 @@ export function VideoPlayer({
 		cancelPendingBufferingReport("item changed");
 		invalidateMediaLoad("item changed");
 		sourceRef.current = undefined;
-		transcodeAttemptRef.current = false;
+		fallbackUsedRef.current = false;
 		resumeTimeRef.current = null;
 		resumePlayingRef.current = null;
 		advancingToNextRef.current = false;
@@ -1600,13 +1512,12 @@ export function VideoPlayer({
 					sessionId: next.source?.sessionId,
 					sessionState: next.source?.sessionState,
 					url: next.source?.url,
-					fallbackCount: transcodeAttemptRef.current ? 1 : 0,
 				});
 				invalidateMediaLoad("playback source changed");
 				sourceRef.current = next.source;
 				// The first negotiation is automatic. A fallback is allowed exactly
-				// once, and only when the initial direct source genuinely fails.
-				transcodeAttemptRef.current = next.source?.mode === "video-transcode";
+				// once for this source.
+				fallbackUsedRef.current = next.source?.mode === "video-transcode";
 				setInfo(next);
 				setUrl(playbackUrl(next.source));
 				setMarkers(markerData);
@@ -1761,12 +1672,10 @@ export function VideoPlayer({
 			fragmentsBuffered: 0,
 			lastRequest: safePlayerUrl(url),
 			lastFragment: "",
-			hlsErrors: 0,
 			lastHlsError: "",
 			lastMediaErrorCode: "",
-			lastRecovery: "",
 		});
-		hlsRecoveryAttemptsRef.current = 0;
+		hlsRecoveryUsedRef.current = false;
 		clearMediaSession(video, hlsRef.current);
 		hlsRef.current = null;
 		const sourceId = sourceRef.current?.Id;
@@ -1868,8 +1777,6 @@ export function VideoPlayer({
 		const onPlaying = () => {
 			if (!isCurrentLoad()) return;
 			clearMediaWaitTimers();
-			directSourceRetryRef.current = 0;
-			hlsRecoveryAttemptsRef.current = 0;
 			playerDebug("media first playable signal", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1928,7 +1835,6 @@ export function VideoPlayer({
 			hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
 				if (!isCurrentLoad()) return;
 				clearMediaWaitTimers();
-				hlsRecoveryAttemptsRef.current = 0;
 				playerDebug("HLS fragment buffered", {
 					url: data.frag?.url,
 					currentTime: video.currentTime,
@@ -1955,11 +1861,10 @@ export function VideoPlayer({
 				});
 				setDebugStats((previous) => ({
 					...previous,
-					hlsErrors: previous.hlsErrors + 1,
 					lastHlsError: `${data.type}/${data.details}${data.fatal ? " (fatal)" : ""}`,
 				}));
 				if (!isCurrentLoad() || !data.fatal) return;
-				recoverHlsError(hls, data, loadId, sourceId);
+				handleHlsError(hls, data, loadId, sourceId);
 			});
 			hls.loadSource(url);
 			hls.attachMedia(video);
@@ -1989,13 +1894,11 @@ export function VideoPlayer({
 		};
 	}, [
 		clearMediaWaitTimers,
+		handleHlsError,
 		releaseSyncplayPresence,
-		requestTranscodedPlayback,
-		recoverHlsError,
 		startSyncedPlayback,
 		updateBufferedRanges,
 		url,
-		mediaReloadNonce,
 		item.Id,
 		savedPositionSeconds,
 		knownDuration,
@@ -2365,7 +2268,7 @@ export function VideoPlayer({
 				const source = preserveTrickplay(parsed.source, info?.source);
 				invalidateMediaLoad("quality changed");
 				sourceRef.current = source;
-				transcodeAttemptRef.current = source?.mode === "video-transcode";
+				fallbackUsedRef.current = source?.mode === "video-transcode";
 				setInfo((previous) => ({
 					...parsed,
 					source,
@@ -2436,7 +2339,7 @@ export function VideoPlayer({
 				if (!source) throw new Error("The server did not return a media source.");
 				invalidateMediaLoad("audio track changed");
 				sourceRef.current = source;
-				transcodeAttemptRef.current = source.mode === "video-transcode";
+				fallbackUsedRef.current = source.mode === "video-transcode";
 				setInfo((previous) => ({
 					...parsed,
 					source,
@@ -2549,11 +2452,8 @@ export function VideoPlayer({
 					}
 					if (waitingTimerRef.current !== undefined)
 						window.clearTimeout(waitingTimerRef.current);
-					if (directStallTimerRef.current !== undefined)
-						window.clearTimeout(directStallTimerRef.current);
 					mediaWaitingRef.current = true;
 					const loadId = mediaLoadIdRef.current;
-					const sourceId = sourceRef.current?.Id;
 					playerDebug("video waiting", {
 						currentTime: video.currentTime,
 						readyState: video.readyState,
@@ -2572,27 +2472,6 @@ export function VideoPlayer({
 							return;
 						setBuffering(true);
 						reportBuffering(true);
-						if (sourceRef.current?.mode === "direct") {
-							directStallTimerRef.current = window.setTimeout(() => {
-								directStallTimerRef.current = undefined;
-								if (
-									!mediaLoadActiveRef.current ||
-									mediaLoadIdRef.current !== loadId ||
-									!mediaWaitingRef.current ||
-									video.paused ||
-									video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
-								)
-									return;
-								playerDebug("direct playback stalled; starting recovery", {
-									currentTime: video.currentTime,
-									readyState: video.readyState,
-									bufferedSeconds: videoBufferedSecondsAhead(video),
-									mode: sourceRef.current?.mode,
-									sessionId: sourceRef.current?.sessionId,
-								});
-								retryDirectSourceOrFallback(loadId, sourceId, "direct bandwidth stall");
-							}, PLAYER_RECOVERY.directStallDelayMs);
-						}
 					}, 250);
 				}}
 				onCanPlay={() => {
@@ -2798,53 +2677,10 @@ export function VideoPlayer({
 						mode: sourceRef.current?.mode,
 						sessionId: sourceRef.current?.sessionId,
 					});
-					if (isRecoverableMediaError(nativeErrorCode)) {
-						if (sourceRef.current?.mode === "direct") {
-							retryDirectSourceOrFallback(
-								mediaLoadIdRef.current,
-								sourceRef.current?.Id,
-								`native network error ${nativeErrorCode ?? "unknown"}`,
-							);
-							return;
-						}
-						if (video && video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
-							const hls = hlsRef.current;
-							if (hls) {
-								if (hlsRecoveryTimerRef.current === undefined)
-									recoverHlsError(
-										hls,
-										{
-											type: Hls.ErrorTypes.NETWORK_ERROR,
-											details: "native media transport error",
-											fatal: true,
-										},
-										mediaLoadIdRef.current,
-										sourceRef.current?.Id,
-									);
-							} else {
-								failPlayback("native HLS transport error", {
-									nativeErrorCode,
-									bufferedSeconds: videoBufferedSecondsAhead(video),
-								});
-							}
-						}
-						return;
-					}
-					if (
-						sourceRef.current?.mode === "direct" &&
-						nativeErrorCode !== 1 &&
-						nativeErrorCode !== 2
-					) {
-						void requestTranscodedPlayback(
-							mediaLoadIdRef.current,
-							sourceRef.current?.Id,
-						);
-						return;
-					}
 					// Do not replace an already playable source with an error overlay
 					// when the browser has recovered and can play it.
 					if (video && video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return;
-					failPlayback("native media error", {
+					handlePlaybackFailure("native media error", {
 						nativeErrorCode,
 						bufferedSeconds: videoBufferedSecondsAhead(video),
 					});
@@ -2979,14 +2815,9 @@ export function VideoPlayer({
 							{debugStats.lastFragment || "-"}
 						</span>
 						<span className="text-white/50">Errors</span>
-						<span>
-							{debugStats.hlsErrors}
-							{debugStats.lastHlsError ? ` / ${debugStats.lastHlsError}` : ""}
-						</span>
+						<span>{debugStats.lastHlsError || "-"}</span>
 						<span className="text-white/50">Native error</span>
 						<span>{debugStats.lastMediaErrorCode || "-"}</span>
-						<span className="text-white/50">Recovery</span>
-						<span>{debugStats.lastRecovery || "-"}</span>
 					</div>
 				</div>
 			)}

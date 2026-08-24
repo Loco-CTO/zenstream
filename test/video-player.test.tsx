@@ -12,8 +12,6 @@ import {
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
-	PLAYER_RECOVERY,
-	isRecoverableMediaError,
 	optimisticSeekTimelineTarget,
 	SkipMarkerActions,
 	startSyncedMedia,
@@ -43,6 +41,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import {
 	getEpisodes,
 	getPlaybackInfo,
+	refreshPlaybackAccess,
 	getSeasons,
 	playbackStreams,
 	reportPlayback,
@@ -58,6 +57,9 @@ vi.mock("@/lib/media-api", async () => {
 	return {
 		...actual,
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
+		refreshPlaybackAccess: vi
+			.fn()
+			.mockResolvedValue("/video.m3u8?access=renewed"),
 		getEpisodes: vi.fn().mockResolvedValue([]),
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getSeasons: vi.fn().mockResolvedValue([]),
@@ -83,13 +85,6 @@ const defaultPlaybackStreams = {
 const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";
 
 describe("video player controls", () => {
-	it("classifies transport failures as recoverable and delays direct fallback", () => {
-		expect(isRecoverableMediaError(1)).toBe(true);
-		expect(isRecoverableMediaError(2)).toBe(true);
-		expect(isRecoverableMediaError(3)).toBe(false);
-		expect(PLAYER_RECOVERY.directStallDelayMs).toBeGreaterThan(1_500);
-	});
-
 	it("recognizes the transient decoder window after a seek", () => {
 		expect(syncplayWaitingIsSeekTransition(1500, 1000)).toBe(true);
 		expect(syncplayWaitingIsSeekTransition(1000, 1000)).toBe(false);
@@ -138,9 +133,17 @@ describe("video player controls", () => {
 			.mocked(playbackStreams)
 			.mockReset()
 			.mockReturnValue(defaultPlaybackStreams);
+		vi
+			.mocked(getPlaybackInfo)
+			.mockReset()
+			.mockResolvedValue({} as never);
 		vi.mocked(playbackUrl).mockReset().mockReturnValue("/video.m3u8");
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
+		vi
+			.mocked(refreshPlaybackAccess)
+			.mockReset()
+			.mockResolvedValue("/video.m3u8?access=renewed");
 		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);
 		vi.mocked(setPlayed).mockReset().mockResolvedValue(undefined);
 	});
@@ -227,8 +230,8 @@ describe("video player controls", () => {
 		return { view, onNext, onClose };
 	}
 
-	it("retries a direct source before requesting a transcode fallback", async () => {
-		vi.mocked(playbackStreams).mockReturnValue({
+	it("does not retry waiting events and falls back once on a real media error", async () => {
+		const initialStreams = {
 			source: {
 				Id: "source-1",
 				mode: "direct",
@@ -237,7 +240,25 @@ describe("video player controls", () => {
 			audio: [],
 			subtitles: [],
 			qualities: [],
-		});
+		} as ReturnType<typeof playbackStreams>;
+		const transcodedStreams = {
+			source: {
+				Id: "source-transcoded",
+				mode: "video-transcode",
+				url: "/episode-transcoded.m3u8",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi
+			.mocked(playbackStreams)
+			.mockReset()
+			.mockReturnValueOnce(initialStreams)
+			.mockReturnValue(transcodedStreams);
+		vi.mocked(getPlaybackInfo).mockResolvedValue({
+			source: transcodedStreams.source,
+		} as never);
 		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
 		const { view } = renderEpisodePlayer({ withNext: false });
 		await flushPlayerEffects();
@@ -258,26 +279,113 @@ describe("video player controls", () => {
 
 		fireEvent.waiting(video);
 		await act(async () => {
-			vi.advanceTimersByTime(250 + 1_500);
+			vi.advanceTimersByTime(250 + 8_000);
 			await Promise.resolve();
 		});
 		expect(getPlaybackInfo).not.toHaveBeenCalled();
 
+		fireEvent.error(video);
 		await flushPlayerEffects();
-		fireEvent.waiting(video);
-		await act(async () => {
-			vi.advanceTimersByTime(250 + PLAYER_RECOVERY.directStallDelayMs);
-			await Promise.resolve();
-			await Promise.resolve();
-		});
-		await flushPlayerEffects();
-		fireEvent.waiting(video);
-		await act(async () => {
-			vi.advanceTimersByTime(250 + PLAYER_RECOVERY.directStallDelayMs);
-			await Promise.resolve();
-			await Promise.resolve();
-		});
 		expect(getPlaybackInfo).toHaveBeenCalledOnce();
+		expect(getPlaybackInfo).toHaveBeenCalledWith(
+			expect.anything(),
+			"episode-1",
+			expect.objectContaining({
+				requestedMode: "video-transcode",
+				startPositionSeconds: 37,
+			}),
+		);
+
+		await flushPlayerEffects();
+		fireEvent.error(video);
+		expect(getPlaybackInfo).toHaveBeenCalledOnce();
+		expect(view.getByRole("alert")).toBeInTheDocument();
+	});
+
+	it("shows a terminal error when the transcode fallback fails", async () => {
+		const streams = {
+			source: {
+				Id: "source-1",
+				mode: "direct",
+				url: "/episode-selected.mp4",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		vi
+			.mocked(getPlaybackInfo)
+			.mockRejectedValue(new Error("fallback unavailable"));
+		const { view } = renderEpisodePlayer({ withNext: false });
+		await flushPlayerEffects();
+		await flushPlayerEffects();
+
+		fireEvent.error(view.container.querySelector("video")!);
+		await flushPlayerEffects();
+
+		expect(getPlaybackInfo).toHaveBeenCalledOnce();
+		expect(view.getByRole("alert")).toBeInTheDocument();
+	});
+
+	it("renews playback access on a fixed interval without a retry chain", async () => {
+		const streams = {
+			source: {
+				Id: "source-1",
+				mode: "direct",
+				url: "/episode-selected.mp4",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		vi
+			.mocked(refreshPlaybackAccess)
+			.mockResolvedValue("/episode-selected.mp4?access=renewed");
+		const { view } = renderEpisodePlayer({ withNext: false });
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 37,
+		});
+		Object.defineProperty(video, "paused", {
+			configurable: true,
+			value: false,
+		});
+		vi.spyOn(video, "play").mockResolvedValue(undefined);
+		await flushPlayerEffects();
+
+		await act(async () => {
+			vi.advanceTimersByTime(12 * 60 * 1_000);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		expect(refreshPlaybackAccess).toHaveBeenCalledOnce();
+		expect(video.src).toContain("access=renewed");
+
+		await flushPlayerEffects();
+		fireEvent.loadedMetadata(video);
+		expect(video.currentTime).toBe(37);
+		expect(video.play).toHaveBeenCalled();
+
+		vi
+			.mocked(refreshPlaybackAccess)
+			.mockRejectedValueOnce(new Error("temporary renewal failure"));
+		await act(async () => {
+			vi.advanceTimersByTime(30_000);
+			await Promise.resolve();
+		});
+		expect(refreshPlaybackAccess).toHaveBeenCalledOnce();
+
+		await act(async () => {
+			vi.advanceTimersByTime(12 * 60 * 1_000);
+			await Promise.resolve();
+		});
+		expect(refreshPlaybackAccess).toHaveBeenCalledTimes(2);
 	});
 
 	it("suppresses automatic history writes and replay unwatch when disabled", () => {

@@ -49,7 +49,8 @@ export function readStoredSubtitleStyle(): SubtitleStyle {
 
 	try {
 		const parsed: unknown = JSON.parse(stored);
-		fallbackSubtitleStyle = normalizeSubtitleStyle(parsed) ?? DEFAULT_SUBTITLE_STYLE;
+		fallbackSubtitleStyle =
+			normalizeSubtitleStyle(parsed) ?? DEFAULT_SUBTITLE_STYLE;
 	} catch {
 		fallbackSubtitleStyle = DEFAULT_SUBTITLE_STYLE;
 	}

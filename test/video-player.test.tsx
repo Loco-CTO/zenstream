@@ -1440,7 +1440,10 @@ describe("video player controls", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		window.localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(style));
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
 		const fetchMock = vi.spyOn(globalThis, "fetch");
 		render(
 			<I18nProvider locale="en">

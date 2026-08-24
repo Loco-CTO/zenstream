@@ -27,7 +27,11 @@ const Context = createContext<{
 	error: false,
 });
 
-export function SubtitlePreferencesProvider({ children }: { children: ReactNode }) {
+export function SubtitlePreferencesProvider({
+	children,
+}: {
+	children: ReactNode;
+}) {
 	const [style, setStyle] = useState(readStoredSubtitleStyle);
 	const [error, setError] = useState(false);
 	const styleRef = useRef(style);
@@ -45,15 +49,12 @@ export function SubtitlePreferencesProvider({ children }: { children: ReactNode 
 		window.addEventListener("storage", handleStorage);
 		return () => window.removeEventListener("storage", handleStorage);
 	}, []);
-	const update = useCallback(
-		async (change: Partial<SubtitleStyle>) => {
-			const next = { ...styleRef.current, ...change };
-			styleRef.current = next;
-			setStyle(next);
-			setError(!writeStoredSubtitleStyle(next));
-		},
-		[],
-	);
+	const update = useCallback(async (change: Partial<SubtitleStyle>) => {
+		const next = { ...styleRef.current, ...change };
+		styleRef.current = next;
+		setStyle(next);
+		setError(!writeStoredSubtitleStyle(next));
+	}, []);
 	return (
 		<Context.Provider value={{ style, update, error }}>
 			{children}

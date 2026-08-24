@@ -267,7 +267,10 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		window.localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(style));
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
 		const fetchMock = vi.spyOn(globalThis, "fetch");
 		render(
 			<SubtitlePreferencesProvider>
@@ -288,7 +291,9 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("combobox", { name: "Subtitle font" }));
 		fireEvent.click(screen.getByRole("option", { name: "Noto Sans" }));
 		await waitFor(() =>
-			expect(JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!)).toEqual({
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
 				...style,
 				fontFamily: "sans",
 			}),
@@ -442,7 +447,10 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		window.localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(style));
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
 		const fetchMock = vi.spyOn(globalThis, "fetch");
 		render(
 			<SubtitlePreferencesProvider>
@@ -460,7 +468,9 @@ describe("SettingsPage", () => {
 		fireEvent.click(screen.getByRole("combobox", { name: "Subtitle Renderer" }));
 		fireEvent.click(screen.getByRole("option", { name: /Overlay/ }));
 		await waitFor(() =>
-			expect(JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!)).toEqual({
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
 				...style,
 				renderer: "overlay",
 			}),
@@ -484,7 +494,10 @@ describe("SettingsPage", () => {
 			backgroundColor: "#000000",
 			backgroundOpacity: 0,
 		};
-		window.localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(style));
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
 		render(
 			<SubtitlePreferencesProvider>
 				<SettingsPage
@@ -513,10 +526,14 @@ describe("SettingsPage", () => {
 		});
 		const storageBeforeEdit = localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY);
 		fireEvent.change(hexInput, { target: { value: "#818cf8" } });
-		expect(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)).toBe(storageBeforeEdit);
+		expect(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)).toBe(
+			storageBeforeEdit,
+		);
 		fireEvent.blur(hexInput);
 		await waitFor(() =>
-			expect(JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!)).toEqual({
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
 				...style,
 				fontColor: "#818cf8",
 			}),

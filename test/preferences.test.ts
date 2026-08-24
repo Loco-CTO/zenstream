@@ -14,11 +14,12 @@ import {
 import { clearWatchHistory } from "@/lib/media-api";
 import {
 	DEFAULT_SUBTITLE_STYLE,
-	getSubtitlePreference,
+	clearStoredSubtitleStyle,
 	isSubtitleStyle,
 	parseWebVttCues,
-	setSubtitlePreference,
-	clearSubtitlePreferenceCache,
+	readStoredSubtitleStyle,
+	SUBTITLE_STYLE_STORAGE_KEY,
+	writeStoredSubtitleStyle,
 } from "@/lib/subtitle-preferences";
 
 const storage = new Map<string, string>();
@@ -26,13 +27,14 @@ const session = { token: "", userId: "user-1", username: "Alex" };
 
 beforeEach(() => {
 	clearPreferenceCache();
-	clearSubtitlePreferenceCache();
+	clearStoredSubtitleStyle();
 	storage.clear();
 	Object.defineProperty(window, "localStorage", {
 		configurable: true,
 		value: {
 			clear: () => storage.clear(),
 			getItem: (key: string) => storage.get(key) ?? null,
+			removeItem: (key: string) => storage.delete(key),
 			setItem: (key: string, value: string) => storage.set(key, value),
 		},
 	});
@@ -108,15 +110,13 @@ describe("subtitle preferences", () => {
 		backgroundOpacity: 40,
 	};
 
-	it("loads and validates an account style", async () => {
-		vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(JSON.stringify(style)));
-		await expect(getSubtitlePreference(session)).resolves.toEqual(style);
+	it("loads and validates the locally stored style", () => {
+		localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(style));
+		expect(readStoredSubtitleStyle()).toEqual(style);
 		expect(isSubtitleStyle({ ...style, textScale: 201 })).toBe(false);
 	});
 
-	it("defaults a legacy response without a font family to sans", async () => {
+	it("defaults legacy and malformed local values safely", () => {
 		const legacyStyle = {
 			textScale: style.textScale,
 			fontColor: style.fontColor,
@@ -125,30 +125,30 @@ describe("subtitle preferences", () => {
 			backgroundColor: style.backgroundColor,
 			backgroundOpacity: style.backgroundOpacity,
 		};
-		vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(JSON.stringify(legacyStyle)));
-		await expect(getSubtitlePreference(session)).resolves.toEqual({
+		localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(legacyStyle));
+		expect(readStoredSubtitleStyle()).toEqual({
 			...legacyStyle,
 			renderer: "native",
 			fontFamily: "sans",
 			bold: false,
 		});
+		localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, "not-json");
+		expect(readStoredSubtitleStyle()).toEqual(DEFAULT_SUBTITLE_STYLE);
+		localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify({ ...style, textScale: 201 }),
+		);
+		expect(readStoredSubtitleStyle()).toEqual(DEFAULT_SUBTITLE_STYLE);
 	});
 
-	it("persists the complete style with PATCH", async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(new Response(JSON.stringify(style)));
-		await expect(setSubtitlePreference(session, style)).resolves.toEqual(style);
-		expect(fetchMock).toHaveBeenCalledWith(
-			expect.stringContaining("/api/preferences/subtitles"),
-			expect.objectContaining({
-				method: "PATCH",
-				credentials: "include",
-				body: JSON.stringify(style),
-			}),
+	it("persists the complete style locally without a network request", () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch");
+		expect(writeStoredSubtitleStyle(style)).toBe(true);
+		expect(readStoredSubtitleStyle()).toEqual(style);
+		expect(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)).toBe(
+			JSON.stringify(style),
 		);
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it("parses unstyled and authored-style WebVTT cues for the custom renderer", () => {

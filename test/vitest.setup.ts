@@ -2,12 +2,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, vi } from "vitest";
 import { clearMediaClientSession } from "@/lib/media-api";
 import { clearPreferenceCache } from "@/lib/preferences";
-import { clearSubtitlePreferenceCache } from "@/lib/subtitle-preferences";
+import { clearStoredSubtitleStyle } from "@/lib/subtitle-preferences";
 
 afterEach(() => {
 	clearMediaClientSession();
 	clearPreferenceCache();
-	clearSubtitlePreferenceCache();
+	clearStoredSubtitleStyle();
 });
 
 vi.mock("next/navigation", () => ({

@@ -4,68 +4,58 @@ import {
 	createContext,
 	useCallback,
 	useContext,
+	useEffect,
+	useRef,
 	useState,
 	type ReactNode,
 } from "react";
 import {
 	DEFAULT_SUBTITLE_STYLE,
-	getSubtitlePreference,
-	setSubtitlePreference,
+	readStoredSubtitleStyle,
+	SUBTITLE_STYLE_STORAGE_KEY,
+	writeStoredSubtitleStyle,
 	type SubtitleStyle,
 } from "@/lib/subtitle-preferences";
-import type { AuthSession } from "@/lib/session";
 
 const Context = createContext<{
 	style: SubtitleStyle;
 	update: (change: Partial<SubtitleStyle>) => Promise<void>;
-	refresh: () => Promise<void>;
 	error: boolean;
 }>({
 	style: DEFAULT_SUBTITLE_STYLE,
 	update: async () => undefined,
-	refresh: async () => undefined,
 	error: false,
 });
 
-export function SubtitlePreferencesProvider({
-	session,
-	initialStyle,
-	children,
-}: {
-	session?: AuthSession | null;
-	initialStyle?: SubtitleStyle;
-	children: ReactNode;
-}) {
-	const activeSession = session ?? null;
-	const [style, setStyle] = useState(initialStyle ?? DEFAULT_SUBTITLE_STYLE);
+export function SubtitlePreferencesProvider({ children }: { children: ReactNode }) {
+	const [style, setStyle] = useState(readStoredSubtitleStyle);
 	const [error, setError] = useState(false);
-	const refresh = useCallback(async () => {
-		if (!activeSession) return;
-		try {
-			setStyle(await getSubtitlePreference(activeSession));
-			setError(false);
-		} catch {
-			// Retain the most recently known appearance if the preference service is unavailable.
-		}
-	}, [activeSession]);
-	const update = useCallback(
-		async (change: Partial<SubtitleStyle>) => {
-			const previous = style;
-			const next = { ...style, ...change };
+	const styleRef = useRef(style);
+	useEffect(() => {
+		styleRef.current = style;
+	}, [style]);
+	useEffect(() => {
+		const handleStorage = (event: StorageEvent) => {
+			if (event.key !== null && event.key !== SUBTITLE_STYLE_STORAGE_KEY) return;
+			const next = readStoredSubtitleStyle();
+			styleRef.current = next;
 			setStyle(next);
 			setError(false);
-			if (!activeSession) return;
-			try {
-				setStyle(await setSubtitlePreference(activeSession, next));
-			} catch {
-				setStyle(previous);
-				setError(true);
-			}
+		};
+		window.addEventListener("storage", handleStorage);
+		return () => window.removeEventListener("storage", handleStorage);
+	}, []);
+	const update = useCallback(
+		async (change: Partial<SubtitleStyle>) => {
+			const next = { ...styleRef.current, ...change };
+			styleRef.current = next;
+			setStyle(next);
+			setError(!writeStoredSubtitleStyle(next));
 		},
-		[activeSession, style],
+		[],
 	);
 	return (
-		<Context.Provider value={{ style, update, refresh, error }}>
+		<Context.Provider value={{ style, update, error }}>
 			{children}
 		</Context.Provider>
 	);

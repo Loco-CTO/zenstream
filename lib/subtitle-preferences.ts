@@ -16,8 +16,6 @@ export type SubtitleStyle = {
 };
 
 export type SubtitleCue = { start: number; end: number; text: string };
-import { authenticatedFetch } from "@/lib/authenticated-request";
-import type { AuthSession } from "@/lib/session";
 
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	renderer: "native",
@@ -31,37 +29,64 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	backgroundOpacity: 0,
 };
 
+export const SUBTITLE_STYLE_STORAGE_KEY = "zenstream:subtitle:style";
+
+let fallbackSubtitleStyle = DEFAULT_SUBTITLE_STYLE;
+
+export function readStoredSubtitleStyle(): SubtitleStyle {
+	if (typeof window === "undefined") return fallbackSubtitleStyle;
+
+	let stored: string | null;
+	try {
+		stored = window.localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY);
+	} catch {
+		return fallbackSubtitleStyle;
+	}
+	if (!stored) {
+		fallbackSubtitleStyle = DEFAULT_SUBTITLE_STYLE;
+		return fallbackSubtitleStyle;
+	}
+
+	try {
+		const parsed: unknown = JSON.parse(stored);
+		fallbackSubtitleStyle = normalizeSubtitleStyle(parsed) ?? DEFAULT_SUBTITLE_STYLE;
+	} catch {
+		fallbackSubtitleStyle = DEFAULT_SUBTITLE_STYLE;
+	}
+	return fallbackSubtitleStyle;
+}
+
+export function writeStoredSubtitleStyle(style: SubtitleStyle): boolean {
+	const normalized = normalizeSubtitleStyle(style);
+	if (!normalized) return false;
+	fallbackSubtitleStyle = normalized;
+	if (typeof window === "undefined") return true;
+	try {
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(normalized),
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+export function clearStoredSubtitleStyle() {
+	fallbackSubtitleStyle = DEFAULT_SUBTITLE_STYLE;
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.removeItem(SUBTITLE_STYLE_STORAGE_KEY);
+	} catch {
+		// Ignore unavailable browser storage; the in-memory default remains usable.
+	}
+}
+
 export const SUBTITLE_FONT_STACKS: Record<SubtitleFontFamily, string> = {
 	sans: "'Noto Sans', Arial, sans-serif",
 	serif: "Georgia, 'Times New Roman', serif",
 	mono: "ui-monospace, 'SFMono-Regular', Consolas, monospace",
 };
-
-const subtitlePreferenceCache = new Map<
-	AuthSession,
-	{ expiresAt: number; value: SubtitleStyle }
->();
-const subtitlePreferenceInFlight = new Map<
-	AuthSession,
-	{ promise: Promise<SubtitleStyle>; controller: AbortController }
->();
-
-export function clearSubtitlePreferenceCache(session?: AuthSession) {
-	const targets = session
-		? [session]
-		: [
-				...new Set([
-					...subtitlePreferenceCache.keys(),
-					...subtitlePreferenceInFlight.keys(),
-				]),
-			];
-	for (const target of targets) {
-		subtitlePreferenceCache.delete(target);
-		const pending = subtitlePreferenceInFlight.get(target);
-		pending?.controller.abort();
-		subtitlePreferenceInFlight.delete(target);
-	}
-}
 
 export function subtitleOuterShadow(size: number, color: string) {
 	if (!size) return "none";
@@ -122,59 +147,6 @@ function decodeSubtitleText(value: string) {
 		.replace(/&gt;/gi, ">")
 		.replace(/&nbsp;/gi, " ")
 		.trim();
-}
-
-export async function getSubtitlePreference(
-	session: AuthSession,
-): Promise<SubtitleStyle> {
-	const cached = subtitlePreferenceCache.get(session);
-	if (cached && cached.expiresAt > Date.now()) return cached.value;
-	const pending = subtitlePreferenceInFlight.get(session);
-	if (pending) return pending.promise;
-	const controller = new AbortController();
-	const request = (async () => {
-		const response = await authenticatedFetch(
-			session,
-			"/api/preferences/subtitles",
-			{ cache: "no-store", signal: controller.signal },
-		);
-		if (!response.ok) throw new Error("Could not load subtitle preferences.");
-		const data: unknown = await response.json();
-		const style = normalizeSubtitleStyle(data);
-		if (!style) throw new Error("Invalid subtitle preference response.");
-		if (subtitlePreferenceInFlight.get(session)?.controller === controller)
-			subtitlePreferenceCache.set(session, {
-				expiresAt: Date.now() + 30_000,
-				value: style,
-			});
-		return style;
-	})();
-	const tracked = request.finally(() => {
-		if (subtitlePreferenceInFlight.get(session)?.promise === tracked)
-			subtitlePreferenceInFlight.delete(session);
-	});
-	subtitlePreferenceInFlight.set(session, { promise: tracked, controller });
-	return tracked;
-}
-
-export async function setSubtitlePreference(
-	session: AuthSession,
-	style: SubtitleStyle,
-): Promise<SubtitleStyle> {
-	const response = await authenticatedFetch(
-		session,
-		"/api/preferences/subtitles",
-		{
-			method: "PATCH",
-			body: JSON.stringify(style),
-		},
-	);
-	if (!response.ok) throw new Error("Could not save subtitle preferences.");
-	const data: unknown = await response.json();
-	if (!isSubtitleStyle(data))
-		throw new Error("Invalid subtitle preference response.");
-	clearSubtitlePreferenceCache(session);
-	return data;
 }
 
 export function isSubtitleStyle(value: unknown): value is SubtitleStyle {

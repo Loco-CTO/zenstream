@@ -101,6 +101,8 @@ describe("detail views", () => {
 						releaseName: "[SubsPlease] Show - 01 [1080p].srt",
 						language: "ja",
 						provider: "opensubtitles",
+						score: 86,
+						uploader: "excaliburrr",
 						format: "srt",
 					},
 				],
@@ -119,6 +121,9 @@ describe("detail views", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
 
 		await screen.findByText("[SubsPlease] Show - 01 [1080p].srt");
+		expect(
+			screen.getByText("86% · ja · opensubtitles · excaliburrr"),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Download" }));
 
 		await waitFor(() =>
@@ -213,7 +218,17 @@ describe("detail views", () => {
 			search: {
 				state: "matches",
 				sourceId: "source-1",
-				matches: [{ matchId: "movie-match", name: "English subtitle" }],
+				matches: [
+					{
+						matchId: "movie-match",
+						name: "English subtitle",
+						releaseName: null,
+						score: null,
+						language: null,
+						provider: null,
+						uploader: null,
+					},
+				],
 			},
 		});
 		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
@@ -222,7 +237,7 @@ describe("detail views", () => {
 		fireEvent.click(screen.getByRole("combobox", { name: "Subtitles" }));
 		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
 		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
-		await screen.findByText("English subtitle");
+		await screen.findByText("— · — · — · —");
 		fireEvent.click(screen.getByRole("button", { name: "Download" }));
 
 		await waitFor(() => expect(playback.downloadRequested()).toBe(true));

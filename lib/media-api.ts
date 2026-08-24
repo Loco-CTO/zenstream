@@ -171,6 +171,7 @@ export interface BazarrSubtitleMatch {
 	language?: string | null;
 	name: string;
 	releaseName?: string | null;
+	uploader?: string | null;
 	hearingImpaired?: boolean;
 	forced?: boolean;
 	originalFormat?: boolean;

@@ -12,6 +12,17 @@ import {
 import type { AuthSession } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
 
+const BAZARR_MISSING_VALUE = "—";
+
+function formatBazarrScore(score: number | null | undefined) {
+	if (score == null || !Number.isFinite(score)) return BAZARR_MISSING_VALUE;
+	return `${Number.isInteger(score) ? score : score}%`;
+}
+
+function formatBazarrValue(value: string | null | undefined) {
+	return value?.trim() || BAZARR_MISSING_VALUE;
+}
+
 export function isSubtitleDownloaderAvailable(status: BazarrStatus | null) {
 	return status?.state === "matched" || status?.state === "download_started";
 }
@@ -193,12 +204,15 @@ export function BazarrSubtitles({
 										>
 											<div className="min-w-0">
 												<p className="truncate text-sm font-medium text-white/80">
-													{match.releaseName || match.name}
+													{formatBazarrValue(match.releaseName)}
 												</p>
-												<p className="mt-1 text-[11px] text-white/35">
-													{[match.language, match.provider, match.format]
-														.filter(Boolean)
-														.join(" · ")}
+												<p className="mt-1 text-[11px] leading-4 text-white/35">
+													{[
+														formatBazarrScore(match.score),
+														formatBazarrValue(match.language),
+														formatBazarrValue(match.provider),
+														formatBazarrValue(match.uploader),
+													].join(" · ")}
 												</p>
 											</div>
 											<button

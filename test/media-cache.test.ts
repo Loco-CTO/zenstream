@@ -21,7 +21,7 @@ describe("media client cache", () => {
 			RemoteTrailers: [{ Url: "https://www.youtube.com/watch?v=english" }],
 		};
 		const first = await getHeroTrailer(session, item);
-		expect(first?.videoId).toBe("english");
+		expect(first).toMatchObject({ kind: "youtube", videoId: "english" });
 
 		clearMediaClientCache();
 		const localized: MediaItem = {
@@ -29,7 +29,7 @@ describe("media client cache", () => {
 			RemoteTrailers: [{ Url: "https://www.youtube.com/watch?v=japanese" }],
 		};
 		const second = await getHeroTrailer(session, localized);
-		expect(second?.videoId).toBe("japanese");
+		expect(second).toMatchObject({ kind: "youtube", videoId: "japanese" });
 	});
 
 	it("does not reuse an invalidated in-flight library request", async () => {

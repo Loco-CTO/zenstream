@@ -187,7 +187,7 @@ describe("SettingsPage", () => {
 		);
 
 		openSection("Privacy & Data");
-		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(screen.getByRole("button", { name: /^Clear$/ }));
 		const dialog = screen.getByRole("dialog", { name: "Clear watch history?" });
 		expect(dialog).toHaveTextContent(
 			"This permanently removes your playback progress, watched status, play counts, and watched timestamps. This action is irreversible.",
@@ -197,18 +197,18 @@ describe("SettingsPage", () => {
 		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		expect(onClearWatchHistory).not.toHaveBeenCalled();
 
-		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(screen.getByRole("button", { name: /^Clear$/ }));
 		fireEvent.pointerDown(screen.getByRole("dialog").parentElement!);
 		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		expect(onClearWatchHistory).not.toHaveBeenCalled();
 
-		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(screen.getByRole("button", { name: /^Clear$/ }));
 		fireEvent.keyDown(window, { key: "Escape" });
 		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(screen.getByRole("button", { name: /^Clear$/ }));
 		fireEvent.click(
-			screen.getByRole("button", { name: "Clear watch history", exact: true }),
+			screen.getByRole("button", { name: /^Clear watch history$/ }),
 		);
 		await waitFor(() => expect(onClearWatchHistory).toHaveBeenCalledOnce());
 		expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -230,9 +230,9 @@ describe("SettingsPage", () => {
 		);
 
 		openSection("Privacy & Data");
-		fireEvent.click(screen.getByRole("button", { name: "Clear", exact: true }));
+		fireEvent.click(screen.getByRole("button", { name: /^Clear$/ }));
 		fireEvent.click(
-			screen.getByRole("button", { name: "Clear watch history", exact: true }),
+			screen.getByRole("button", { name: /^Clear watch history$/ }),
 		);
 		await waitFor(() =>
 			expect(screen.getByRole("alert")).toHaveTextContent(

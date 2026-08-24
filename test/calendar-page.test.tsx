@@ -141,6 +141,8 @@ describe("CalendarPage", () => {
 					catalogItemId: "episode-1",
 					catalogSeriesId: "series-1",
 					metadataStatus: "future",
+					following: false,
+					followAvailable: false,
 				},
 				{
 					id: "event-2",
@@ -160,6 +162,8 @@ describe("CalendarPage", () => {
 					title: "Unreleased episode",
 					seriesTitle: "Series title",
 					metadataStatus: "future",
+					following: false,
+					followAvailable: false,
 				},
 			],
 		});

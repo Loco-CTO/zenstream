@@ -157,6 +157,11 @@ export interface BazarrStatus {
 		episode?: number | null;
 		subtitles?: BazarrSubtitleSummary[];
 	};
+	movie?: {
+		movieId?: number | null;
+		title?: string | null;
+		subtitles?: BazarrSubtitleSummary[];
+	};
 }
 
 export interface BazarrSubtitleMatch {

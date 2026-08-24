@@ -202,6 +202,47 @@ describe("detail views", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("supports movie subtitle search and queued download", async () => {
+		const playback = stubEpisodePlayback({
+			status: {
+				state: "matched",
+				movie: { movieId: 42, title: "Film" },
+			},
+			streams: [{ index: 1, type: "audio" }],
+			search: {
+				state: "matches",
+				sourceId: "source-1",
+				matches: [{ matchId: "movie-match", name: "English subtitle" }],
+			},
+		});
+		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		fireEvent.click(screen.getByRole("combobox", { name: "Subtitles" }));
+		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
+		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
+		await screen.findByText("English subtitle");
+		fireEvent.click(screen.getByRole("button", { name: "Download" }));
+
+		await waitFor(() => expect(playback.downloadRequested()).toBe(true));
+		expect(
+			screen.getByText("Download queued; the library will refresh shortly"),
+		).toBeInTheDocument();
+	});
+
+	it("hides the movie downloader when its mapping is unmatched", async () => {
+		const playback = stubEpisodePlayback({
+			status: { state: "unmatched" },
+			streams: [{ index: 1, type: "audio" }],
+		});
+		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+		await waitFor(() => expect(playback.statusRequested()).toBe(true));
+		expect(
+			screen.queryByRole("combobox", { name: "Subtitles" }),
+		).not.toBeInTheDocument();
+	});
+
 	it("uses browser history for the detail back button", () => {
 		window.history.pushState({}, "", "/library");
 		window.history.pushState({}, "", "/show/movie");

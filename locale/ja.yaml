@@ -165,6 +165,8 @@ off: オフ
 autoplayNextEpisode: 次のエピソードを自動再生
 autoplayBrowse: 閲覧中に自動再生
 autoplayBrowseDescription: 閲覧中にプレビューを再生します
+heroUseTrailer: ヒーローで予告編を再生
+heroUseTrailerDescription: 利用できる場合はヒーローで予告編を再生し、ない場合は背景画像を表示します。
 newEpisodes: 新しいエピソード
 newEpisodesDescription: シリーズをフォローすると新しいエピソードを通知します
 newSeasons: 新しいシーズン

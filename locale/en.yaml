@@ -173,6 +173,8 @@ off: "Off"
 autoplayNextEpisode: Autoplay Next Episode
 autoplayBrowse: Autoplay on Browse
 autoplayBrowseDescription: Play previews while browsing
+heroUseTrailer: Use trailers in hero
+heroUseTrailerDescription: Play a trailer in the hero when one is available; otherwise use the backdrop image.
 newEpisodes: New Episodes
 newEpisodesDescription: Follow a series to receive new episode notifications
 newSeasons: New Seasons

@@ -40,8 +40,10 @@ function PreferenceProbe() {
 	const {
 		autoplayNextEpisode,
 		autoplayBrowse,
+		useHeroTrailer,
 		setAutoplayNextEpisode,
 		setAutoplayBrowse,
+		setUseHeroTrailer,
 	} = usePlaybackBehaviorPreferences();
 	return (
 		<>
@@ -56,6 +58,12 @@ function PreferenceProbe() {
 				aria-label="Autoplay on Browse"
 				aria-checked={autoplayBrowse}
 				onClick={() => setAutoplayBrowse(!autoplayBrowse)}
+			/>
+			<button
+				role="switch"
+				aria-label="Use trailers in hero"
+				aria-checked={useHeroTrailer}
+				onClick={() => setUseHeroTrailer(!useHeroTrailer)}
 			/>
 		</>
 	);
@@ -93,7 +101,7 @@ describe("playback behavior preferences", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("defaults both toggles on and persists changes per user", () => {
+	it("defaults behavior toggles on and persists changes per user", () => {
 		const view = render(
 			<PlaybackBehaviorPreferencesProvider userId="user-1">
 				<PreferenceProbe />
@@ -106,13 +114,23 @@ describe("playback behavior preferences", () => {
 		expect(
 			view.getByRole("switch", { name: "Autoplay on Browse" }),
 		).toHaveAttribute("aria-checked", "true");
+		expect(
+			view.getByRole("switch", { name: "Use trailers in hero" }),
+		).toHaveAttribute("aria-checked", "true");
 
 		fireEvent.click(view.getByRole("switch", { name: "Autoplay Next Episode" }));
 		fireEvent.click(view.getByRole("switch", { name: "Autoplay on Browse" }));
+		fireEvent.click(view.getByRole("switch", { name: "Use trailers in hero" }));
 
 		expect(
 			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
-		).toBe(JSON.stringify({ autoplayNextEpisode: false, autoplayBrowse: false }));
+		).toBe(
+			JSON.stringify({
+				autoplayNextEpisode: false,
+				autoplayBrowse: false,
+				useHeroTrailer: false,
+			}),
+		);
 
 		view.unmount();
 		const restored = render(
@@ -125,6 +143,9 @@ describe("playback behavior preferences", () => {
 		).toHaveAttribute("aria-checked", "false");
 		expect(
 			restored.getByRole("switch", { name: "Autoplay on Browse" }),
+		).toHaveAttribute("aria-checked", "false");
+		expect(
+			restored.getByRole("switch", { name: "Use trailers in hero" }),
 		).toHaveAttribute("aria-checked", "false");
 	});
 
@@ -157,6 +178,9 @@ describe("playback behavior preferences", () => {
 		expect(
 			userOne.getByRole("switch", { name: "Autoplay Next Episode" }),
 		).toHaveAttribute("aria-checked", "false");
+		expect(
+			userOne.getByRole("switch", { name: "Use trailers in hero" }),
+		).toHaveAttribute("aria-checked", "true");
 	});
 
 	it("continues working in memory when browser storage throws", () => {
@@ -191,6 +215,31 @@ describe("playback behavior preferences", () => {
 			});
 			installLocalStorage();
 		}
+	});
+
+	it("applies hero preference changes from another browser tab", () => {
+		const view = render(
+			<PlaybackBehaviorPreferencesProvider userId="user-1">
+				<PreferenceProbe />
+			</PlaybackBehaviorPreferencesProvider>,
+		);
+
+		act(() => {
+			window.dispatchEvent(
+				new StorageEvent("storage", {
+					key: playbackBehaviorStorageKey("user-1"),
+					newValue: JSON.stringify({
+						autoplayNextEpisode: true,
+						autoplayBrowse: true,
+						useHeroTrailer: false,
+					}),
+				}),
+			);
+		});
+
+		expect(
+			view.getByRole("switch", { name: "Use trailers in hero" }),
+		).toHaveAttribute("aria-checked", "false");
 	});
 });
 

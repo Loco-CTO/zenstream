@@ -5,13 +5,59 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hero } from "@/components/home/hero";
+import {
+	PlaybackBehaviorPreferencesProvider,
+	playbackBehaviorStorageKey,
+	usePlaybackBehaviorPreferences,
+} from "@/components/playback-behavior-preferences-provider";
+import * as mediaApi from "@/lib/media-api";
 import type { MediaItem } from "@/lib/media-api";
 
 const session = { token: "token", userId: "user", username: "Alex" };
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+
+function installLocalStorage() {
+	const storage = new Map<string, string>();
+	Object.defineProperty(window, "localStorage", {
+		configurable: true,
+		value: {
+			getItem: (key: string) => storage.get(key) ?? null,
+			setItem: (key: string, value: string) => storage.set(key, value),
+			removeItem: (key: string) => storage.delete(key),
+			clear: () => storage.clear(),
+		},
+	});
+}
+
+beforeEach(() => {
+	installLocalStorage();
+	window.localStorage.removeItem(playbackBehaviorStorageKey(session.userId));
+});
+
+afterEach(() => {
+	window.localStorage.removeItem(playbackBehaviorStorageKey(session.userId));
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
+
+function HeroPreferenceHarness({ items }: { items: MediaItem[] }) {
+	const { useHeroTrailer, setUseHeroTrailer } = usePlaybackBehaviorPreferences();
+	return (
+		<>
+			<button
+				type="button"
+				role="switch"
+				aria-label="Use trailers in hero"
+				aria-checked={useHeroTrailer}
+				onClick={() => setUseHeroTrailer(!useHeroTrailer)}
+			/>
+			<Hero items={items} session={session} />
+		</>
+	);
+}
 
 describe("Hero", () => {
 	it("constrains long titles so they cannot overrun the hero", () => {
@@ -246,6 +292,81 @@ describe("Hero", () => {
 		act(() => vi.advanceTimersByTime(7000));
 		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
 		vi.useRealTimers();
+	});
+
+	it("uses the backdrop and skips trailer lookup when disabled", async () => {
+		vi.useFakeTimers();
+		window.localStorage.setItem(
+			playbackBehaviorStorageKey(session.userId),
+			JSON.stringify({
+				autoplayNextEpisode: true,
+				autoplayBrowse: true,
+				useHeroTrailer: false,
+			}),
+		);
+		const getHeroTrailer = vi.spyOn(mediaApi, "getHeroTrailer");
+		const first = {
+			...heroItem("backdrop-first", "Backdrop First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/backdrop-trailer" }],
+		};
+		const second = heroItem("backdrop-second", "Backdrop Second");
+		const { container } = render(
+			<PlaybackBehaviorPreferencesProvider userId={session.userId}>
+				<Hero items={[first, second]} session={session} />
+			</PlaybackBehaviorPreferencesProvider>,
+		);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(getHeroTrailer).not.toHaveBeenCalled();
+		expect(screen.queryByTitle("Backdrop First trailer")).not.toBeInTheDocument();
+		expect(container.querySelector("img[aria-hidden='true']")).toHaveClass(
+			"hero-backdrop-active",
+		);
+
+		act(() => vi.advanceTimersByTime(7000));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
+	});
+
+	it("removes an active trailer and returns to timed slides when disabled", async () => {
+		vi.useFakeTimers();
+		const first = {
+			...heroItem("toggle-first", "Toggle First"),
+			RemoteTrailers: [{ Url: "https://youtu.be/toggle-trailer" }],
+		};
+		const second = heroItem("toggle-second", "Toggle Second");
+		render(
+			<PlaybackBehaviorPreferencesProvider userId={session.userId}>
+				<HeroPreferenceHarness items={[first, second]} />
+			</PlaybackBehaviorPreferencesProvider>,
+		);
+
+		await act(async () => {
+			vi.advanceTimersByTime(1);
+			await Promise.resolve();
+		});
+		expect(screen.getByTitle("Toggle First trailer")).toBeInTheDocument();
+
+		fireEvent.click(
+			screen.getByRole("switch", { name: "Use trailers in hero" }),
+		);
+		expect(screen.queryByTitle("Toggle First trailer")).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /unmute trailer/i }),
+		).not.toBeInTheDocument();
+
+		act(() => vi.advanceTimersByTime(6999));
+		expect(
+			screen.getByRole("heading", { name: first.Name }),
+		).toBeInTheDocument();
+		act(() => vi.advanceTimersByTime(1));
+		expect(
+			screen.getByRole("heading", { name: second.Name }),
+		).toBeInTheDocument();
 	});
 
 	it("starts a muted YouTube trailer after 800ms and advances when it ends", async () => {

@@ -183,6 +183,8 @@ export const TRANSLATION_KEYS = [
 	"autoplayNextEpisode",
 	"autoplayBrowse",
 	"autoplayBrowseDescription",
+	"heroUseTrailer",
+	"heroUseTrailerDescription",
 	"newEpisodes",
 	"newEpisodesDescription",
 	"newSeasons",

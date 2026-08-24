@@ -49,6 +49,7 @@ type SettingsPageProps = {
 type SettingsSectionName =
 	| "root"
 	| "account"
+	| "home"
 	| "appearance"
 	| "playback"
 	| "subtitles"
@@ -90,8 +91,10 @@ export function SettingsPage({
 	const {
 		autoplayNextEpisode,
 		autoplayBrowse,
+		useHeroTrailer,
 		setAutoplayNextEpisode,
 		setAutoplayBrowse,
+		setUseHeroTrailer,
 	} = usePlaybackBehaviorPreferences();
 	const [localeError, setLocaleError] = useState(false);
 	const [metadataLanguageError, setMetadataLanguageError] = useState(false);
@@ -200,15 +203,17 @@ export function SettingsPage({
 							? t("settings")
 							: section === "account"
 								? t("account")
-								: section === "appearance"
-									? t("appearance")
-									: section === "playback"
-										? t("playback")
-										: section === "subtitles"
-											? t("subtitles")
-											: section === "privacy"
-												? t("privacyData")
-												: t("versions")}
+								: section === "home"
+									? t("home")
+									: section === "appearance"
+										? t("appearance")
+										: section === "playback"
+											? t("playback")
+											: section === "subtitles"
+												? t("subtitles")
+												: section === "privacy"
+													? t("privacyData")
+													: t("versions")}
 					</h1>
 				</header>
 
@@ -247,6 +252,23 @@ export function SettingsPage({
 								border={false}
 								onClick={() => setPasswordModalOpen(true)}
 								right={<ChevronRight className="h-4 w-4 text-white/20" />}
+							/>
+						</SettingsSection>
+					)}
+
+					{section === "home" && (
+						<SettingsSection title={t("home")}>
+							<SettingsRow
+								label={t("heroUseTrailer")}
+								sub={t("heroUseTrailerDescription")}
+								border={false}
+								right={
+									<Toggle
+										label={t("heroUseTrailer")}
+										checked={useHeroTrailer}
+										onChange={setUseHeroTrailer}
+									/>
+								}
 							/>
 						</SettingsSection>
 					)}
@@ -684,6 +706,10 @@ function SettingsIndex({
 						/>
 					}
 					onClick={() => onOpenSection("account")}
+				/>
+				<SettingsMenuItem
+					label={t("home")}
+					onClick={() => onOpenSection("home")}
 				/>
 				<SettingsMenuItem
 					label={t("appearance")}

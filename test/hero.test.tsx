@@ -351,18 +351,14 @@ describe("Hero", () => {
 		});
 		expect(screen.getByTitle("Toggle First trailer")).toBeInTheDocument();
 
-		fireEvent.click(
-			screen.getByRole("switch", { name: "Use trailers in hero" }),
-		);
+		fireEvent.click(screen.getByRole("switch", { name: "Use trailers in hero" }));
 		expect(screen.queryByTitle("Toggle First trailer")).not.toBeInTheDocument();
 		expect(
 			screen.queryByRole("button", { name: /unmute trailer/i }),
 		).not.toBeInTheDocument();
 
 		act(() => vi.advanceTimersByTime(6999));
-		expect(
-			screen.getByRole("heading", { name: first.Name }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: first.Name })).toBeInTheDocument();
 		act(() => vi.advanceTimersByTime(1));
 		expect(
 			screen.getByRole("heading", { name: second.Name }),

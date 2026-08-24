@@ -62,9 +62,7 @@ describe("SettingsPage", () => {
 		expect(
 			screen.getByRole("button", { name: "Appearance" }),
 		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "Home" }),
-		).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Home" })).toBeInTheDocument();
 		expect(
 			screen.queryByRole("button", { name: "Notifications" }),
 		).not.toBeInTheDocument();

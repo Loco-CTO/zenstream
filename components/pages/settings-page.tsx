@@ -707,10 +707,7 @@ function SettingsIndex({
 					}
 					onClick={() => onOpenSection("account")}
 				/>
-				<SettingsMenuItem
-					label={t("home")}
-					onClick={() => onOpenSection("home")}
-				/>
+				<SettingsMenuItem label={t("home")} onClick={() => onOpenSection("home")} />
 				<SettingsMenuItem
 					label={t("appearance")}
 					onClick={() => onOpenSection("appearance")}

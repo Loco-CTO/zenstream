@@ -2872,6 +2872,7 @@ export function VideoPlayer({
 										<BlurHashImage
 											image={image}
 											alt=""
+											sizes="(max-width: 639px) 96px, 144px"
 											className="h-full w-full object-cover"
 										/>
 									</div>

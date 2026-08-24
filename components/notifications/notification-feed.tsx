@@ -438,6 +438,7 @@ export function NotificationRow({
 						image={thumbnail}
 						alt=""
 						aria-hidden="true"
+						sizes={compact ? "64px" : "(max-width: 639px) 96px, 112px"}
 						className="h-full w-full object-cover"
 					/>
 				)}

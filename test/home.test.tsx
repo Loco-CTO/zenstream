@@ -469,8 +469,12 @@ function item(id: string, name: string): jellyfin.MediaItem {
 		Type: "Series",
 		ProductionYear: 2024,
 		Overview: "Overview",
-		ImageTags: { Primary: "primary", Thumb: "thumb" },
-		BackdropImageTags: ["backdrop"],
+		ImageTags: {
+			Primary: `/api/catalog/items/${id}/images/Primary?language=en&v=primary`,
+		},
+		BackdropImageTags: [
+			`/api/catalog/items/${id}/images/Backdrop?language=en&v=backdrop`,
+		],
 		LocalTrailerCount: 0,
 	};
 }

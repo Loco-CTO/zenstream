@@ -352,6 +352,8 @@ export type ImageBlurHashes = Partial<
 export interface MediaImage {
 	src: string;
 	blurHash?: string;
+	width?: number;
+	height?: number;
 }
 
 export type HeroTrailer =
@@ -501,6 +503,12 @@ let resourceTicket: {
 	sessionKey: string;
 } | null = null;
 
+let artworkTicket: {
+	value: string;
+	expiresAt: number;
+	sessionKey: string;
+} | null = null;
+
 function resourceSessionKey(session: AuthSession | null | undefined) {
 	return session ? `${session.userId}:${session.token || "browser-cookie"}` : "";
 }
@@ -508,6 +516,7 @@ function resourceSessionKey(session: AuthSession | null | undefined) {
 export function clearMediaClientSession() {
 	clearMediaClientCache();
 	resourceTicket = null;
+	artworkTicket = null;
 }
 
 export async function revokeAuthSession(session: AuthSession): Promise<void> {
@@ -582,6 +591,47 @@ export async function primeResourceTicket(
 		};
 		if (typeof window !== "undefined")
 			window.dispatchEvent(new Event("zenstream:resource-ticket"));
+		return payload.ticket;
+	} catch {
+		return null;
+	}
+}
+
+export async function primeArtworkTicket(
+	session: AuthSession,
+): Promise<string | null> {
+	if (
+		artworkTicket &&
+		artworkTicket.sessionKey === resourceSessionKey(session) &&
+		artworkTicket.expiresAt > Date.now() + 30_000
+	)
+		return artworkTicket.value;
+	try {
+		const response = await authenticatedFetch(
+			session,
+			"/api/auth/artwork-ticket",
+			{ cache: "no-store" },
+		);
+		if (!response.ok) return null;
+		const payload = (await response.json()) as {
+			ticket?: unknown;
+			expiresAt?: unknown;
+			expiresIn?: unknown;
+		};
+		if (typeof payload.ticket !== "string") return null;
+		const expiresAt =
+			typeof payload.expiresAt === "number"
+				? payload.expiresAt * 1000
+				: typeof payload.expiresIn === "number"
+					? Date.now() + payload.expiresIn * 1000
+					: Date.now() + 7 * 24 * 60 * 60_000;
+		artworkTicket = {
+			value: payload.ticket,
+			expiresAt,
+			sessionKey: resourceSessionKey(session),
+		};
+		if (typeof window !== "undefined")
+			window.dispatchEvent(new Event("zenstream:artwork-ticket"));
 		return payload.ticket;
 	} catch {
 		return null;
@@ -685,6 +735,8 @@ export async function validateBrowserSession(
 		user?: { id?: unknown; username?: unknown; avatarVersion?: unknown };
 		resourceTicket?: unknown;
 		resourceTicketExpiresIn?: unknown;
+		artworkTicket?: unknown;
+		artworkTicketExpiresIn?: unknown;
 	};
 	if (typeof payload.user?.id !== "string")
 		throw new Error("Server did not return a complete session response.");
@@ -721,6 +773,21 @@ export async function validateBrowserSession(
 			typeof payload.user.avatarVersion === "string"
 				? payload.user.avatarVersion
 				: null;
+	}
+	if (typeof payload.artworkTicket === "string") {
+		artworkTicket = {
+			value: payload.artworkTicket,
+			expiresAt:
+				Date.now() +
+				(typeof payload.artworkTicketExpiresIn === "number"
+					? payload.artworkTicketExpiresIn * 1000
+					: 7 * 24 * 60 * 60_000),
+			sessionKey: resourceSessionKey(validated),
+		};
+		if (typeof window !== "undefined")
+			window.dispatchEvent(new Event("zenstream:artwork-ticket"));
+	} else {
+		await primeArtworkTicket(validated);
 	}
 	return validated;
 }
@@ -1914,29 +1981,21 @@ export function catalogImage(
 	tag: string | null | undefined,
 	blurHash?: string | null,
 ): MediaImage | null {
-	if (!tag || !tag.startsWith("/api/")) return null;
-	const url = new URL(tag, orchestratorBaseUrl());
-	addResourceTicket(url.searchParams);
-	return { src: url.toString(), blurHash: blurHash ?? undefined };
+	if (!tag) return null;
+	const src = artworkImageUrl(tag);
+	return src ? { src, blurHash: blurHash ?? undefined } : null;
 }
 
 export function personImage(person: MediaPerson) {
 	const tag = person.PrimaryImageTag;
 	if (!tag) return null;
-	if (tag.startsWith("/api/")) {
-		const url = new URL(tag, orchestratorBaseUrl());
-		if (
-			resourceTicket &&
-			resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
-			resourceTicket.expiresAt > Date.now()
-		)
-			url.searchParams.set("access", resourceTicket.value);
-		return {
-			src: url.toString(),
-			blurHash: person.ImageBlurHashes?.Primary?.[tag],
-		};
-	}
-	return null;
+	const src = artworkImageUrl(tag);
+	return src
+		? {
+				src,
+				blurHash: person.ImageBlurHashes?.Primary?.[tag],
+			}
+		: null;
 }
 
 function imageData(
@@ -1951,32 +2010,35 @@ function imageData(
 			: item.ImageTags?.[imageType];
 	if (!tag) return null;
 	if (tag.startsWith("/api/")) {
-		const url = new URL(tag, orchestratorBaseUrl());
-		if (
-			resourceTicket &&
-			resourceTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
-			resourceTicket.expiresAt > Date.now()
-		)
-			url.searchParams.set("access", resourceTicket.value);
+		const src = artworkImageUrl(tag);
+		if (!src) return null;
 		return {
-			src: url.toString(),
+			src,
 			blurHash:
 				imageType === "Logo" ? undefined : item.ImageBlurHashes?.[imageType]?.[tag],
+			width,
+			height,
 		};
 	}
+	return null;
+}
 
-	const index = imageType === "Backdrop" ? "/0" : "";
-	const params = new URLSearchParams({
-		fillWidth: String(width),
-		fillHeight: String(height),
-		quality: "90",
-		tag,
-	});
-	addResourceTicket(params);
-
-	return {
-		src: `${orchestratorBaseUrl()}/api/assets/items/${item.Id}/images/${imageType}?${params.toString()}${index ? `&index=${index.slice(1)}` : ""}`,
-		blurHash:
-			imageType === "Logo" ? undefined : item.ImageBlurHashes?.[imageType]?.[tag],
-	};
+function artworkImageUrl(tag: string) {
+	if (!tag.startsWith("/api/catalog/items/")) return null;
+	const url = new URL(tag, orchestratorBaseUrl());
+	if (
+		!/^\/api\/catalog\/items\/[^/]+\/(?:images\/(?:Primary|Backdrop|Logo|Banner)|people\/[^/]+\/image)$/.test(
+			url.pathname,
+		)
+	)
+		return null;
+	if (
+		artworkTicket &&
+		artworkTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
+		artworkTicket.expiresAt > Date.now()
+	) {
+		url.searchParams.delete("access");
+		url.searchParams.set("access", artworkTicket.value);
+	}
+	return url.toString();
 }

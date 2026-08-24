@@ -318,6 +318,8 @@ function makeItems(count: number, offset = 0): jellyfin.MediaItem[] {
 		Name: `Title ${offset + index}`,
 		Type: "Series",
 		ProductionYear: 2024,
-		ImageTags: { Primary: "poster" },
+		ImageTags: {
+			Primary: `/api/catalog/items/item-${offset + index}/images/Primary?language=en&v=poster`,
+		},
 	}));
 }

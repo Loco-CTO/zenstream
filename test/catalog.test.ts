@@ -9,7 +9,10 @@ import {
 	getPlaybackInfo,
 	getPlaybackMarkers,
 	getPlaybackSource,
+	clearMediaClientSession,
+	catalogImage,
 	getTrickplayInfo,
+	primeArtworkTicket,
 	trickplayPreview,
 	type MediaSource,
 } from "@/lib/media-api";
@@ -19,6 +22,36 @@ const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
+	it("uses a stable direct artwork URL for the session capability", async () => {
+		document.cookie = "userId=user-1";
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({ ticket: "artwork-ticket", expiresIn: 604800 }),
+				{
+					status: 200,
+				},
+			),
+		);
+		const browserSession = { token: "", userId: "user-1", username: "Alex" };
+
+		await primeArtworkTicket(browserSession);
+		const first = catalogImage(
+			"/api/catalog/items/movie-1/images/Primary?language=en&v=version-1",
+		);
+		await primeArtworkTicket(browserSession);
+		const second = catalogImage(
+			"/api/catalog/items/movie-1/images/Primary?language=en&v=version-1",
+		);
+
+		expect(first?.src).toBe(second?.src);
+		expect(first?.src).toContain("/api/catalog/items/movie-1/images/Primary");
+		expect(first?.src).toContain("access=artwork-ticket");
+		expect(first?.src).not.toContain("/api/artwork/");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		clearMediaClientSession();
+		document.cookie = "userId=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+	});
+
 	it("loads full metadata for featured hero items while keeping other home sections compact", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")

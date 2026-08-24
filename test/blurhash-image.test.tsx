@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { toMediaItem, type CatalogItem } from "@/lib/catalog";
@@ -20,13 +20,13 @@ describe("BlurHashImage", () => {
 
 		expect(screen.getByRole("img", { name: "Poster" })).toHaveAttribute(
 			"src",
-			"/poster.jpg",
+			expect.stringContaining("poster.jpg"),
 		);
-		expect(container.querySelector("img[aria-hidden='true']")).toHaveAttribute(
-			"src",
-			expect.stringMatching(/^data:image\/svg\+xml,/),
-		);
-		expect(container.querySelector("img[aria-hidden='true']")).not.toHaveClass(
+		expect(
+			(container.querySelector("div[aria-hidden='true']") as HTMLElement).style
+				.backgroundImage,
+		).toContain("data:image/svg+xml");
+		expect(container.querySelector("div[aria-hidden='true']")).not.toHaveClass(
 			"hero-backdrop-active",
 		);
 	});
@@ -45,12 +45,12 @@ describe("BlurHashImage", () => {
 			</div>,
 		);
 
-		const placeholder = container.querySelector("img[aria-hidden='true']");
+		const placeholder = container.querySelector("div[aria-hidden='true']");
 		expect(placeholder).toHaveClass("[clip-path:inset(0)]");
 		expect(placeholder).toHaveClass("opacity-100");
 	});
 
-	it("keeps the placeholder visible until the source succeeds", () => {
+	it("keeps the placeholder visible until the source succeeds", async () => {
 		const { container } = render(
 			<div className="relative">
 				<BlurHashImage
@@ -64,12 +64,12 @@ describe("BlurHashImage", () => {
 			</div>,
 		);
 
-		const placeholder = container.querySelector("img[aria-hidden='true']");
+		const placeholder = container.querySelector("div[aria-hidden='true']");
 		const image = screen.getByRole("img", { name: "Poster" });
 		expect(placeholder).toHaveClass("opacity-100");
 
 		fireEvent.load(image);
-		expect(placeholder).toHaveClass("opacity-0");
+		await waitFor(() => expect(placeholder).toHaveClass("opacity-0"));
 	});
 
 	it("reports failures and replaces broken artwork with a clipped placeholder", () => {
@@ -121,7 +121,7 @@ describe("BlurHashImage", () => {
 				/>
 			</div>,
 		);
-		expect(container.querySelector("img[aria-hidden='true']")).toHaveClass(
+		expect(container.querySelector("div[aria-hidden='true']")).toHaveClass(
 			"opacity-100",
 		);
 	});

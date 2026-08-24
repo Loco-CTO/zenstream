@@ -1,11 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, vi } from "vitest";
-import { clearMediaClientCache } from "@/lib/media-api";
+import { clearMediaClientSession } from "@/lib/media-api";
 import { clearPreferenceCache } from "@/lib/preferences";
 import { clearSubtitlePreferenceCache } from "@/lib/subtitle-preferences";
 
 afterEach(() => {
-	clearMediaClientCache();
+	clearMediaClientSession();
 	clearPreferenceCache();
 	clearSubtitlePreferenceCache();
 });

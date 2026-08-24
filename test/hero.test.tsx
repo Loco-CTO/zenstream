@@ -94,7 +94,7 @@ describe("Hero", () => {
 			Id: "featured",
 			Name: "Featured Title",
 			ImageTags: {
-				Logo: "logo-tag",
+				Logo: "/api/catalog/items/featured/images/Logo?language=en&v=logo-tag",
 				Primary: "primary-tag",
 			},
 		};
@@ -105,13 +105,8 @@ describe("Hero", () => {
 		const titleImage = screen.getByRole("img", { name: item.Name });
 
 		expect(heading).not.toHaveClass("text-4xl");
-		expect(titleImage).toHaveAttribute(
-			"src",
-			expect.stringContaining("/api/assets/items/featured/images/Logo?"),
-		);
-		expect(titleImage).toHaveAttribute(
-			"src",
-			expect.stringContaining("fillHeight=300"),
+		expect(decodeURIComponent(titleImage.getAttribute("src") ?? "")).toContain(
+			"/api/catalog/items/featured/images/Logo?language=en&v=logo-tag",
 		);
 		expect(titleImage).toHaveClass("max-h-[300px]");
 	});
@@ -475,9 +470,11 @@ function heroItem(id: string, name: string): MediaItem {
 		Name: name,
 		Overview: "Overview",
 		ImageTags: {
-			Primary: "primary-tag",
+			Primary: `/api/catalog/items/${id}/images/Primary?language=en&v=primary-tag`,
 		},
-		BackdropImageTags: ["backdrop-tag"],
+		BackdropImageTags: [
+			`/api/catalog/items/${id}/images/Backdrop?language=en&v=backdrop-tag`,
+		],
 		LocalTrailerCount: 0,
 		RemoteTrailers: [],
 	};

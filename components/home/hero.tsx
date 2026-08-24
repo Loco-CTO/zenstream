@@ -419,6 +419,7 @@ export function Hero({
 							alt=""
 							aria-hidden="true"
 							draggable={false}
+							sizes="100vw"
 							loading={isActive ? "eager" : "lazy"}
 							fetchPriority={isActive ? "high" : "low"}
 							className={`absolute inset-0 h-full w-full object-cover object-center brightness-[0.55] transition-[opacity,transform,filter] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,transform] ${
@@ -434,6 +435,7 @@ export function Hero({
 					image={image}
 					alt=""
 					draggable={false}
+					sizes="100vw"
 					loading="eager"
 					fetchPriority="high"
 					className="absolute inset-0 h-full w-full object-cover object-center brightness-[0.55]"
@@ -527,11 +529,13 @@ export function Hero({
 				>
 					{titleLogo && !titleLogoFailed ? (
 						<h1 className="relative mb-5">
-							<img
-								src={titleLogo.src}
+							<BlurHashImage
+								image={titleLogo}
 								alt={item.Name}
-								draggable={false}
+								fill={false}
+								sizes="(max-width: 768px) 80vw, 32rem"
 								onError={() => setTitleLogoFailedSrc(titleLogo.src)}
+								draggable={false}
 								className="max-h-[300px] max-w-full object-contain object-left"
 							/>
 						</h1>

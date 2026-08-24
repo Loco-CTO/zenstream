@@ -633,6 +633,7 @@ function LibraryCard({
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
+								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
 								loading="lazy"
 								decoding="async"
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}

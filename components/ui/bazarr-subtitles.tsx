@@ -202,18 +202,18 @@ export function BazarrSubtitles({
 											key={match.matchId}
 											className="flex flex-col gap-3 px-4 py-3 transition hover:bg-white/[.035] sm:flex-row sm:items-center sm:justify-between"
 										>
-												<div className="min-w-0">
-													<p className="truncate text-sm font-medium text-white/80">
-														{formatBazarrValue(match.releaseName)}
-													</p>
-													<p className="mt-1 text-[11px] leading-4 text-white/35">
-														{[
-															formatBazarrScore(match.score),
-															formatBazarrValue(match.language),
-															formatBazarrValue(match.provider),
-															formatBazarrValue(match.uploader),
-														].join(" · ")}
-													</p>
+											<div className="min-w-0">
+												<p className="truncate text-sm font-medium text-white/80">
+													{formatBazarrValue(match.releaseName)}
+												</p>
+												<p className="mt-1 text-[11px] leading-4 text-white/35">
+													{[
+														formatBazarrScore(match.score),
+														formatBazarrValue(match.language),
+														formatBazarrValue(match.provider),
+														formatBazarrValue(match.uploader),
+													].join(" · ")}
+												</p>
 											</div>
 											<button
 												type="button"

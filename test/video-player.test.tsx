@@ -592,14 +592,27 @@ describe("video player controls", () => {
 		fireEvent.timeUpdate(firstVideo);
 
 		const firstTimer = first.getByTestId("player-time");
-		expect(firstTimer).toHaveTextContent("-22:22/23:45");
+		expect(firstTimer).toHaveTextContent("-22:22 / 23:45");
 		expect(firstTimer).toHaveAccessibleName("Show elapsed time");
 		expect(firstTimer).toHaveAttribute("aria-pressed", "false");
+		expect(firstTimer).toHaveClass(
+			"transition-colors",
+			"hover:text-white/60",
+			"focus-visible:text-white/60",
+		);
+		expect(firstTimer).not.toHaveClass(
+			"rounded",
+			"hover:bg-white/10",
+			"focus:ring-2",
+			"focus:ring-violet-300",
+		);
+		const timerClassName = firstTimer.className;
 
 		fireEvent.click(firstTimer);
-		expect(firstTimer).toHaveTextContent("1:23/23:45");
+		expect(firstTimer).toHaveTextContent("1:23 / 23:45");
 		expect(firstTimer).toHaveAccessibleName("Show remaining time");
 		expect(firstTimer).toHaveAttribute("aria-pressed", "true");
+		expect(firstTimer.className).toBe(timerClassName);
 		expect(window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY)).toBe(
 			"elapsed",
 		);
@@ -623,7 +636,7 @@ describe("video player controls", () => {
 		fireEvent.timeUpdate(secondVideo);
 
 		const secondTimer = second.getByTestId("player-time");
-		expect(secondTimer).toHaveTextContent("1:23/23:45");
+		expect(secondTimer).toHaveTextContent("1:23 / 23:45");
 	});
 
 	it("falls back to remaining mode for an invalid stored timer preference", () => {
@@ -648,7 +661,7 @@ describe("video player controls", () => {
 		);
 
 		const timer = getByTestId("player-time");
-		expect(timer).toHaveTextContent("-23:45/23:45");
+		expect(timer).toHaveTextContent("-23:45 / 23:45");
 		expect(timer).toHaveAccessibleName("Show elapsed time");
 	});
 

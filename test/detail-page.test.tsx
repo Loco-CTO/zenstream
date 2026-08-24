@@ -98,6 +98,7 @@ describe("detail views", () => {
 					{
 						matchId: "match-1",
 						name: "Japanese subtitle",
+						releaseName: "[SubsPlease] Show - 01 [1080p].srt",
 						language: "ja",
 						provider: "opensubtitles",
 						format: "srt",
@@ -117,7 +118,7 @@ describe("detail views", () => {
 		fireEvent.click(screen.getByRole("option", { name: "Find subtitles" }));
 		fireEvent.click(screen.getByRole("button", { name: "Find subtitles" }));
 
-		await screen.findByText("Japanese subtitle");
+		await screen.findByText("[SubsPlease] Show - 01 [1080p].srt");
 		fireEvent.click(screen.getByRole("button", { name: "Download" }));
 
 		await waitFor(() =>

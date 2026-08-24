@@ -193,7 +193,7 @@ export function BazarrSubtitles({
 										>
 											<div className="min-w-0">
 												<p className="truncate text-sm font-medium text-white/80">
-													{match.name}
+													{match.releaseName || match.name}
 												</p>
 												<p className="mt-1 text-[11px] text-white/35">
 													{[match.language, match.provider, match.format]

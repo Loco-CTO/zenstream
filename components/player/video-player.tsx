@@ -744,7 +744,10 @@ export function VideoPlayer({
 		bufferedRanges.loadId === mediaLoadIdRef.current
 			? bufferedRanges.ranges
 			: [];
-	const debugBufferAhead = bufferedSecondsAhead(debugBufferedRanges, currentTime);
+	const debugBufferAhead = bufferedSecondsAhead(
+		debugBufferedRanges,
+		currentTime,
+	);
 	const nextUpVisible =
 		item.Type === "Episode" &&
 		nextChecked &&
@@ -905,11 +908,7 @@ export function VideoPlayer({
 					try {
 						const start = video.buffered.start(index);
 						const end = video.buffered.end(index);
-						if (
-							Number.isFinite(start) &&
-							Number.isFinite(end) &&
-							end > start
-						)
+						if (Number.isFinite(start) && Number.isFinite(end) && end > start)
 							ranges.push([start, end]);
 					} catch {
 						// A range can disappear between length/start reads while the

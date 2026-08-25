@@ -9,6 +9,7 @@ import {
 	nextEpisodeSyncplayCommand,
 	nativeSubtitleCueCss,
 	normalizeBufferedRanges,
+	bufferedRangeForPosition,
 	disableNativeSubtitleTracks,
 	exitFullscreenSafely,
 	HLS_TEXT_TRACK_CONFIG,
@@ -42,7 +43,6 @@ import { ToastProvider } from "@/components/ui/toast";
 import {
 	getEpisodes,
 	getPlaybackInfo,
-	refreshPlaybackAccess,
 	getSeasons,
 	playbackStreams,
 	reportPlayback,
@@ -58,9 +58,6 @@ vi.mock("@/lib/media-api", async () => {
 	return {
 		...actual,
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
-		refreshPlaybackAccess: vi
-			.fn()
-			.mockResolvedValue("/video.m3u8?access=renewed"),
 		getEpisodes: vi.fn().mockResolvedValue([]),
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getSeasons: vi.fn().mockResolvedValue([]),
@@ -141,10 +138,6 @@ describe("video player controls", () => {
 		vi.mocked(playbackUrl).mockReset().mockReturnValue("/video.m3u8");
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
-		vi
-			.mocked(refreshPlaybackAccess)
-			.mockReset()
-			.mockResolvedValue("/video.m3u8?access=renewed");
 		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);
 		vi.mocked(setPlayed).mockReset().mockResolvedValue(undefined);
 	});
@@ -330,7 +323,7 @@ describe("video player controls", () => {
 		expect(view.getByRole("alert")).toBeInTheDocument();
 	});
 
-	it("renews playback access on a fixed interval without a retry chain", async () => {
+	it("keeps the active media source stable beyond the ticket lifetime", async () => {
 		const streams = {
 			source: {
 				Id: "source-1",
@@ -343,9 +336,6 @@ describe("video player controls", () => {
 		} as ReturnType<typeof playbackStreams>;
 		vi.mocked(playbackStreams).mockReturnValue(streams);
 		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
-		vi
-			.mocked(refreshPlaybackAccess)
-			.mockResolvedValue("/episode-selected.mp4?access=renewed");
 		const { view } = renderEpisodePlayer({ withNext: false });
 		const video = view.container.querySelector("video")!;
 		Object.defineProperty(video, "currentTime", {
@@ -359,34 +349,19 @@ describe("video player controls", () => {
 		});
 		vi.spyOn(video, "play").mockResolvedValue(undefined);
 		await flushPlayerEffects();
+		const initialSource = video.src;
+		const initialPauseCalls = vi.spyOn(video, "pause").mock.calls.length;
+		const initialLoadCalls = vi.spyOn(video, "load").mock.calls.length;
 
 		await act(async () => {
-			vi.advanceTimersByTime(12 * 60 * 1_000);
+			vi.advanceTimersByTime(15 * 60 * 1_000 + 1_000);
 			await Promise.resolve();
 			await Promise.resolve();
 		});
-		expect(refreshPlaybackAccess).toHaveBeenCalledOnce();
-		expect(video.src).toContain("access=renewed");
-
-		await flushPlayerEffects();
-		fireEvent.loadedMetadata(video);
+		expect(video.src).toBe(initialSource);
+		expect(vi.mocked(video.pause).mock.calls.length).toBe(initialPauseCalls);
+		expect(vi.mocked(video.load).mock.calls.length).toBe(initialLoadCalls);
 		expect(video.currentTime).toBe(37);
-		expect(video.play).toHaveBeenCalled();
-
-		vi
-			.mocked(refreshPlaybackAccess)
-			.mockRejectedValueOnce(new Error("temporary renewal failure"));
-		await act(async () => {
-			vi.advanceTimersByTime(30_000);
-			await Promise.resolve();
-		});
-		expect(refreshPlaybackAccess).toHaveBeenCalledOnce();
-
-		await act(async () => {
-			vi.advanceTimersByTime(12 * 60 * 1_000);
-			await Promise.resolve();
-		});
-		expect(refreshPlaybackAccess).toHaveBeenCalledTimes(2);
 	});
 
 	it("suppresses automatic history writes and replay unwatch when disabled", () => {
@@ -595,6 +570,37 @@ describe("video player controls", () => {
 		]);
 		expect(bufferedSecondsAhead([[0, 192.5]], 97.4)).toBeCloseTo(95.1);
 		expect(bufferedSecondsAhead([[0, 192.5]], 250)).toBe(0);
+		expect(
+			normalizeBufferedRanges(
+				[
+					[-2, 20],
+					[80, 140],
+				],
+				0.05,
+				100,
+			),
+		).toEqual([
+			[0, 20],
+			[80, 100],
+		]);
+		expect(
+			bufferedRangeForPosition(
+				[
+					[0, 20],
+					[80, 100],
+				],
+				20.2,
+			),
+		).toEqual([0, 20]);
+		expect(
+			bufferedRangeForPosition(
+				[
+					[0, 20],
+					[80, 100],
+				],
+				50,
+			),
+		).toBeNull();
 	});
 
 	it("does not reuse the previous episode's readiness for Next Up", () => {
@@ -1584,6 +1590,14 @@ describe("video player controls", () => {
 			renderTextTracksNatively: false,
 			subtitleDisplay: false,
 		});
+		const xhr = { withCredentials: false } as XMLHttpRequest;
+		HLS_TEXT_TRACK_CONFIG.xhrSetup(xhr);
+		expect(xhr.withCredentials).toBe(true);
+		const request = HLS_TEXT_TRACK_CONFIG.fetchSetup(
+			{ url: "https://example.test/playlist.m3u8" },
+			{},
+		);
+		expect(request.credentials).toBe("include");
 		const tracks = [{ mode: "showing" }, { mode: "hidden" }];
 		disableNativeSubtitleTracks({
 			textTracks: tracks,

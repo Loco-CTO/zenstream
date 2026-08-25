@@ -579,12 +579,28 @@ describe("video player controls", () => {
 				0.05,
 				100,
 			),
-		).toEqual([[0, 20], [80, 100]]);
-		expect(bufferedRangeForPosition([[0, 20], [80, 100]], 20.2)).toEqual([
-			0,
-			20,
+		).toEqual([
+			[0, 20],
+			[80, 100],
 		]);
-		expect(bufferedRangeForPosition([[0, 20], [80, 100]], 50)).toBeNull();
+		expect(
+			bufferedRangeForPosition(
+				[
+					[0, 20],
+					[80, 100],
+				],
+				20.2,
+			),
+		).toEqual([0, 20]);
+		expect(
+			bufferedRangeForPosition(
+				[
+					[0, 20],
+					[80, 100],
+				],
+				50,
+			),
+		).toBeNull();
 	});
 
 	it("does not reuse the previous episode's readiness for Next Up", () => {

@@ -876,6 +876,13 @@ export function VideoPlayer({
 		(video: HTMLVideoElement, expectedLoadId = mediaLoadIdRef.current) => {
 			if (mediaLoadIdRef.current !== expectedLoadId) return;
 			const ranges: BufferedTimeRange[] = [];
+			let mediaDuration = knownDuration;
+			try {
+				const value = video.duration;
+				if (Number.isFinite(value) && value > 0) mediaDuration = value;
+			} catch {
+				// The duration can be unavailable while a source is changing.
+			}
 			try {
 				for (let index = 0; index < video.buffered.length; index += 1) {
 					try {
@@ -900,10 +907,10 @@ export function VideoPlayer({
 			setBufferedRanges({
 				itemId: item.Id,
 				loadId: expectedLoadId,
-				ranges: normalizeBufferedRanges(ranges, 0.05, video.duration),
+				ranges: normalizeBufferedRanges(ranges, 0.05, mediaDuration),
 			});
 		},
-		[item.Id],
+		[item.Id, knownDuration],
 	);
 	const cancelPendingBufferingReport = useCallback(
 		(reason: string) => {

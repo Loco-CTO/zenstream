@@ -76,6 +76,12 @@ type Props = {
 	initialAudioStreamId?: number;
 	initialSubtitleStreamIndex?: number | null;
 	initialStreams?: ReturnType<typeof playbackStreams>;
+	/**
+	 * The route-level player owns the initial negotiation. Waiting for those
+	 * streams avoids a second request that can race the parent's result and
+	 * replace a source while it is becoming playable.
+	 */
+	deferPlaybackNegotiation?: boolean;
 	watchHistoryEnabled?: boolean;
 	watchHistoryLoaded?: boolean;
 	onClose: () => void;
@@ -136,6 +142,16 @@ export const HLS_TEXT_TRACK_CONFIG = {
 	enableCEA708Captions: false,
 	renderTextTracksNatively: false,
 	subtitleDisplay: false,
+	// hls.js defaults to roughly 30 seconds of forward media. That is a poor
+	// fit for this player's long-form streams: a short network hiccup can reach
+	// the playhead before the browser has a useful safety margin. Keep the
+	// browser's normal memory guard, but allow a materially larger forward and
+	// back buffer for the web client. Native direct playback remains governed by
+	// the browser's own buffering policy.
+	maxBufferLength: 120,
+	maxMaxBufferLength: 300,
+	maxBufferSize: 128 * 1024 * 1024,
+	backBufferLength: 60,
 	// Media requests are authenticated by the same-site browser session. Keep
 	// the initial resource ticket in the URL as a fallback for older servers,
 	// but do not rely on it for requests made after the ticket expires.
@@ -503,6 +519,7 @@ export function VideoPlayer({
 	initialAudioStreamId,
 	initialSubtitleStreamIndex,
 	initialStreams,
+	deferPlaybackNegotiation = false,
 	watchHistoryEnabled = true,
 	watchHistoryLoaded = false,
 	onClose,
@@ -1446,6 +1463,11 @@ export function VideoPlayer({
 
 	useEffect(() => {
 		let active = true;
+		if (deferPlaybackNegotiation && !initialStreams) {
+			return () => {
+				active = false;
+			};
+		}
 		const resolvePlaybackReady = async (playback: PlaybackInfo) => {
 			const sessionId = playback.source?.sessionId;
 			playerDebug("negotiation complete", {
@@ -1555,6 +1577,7 @@ export function VideoPlayer({
 		initialAudioStreamId,
 		initialSubtitleStreamIndex,
 		initialStreams,
+		deferPlaybackNegotiation,
 		savedPositionSeconds,
 		invalidateMediaLoad,
 		releaseSyncplayPresence,

@@ -1039,6 +1039,50 @@ describe("video player controls", () => {
 		);
 	});
 
+	it("can defer negotiation until the route supplies initial streams", async () => {
+		const session = { token: "token", userId: "user", username: "Alex" };
+		const streams = {
+			source: { Id: "source", mode: "direct", url: "/movie.mkv" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as never;
+		vi.mocked(getPlaybackInfo).mockClear();
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		const view = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+						session={session}
+						deferPlaybackNegotiation
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await flushPlayerEffects();
+		expect(getPlaybackInfo).not.toHaveBeenCalled();
+
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+						session={session}
+						deferPlaybackNegotiation
+						initialStreams={streams}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await flushPlayerEffects();
+		expect(getPlaybackInfo).not.toHaveBeenCalled();
+		expect(view.container.querySelector("video")?.src).toContain("/movie.mkv");
+	});
+
 	it("renders movie names as the prominent player title", () => {
 		const { container } = render(
 			<I18nProvider locale="en">
@@ -1589,6 +1633,10 @@ describe("video player controls", () => {
 			enableCEA708Captions: false,
 			renderTextTracksNatively: false,
 			subtitleDisplay: false,
+			maxBufferLength: 120,
+			maxMaxBufferLength: 300,
+			maxBufferSize: 128 * 1024 * 1024,
+			backBufferLength: 60,
 		});
 		const xhr = { withCredentials: false } as XMLHttpRequest;
 		HLS_TEXT_TRACK_CONFIG.xhrSetup(xhr);

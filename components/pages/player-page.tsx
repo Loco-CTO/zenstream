@@ -149,6 +149,9 @@ export function PlayerPage({
 						? selected.subtitle
 						: undefined
 			}
+			// PlayerPage owns the initial negotiation. Do not let VideoPlayer start
+			// another request while the route-level streams are still arriving.
+			deferPlaybackNegotiation
 			// VideoPlayer treats initialStreams as authoritative. Ignore the previous
 			// item's result until playback info for this item has arrived.
 			initialStreams={

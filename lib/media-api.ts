@@ -1242,28 +1242,6 @@ export async function getPlaybackInfo(
 	};
 }
 
-export async function refreshPlaybackAccess(
-	session: AuthSession,
-	itemId: string,
-	source: MediaSource,
-): Promise<string> {
-	if (!source.Id) throw new Error("Playback source is missing its id.");
-	const response = await catalogRequest<{ ticket?: string }>(
-		session,
-		`/api/playback/items/${encodeURIComponent(itemId)}/access`,
-		{
-			method: "POST",
-			body: JSON.stringify({
-				sourceId: source.Id,
-				sessionId: source.mode === "direct" ? undefined : source.sessionId,
-			}),
-		},
-	);
-	if (typeof response.ticket !== "string" || !response.ticket)
-		throw new Error("Playback access renewal did not return a ticket.");
-	return playbackUrlWithAccess(source, response.ticket);
-}
-
 export async function getPlaybackSource(
 	session: AuthSession,
 	itemId: string,

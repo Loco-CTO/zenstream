@@ -191,6 +191,31 @@ export type SyncplayGroup = {
 		role: "host" | "viewer";
 	}[];
 };
+export type SyncplayPresenceReport = {
+	groupId: string;
+	itemId: string | null;
+	viewing: boolean;
+	loading: boolean;
+	generation: number;
+	timelineRevision: number;
+	sequence: number;
+};
+
+export function syncplayPresenceReportIsCurrent(
+	report: Pick<
+		SyncplayPresenceReport,
+		"groupId" | "itemId" | "generation" | "timelineRevision"
+	>,
+	active: SyncplayGroup | null,
+): boolean {
+	return Boolean(
+		active &&
+		report.groupId === active.id &&
+		report.itemId === active.itemId &&
+		report.generation === (active.mediaGeneration ?? 0) &&
+		report.timelineRevision === (active.timelineRevision ?? active.revision),
+	);
+}
 type Command = {
 	action: string;
 	itemId?: string;
@@ -358,14 +383,7 @@ export function SyncplayProvider({
 	const socketRef = useRef<Socket | null>(null);
 	const commandChainRef = useRef(Promise.resolve());
 	const latestSeekRef = useRef(0);
-	const presencePendingRef = useRef<{
-		groupId: string;
-		viewing: boolean;
-		loading: boolean;
-		generation: number;
-		timelineRevision: number;
-		sequence: number;
-	} | null>(null);
+	const presencePendingRef = useRef<SyncplayPresenceReport | null>(null);
 	const presenceWorkerRef = useRef<Promise<void> | null>(null);
 	const presenceSequenceRef = useRef(0);
 	const revisionRef = useRef(new Map<string, number>());
@@ -1011,7 +1029,7 @@ export function SyncplayProvider({
 			while (presencePendingRef.current) {
 				const report = presencePendingRef.current;
 				presencePendingRef.current = null;
-				if (activeRef.current?.id !== report.groupId) continue;
+				if (!syncplayPresenceReportIsCurrent(report, activeRef.current)) continue;
 				try {
 					syncplayDebug("presence send", report);
 					adopt(
@@ -1054,6 +1072,7 @@ export function SyncplayProvider({
 		const sequence = ++presenceSequenceRef.current;
 		presencePendingRef.current = {
 			groupId,
+			itemId: group.itemId,
 			viewing,
 			loading,
 			generation,

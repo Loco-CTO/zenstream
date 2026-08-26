@@ -19,6 +19,7 @@ import {
 	syncplayBufferingReportIsCurrent,
 	syncplayInitialLoading,
 	syncplayItemIsLoading,
+	syncplayMediaLoadIsReady,
 	syncplayMediaIsReady,
 	syncplayWaitingEventIsBuffering,
 	syncplayWaitingIsSeekTransition,
@@ -313,6 +314,198 @@ describe("video player controls", () => {
 		fireEvent.error(video);
 		expect(getPlaybackInfo).toHaveBeenCalledOnce();
 		expect(view.getByRole("alert")).toBeInTheDocument();
+	});
+
+	it("acknowledges a late Syncplay entry after the media event was missed", async () => {
+		const active = {
+			id: "group",
+			name: "Alex's group",
+			hostUserId: "user",
+			hostName: "Alex",
+			allowViewerControls: false,
+			itemId: "movie",
+			position: 0,
+			playing: false,
+			resumeWhenReady: true,
+			revision: 4,
+			mediaGeneration: 2,
+			timelineRevision: 7,
+			updatedAt: 0,
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: true,
+					loading: true,
+					readyGeneration: 1,
+					role: "host" as const,
+				},
+			],
+		} satisfies SyncplayGroup;
+		const streams = {
+			source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		let releaseGroups: ((response: Response) => void) | undefined;
+		const groupsResponse = new Promise<Response>((resolve) => {
+			releaseGroups = resolve;
+		});
+		const presenceBodies: Array<{ loading?: boolean }> = [];
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (
+					url.endsWith("/api/syncplay/groups") &&
+					(!init?.method || init.method === "GET")
+				)
+					return groupsResponse;
+				if (url.endsWith("/api/auth/socket-ticket"))
+					return new Response(JSON.stringify({ ticket: "socket-ticket" }));
+				if (url.endsWith("/api/syncplay/groups/group/presence")) {
+					presenceBodies.push(JSON.parse(String(init?.body)));
+					return new Response(JSON.stringify(active));
+				}
+				return new Response(JSON.stringify({}), { status: 404 });
+			});
+
+		const view = render(
+			<I18nProvider locale="en">
+				<ToastProvider>
+					<SyncplayProvider
+						session={{ token: "token", userId: "user", username: "Alex" }}
+					>
+						<SubtitlePreferencesProvider>
+							<VideoPlayer
+								item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+								session={{ token: "token", userId: "user", username: "Alex" }}
+								deferPlaybackNegotiation
+								onClose={vi.fn()}
+							/>
+						</SubtitlePreferencesProvider>
+					</SyncplayProvider>
+				</ToastProvider>
+			</I18nProvider>,
+		);
+		try {
+			await flushPlayerEffects();
+			view.rerender(
+				<I18nProvider locale="en">
+					<ToastProvider>
+						<SyncplayProvider
+							session={{ token: "token", userId: "user", username: "Alex" }}
+						>
+							<SubtitlePreferencesProvider>
+								<VideoPlayer
+									item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+									session={{ token: "token", userId: "user", username: "Alex" }}
+									deferPlaybackNegotiation
+									initialStreams={streams}
+									onClose={vi.fn()}
+								/>
+							</SubtitlePreferencesProvider>
+						</SyncplayProvider>
+					</ToastProvider>
+				</I18nProvider>,
+			);
+			for (let attempt = 0; attempt < 10; attempt += 1) await flushPlayerEffects();
+			const video = view.container.querySelector("video")!;
+			Object.defineProperty(video, "readyState", {
+				configurable: true,
+				value: HTMLMediaElement.HAVE_FUTURE_DATA,
+			});
+			releaseGroups?.(new Response(JSON.stringify({ groups: [active] })));
+			for (let attempt = 0; attempt < 4; attempt += 1) await flushPlayerEffects();
+			fireEvent.playing(video);
+			await flushPlayerEffects();
+			expect(presenceBodies).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ loading: false, viewing: true }),
+				]),
+			);
+		} finally {
+			view.unmount();
+			fetchMock.mockRestore();
+		}
+	});
+
+	it("does not let a previous media load satisfy the next episode barrier", async () => {
+		const firstStreams = {
+			source: { Id: "source-1", mode: "direct", url: "/episode-1.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		const secondStreams = {
+			source: { Id: "source-2", mode: "direct", url: "/episode-2.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockImplementation((value) => value as never);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		const session = { token: "token", userId: "user", username: "Alex" };
+		const view = render(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{ Id: "episode-1", Name: "Episode 1", Type: "Episode" } as MediaItem
+						}
+						session={session}
+						deferPlaybackNegotiation
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await flushPlayerEffects();
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{ Id: "episode-1", Name: "Episode 1", Type: "Episode" } as MediaItem
+						}
+						session={session}
+						deferPlaybackNegotiation
+						initialStreams={firstStreams}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		for (let attempt = 0; attempt < 10; attempt += 1) await flushPlayerEffects();
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "readyState", {
+			configurable: true,
+			value: HTMLMediaElement.HAVE_FUTURE_DATA,
+		});
+		fireEvent.playing(video);
+		expect(
+			view.container.querySelector('[data-testid="player-loading"]'),
+		).toBeNull();
+
+		view.rerender(
+			<I18nProvider locale="en">
+				<SubtitlePreferencesProvider>
+					<VideoPlayer
+						item={
+							{ Id: "episode-2", Name: "Episode 2", Type: "Episode" } as MediaItem
+						}
+						session={session}
+						initialStreams={secondStreams}
+						onClose={vi.fn()}
+					/>
+				</SubtitlePreferencesProvider>
+			</I18nProvider>,
+		);
+		await flushPlayerEffects();
+		expect(view.getByTestId("player-loading")).toBeVisible();
 	});
 
 	it("shows a terminal error when the transcode fallback fails", async () => {
@@ -650,6 +843,32 @@ describe("video player controls", () => {
 		).toBe(true);
 		expect(
 			syncplayItemIsLoading("episode-2", "episode-2", { readyState: 4 }),
+		).toBe(false);
+	});
+
+	it("accepts a late readiness signal only for the current media load", () => {
+		expect(
+			syncplayMediaLoadIsReady("episode-2", 12, "episode-2", 12, {
+				readyState: 3,
+			}),
+		).toBe(true);
+		expect(
+			syncplayMediaLoadIsReady("episode-2", 12, "episode-2", 12, {
+				readyState: 2,
+			}),
+		).toBe(false);
+	});
+
+	it("does not let a previous episode or load satisfy the readiness barrier", () => {
+		expect(
+			syncplayMediaLoadIsReady("episode-1", 11, "episode-2", 12, {
+				readyState: 4,
+			}),
+		).toBe(false);
+		expect(
+			syncplayMediaLoadIsReady("episode-2", 11, "episode-2", 12, {
+				readyState: 4,
+			}),
 		).toBe(false);
 	});
 
@@ -1277,12 +1496,21 @@ describe("video player controls", () => {
 	});
 
 	it("keeps the loading indicator visible after controls time out", () => {
+		vi.mocked(playbackUrl).mockReturnValue("/movie.mp4");
 		const { container, getByTestId } = render(
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
 						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
 						session={{ token: "token", userId: "user", username: "Alex" }}
+						initialStreams={
+							{
+								source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+								audio: [],
+								subtitles: [],
+								qualities: [],
+							} as ReturnType<typeof playbackStreams>
+						}
 						onClose={vi.fn()}
 					/>
 				</SubtitlePreferencesProvider>
@@ -1293,7 +1521,12 @@ describe("video player controls", () => {
 		act(() => vi.advanceTimersByTime(2501));
 
 		expect(getByTestId("player-loading")).toBeVisible();
-		fireEvent.canPlay(container.querySelector("video")!);
+		const video = container.querySelector("video")!;
+		Object.defineProperty(video, "readyState", {
+			configurable: true,
+			value: HTMLMediaElement.HAVE_FUTURE_DATA,
+		});
+		fireEvent.canPlay(video);
 		expect(container.querySelector('[data-testid="player-loading"]')).toBeNull();
 	});
 

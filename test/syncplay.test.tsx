@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import {
 	SyncplayProvider,
+	syncplayPresenceReportIsCurrent,
 	useSyncplay,
 	type SyncplayGroup,
 } from "@/lib/syncplay";
@@ -190,10 +191,21 @@ function GroupCount() {
 	return <span data-testid="group-count">{useSyncplay().groups.length}</span>;
 }
 
-function PresenceControl() {
+function PresenceControl({
+	onPresence,
+}: {
+	onPresence?: (promise: Promise<void>) => void;
+}) {
 	const syncplay = useSyncplay();
 	return (
-		<button onClick={() => void syncplay.presence(true, false)}>Presence</button>
+		<button
+			onClick={() => {
+				const promise = syncplay.presence(true, false);
+				onPresence?.(promise);
+			}}
+		>
+			Presence
+		</button>
 	);
 }
 
@@ -207,6 +219,36 @@ function SyncplayTestProvider({ children }: { children: ReactNode }) {
 		</I18nProvider>
 	);
 }
+
+describe("syncplayPresenceReportIsCurrent", () => {
+	const active = {
+		...joinedGroup(4),
+		itemId: "episode-2",
+		mediaGeneration: 3,
+		timelineRevision: 8,
+	};
+	const report = {
+		groupId: active.id,
+		itemId: active.itemId,
+		generation: active.mediaGeneration,
+		timelineRevision: active.timelineRevision,
+	};
+
+	it("accepts a report for the active group timeline", () => {
+		expect(syncplayPresenceReportIsCurrent(report, active)).toBe(true);
+	});
+
+	it.each([
+		["group", { groupId: "other-group" }],
+		["item", { itemId: "episode-1" }],
+		["generation", { generation: 2 }],
+		["timeline", { timelineRevision: 7 }],
+	])("rejects a stale %s report", (_label, change) => {
+		expect(
+			syncplayPresenceReportIsCurrent({ ...report, ...change }, active),
+		).toBe(false);
+	});
+});
 
 describe("SyncplayProvider", () => {
 	afterEach(() => {
@@ -638,6 +680,69 @@ describe("SyncplayProvider", () => {
 			expect(request).toBeDefined();
 			expect(JSON.parse(String(request?.[1]?.body)).timelineRevision).toBe(7);
 		});
+	});
+
+	it("drops a queued presence report after the active timeline is superseded", async () => {
+		TestSocket.openAutomatically = false;
+		const initial = {
+			...joinedGroup(4),
+			itemId: "episode-1",
+			mediaGeneration: 1,
+			timelineRevision: 7,
+		};
+		const superseded = {
+			...initial,
+			revision: 5,
+			itemId: "episode-2",
+			mediaGeneration: 2,
+			timelineRevision: 8,
+		};
+		let releaseFirstPresence: ((response: Response) => void) | undefined;
+		const firstPresence = new Promise<Response>((resolve) => {
+			releaseFirstPresence = resolve;
+		});
+		const presenceBodies: unknown[] = [];
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [initial] }));
+				if (url.endsWith("/groups/group/presence")) {
+					presenceBodies.push(JSON.parse(String(init?.body)));
+					if (presenceBodies.length === 1) return firstPresence;
+					return new Response(JSON.stringify(superseded));
+				}
+				throw new Error(`Unexpected request: ${url}`);
+			});
+		let completion: Promise<void> | undefined;
+
+		render(
+			<SyncplayTestProvider>
+				<PresenceControl onPresence={(promise) => (completion = promise)} />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(
+				fetchMock.mock.calls.some(
+					([url, init]) =>
+						String(url).endsWith("/groups") &&
+						(!init?.method || init.method === "GET"),
+				),
+			).toBe(true),
+		);
+		await waitFor(() => expect(TestSocket.latest).not.toBeNull());
+
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+		await waitFor(() => expect(presenceBodies).toHaveLength(1));
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+		act(() =>
+			TestSocket.latest?.receive("syncplay:group", { group: superseded }),
+		);
+		releaseFirstPresence?.(new Response(JSON.stringify(initial)));
+		await completion;
+
+		expect(presenceBodies).toHaveLength(1);
 	});
 
 	it("applies a newer group state sent by the WebSocket", async () => {

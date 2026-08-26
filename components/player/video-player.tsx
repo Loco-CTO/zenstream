@@ -420,6 +420,20 @@ export function syncplayItemIsLoading(
 	return readyItemId !== itemId || syncplayInitialLoading(video);
 }
 
+export function syncplayMediaLoadIsReady(
+	readyItemId: string | null,
+	readyLoadId: number | null,
+	itemId: string,
+	loadId: number,
+	video: Pick<HTMLMediaElement, "readyState"> | null,
+) {
+	return (
+		readyItemId === itemId &&
+		readyLoadId === loadId &&
+		!syncplayInitialLoading(video)
+	);
+}
+
 export function optimisticSeekTimelineTarget(
 	position: number,
 	playing: boolean,
@@ -576,6 +590,8 @@ export function VideoPlayer({
 	const transcodedFallbackRef = useRef<Promise<boolean> | null>(null);
 	const bufferedRef = useRef(false);
 	const readyItemIdRef = useRef<string | null>(null);
+	const readyLoadIdRef = useRef<number | null>(null);
+	const readyPresenceKeyRef = useRef<string | null>(null);
 	const appliedTimelineRef = useRef<string | null>(null);
 	const settlingTimelineRef = useRef<string | null>(null);
 	const seekPreviewRef = useRef<{ itemId: string; value: number } | null>(null);
@@ -974,6 +990,8 @@ export function VideoPlayer({
 			});
 			clearMediaWaitTimers();
 			readyItemIdRef.current = null;
+			readyLoadIdRef.current = null;
+			readyPresenceKeyRef.current = null;
 			const state = syncplayStateRef.current;
 			if (state?.itemId === item.Id) {
 				bufferedRef.current = true;
@@ -1323,6 +1341,7 @@ export function VideoPlayer({
 					// A rejected play() means this member is not ready, even if the
 					// media element previously emitted canplay. Clear the optimistic
 					// readiness flag so the barrier receives the loading transition.
+					readyPresenceKeyRef.current = null;
 					bufferedRef.current = false;
 					reportBuffering(true);
 				},
@@ -1331,6 +1350,55 @@ export function VideoPlayer({
 			});
 		},
 		[reportBuffering],
+	);
+	const acknowledgeMediaReady = useCallback(
+		(
+			video: HTMLVideoElement,
+			expectedLoadId = mediaLoadIdRef.current,
+			reason = "media playable",
+		) => {
+			if (
+				!mediaLoadActiveRef.current ||
+				mediaLoadIdRef.current !== expectedLoadId ||
+				!syncplayMediaIsReady(video)
+			)
+				return false;
+			readyItemIdRef.current = item.Id;
+			readyLoadIdRef.current = expectedLoadId;
+			updateBufferedRanges(video, expectedLoadId);
+			clearMediaWaitTimers();
+			cancelPendingBufferingReport(reason);
+			setError("");
+			setBuffering(false);
+
+			const state = syncplayStateRef.current;
+			if (state?.itemId !== item.Id) return true;
+			const generation = state.mediaGeneration ?? 0;
+			const timelineRevision = state.timelineRevision ?? state.revision;
+			const timelineKey = `${generation}:${timelineRevision}`;
+			const settlingSeek =
+				state.pauseReason === "seek" &&
+				(settlingTimelineRef.current === timelineKey ||
+					appliedTimelineRef.current !== timelineKey);
+			const presenceKey = `${expectedLoadId}:${state.id}:${item.Id}:${generation}:${timelineRevision}:${settlingSeek ? "seek" : "ready"}`;
+			if (
+				readyPresenceKeyRef.current === presenceKey &&
+				bufferedRef.current === settlingSeek
+			)
+				return true;
+			readyPresenceKeyRef.current = presenceKey;
+			bufferedRef.current = settlingSeek;
+			void syncplayApiRef.current
+				.presence(true, settlingSeek, generation, timelineRevision)
+				.catch(() => undefined);
+			return true;
+		},
+		[
+			cancelPendingBufferingReport,
+			clearMediaWaitTimers,
+			item.Id,
+			updateBufferedRanges,
+		],
 	);
 
 	useEffect(() => {
@@ -1351,6 +1419,8 @@ export function VideoPlayer({
 		resumePlayingRef.current = null;
 		advancingToNextRef.current = false;
 		readyItemIdRef.current = null;
+		readyLoadIdRef.current = null;
+		readyPresenceKeyRef.current = null;
 		settlingTimelineRef.current = null;
 		bufferedRef.current = true;
 	}, [cancelPendingBufferingReport, invalidateMediaLoad, item.Id]);
@@ -1604,7 +1674,20 @@ export function VideoPlayer({
 		// A reused <video> can still report the previous episode's readyState while
 		// Next Up is replacing its source. Never count that stale media as readiness
 		// for the new item/generation.
-		const loading = syncplayItemIsLoading(readyItemIdRef.current, item.Id, video);
+		if (
+			video &&
+			acknowledgeMediaReady(video, mediaLoadIdRef.current, "late SyncPlay entry")
+		)
+			return;
+		const loading =
+			!mediaLoadActiveRef.current ||
+			!syncplayMediaLoadIsReady(
+				readyItemIdRef.current,
+				readyLoadIdRef.current,
+				item.Id,
+				mediaLoadIdRef.current,
+				video,
+			);
 		// Keep this in the same meaning as reportBuffering(): it stores the last
 		// loading state sent to the server, not whether the video is buffered.
 		// Otherwise a later canplay event can be incorrectly deduplicated.
@@ -1618,6 +1701,7 @@ export function VideoPlayer({
 		syncplayGeneration,
 		syncplayTimelineRevision,
 		item.Id,
+		acknowledgeMediaReady,
 	]);
 	useEffect(() => {
 		const state = syncplayActive;
@@ -1636,11 +1720,15 @@ export function VideoPlayer({
 			seekSettlingUntilRef.current =
 				state.pauseReason === "seek" ? performance.now() + 2_500 : 0;
 		}
-		const seekBarrier = forceSeek && state.pauseReason === "seek";
 		if (
 			forceSeek &&
-			readyItemIdRef.current === item.Id &&
-			syncplayMediaIsReady(video)
+			syncplayMediaLoadIsReady(
+				readyItemIdRef.current,
+				readyLoadIdRef.current,
+				item.Id,
+				mediaLoadIdRef.current,
+				video,
+			)
 		) {
 			playerDebug("reasserting readiness for new timeline", {
 				groupId: state.id,
@@ -1648,14 +1736,11 @@ export function VideoPlayer({
 				generation: state.mediaGeneration,
 				timelineRevision: state.timelineRevision,
 			});
-			void syncplayApiRef.current
-				.presence(
-					true,
-					seekBarrier,
-					state.mediaGeneration ?? 0,
-					state.timelineRevision ?? state.revision,
-				)
-				.catch(() => undefined);
+			void acknowledgeMediaReady(
+				video,
+				mediaLoadIdRef.current,
+				"authoritative timeline changed",
+			);
 		}
 		const apply = () => {
 			const now = syncplayServerNow();
@@ -1695,6 +1780,7 @@ export function VideoPlayer({
 		item.Id,
 		syncplayServerNow,
 		cancelPendingBufferingReport,
+		acknowledgeMediaReady,
 		startSyncedPlayback,
 	]);
 
@@ -1707,6 +1793,8 @@ export function VideoPlayer({
 		setBufferedRanges({ itemId: item.Id, loadId, ranges: [] });
 		clearMediaWaitTimers();
 		readyItemIdRef.current = null;
+		readyLoadIdRef.current = null;
+		readyPresenceKeyRef.current = null;
 		setBuffering(true);
 		setDebugStats({
 			manifestParsed: false,
@@ -1744,6 +1832,7 @@ export function VideoPlayer({
 		const onMetadata = () => {
 			void (async () => {
 				if (!isCurrentLoad()) return;
+				const mediaReady = acknowledgeMediaReady(video, loadId, "loadedmetadata");
 				disableNativeSubtitleTracks(video, nativeSubtitleTrackRef.current?.track);
 				const currentGroupState = syncplayStateRef.current;
 				const syncplayApi = syncplayApiRef.current;
@@ -1758,8 +1847,7 @@ export function VideoPlayer({
 						timeline.position < video.duration
 					)
 						video.currentTime = timeline.position;
-					if (timeline.shouldPlay && syncplayMediaIsReady(video))
-						startSyncedPlayback(video);
+					if (timeline.shouldPlay && mediaReady) startSyncedPlayback(video);
 					else if (!video.paused) {
 						suppressSyncPauseRef.current = true;
 						video.pause();
@@ -1809,10 +1897,14 @@ export function VideoPlayer({
 		const textTracks = video.textTracks;
 		const onCanPlay = () => {
 			if (!isCurrentLoad()) return;
-			updateBufferedRanges(video, loadId);
-			clearMediaWaitTimers();
-			readyItemIdRef.current = item.Id;
-			setBuffering(false);
+			const mediaReady = acknowledgeMediaReady(video, loadId, "canplay");
+			if (
+				mediaReady &&
+				video.paused &&
+				syncplayStateWantsPlaying(syncplayStateRef.current, item.Id) &&
+				!suppressSyncPlayRef.current
+			)
+				startSyncedPlayback(video);
 			playerDebug("media canplay", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1821,10 +1913,7 @@ export function VideoPlayer({
 		};
 		const onPlaying = () => {
 			if (!isCurrentLoad()) return;
-			updateBufferedRanges(video, loadId);
-			clearMediaWaitTimers();
-			readyItemIdRef.current = item.Id;
-			setBuffering(false);
+			acknowledgeMediaReady(video, loadId, "playing");
 			playerDebug("media first playable signal", {
 				readyState: video.readyState,
 				networkState: video.networkState,
@@ -1853,8 +1942,14 @@ export function VideoPlayer({
 		video.addEventListener("loadedmetadata", onBufferedMetadata);
 		video.addEventListener("canplay", onCanPlay);
 		video.addEventListener("playing", onPlaying);
-		const onProgress = () => updateBufferedRanges(video, loadId);
-		const onTimeUpdate = () => updateBufferedRanges(video, loadId);
+		const onProgress = () => {
+			updateBufferedRanges(video, loadId);
+			acknowledgeMediaReady(video, loadId, "progress");
+		};
+		const onTimeUpdate = () => {
+			updateBufferedRanges(video, loadId);
+			acknowledgeMediaReady(video, loadId, "timeupdate");
+		};
 		video.addEventListener("progress", onProgress);
 		video.addEventListener("timeupdate", onTimeUpdate);
 		video.addEventListener("error", onMediaError);
@@ -1897,6 +1992,7 @@ export function VideoPlayer({
 					lastFragment: safePlayerUrl(data.frag?.url),
 				}));
 				updateBufferedRanges(video, loadId);
+				acknowledgeMediaReady(video, loadId, "HLS fragment buffered");
 			});
 			hls.on(Hls.Events.ERROR, (_event, data) => {
 				playerDebug(data.fatal ? "HLS fatal error" : "HLS error", {
@@ -1946,6 +2042,7 @@ export function VideoPlayer({
 		};
 	}, [
 		clearMediaWaitTimers,
+		acknowledgeMediaReady,
 		handleHlsError,
 		startSyncedPlayback,
 		updateBufferedRanges,
@@ -2531,48 +2628,30 @@ export function VideoPlayer({
 						reportBuffering(true);
 					}, 250);
 				}}
-				onCanPlay={() => {
+				onCanPlay={(event) => {
 					if (url && !mediaLoadActiveRef.current) return;
-					// A media error can be emitted while the browser is still
-					// recovering the source. `canplay` is the authoritative signal
-					// that the current element can be played, so clear any stale
-					// error overlay here.
-					clearMediaWaitTimers();
-					setError("");
-					setBuffering(false);
-					cancelPendingBufferingReport("canplay");
+					const video = event.currentTarget;
+					if (!acknowledgeMediaReady(video, mediaLoadIdRef.current, "canplay"))
+						return;
 					const syncState = syncplayStateRef.current;
+					const timelineKey = syncState
+						? `${syncState.mediaGeneration ?? 0}:${syncState.timelineRevision ?? syncState.revision}`
+						: null;
 					const settlingSeek =
 						syncState?.pauseReason === "seek" &&
-						settlingTimelineRef.current ===
-							`${syncState.mediaGeneration ?? 0}:${syncState.timelineRevision ?? syncState.revision}`;
+						(settlingTimelineRef.current === timelineKey ||
+							appliedTimelineRef.current !== timelineKey);
 					if (!settlingSeek) seekSettlingUntilRef.current = 0;
 					applyingSyncRef.current = false;
-					readyItemIdRef.current = item.Id;
 					playerDebug("video canplay", {
-						currentTime: videoRef.current?.currentTime,
-						readyState: videoRef.current?.readyState,
+						currentTime: video.currentTime,
+						readyState: video.readyState,
 					});
-					// Do not rely on reportBuffering's local de-duplication here. The
-					// initial presence request can be in flight when canplay arrives;
-					// explicitly acknowledging readiness guarantees the server clears a
-					// stale loading flag and releases the room barrier.
-					if (syncState?.itemId === item.Id) {
-						bufferedRef.current = settlingSeek;
-						void syncplayApiRef.current
-							.presence(
-								true,
-								settlingSeek,
-								syncState.mediaGeneration ?? 0,
-								syncState.timelineRevision ?? syncState.revision,
-							)
-							.catch(() => undefined);
-					}
 					reportBuffering(false);
-					const video = videoRef.current;
 					if (
 						video?.paused &&
-						syncplayStateWantsPlaying(syncplayStateRef.current, item.Id)
+						syncplayStateWantsPlaying(syncplayStateRef.current, item.Id) &&
+						!suppressSyncPlayRef.current
 					)
 						startSyncedPlayback(video);
 				}}
@@ -2600,20 +2679,27 @@ export function VideoPlayer({
 					});
 					const syncState = syncplayStateRef.current;
 					if (
+						mediaLoadActiveRef.current &&
 						syncState?.itemId === item.Id &&
 						syncState.pauseReason === "seek" &&
-						syncplayMediaIsReady(event.currentTarget)
+						readyItemIdRef.current === item.Id &&
+						readyLoadIdRef.current === mediaLoadIdRef.current &&
+						syncplayMediaLoadIsReady(
+							readyItemIdRef.current,
+							readyLoadIdRef.current,
+							item.Id,
+							mediaLoadIdRef.current,
+							event.currentTarget,
+						)
 					) {
+						const generation = syncState.mediaGeneration ?? 0;
+						const timelineRevision = syncState.timelineRevision ?? syncState.revision;
 						bufferedRef.current = false;
 						settlingTimelineRef.current = null;
 						seekSettlingUntilRef.current = 0;
+						readyPresenceKeyRef.current = `${mediaLoadIdRef.current}:${syncState.id}:${item.Id}:${generation}:${timelineRevision}:ready`;
 						void syncplayApiRef.current
-							.presence(
-								true,
-								false,
-								syncState.mediaGeneration ?? 0,
-								syncState.timelineRevision ?? syncState.revision,
-							)
+							.presence(true, false, generation, timelineRevision)
 							.catch(() => undefined);
 					}
 				}}
@@ -2666,6 +2752,14 @@ export function VideoPlayer({
 				}}
 				onPlaying={(event) => {
 					if (url && !mediaLoadActiveRef.current) return;
+					if (
+						!acknowledgeMediaReady(
+							event.currentTarget,
+							mediaLoadIdRef.current,
+							"video playing",
+						)
+					)
+						return;
 					disableNativeSubtitleTracks(
 						event.currentTarget,
 						nativeSubtitleTrackRef.current?.track,

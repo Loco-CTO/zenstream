@@ -549,6 +549,7 @@ export function VideoPlayer({
 	const hlsRef = useRef<Hls | null>(null);
 	const handledViewerCommandsRef = useRef(new Set<string>());
 	const viewerCommandAcksRef = useRef<ViewerCommandAck[]>([]);
+	const endedViewerSessionsRef = useRef(new Set<string>());
 	const syncplayStateRef = useRef(syncplay.active);
 	const syncplayApiRef = useRef({
 		presence: syncplay.presence,
@@ -692,12 +693,15 @@ export function VideoPlayer({
 			if (!source) return;
 			let stopWorker = source?.mode !== "direct";
 			if (source?.viewerSessionId) {
+				const viewerSessionId = source.viewerSessionId;
+				if (endedViewerSessionsRef.current.has(viewerSessionId)) return;
+				endedViewerSessionsRef.current.add(viewerSessionId);
 				try {
-					const result = await endPlaybackViewer(session, source.viewerSessionId);
+					const result = await endPlaybackViewer(session, viewerSessionId);
 					stopWorker = result.stopWorker === true;
 				} catch (error) {
 					playerDebug("viewer session end failed", {
-						viewerSessionId: source.viewerSessionId,
+						viewerSessionId,
 						reason,
 						error: error instanceof Error ? error.message : String(error),
 					});
@@ -801,6 +805,7 @@ export function VideoPlayer({
 	useEffect(() => {
 		if (!viewerSessionId) return;
 		let active = true;
+		let viewerEnded = false;
 		let heartbeatInFlight = false;
 		handledViewerCommandsRef.current.clear();
 		viewerCommandAcksRef.current = [];
@@ -846,6 +851,7 @@ export function VideoPlayer({
 			} catch (error) {
 				if (isPlaybackViewerTerminalError(error)) {
 					active = false;
+					viewerEnded = true;
 					window.clearInterval(timer);
 					return;
 				}
@@ -859,18 +865,25 @@ export function VideoPlayer({
 				heartbeatInFlight = false;
 			}
 		};
+		const endViewer = () => {
+			if (viewerEnded || endedViewerSessionsRef.current.has(viewerSessionId))
+				return;
+			viewerEnded = true;
+			endedViewerSessionsRef.current.add(viewerSessionId);
+			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
+		};
 		const timer = window.setInterval(() => void heartbeat(), 2_000);
 		void heartbeat();
 		const endOnPageHide = () => {
 			active = false;
-			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
+			endViewer();
 		};
 		window.addEventListener("pagehide", endOnPageHide);
 		return () => {
 			active = false;
 			window.clearInterval(timer);
 			window.removeEventListener("pagehide", endOnPageHide);
-			void endPlaybackViewer(session, viewerSessionId).catch(() => undefined);
+			endViewer();
 		};
 	}, [session, viewerSessionId]);
 	const reportCurrentProgress = useCallback(

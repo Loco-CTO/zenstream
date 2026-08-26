@@ -280,6 +280,14 @@ class SyncplayRequestError extends Error {
 		super(message);
 	}
 }
+function isTerminalSyncplayError(
+	error: unknown,
+): error is SyncplayRequestError {
+	return (
+		error instanceof SyncplayRequestError &&
+		(error.status === 404 || error.status === 410)
+	);
+}
 async function call(
 	session: AuthSession,
 	path: string,
@@ -405,6 +413,28 @@ export function SyncplayProvider({
 		activeRef.current = group;
 		setActive(group);
 	}, []);
+	const clearStaleGroup = useCallback(
+		(groupId: string, expectedRevision?: number) => {
+			const current = activeRef.current;
+			if (
+				!current ||
+				current.id !== groupId ||
+				(expectedRevision != null && current.revision !== expectedRevision)
+			)
+				return;
+			tombstonesRef.current.set(groupId, Number.MAX_SAFE_INTEGER);
+			latestSeekRef.current += 1;
+			presenceSequenceRef.current += 1;
+			if (presencePendingRef.current?.groupId === groupId)
+				presencePendingRef.current = null;
+			if (controlsUpdateRef.current?.groupId === groupId)
+				controlsUpdateRef.current = null;
+			setGroups((old) => old.filter((entry) => entry.id !== groupId));
+			setCurrent(null);
+			syncplayDebug("stale group cleared", { groupId });
+		},
+		[setCurrent],
+	);
 	const announceOnce = useCallback((key: string, announce: () => void) => {
 		const keys = notificationKeysRef.current;
 		if (keys.has(key)) return false;
@@ -520,6 +550,7 @@ export function SyncplayProvider({
 		[announceOnce, announcePlayback, currentParticipantId, setCurrent, t, toast],
 	);
 	const refresh = useCallback(async () => {
+		const requestedActive = activeRef.current;
 		const data = (await call(session, "groups")) as { groups: SyncplayGroup[] };
 		syncplayDebug(
 			"groups refreshed",
@@ -537,25 +568,39 @@ export function SyncplayProvider({
 				})),
 			),
 		);
+		const visibleGroups = data.groups.filter((group) => {
+			const tombstone = tombstonesRef.current.get(group.id);
+			return tombstone == null || group.revision > tombstone;
+		});
 		setGroups((old) =>
-			data.groups.map((group) => {
+			visibleGroups.map((group) => {
 				const known = old.find((entry) => entry.id === group.id);
 				return known && known.revision >= group.revision ? known : group;
 			}),
 		);
 		const current = activeRef.current;
+		if (
+			requestedActive &&
+			current?.id === requestedActive.id &&
+			current.revision === requestedActive.revision &&
+			!membershipActionRef.current &&
+			!visibleGroups.some((group) => group.id === requestedActive.id)
+		) {
+			clearStaleGroup(requestedActive.id, requestedActive.revision);
+			return;
+		}
 		reconcile(
 			current
 				? // A recovery read can have started before a local join completed.
 					// Only WebSocket end/membership events are authoritative removals.
-					(data.groups.find((group) => group.id === current.id) ?? current)
-				: (data.groups.find((group) =>
+					(visibleGroups.find((group) => group.id === current.id) ?? current)
+				: (visibleGroups.find((group) =>
 						group.members.some((member) =>
 							isCurrentParticipant(member, currentParticipantId, session.userId),
 						),
 					) ?? null),
 		);
-	}, [currentParticipantId, reconcile, session]);
+	}, [clearStaleGroup, currentParticipantId, reconcile, session]);
 	const reconcileRef = useRef(reconcile);
 	const refreshRef = useRef(refresh);
 	useEffect(() => {
@@ -691,9 +736,11 @@ export function SyncplayProvider({
 				if (!message.id) return;
 				const id = message.id;
 				const revision = message.revision ?? Number.MAX_SAFE_INTEGER;
-				const known = revisionRef.current.get(id) ?? -1;
+				const tombstone = tombstonesRef.current.get(id);
+				if (tombstone === Number.MAX_SAFE_INTEGER) return;
+				const known = Math.max(revisionRef.current.get(id) ?? -1, tombstone ?? -1);
 				if (revision <= known) return;
-				tombstonesRef.current.set(id, revision);
+				tombstonesRef.current.set(id, Math.max(tombstone ?? -1, revision));
 				revisionRef.current.set(id, revision);
 				setGroups((old) => old.filter((group) => group.id !== id));
 				if (activeRef.current?.id === id) reconcileRef.current(null, revision);
@@ -749,6 +796,7 @@ export function SyncplayProvider({
 				operationId: operationId(),
 			})) as SyncplayGroup;
 			tombstonesRef.current.delete(id);
+			revisionRef.current.delete(id);
 			adopt(group);
 			toast.success(t("syncplayJoinedGroup", { group: group.name }));
 			return group;
@@ -775,10 +823,11 @@ export function SyncplayProvider({
 			await refresh();
 			toast.success(t("syncplayLeftGroup", { group: group.name }));
 		} catch (error) {
-			if (
-				error instanceof SyncplayRequestError &&
-				(error.status === 403 || error.status === 404)
-			) {
+			if (isTerminalSyncplayError(error)) {
+				clearStaleGroup(group.id);
+				return;
+			}
+			if (error instanceof SyncplayRequestError && error.status === 403) {
 				setCurrent(null);
 				await refresh().catch(() => undefined);
 				toast.success(t("syncplayGroupEnded", { group: group.name }));
@@ -804,6 +853,10 @@ export function SyncplayProvider({
 					})) as SyncplayGroup,
 				);
 			} catch (error) {
+				if (isTerminalSyncplayError(error)) {
+					clearStaleGroup(group.id);
+					return;
+				}
 				toast.error(t("syncplaySettingsFailed"));
 				throw error;
 			}
@@ -827,6 +880,10 @@ export function SyncplayProvider({
 				)) as SyncplayGroup,
 			);
 		} catch (error) {
+			if (isTerminalSyncplayError(error)) {
+				clearStaleGroup(group.id);
+				return;
+			}
 			toast.error(t("syncplaySettingsFailed"));
 			throw error;
 		}
@@ -860,6 +917,10 @@ export function SyncplayProvider({
 				})) as SyncplayGroup,
 			);
 		} catch (error) {
+			if (isTerminalSyncplayError(error)) {
+				clearStaleGroup(group.id);
+				return;
+			}
 			adopt((await call(session, `groups/${group.id}`)) as SyncplayGroup);
 			toast.error(t("syncplayPresenceFailed"));
 			throw error;
@@ -928,6 +989,10 @@ export function SyncplayProvider({
 					}
 				}
 			} catch (error) {
+				if (isTerminalSyncplayError(error)) {
+					clearStaleGroup(groupId);
+					return;
+				}
 				syncplayDebug("command failed", { groupId, value, error });
 				toast.error(t("syncplayPlaybackFailed"));
 				throw error;
@@ -958,6 +1023,10 @@ export function SyncplayProvider({
 					);
 				} catch (error) {
 					syncplayDebug("presence failed", { ...report, error });
+					if (isTerminalSyncplayError(error)) {
+						clearStaleGroup(report.groupId);
+						continue;
+					}
 					toast.error(t("syncplayPresenceFailed"));
 				}
 			}

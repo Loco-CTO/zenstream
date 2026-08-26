@@ -44,6 +44,8 @@ import {
 	getEpisodes,
 	getPlaybackInfo,
 	getSeasons,
+	heartbeatPlaybackViewer,
+	endPlaybackViewer,
 	playbackStreams,
 	reportPlayback,
 	setPlayed,
@@ -62,6 +64,14 @@ vi.mock("@/lib/media-api", async () => {
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getSeasons: vi.fn().mockResolvedValue([]),
 		getTrickplayInfo: vi.fn().mockResolvedValue(undefined),
+		heartbeatPlaybackViewer: vi.fn().mockResolvedValue({
+			viewerSessionId: "viewer-1",
+			commands: [],
+		}),
+		endPlaybackViewer: vi.fn().mockResolvedValue({
+			viewerSessionId: "viewer-1",
+			stopWorker: false,
+		}),
 		reportPlayback: vi.fn().mockResolvedValue(undefined),
 		setPlayed: vi.fn().mockResolvedValue(undefined),
 		playbackStreams: vi.fn().mockReturnValue({
@@ -138,6 +148,14 @@ describe("video player controls", () => {
 		vi.mocked(playbackUrl).mockReset().mockReturnValue("/video.m3u8");
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
+		vi
+			.mocked(heartbeatPlaybackViewer)
+			.mockReset()
+			.mockResolvedValue({ viewerSessionId: "viewer-1", commands: [] });
+		vi
+			.mocked(endPlaybackViewer)
+			.mockReset()
+			.mockResolvedValue({ viewerSessionId: "viewer-1", stopWorker: false });
 		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);
 		vi.mocked(setPlayed).mockReset().mockResolvedValue(undefined);
 	});
@@ -153,9 +171,11 @@ describe("video player controls", () => {
 	function renderEpisodePlayer({
 		autoplayNextEpisode = true,
 		withNext = true,
+		viewerSessionId,
 	}: {
 		autoplayNextEpisode?: boolean;
 		withNext?: boolean;
+		viewerSessionId?: string;
 	} = {}) {
 		const session = { token: "token", userId: "user", username: "Alex" };
 		const item = {
@@ -208,6 +228,7 @@ describe("video player controls", () => {
 										Id: "source-1",
 										mode: "direct",
 										url: "/episode.mp4",
+										viewerSessionId,
 									},
 									audio: [],
 									subtitles: [],
@@ -321,6 +342,28 @@ describe("video player controls", () => {
 
 		expect(getPlaybackInfo).toHaveBeenCalledOnce();
 		expect(view.getByRole("alert")).toBeInTheDocument();
+	});
+
+	it("stops terminal viewer heartbeats without a redundant teardown", async () => {
+		vi
+			.mocked(heartbeatPlaybackViewer)
+			.mockRejectedValue(new Error("Request failed with 404."));
+		const { view } = renderEpisodePlayer({
+			withNext: false,
+			viewerSessionId: "viewer-1",
+		});
+
+		await flushPlayerEffects();
+		expect(heartbeatPlaybackViewer).toHaveBeenCalledOnce();
+		await act(async () => {
+			vi.advanceTimersByTime(10_000);
+			await Promise.resolve();
+		});
+		expect(heartbeatPlaybackViewer).toHaveBeenCalledOnce();
+
+		view.unmount();
+		await flushPlayerEffects();
+		expect(endPlaybackViewer).not.toHaveBeenCalled();
 	});
 
 	it("keeps the active media source stable beyond the ticket lifetime", async () => {

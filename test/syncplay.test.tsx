@@ -405,6 +405,110 @@ describe("SyncplayProvider", () => {
 		});
 	});
 
+	it.each([404, 410])(
+		"silently clears a stale group after a terminal playback response (%s)",
+		async (status) => {
+			TestSocket.openAutomatically = false;
+			const fetchMock = vi
+				.spyOn(globalThis, "fetch")
+				.mockImplementation(async (input, init) => {
+					const url = String(input);
+					if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+						return new Response(JSON.stringify({ groups: [] }));
+					if (url.endsWith("/groups/group/join"))
+						return new Response(JSON.stringify(joinedGroup(1)));
+					if (url.endsWith("/groups/group/command"))
+						return new Response(JSON.stringify({ message: "Group ended." }), {
+							status,
+						});
+					throw new Error(`Unexpected request: ${url}`);
+				});
+
+			render(
+				<SyncplayTestProvider>
+					<Controls />
+					<GroupCount />
+				</SyncplayTestProvider>,
+			);
+			fireEvent.click(screen.getByRole("button", { name: "Join" }));
+			await waitFor(() =>
+				expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+			);
+			fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+			await waitFor(() =>
+				expect(screen.getByTestId("active-group")).toHaveTextContent("none"),
+			);
+			expect(screen.getByTestId("group-count")).toHaveTextContent("0");
+			expect(
+				fetchMock.mock.calls.filter(([url]) =>
+					String(url).endsWith("/groups/group/command"),
+				),
+			).toHaveLength(1);
+			expect(
+				screen.queryByText("Could not update Syncplay playback."),
+			).not.toBeInTheDocument();
+
+			act(() =>
+				TestSocket.latest?.receive("syncplay:group", {
+					group: joinedGroup(2),
+				}),
+			);
+			await waitFor(() => {
+				expect(screen.getByTestId("active-group")).toHaveTextContent("none");
+				expect(screen.getByTestId("group-count")).toHaveTextContent("0");
+			});
+		},
+	);
+
+	it("keeps a delayed refresh from restoring a tombstoned group", async () => {
+		TestSocket.openAutomatically = false;
+		let groupRefreshes = 0;
+		let resolveRefresh!: (response: Response) => void;
+		const delayedRefresh = new Promise<Response>((resolve) => {
+			resolveRefresh = resolve;
+		});
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) {
+				groupRefreshes += 1;
+				return groupRefreshes === 1
+					? new Response(JSON.stringify({ groups: [] }))
+					: delayedRefresh;
+			}
+			if (url.endsWith("/groups/group/join"))
+				return new Response(JSON.stringify(joinedGroup(1)));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(JSON.stringify({ message: "Group ended." }), {
+					status: 404,
+				});
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Join" }));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+		await waitFor(() => expect(groupRefreshes).toBe(2));
+		fireEvent.click(screen.getByRole("button", { name: "Play" }));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("none"),
+		);
+
+		resolveRefresh(new Response(JSON.stringify({ groups: [joinedGroup(2)] })));
+		await waitFor(() => {
+			expect(screen.getByTestId("active-group")).toHaveTextContent("none");
+			expect(screen.getByTestId("group-count")).toHaveTextContent("0");
+		});
+	});
+
 	it("restores a group the user already belongs to after the provider remounts", async () => {
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
 			new Response(
@@ -684,6 +788,46 @@ describe("SyncplayProvider", () => {
 		await waitFor(() =>
 			expect(screen.getByTestId("active-group")).toHaveTextContent("none"),
 		);
+	});
+
+	it("silently clears the group after a terminal presence response", async () => {
+		TestSocket.openAutomatically = false;
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+					return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+				if (url.endsWith("/groups/group/presence"))
+					return new Response(JSON.stringify({ message: "Group ended." }), {
+						status: 410,
+					});
+				throw new Error(`Unexpected request: ${url}`);
+			});
+
+		render(
+			<SyncplayTestProvider>
+				<Controls />
+				<PresenceControl />
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("group"),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+		await waitFor(() =>
+			expect(screen.getByTestId("active-group")).toHaveTextContent("none"),
+		);
+		expect(screen.getByTestId("group-count")).toHaveTextContent("0");
+		expect(
+			fetchMock.mock.calls.filter(([url]) =>
+				String(url).endsWith("/groups/group/presence"),
+			),
+		).toHaveLength(1);
+		expect(
+			screen.queryByText("Could not update Syncplay readiness."),
+		).not.toBeInTheDocument();
 	});
 
 	it("keeps the latest state when readiness changes make the retry stale too", async () => {

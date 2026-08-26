@@ -866,10 +866,7 @@ export function VideoPlayer({
 			}
 		};
 		const endViewer = () => {
-			if (
-				viewerEnded ||
-				endedViewerSessionsRef.current.has(viewerSessionId)
-			)
+			if (viewerEnded || endedViewerSessionsRef.current.has(viewerSessionId))
 				return;
 			viewerEnded = true;
 			endedViewerSessionsRef.current.add(viewerSessionId);

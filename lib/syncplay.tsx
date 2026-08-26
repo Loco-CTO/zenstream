@@ -845,10 +845,7 @@ export function SyncplayProvider({
 				clearStaleGroup(group.id);
 				return;
 			}
-			if (
-				error instanceof SyncplayRequestError &&
-				error.status === 403
-			) {
+			if (error instanceof SyncplayRequestError && error.status === 403) {
 				setCurrent(null);
 				await refresh().catch(() => undefined);
 				toast.success(t("syncplayGroupEnded", { group: group.name }));

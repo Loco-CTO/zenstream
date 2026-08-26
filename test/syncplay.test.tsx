@@ -455,10 +455,7 @@ describe("SyncplayProvider", () => {
 				.spyOn(globalThis, "fetch")
 				.mockImplementation(async (input, init) => {
 					const url = String(input);
-					if (
-						url.endsWith("/groups") &&
-						(!init?.method || init.method === "GET")
-					)
+					if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
 						return new Response(JSON.stringify({ groups: [] }));
 					if (url.endsWith("/groups/group/join"))
 						return new Response(JSON.stringify(joinedGroup(1)));
@@ -488,7 +485,8 @@ describe("SyncplayProvider", () => {
 			expect(
 				fetchMock.mock.calls.filter(([url]) =>
 					String(url).endsWith("/groups/group/command"),
-			)).toHaveLength(1);
+				),
+			).toHaveLength(1);
 			expect(
 				screen.queryByText("Could not update Syncplay playback."),
 			).not.toBeInTheDocument();
@@ -512,24 +510,22 @@ describe("SyncplayProvider", () => {
 		const delayedRefresh = new Promise<Response>((resolve) => {
 			resolveRefresh = resolve;
 		});
-		vi
-			.spyOn(globalThis, "fetch")
-			.mockImplementation(async (input, init) => {
-				const url = String(input);
-				if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) {
-					groupRefreshes += 1;
-					return groupRefreshes === 1
-						? new Response(JSON.stringify({ groups: [] }))
-						: delayedRefresh;
-				}
-				if (url.endsWith("/groups/group/join"))
-					return new Response(JSON.stringify(joinedGroup(1)));
-				if (url.endsWith("/groups/group/command"))
-					return new Response(JSON.stringify({ message: "Group ended." }), {
-						status: 404,
-					});
-				throw new Error(`Unexpected request: ${url}`);
-			});
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) {
+				groupRefreshes += 1;
+				return groupRefreshes === 1
+					? new Response(JSON.stringify({ groups: [] }))
+					: delayedRefresh;
+			}
+			if (url.endsWith("/groups/group/join"))
+				return new Response(JSON.stringify(joinedGroup(1)));
+			if (url.endsWith("/groups/group/command"))
+				return new Response(JSON.stringify({ message: "Group ended." }), {
+					status: 404,
+				});
+			throw new Error(`Unexpected request: ${url}`);
+		});
 
 		render(
 			<SyncplayTestProvider>
@@ -932,8 +928,8 @@ describe("SyncplayProvider", () => {
 		expect(
 			fetchMock.mock.calls.filter(([url]) =>
 				String(url).endsWith("/groups/group/presence"),
-		),
-	).toHaveLength(1);
+			),
+		).toHaveLength(1);
 		expect(
 			screen.queryByText("Could not update Syncplay readiness."),
 		).not.toBeInTheDocument();

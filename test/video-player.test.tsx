@@ -149,10 +149,12 @@ describe("video player controls", () => {
 		vi.mocked(playbackUrl).mockReset().mockReturnValue("/video.m3u8");
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
-		vi.mocked(heartbeatPlaybackViewer)
+		vi
+			.mocked(heartbeatPlaybackViewer)
 			.mockReset()
 			.mockResolvedValue({ viewerSessionId: "viewer-1", commands: [] });
-		vi.mocked(endPlaybackViewer)
+		vi
+			.mocked(endPlaybackViewer)
 			.mockReset()
 			.mockResolvedValue({ viewerSessionId: "viewer-1", stopWorker: false });
 		vi.mocked(reportPlayback).mockReset().mockResolvedValue(undefined);

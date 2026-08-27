@@ -9,7 +9,7 @@ import type { MediaImage } from "@/lib/media-api";
 
 type BlurHashImageProps = Omit<
 	ComponentPropsWithoutRef<typeof Image>,
-	"src" | "alt"
+	"src" | "alt" | "unoptimized"
 > & {
 	image: MediaImage;
 	alt: string;
@@ -58,6 +58,7 @@ export function BlurHashImage({
 			) : (
 				<Image
 					{...props}
+					unoptimized
 					src={image.src}
 					alt={alt}
 					fill={fill}

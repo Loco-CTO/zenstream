@@ -18,10 +18,9 @@ describe("BlurHashImage", () => {
 			</div>,
 		);
 
-		expect(screen.getByRole("img", { name: "Poster" })).toHaveAttribute(
-			"src",
-			expect.stringContaining("poster.jpg"),
-		);
+		const image = screen.getByRole("img", { name: "Poster" });
+		expect(image.getAttribute("src")).toContain("/poster.jpg");
+		expect(image.getAttribute("src")).not.toContain("/_next/image");
 		expect(
 			(container.querySelector("div[aria-hidden='true']") as HTMLElement).style
 				.backgroundImage,

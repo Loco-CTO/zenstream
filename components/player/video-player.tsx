@@ -1507,17 +1507,19 @@ export function VideoPlayer({
 				)
 					return;
 				advancingToNextRef.current = true;
-				// Move the initiating player immediately. Waiting for the command response
-				// leaves the old player mounted while the new readiness barrier is created,
-				// allowing old cleanup/presence events to race with the transition.
-				setNextItem(null);
-				setNextChecked(false);
-				setCurrentTime(0);
-				setDuration(0);
-				invalidateMediaLoad("next episode");
-				setUrl(undefined);
+				// Keep the current source alive until the group accepts the media change.
+				// Clearing it first leaves the web player with no recovery path when the
+				// command times out or is rejected.
 				void syncplayCommand(nextEpisodeSyncplayCommand(target))
-					.then(() => advanceToNextEpisode(target, onNext, onClose))
+					.then(() => {
+						setNextItem(null);
+						setNextChecked(false);
+						setCurrentTime(0);
+						setDuration(0);
+						invalidateMediaLoad("next episode");
+						setUrl(undefined);
+						advanceToNextEpisode(target, onNext, onClose);
+					})
 					.catch(() => {
 						advancingToNextRef.current = false;
 					});
@@ -2737,6 +2739,7 @@ export function VideoPlayer({
 					}
 					if (
 						syncplay.active &&
+						!advancingToNextRef.current &&
 						!applyingSyncRef.current &&
 						!syncWantsPlaying &&
 						syncplay.canControl
@@ -2802,6 +2805,7 @@ export function VideoPlayer({
 					}
 					if (
 						syncplay.active &&
+						!advancingToNextRef.current &&
 						!applyingSyncRef.current &&
 						syncWantsPlaying &&
 						syncplay.canControl

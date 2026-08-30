@@ -296,9 +296,11 @@ describe("video player controls", () => {
 			subtitles: [],
 			qualities: [],
 		} as ReturnType<typeof playbackStreams>;
-		vi.mocked(getSeasons).mockResolvedValue([
-			{ Id: "season-1", Type: "Season", IndexNumber: 1 } as MediaItem,
-		]);
+		vi
+			.mocked(getSeasons)
+			.mockResolvedValue([
+				{ Id: "season-1", Type: "Season", IndexNumber: 1 } as MediaItem,
+			]);
 		vi.mocked(getEpisodes).mockResolvedValue([next]);
 		vi.mocked(playbackStreams).mockImplementation((value) => value as never);
 		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
@@ -617,15 +619,13 @@ describe("video player controls", () => {
 		});
 		const test = renderSyncplayEpisodePlayer(commandResponse);
 		try {
-			for (let attempt = 0; attempt < 12; attempt += 1)
-				await flushPlayerEffects();
+			for (let attempt = 0; attempt < 12; attempt += 1) await flushPlayerEffects();
 			const video = test.view.container.querySelector("video")!;
 			const initialSource = video.src;
 			const pause = vi.spyOn(video, "pause");
 
 			fireEvent.ended(video);
-			for (let attempt = 0; attempt < 4; attempt += 1)
-				await flushPlayerEffects();
+			for (let attempt = 0; attempt < 4; attempt += 1) await flushPlayerEffects();
 
 			expect(test.commandBodies).toHaveLength(1);
 			expect(video.src).toBe(initialSource);
@@ -660,15 +660,13 @@ describe("video player controls", () => {
 		});
 		const test = renderSyncplayEpisodePlayer(commandResponse);
 		try {
-			for (let attempt = 0; attempt < 12; attempt += 1)
-				await flushPlayerEffects();
+			for (let attempt = 0; attempt < 12; attempt += 1) await flushPlayerEffects();
 			const video = test.view.container.querySelector("video")!;
 			const initialSource = video.src;
 			const pause = vi.spyOn(video, "pause");
 
 			fireEvent.ended(video);
-			for (let attempt = 0; attempt < 4; attempt += 1)
-				await flushPlayerEffects();
+			for (let attempt = 0; attempt < 4; attempt += 1) await flushPlayerEffects();
 			expect(test.commandBodies).toHaveLength(1);
 			expect(video.src).toBe(initialSource);
 			expect(pause).not.toHaveBeenCalled();

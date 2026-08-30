@@ -994,9 +994,7 @@ describe("SyncplayProvider", () => {
 				),
 			).toHaveLength(2),
 		);
-		await waitFor(() =>
-			expect(commandSettled).toHaveBeenCalledWith("rejected"),
-		);
+		await waitFor(() => expect(commandSettled).toHaveBeenCalledWith("rejected"));
 	});
 
 	it("announces remote member changes after the initial group state", async () => {

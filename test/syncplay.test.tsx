@@ -116,7 +116,11 @@ const joinedGroup = (revision: number): SyncplayGroup => ({
 	],
 });
 
-function Controls() {
+function Controls({
+	onCommandSettled,
+}: {
+	onCommandSettled?: (status: "resolved" | "rejected") => void;
+} = {}) {
 	const syncplay = useSyncplay();
 	return (
 		<>
@@ -129,14 +133,19 @@ function Controls() {
 				Enable controls
 			</button>
 			<button
-				onClick={() =>
-					void syncplay.command({
+				onClick={() => {
+					const request = syncplay.command({
 						action: "play",
 						itemId: "movie",
 						position: 0,
 						playing: true,
-					})
-				}
+					});
+					if (onCommandSettled)
+						void request.then(
+							() => onCommandSettled("resolved"),
+							() => onCommandSettled("rejected"),
+						);
+				}}
 			>
 				Play
 			</button>
@@ -935,7 +944,7 @@ describe("SyncplayProvider", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("keeps the latest state when readiness changes make the retry stale too", async () => {
+	it("rejects when readiness changes make the retry stale too", async () => {
 		const latest = {
 			...group(3),
 			members: [
@@ -966,9 +975,10 @@ describe("SyncplayProvider", () => {
 				throw new Error(`Unexpected request: ${url}`);
 			});
 
+		const commandSettled = vi.fn();
 		render(
 			<SyncplayTestProvider>
-				<Controls />
+				<Controls onCommandSettled={commandSettled} />
 			</SyncplayTestProvider>,
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Join" }));
@@ -984,6 +994,7 @@ describe("SyncplayProvider", () => {
 				),
 			).toHaveLength(2),
 		);
+		await waitFor(() => expect(commandSettled).toHaveBeenCalledWith("rejected"));
 	});
 
 	it("announces remote member changes after the initial group state", async () => {

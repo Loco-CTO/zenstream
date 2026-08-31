@@ -1004,6 +1004,7 @@ export function SyncplayProvider({
 						)
 							throw retryError;
 						adopt((await call(session, `groups/${groupId}`)) as SyncplayGroup);
+						throw retryError;
 					}
 				}
 			} catch (error) {

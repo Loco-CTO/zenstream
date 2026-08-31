@@ -246,6 +246,108 @@ describe("video player controls", () => {
 		return { view, onNext, onClose };
 	}
 
+	function renderSyncplayEpisodePlayer(
+		commandResponse: Response | Promise<Response>,
+	) {
+		const session = { token: "token", userId: "user", username: "Alex" };
+		const item = {
+			Id: "episode-1",
+			Name: "Episode 1",
+			Type: "Episode",
+			SeriesId: "series-1",
+			ParentIndexNumber: 1,
+			IndexNumber: 1,
+		} as MediaItem;
+		const next = {
+			Id: "episode-2",
+			Name: "Episode 2",
+			Type: "Episode",
+			SeriesId: "series-1",
+			ParentIndexNumber: 1,
+			IndexNumber: 2,
+		} as MediaItem;
+		const active = {
+			id: "group",
+			name: "Alex's group",
+			hostUserId: "user",
+			hostName: "Alex",
+			allowViewerControls: false,
+			itemId: item.Id,
+			position: 0,
+			playing: true,
+			resumeWhenReady: false,
+			revision: 1,
+			mediaGeneration: 0,
+			timelineRevision: 1,
+			updatedAt: 0,
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: false,
+					loading: false,
+					role: "host" as const,
+				},
+			],
+		} satisfies SyncplayGroup;
+		const streams = {
+			source: { Id: "source-1", mode: "direct", url: "/episode-1.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi
+			.mocked(getSeasons)
+			.mockResolvedValue([
+				{ Id: "season-1", Type: "Season", IndexNumber: 1 } as MediaItem,
+			]);
+		vi.mocked(getEpisodes).mockResolvedValue([next]);
+		vi.mocked(playbackStreams).mockImplementation((value) => value as never);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		const commandBodies: unknown[] = [];
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (
+					url.endsWith("/api/syncplay/groups") &&
+					(!init?.method || init.method === "GET")
+				)
+					return new Response(JSON.stringify({ groups: [active] }));
+				if (url.endsWith("/api/auth/socket-ticket"))
+					return new Response(JSON.stringify({ ticket: "socket-ticket" }));
+				if (url.endsWith("/api/syncplay/groups/group/command")) {
+					commandBodies.push(JSON.parse(String(init?.body)));
+					return commandResponse;
+				}
+				if (url.endsWith("/api/syncplay/groups/group/presence"))
+					return new Response(JSON.stringify(active));
+				return new Response(JSON.stringify({}), { status: 404 });
+			});
+		const onNext = vi.fn();
+		const onClose = vi.fn();
+		const view = render(
+			<I18nProvider locale="en">
+				<ToastProvider>
+					<PlaybackBehaviorPreferencesProvider userId={session.userId}>
+						<SyncplayProvider session={session}>
+							<SubtitlePreferencesProvider>
+								<VideoPlayer
+									item={item}
+									session={session}
+									initialStreams={streams}
+									onClose={onClose}
+									onNext={onNext}
+								/>
+							</SubtitlePreferencesProvider>
+						</SyncplayProvider>
+					</PlaybackBehaviorPreferencesProvider>
+				</ToastProvider>
+			</I18nProvider>,
+		);
+		return { active, commandBodies, fetchMock, next, onClose, onNext, view };
+	}
+
 	it("does not retry waiting events and falls back once on a real media error", async () => {
 		const initialStreams = {
 			source: {
@@ -508,6 +610,89 @@ describe("video player controls", () => {
 		);
 		await flushPlayerEffects();
 		expect(view.getByTestId("player-loading")).toBeVisible();
+	});
+
+	it("keeps the old Syncplay source during a failed transition and ignores late pause", async () => {
+		let rejectCommand!: (response: Response) => void;
+		const commandResponse = new Promise<Response>((resolve) => {
+			rejectCommand = resolve;
+		});
+		const test = renderSyncplayEpisodePlayer(commandResponse);
+		try {
+			for (let attempt = 0; attempt < 12; attempt += 1) await flushPlayerEffects();
+			const video = test.view.container.querySelector("video")!;
+			const initialSource = video.src;
+			const pause = vi.spyOn(video, "pause");
+
+			fireEvent.ended(video);
+			for (let attempt = 0; attempt < 4; attempt += 1) await flushPlayerEffects();
+
+			expect(test.commandBodies).toHaveLength(1);
+			expect(video.src).toBe(initialSource);
+			expect(test.onNext).not.toHaveBeenCalled();
+
+			fireEvent.pause(video);
+			expect(test.commandBodies).toHaveLength(1);
+
+			await act(async () => {
+				rejectCommand(
+					new Response(JSON.stringify({ message: "Playback failed." }), {
+						status: 500,
+					}),
+				);
+				await Promise.resolve();
+			});
+			await flushPlayerEffects();
+			expect(video.src).toBe(initialSource);
+			expect(pause).not.toHaveBeenCalled();
+			expect(test.onNext).not.toHaveBeenCalled();
+			expect(test.onClose).not.toHaveBeenCalled();
+		} finally {
+			test.view.unmount();
+			test.fetchMock.mockRestore();
+		}
+	});
+
+	it("tears down the old Syncplay source only after the media command succeeds", async () => {
+		let resolveCommand!: (response: Response) => void;
+		const commandResponse = new Promise<Response>((resolve) => {
+			resolveCommand = resolve;
+		});
+		const test = renderSyncplayEpisodePlayer(commandResponse);
+		try {
+			for (let attempt = 0; attempt < 12; attempt += 1) await flushPlayerEffects();
+			const video = test.view.container.querySelector("video")!;
+			const initialSource = video.src;
+			const pause = vi.spyOn(video, "pause");
+
+			fireEvent.ended(video);
+			for (let attempt = 0; attempt < 4; attempt += 1) await flushPlayerEffects();
+			expect(test.commandBodies).toHaveLength(1);
+			expect(video.src).toBe(initialSource);
+			expect(pause).not.toHaveBeenCalled();
+			expect(test.onNext).not.toHaveBeenCalled();
+
+			await act(async () => {
+				resolveCommand(
+					new Response(
+						JSON.stringify({
+							...test.active,
+							itemId: test.next.Id,
+							revision: 2,
+							mediaGeneration: 1,
+							timelineRevision: 2,
+						}),
+					),
+				);
+				await Promise.resolve();
+			});
+			await flushPlayerEffects();
+			expect(test.onNext).toHaveBeenCalledWith(test.next);
+			expect(pause).not.toHaveBeenCalled();
+		} finally {
+			test.view.unmount();
+			test.fetchMock.mockRestore();
+		}
 	});
 
 	it("shows a terminal error when the transcode fallback fails", async () => {

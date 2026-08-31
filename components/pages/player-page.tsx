@@ -162,6 +162,7 @@ export function PlayerPage({
 				router.replace(getLastNonPlayerPath());
 			}}
 			onNext={(next) => {
+				if (active) return;
 				setItem(next);
 				router.replace(`/play/${encodeURIComponent(next.Id)}`);
 			}}

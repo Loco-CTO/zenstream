@@ -594,6 +594,7 @@ export function VideoPlayer({
 	const readyPresenceKeyRef = useRef<string | null>(null);
 	const appliedTimelineRef = useRef<string | null>(null);
 	const settlingTimelineRef = useRef<string | null>(null);
+	const seekedTimelineRef = useRef<string | null>(null);
 	const seekPreviewRef = useRef<{ itemId: string; value: number } | null>(null);
 	// Browsers briefly emit waiting/pause while a seek switches decoder
 	// timestamps. Do not publish that transient state to the Syncplay room.
@@ -992,6 +993,7 @@ export function VideoPlayer({
 			readyItemIdRef.current = null;
 			readyLoadIdRef.current = null;
 			readyPresenceKeyRef.current = null;
+			seekedTimelineRef.current = null;
 			const state = syncplayStateRef.current;
 			if (state?.itemId === item.Id) {
 				bufferedRef.current = true;
@@ -1376,11 +1378,14 @@ export function VideoPlayer({
 			const generation = state.mediaGeneration ?? 0;
 			const timelineRevision = state.timelineRevision ?? state.revision;
 			const timelineKey = `${generation}:${timelineRevision}`;
+			const seekTimeline = state.pauseReason === "seek";
 			const settlingSeek =
-				state.pauseReason === "seek" &&
-				(settlingTimelineRef.current === timelineKey ||
-					appliedTimelineRef.current !== timelineKey);
+				seekTimeline && seekedTimelineRef.current !== timelineKey;
 			const presenceKey = `${expectedLoadId}:${state.id}:${item.Id}:${generation}:${timelineRevision}:${settlingSeek ? "seek" : "ready"}`;
+			if (seekTimeline && !settlingSeek) {
+				settlingTimelineRef.current = null;
+				seekSettlingUntilRef.current = 0;
+			}
 			if (
 				readyPresenceKeyRef.current === presenceKey &&
 				bufferedRef.current === settlingSeek
@@ -1422,6 +1427,7 @@ export function VideoPlayer({
 		readyLoadIdRef.current = null;
 		readyPresenceKeyRef.current = null;
 		settlingTimelineRef.current = null;
+		seekedTimelineRef.current = null;
 		bufferedRef.current = true;
 	}, [cancelPendingBufferingReport, invalidateMediaLoad, item.Id]);
 	const currentBufferedRanges =
@@ -1719,6 +1725,7 @@ export function VideoPlayer({
 		if (forceSeek) {
 			settlingTimelineRef.current =
 				state.pauseReason === "seek" ? timelineKey : null;
+			seekedTimelineRef.current = null;
 			seekSettlingUntilRef.current =
 				state.pauseReason === "seek" ? performance.now() + 2_500 : 0;
 		}
@@ -1797,6 +1804,7 @@ export function VideoPlayer({
 		readyItemIdRef.current = null;
 		readyLoadIdRef.current = null;
 		readyPresenceKeyRef.current = null;
+		seekedTimelineRef.current = null;
 		setBuffering(true);
 		setDebugStats({
 			manifestParsed: false,
@@ -2683,26 +2691,22 @@ export function VideoPlayer({
 					if (
 						mediaLoadActiveRef.current &&
 						syncState?.itemId === item.Id &&
-						syncState.pauseReason === "seek" &&
-						readyItemIdRef.current === item.Id &&
-						readyLoadIdRef.current === mediaLoadIdRef.current &&
-						syncplayMediaLoadIsReady(
-							readyItemIdRef.current,
-							readyLoadIdRef.current,
-							item.Id,
-							mediaLoadIdRef.current,
-							event.currentTarget,
-						)
+						syncState.pauseReason === "seek"
 					) {
 						const generation = syncState.mediaGeneration ?? 0;
 						const timelineRevision = syncState.timelineRevision ?? syncState.revision;
-						bufferedRef.current = false;
-						settlingTimelineRef.current = null;
-						seekSettlingUntilRef.current = 0;
-						readyPresenceKeyRef.current = `${mediaLoadIdRef.current}:${syncState.id}:${item.Id}:${generation}:${timelineRevision}:ready`;
-						void syncplayApiRef.current
-							.presence(true, false, generation, timelineRevision)
-							.catch(() => undefined);
+						const timelineKey = `${generation}:${timelineRevision}`;
+						if (
+							settlingTimelineRef.current === timelineKey ||
+							appliedTimelineRef.current === timelineKey
+						) {
+							seekedTimelineRef.current = timelineKey;
+							acknowledgeMediaReady(
+								event.currentTarget,
+								mediaLoadIdRef.current,
+								"seeked",
+							);
+						}
 					}
 				}}
 				onTimeUpdate={() => {

@@ -10,7 +10,10 @@ import {
 	type DetailData,
 } from "@/lib/media-api";
 import { getPlaybackInfo } from "@/lib/media-api";
-import { getPlaybackPreference } from "@/lib/preferences";
+import {
+	getPlaybackPreference,
+	type PlaybackPreference,
+} from "@/lib/preferences";
 import {
 	preferredSubtitleIndex,
 	preferredTrackIndex,
@@ -20,6 +23,23 @@ import { useSyncplay } from "@/lib/syncplay";
 import { getLastNonPlayerPath } from "@/lib/player-navigation";
 
 type TrackChoice = { audio?: number; subtitle?: number | null };
+
+const DEFAULT_PLAYBACK_PREFERENCE: PlaybackPreference = {
+	audioLanguage: null,
+	subtitleLanguage: null,
+	audioLanguages: [],
+	subtitleLanguages: [],
+};
+
+function logPlaybackPreferenceFallback(itemId: string, error: unknown) {
+	if (typeof window === "undefined") return;
+	console.warn("[Player] playback preference fallback", {
+		itemId,
+		reason:
+			error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+		tracks: "default/first",
+	});
+}
 
 export function playbackTrackChoices(
 	search: Pick<URLSearchParams, "get">,
@@ -77,10 +97,11 @@ export function PlayerPage({
 
 	useEffect(() => {
 		let active = true;
-		void Promise.all([
-			getPlaybackSource(session, item.Id),
-			getPlaybackPreference(session),
-		])
+		const playbackPreference = getPlaybackPreference(session).catch((error) => {
+			if (active) logPlaybackPreferenceFallback(item.Id, error);
+			return DEFAULT_PLAYBACK_PREFERENCE;
+		});
+		void Promise.all([getPlaybackSource(session, item.Id), playbackPreference])
 			.then(([source, preference]) => {
 				const sourceStreams = playbackStreams({ source });
 				const preferredAudio =

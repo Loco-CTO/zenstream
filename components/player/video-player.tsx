@@ -302,9 +302,9 @@ export function syncplayWaitingForMembers(
 		state.members.some(
 			(member) =>
 				member.watchingTogether !== false &&
-				member.viewing &&
 				(member.loading ||
-					(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1)),
+					(member.viewing &&
+						(member.readyGeneration ?? -1) !== (state.mediaGeneration ?? -1))),
 		)
 	);
 }

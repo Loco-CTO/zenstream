@@ -348,6 +348,167 @@ describe("video player controls", () => {
 		return { active, commandBodies, fetchMock, next, onClose, onNext, view };
 	}
 
+	function renderSyncplaySeekBarrierPlayer() {
+		const session = { token: "token", userId: "user", username: "Alex" };
+		const active = {
+			id: "group",
+			name: "Alex's group",
+			hostUserId: "user",
+			hostName: "Alex",
+			allowViewerControls: false,
+			itemId: "movie",
+			position: 45,
+			playing: false,
+			resumeWhenReady: true,
+			revision: 4,
+			mediaGeneration: 2,
+			timelineRevision: 7,
+			anchorPosition: 45,
+			anchorServerTime: 0,
+			effectiveAt: 0,
+			playbackState: "paused" as const,
+			pauseReason: "seek",
+			updatedAt: 0,
+			members: [
+				{
+					userId: "user",
+					username: "Alex",
+					viewing: true,
+					loading: true,
+					readyGeneration: 1,
+					role: "host" as const,
+				},
+			],
+		} satisfies SyncplayGroup;
+		const streams = {
+			source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		const presenceBodies: Array<{ loading?: boolean; viewing?: boolean }> = [];
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (
+					url.endsWith("/api/syncplay/groups") &&
+					(!init?.method || init.method === "GET")
+				)
+					return new Response(JSON.stringify({ groups: [active] }));
+				if (url.endsWith("/api/auth/socket-ticket"))
+					return new Response(JSON.stringify({ ticket: "socket-ticket" }));
+				if (url.endsWith("/api/syncplay/groups/group/presence")) {
+					presenceBodies.push(JSON.parse(String(init?.body)));
+					return new Response(JSON.stringify(active));
+				}
+				return new Response(JSON.stringify({}), { status: 404 });
+			});
+		const renderPlayer = (includeStreams: boolean) => (
+			<I18nProvider locale="en">
+				<ToastProvider>
+					<SyncplayProvider session={session}>
+						<SubtitlePreferencesProvider>
+							<VideoPlayer
+								item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+								session={session}
+								deferPlaybackNegotiation
+								initialStreams={includeStreams ? streams : undefined}
+								onClose={vi.fn()}
+							/>
+						</SubtitlePreferencesProvider>
+					</SyncplayProvider>
+				</ToastProvider>
+			</I18nProvider>
+		);
+		const view = render(renderPlayer(false));
+		return {
+			fetchMock,
+			loadInitialStreams: () => view.rerender(renderPlayer(true)),
+			presenceBodies,
+			view,
+		};
+	}
+
+	it("completes a seek barrier when seeked arrives before future data", async () => {
+		const { fetchMock, loadInitialStreams, presenceBodies, view } =
+			renderSyncplaySeekBarrierPlayer();
+		try {
+			for (let attempt = 0; attempt < 8; attempt += 1) await flushPlayerEffects();
+			loadInitialStreams();
+			for (let attempt = 0; attempt < 8; attempt += 1) await flushPlayerEffects();
+			const video = view.container.querySelector("video")!;
+			Object.defineProperty(video, "currentTime", {
+				configurable: true,
+				value: 45,
+			});
+			Object.defineProperty(video, "readyState", {
+				configurable: true,
+				value: HTMLMediaElement.HAVE_METADATA,
+			});
+			fireEvent.seeked(video);
+			await flushPlayerEffects();
+			expect(presenceBodies).not.toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ loading: false, viewing: true }),
+				]),
+			);
+
+			Object.defineProperty(video, "readyState", {
+				configurable: true,
+				value: HTMLMediaElement.HAVE_FUTURE_DATA,
+			});
+			fireEvent.canPlay(video);
+			await flushPlayerEffects();
+			expect(presenceBodies).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ loading: false, viewing: true }),
+				]),
+			);
+		} finally {
+			view.unmount();
+			fetchMock.mockRestore();
+		}
+	});
+
+	it("completes a seek barrier when future data arrives before seeked", async () => {
+		const { fetchMock, loadInitialStreams, presenceBodies, view } =
+			renderSyncplaySeekBarrierPlayer();
+		try {
+			for (let attempt = 0; attempt < 8; attempt += 1) await flushPlayerEffects();
+			loadInitialStreams();
+			for (let attempt = 0; attempt < 8; attempt += 1) await flushPlayerEffects();
+			const video = view.container.querySelector("video")!;
+			Object.defineProperty(video, "currentTime", {
+				configurable: true,
+				value: 45,
+			});
+			Object.defineProperty(video, "readyState", {
+				configurable: true,
+				value: HTMLMediaElement.HAVE_FUTURE_DATA,
+			});
+			fireEvent.canPlay(video);
+			await flushPlayerEffects();
+			expect(presenceBodies).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ loading: true, viewing: true }),
+				]),
+			);
+
+			fireEvent.seeked(video);
+			await flushPlayerEffects();
+			const readyReports = presenceBodies.filter(
+				(report) => report.loading === false && report.viewing === true,
+			);
+			expect(readyReports).toHaveLength(1);
+		} finally {
+			view.unmount();
+			fetchMock.mockRestore();
+		}
+	});
+
 	it("does not retry waiting events and falls back once on a real media error", async () => {
 		const initialStreams = {
 			source: {

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { AlertTriangle, Home, RotateCcw } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
 import {
@@ -154,9 +155,11 @@ function IconOnlyTopbar() {
 	return (
 		<nav className="absolute left-0 right-0 top-0 z-50 flex h-16 items-center px-4 md:h-20 md:px-12">
 			<Link href="/" aria-label="ZenStream" className="flex shrink-0 items-center">
-				<img
+				<Image
 					src="/icon.png"
 					alt="ZenStream"
+					width={40}
+					height={40}
 					className="h-9 w-9 object-contain md:h-10 md:w-10"
 				/>
 			</Link>

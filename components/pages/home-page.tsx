@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { HomeData } from "@/lib/media-api";
 import { HOME_ROWS, pickHeroItem } from "@/lib/media";
 import { Hero } from "@/components/home/hero";
@@ -93,9 +94,11 @@ export function HomePage({
 			</div>
 			<footer className="mt-2 border-t border-white/5 px-5 py-5 sm:px-10">
 				<div className="flex items-center gap-2">
-					<img
+					<Image
 						src="/icon.png"
 						alt=""
+						width={16}
+						height={16}
 						className="h-4 w-4 object-contain opacity-50"
 					/>
 					<span className="text-xs text-white/25">ZenStream {zenstreamVersion}</span>

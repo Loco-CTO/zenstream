@@ -18,6 +18,7 @@ import {
 	ZoomIn,
 	ZoomOut,
 } from "lucide-react";
+import Image from "next/image";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -422,9 +423,12 @@ export function AvatarEditModal({
 							onPointerMove={handlePointerMove}
 						>
 							{viewportDimensions.w > 0 && (
-								<img
+								<Image
 									src={imageSrc}
 									alt=""
+									width={imageDimensions.w || 1}
+									height={imageDimensions.h || 1}
+									unoptimized
 									draggable={false}
 									onLoad={(event) =>
 										setImageDimensions({
@@ -521,9 +525,12 @@ export function AvatarEditModal({
 							<div className="flex min-w-0 items-center gap-3">
 								<div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/30">
 									{cropSize > 0 && (
-										<img
+										<Image
 											src={imageSrc}
 											alt=""
+											width={imageDimensions.w || 1}
+											height={imageDimensions.h || 1}
+											unoptimized
 											draggable={false}
 											className="pointer-events-none absolute max-w-none"
 											style={{

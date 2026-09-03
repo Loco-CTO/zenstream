@@ -22,13 +22,26 @@
 
 </div>
 
+## How it fits together
+
+ZenStream has one Orchestrator backend and two clients:
+
+- [Web client](https://github.com/Loco-CTO/zenstream)
+- [Android client](https://github.com/Loco-CTO/zenstream-mobile)
+- [Orchestrator](https://github.com/Loco-CTO/zenstream-orchestrator)
+
 ## Configuration
 
-Copy `.env.example` to `.env.local` for development and set `NEXT_PUBLIC_ZSO_URL` to the Orchestrator URL. For Docker, copy `.env.example` to `.env`; `ZENSTREAM_PORT` controls the host port and defaults to `9086`.
+For local development, copy `.env.example` to `.env.local`.
+
+- `NEXT_PUBLIC_ZSO_URL`: URL of the Orchestrator. This value is embedded when the web client is built.
+- `ZENSTREAM_PORT`: Docker host port. It defaults to `9086`.
+
+For Docker, copy `.env.example` to `.env` and set `NEXT_PUBLIC_ZSO_URL` before building. Do not commit environment files or secrets.
 
 ## Development
 
-Requires Node.js and pnpm.
+Start the Orchestrator first. Requires Node.js and pnpm.
 
 ```sh
 pnpm install
@@ -37,13 +50,31 @@ pnpm dev
 
 ## Deployment
 
-For Docker Compose deployment, set `NEXT_PUBLIC_ZSO_URL` in `.env` and run:
+For Docker Compose deployment, copy `.env.example` to `.env`, set `NEXT_PUBLIC_ZSO_URL`, and run:
 
 ```sh
 docker compose up -d --build
 ```
 
-The web client is available at `http://localhost:9086` by default.
+The web client is available at `http://localhost:9086` by default. Stop it with `docker compose down`.
+
+## Checks
+
+```sh
+pnpm format:check
+pnpm lint
+pnpm test
+pnpm build
+```
+
+## Troubleshooting
+
+- If the web client cannot reach the Orchestrator, check `NEXT_PUBLIC_ZSO_URL` and rebuild the Docker image after changing it.
+- For browser or CORS errors, configure the Orchestrator's `ZENSTREAM_PUBLIC_WEB_URL` or `CORS_ORIGINS` for the web origin.
+
+## Releases
+
+Tagged web releases are available on [GitHub Releases](https://github.com/Loco-CTO/zenstream/releases).
 
 ## License
 

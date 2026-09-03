@@ -1,6 +1,7 @@
 {
   "name": "zenstream",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "version": "1.4.6",
   "type": "module",
   "packageManager": "pnpm@11.10.0",

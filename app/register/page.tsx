@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { registerWithInvite, validateInvite } from "@/lib/media-api";
 import { setAuthCookies } from "@/lib/session";
 import { useI18n } from "@/lib/i18n";
@@ -72,9 +73,11 @@ export default function RegisterPage() {
 				onSubmit={submit}
 				className="relative w-full max-w-sm rounded-xl border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:p-7"
 			>
-				<img
+				<Image
 					src="/icon.png"
 					alt="ZenStream"
+					width={48}
+					height={48}
 					className="mb-7 h-12 w-12 object-contain"
 				/>
 				<h1 className="text-3xl font-black tracking-normal text-white">

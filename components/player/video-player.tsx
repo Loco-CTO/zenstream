@@ -8,6 +8,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import Hls from "hls.js";
+import Image from "next/image";
 import {
 	ArrowLeft,
 	AudioLines,
@@ -3578,9 +3579,12 @@ export function TrickplayBubble({
 				className="relative overflow-hidden"
 				style={{ height: preview.height * scale }}
 			>
-				<img
+				<Image
 					src={preview.url}
 					alt="Timeline preview"
+					width={preview.width * preview.columns}
+					height={preview.height * preview.rows}
+					unoptimized
 					onError={onError}
 					className="absolute left-0 top-0 max-w-none"
 					style={{

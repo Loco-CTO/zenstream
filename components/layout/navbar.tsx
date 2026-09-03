@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LogOut, Search, Settings } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
@@ -56,9 +57,11 @@ export function Navbar({
 			<nav className="absolute left-0 right-0 top-0 z-50 flex h-16 items-center gap-6 px-4 md:h-20 md:px-12">
 				<div className="relative flex w-full items-center gap-8">
 					<Link href="/" className="flex shrink-0 items-center">
-						<img
+						<Image
 							src="/icon.png"
 							alt="ZenStream"
+							width={40}
+							height={40}
 							className="h-9 w-9 object-contain md:h-10 md:w-10"
 						/>
 					</Link>

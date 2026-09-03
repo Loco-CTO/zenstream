@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { userImageUrl, userInitial } from "@/lib/media-api";
 
 export function UserAvatar({
@@ -29,9 +30,12 @@ export function UserAvatar({
 					{userInitial(displayName)}
 				</span>
 			) : (
-				<img
+				<Image
 					src={imageUrl}
 					alt=""
+					width={48}
+					height={48}
+					unoptimized
 					className={imageClassName}
 					onError={() => setFailedUrl(imageUrl)}
 				/>

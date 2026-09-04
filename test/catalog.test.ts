@@ -53,6 +53,7 @@ describe("catalog client", () => {
 	});
 
 	it("loads full metadata for featured hero items while keeping other home sections compact", async () => {
+		const featuredRequests: URL[] = [];
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
 			.mockImplementation(async (input) => {
@@ -60,6 +61,7 @@ describe("catalog client", () => {
 				const parsed = new URL(url);
 				if (parsed.pathname === "/api/catalog/home") {
 					if (parsed.searchParams.get("section") === "featured") {
+						featuredRequests.push(parsed);
 						return new Response(
 							JSON.stringify({
 								latestItems: [
@@ -100,6 +102,8 @@ describe("catalog client", () => {
 		const homeRequests = fetchMock.mock.calls
 			.map(([input]) => new URL(String(input)))
 			.filter((url) => url.pathname === "/api/catalog/home");
+		expect(featuredRequests).toHaveLength(1);
+		expect(featuredRequests[0].searchParams.get("limit")).toBe("25");
 		expect(
 			homeRequests
 				.filter((url) => url.searchParams.get("section") === "featured")

@@ -4,6 +4,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hero } from "@/components/home/hero";
@@ -176,6 +177,20 @@ describe("Hero", () => {
 		expect(
 			screen.getByRole("heading", { level: 1, name: first.Name }),
 		).toBeInTheDocument();
+	});
+
+	it("limits the hero to five featured indicators", () => {
+		const items = Array.from({ length: 10 }, (_, index) =>
+			heroItem(`hero-${index}`, `Hero ${index}`),
+		);
+
+		render(<Hero items={items} session={session} />);
+
+		const hero = screen.getByRole("region", { name: /featured title/i });
+		expect(
+			within(hero).getAllByRole("button", { name: /^show slide/i }),
+		).toHaveLength(5);
+		expect(hero).toBeInTheDocument();
 	});
 
 	it("mounts only the active slideshow layer for mobile rendering stability", () => {

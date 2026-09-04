@@ -1,6 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { releaseDateLabel, stackNewlyAdded, subtitle } from "@/lib/media";
+import {
+	releaseDateLabel,
+	selectRandomHeroItems,
+	stackNewlyAdded,
+	subtitle,
+} from "@/lib/media";
 import type { MediaItem } from "@/lib/media-api";
+
+describe("random hero selection", () => {
+	it("selects five unique visual items without always taking the prefix", () => {
+		const items = Array.from({ length: 10 }, (_, index) =>
+			heroItem(`hero-${index}`),
+		);
+		const selected = selectRandomHeroItems(items, () => 0.99);
+
+		expect(selected).toHaveLength(5);
+		expect(new Set(selected.map((item) => item.Id)).size).toBe(5);
+		expect(selected.map((item) => item.Id)).not.toEqual(
+			items.slice(0, 5).map((item) => item.Id),
+		);
+	});
+
+	it("filters out non-visual items and keeps all available items below the cap", () => {
+		const items = [
+			{ Id: "no-backdrop", Name: "No Backdrop" },
+			heroItem("hero-1"),
+			heroItem("hero-2"),
+			heroItem("hero-3"),
+		];
+
+		expect(selectRandomHeroItems(items, () => 0)).toEqual(
+			expect.arrayContaining([items[1], items[2], items[3]]),
+		);
+		expect(selectRandomHeroItems(items, () => 0)).toHaveLength(3);
+	});
+});
 
 describe("newly added grouping", () => {
 	it("stacks adjacent sequential episodes added within one hour", () => {
@@ -88,5 +122,14 @@ function episode(
 		ParentIndexNumber: 1,
 		IndexNumber: index,
 		LastAddedAt: lastAddedAt,
+	};
+}
+
+function heroItem(id: string): MediaItem {
+	return {
+		Id: id,
+		Name: id,
+		Type: "Movie",
+		BackdropImageTags: [`/api/catalog/items/${id}/images/Backdrop`],
 	};
 }

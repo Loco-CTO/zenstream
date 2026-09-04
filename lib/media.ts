@@ -15,6 +15,8 @@ export interface MediaStack {
 	items: MediaItem[];
 }
 
+export const HERO_ITEM_LIMIT = 5;
+
 export function stackNewlyAdded(items: MediaItem[]): MediaStack[] {
 	const stacks: MediaStack[] = [];
 	for (const item of items) {
@@ -37,6 +39,27 @@ export function pickHeroItem(data: Partial<HomeData>) {
 		data.topRated?.[0] ??
 		null
 	);
+}
+
+export function selectRandomHeroItems(
+	items: MediaItem[],
+	random: () => number = Math.random,
+) {
+	const candidates = items.filter(hasVisualImage);
+	if (candidates.length === 0) return items.slice(0, 1);
+
+	const selected = [...candidates];
+	const count = Math.min(HERO_ITEM_LIMIT, selected.length);
+	for (let index = 0; index < count; index += 1) {
+		const remaining = selected.length - index;
+		const offset = Math.floor(random() * remaining);
+		const swapIndex = index + offset;
+		[selected[index], selected[swapIndex]] = [
+			selected[swapIndex],
+			selected[index],
+		];
+	}
+	return selected.slice(0, count);
 }
 
 export function runtimeLabel(item: MediaItem, locale: Locale = "en") {

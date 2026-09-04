@@ -13,6 +13,7 @@ import {
 	toMediaStreams,
 	type CatalogItem,
 } from "@/lib/catalog";
+import { selectRandomHeroItems } from "@/lib/media";
 
 export interface AuthResponse {
 	token?: string;
@@ -819,10 +820,12 @@ export async function fetchHomeData(
 
 			const featured = await section<{ latestItems?: CatalogItem[] }>(
 				"featured",
-				1,
+				25,
 			);
-			const first = { latestItems: (featured.latestItems ?? []).map(toMediaItem) };
-			onSection?.(first);
+			const latestItems = selectRandomHeroItems(
+				(featured.latestItems ?? []).map(toMediaItem),
+			);
+			onSection?.({ latestItems });
 
 			const rest = await Promise.all([
 				section<{ continueWatching?: CatalogItem[] }>("continueWatching", 18),
@@ -868,12 +871,8 @@ export async function fetchHomeData(
 				onSection?.({ libraryRows: [...libraryRows] });
 			}
 
-			const allFeatured = await section<{ latestItems?: CatalogItem[] }>(
-				"featured",
-				25,
-			);
 			const result: HomeData = {
-				latestItems: (allFeatured.latestItems ?? []).map(toMediaItem),
+				latestItems,
 				continueWatching,
 				nextUp,
 				myList: (derived.myList ?? []).map(toMediaItem),

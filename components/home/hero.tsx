@@ -16,7 +16,7 @@ import {
 	type HeroTrailer,
 	type MediaItem,
 } from "@/lib/media-api";
-import { runtimeLabel } from "@/lib/media";
+import { HERO_ITEM_LIMIT, runtimeLabel } from "@/lib/media";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { PrimaryActionButton } from "@/components/ui/primary-action-button";
@@ -65,7 +65,10 @@ export function Hero({
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 	const { useHeroTrailer, heroPreferenceRevision } =
 		usePlaybackBehaviorPreferences();
-	const slides = useMemo(() => items.filter(hasVisualImage), [items]);
+	const slides = useMemo(
+		() => items.filter(hasVisualImage).slice(0, HERO_ITEM_LIMIT),
+		[items],
+	);
 	const [activeItemId, setActiveItemId] = useState<string | null>(
 		() => slides[0]?.Id ?? items[0]?.Id ?? null,
 	);

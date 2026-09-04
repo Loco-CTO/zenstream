@@ -60,6 +60,20 @@ describe("release date labels", () => {
 });
 
 describe("media subtitles", () => {
+	it("shows a collection's child release-year range without its internal type", () => {
+		expect(
+			subtitle({
+				Id: "collection",
+				Name: "Collection",
+				Type: "BoxSet",
+				CollectionYearRange: "2007-2019",
+			}),
+		).toBe("2007-2019");
+		expect(
+			subtitle({ Id: "empty", Name: "Empty", Type: "BoxSet" }),
+		).toBeUndefined();
+	});
+
 	it("uses a real Japanese middle dot between non-episode metadata", () => {
 		expect(
 			subtitle({

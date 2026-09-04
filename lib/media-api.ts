@@ -30,6 +30,7 @@ export interface MediaItem {
 	Type?: string;
 	SeriesName?: string;
 	SeriesProductionYear?: number;
+	CollectionYearRange?: string;
 	ParentIndexNumber?: number;
 	IndexNumber?: number;
 	Overview?: string;

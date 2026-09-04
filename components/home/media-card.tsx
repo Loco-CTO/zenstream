@@ -323,10 +323,13 @@ function CardText({ item }: { item: MediaItem }) {
 		);
 	}
 
+	const secondary = subtitle(item);
 	return (
 		<div className="mt-2">
 			<p className="truncate text-xs font-medium text-white/80">{item.Name}</p>
-			<p className="mt-0.5 truncate text-xs text-white/30">{subtitle(item)}</p>
+			{secondary && (
+				<p className="mt-0.5 truncate text-xs text-white/30">{secondary}</p>
+			)}
 		</div>
 	);
 }

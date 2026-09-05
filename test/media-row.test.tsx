@@ -59,6 +59,10 @@ describe("MediaRow scrolling", () => {
 
 		const card = screen.getByRole("link", { name: "Album" }).closest("article");
 		expect(card).toHaveClass("w-[136px]", "shrink-0", "md:w-[188px]");
+		expect(screen.getByRole("button", { name: "Play Album" })).toHaveClass(
+			"bg-white/15",
+			"hover:bg-white/30",
+		);
 	});
 
 	it("only shows navigation buttons when more content exists in that direction", async () => {

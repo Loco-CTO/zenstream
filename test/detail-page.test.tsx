@@ -611,7 +611,7 @@ describe("detail views", () => {
 		expect(scrollTo).toHaveBeenCalledWith({ left: 320, behavior: "smooth" });
 	});
 
-	it("uses the home media-card overlay treatment for horizontally scrolling episodes", () => {
+	it("uses the home media-card hover treatment for horizontally scrolling episodes", () => {
 		const { container } = renderDetail({
 			item: episode("ep-1", 1),
 			seasons: [],
@@ -621,7 +621,7 @@ describe("detail views", () => {
 
 		const card = screen.getByText("2. Episode 2").closest("a");
 		expect(card?.parentElement).toHaveClass("group/card");
-		expect(card?.parentElement?.querySelector("img")).not.toHaveClass(
+		expect(card?.parentElement?.querySelector("img")).toHaveClass(
 			"group-hover/card:brightness-50",
 		);
 		expect(

@@ -246,20 +246,12 @@ export function SquareAudioCard({
 						)}
 					</div>
 				</Link>
-				<div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition group-hover/card:opacity-100">
-					<button
-						type="button"
-						aria-label={`${t("play")} ${item.Name}`}
-						onClick={(event) => {
-							event.preventDefault();
-							event.stopPropagation();
-							void playTrack(item);
-						}}
-						className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-xl backdrop-blur transition hover:scale-110 hover:border-white/60 hover:bg-violet-500/80 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
-					>
-						<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
-					</button>
-				</div>
+				<MediaCardOverlay
+					href={href}
+					title={item.Name}
+					onPlay={() => playTrack(item)}
+					className="inset-x-0 top-0 aspect-square"
+				/>
 			</div>
 			<div className="mt-2 min-w-0">
 				<p className="truncate text-xs font-medium text-white/85">{item.Name}</p>
@@ -290,7 +282,8 @@ export function audioHref(item: MediaItem) {
 	return `/album/${item.Id}`;
 }
 
-export const MEDIA_CARD_IMAGE_CLASS = "h-full w-full object-cover transition";
+export const MEDIA_CARD_IMAGE_CLASS =
+	"h-full w-full object-cover transition group-hover/card:brightness-50";
 
 export const MEDIA_CARD_TAG_CLASS =
 	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-xs font-medium tracking-wide text-white/75 backdrop-blur-sm";
@@ -301,12 +294,14 @@ export function MediaCardOverlay({
 	item,
 	session,
 	className = "inset-0",
+	onPlay,
 }: {
 	href: string;
 	title?: string;
 	item?: MediaItem;
 	session?: AuthSession;
 	className?: string;
+	onPlay?: () => void | Promise<void>;
 }) {
 	const router = useRouter();
 	const { t } = useI18n();
@@ -319,11 +314,12 @@ export function MediaCardOverlay({
 			<button
 				type="button"
 				aria-label={title ? `${t("play")} ${title}` : t("play")}
-				disabled={Boolean(item && session && !canStartPlayback)}
+				disabled={Boolean(!onPlay && item && session && !canStartPlayback)}
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					if (item && session) void startPlayback(item).catch(() => undefined);
+					if (onPlay) void onPlay();
+					else if (item && session) void startPlayback(item).catch(() => undefined);
 					else router.push(playHref(href));
 				}}
 				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-40"

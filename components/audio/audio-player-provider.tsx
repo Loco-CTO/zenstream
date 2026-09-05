@@ -18,6 +18,7 @@ import {
 	recordAudioPlayStart,
 	reportPlayback,
 	savedPlaybackPositionSeconds,
+	setFavorite,
 	type MediaItem,
 } from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
@@ -38,6 +39,7 @@ export type AudioPlayerState = {
 	isPlaying: boolean;
 	shuffle: boolean;
 	volume: number;
+	muted: boolean;
 	isLoading: boolean;
 	error: string | null;
 	autoplayBlocked: boolean;
@@ -60,10 +62,12 @@ type AudioPlayerContextValue = AudioPlayerState & {
 	playQueueItem: (index: number) => void;
 	seek: (positionSeconds: number) => void;
 	setVolume: (volume: number) => void;
+	toggleMuted: () => void;
 	toggleShuffle: () => void;
 	removeQueueItem: (entryId: string) => void;
 	reorderQueue: (fromIndex: number, toIndex: number) => void;
 	setQueueOpen: (open: boolean) => void;
+	toggleFavorite: () => Promise<void>;
 	clearAudioPlayer: () => void;
 };
 
@@ -109,6 +113,7 @@ export function AudioPlayerProvider({
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [shuffle, setShuffle] = useState(false);
 	const [volume, setVolumeState] = useState(1);
+	const [muted, setMuted] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [autoplayBlocked, setAutoplayBlocked] = useState(false);
@@ -120,6 +125,7 @@ export function AudioPlayerProvider({
 	const queueRef = useRef(queue);
 	const currentIndexRef = useRef(currentIndex);
 	const volumeRef = useRef(volume);
+	const mutedRef = useRef(muted);
 	const progressReportedAt = useRef(0);
 	const playStartPromises = useRef(new Map<string, Promise<void>>());
 	const playStartCompleted = useRef(new Set<string>());
@@ -132,8 +138,9 @@ export function AudioPlayerProvider({
 	}, [currentIndex]);
 	useEffect(() => {
 		volumeRef.current = volume;
-		if (audioRef.current) audioRef.current.volume = volume;
-	}, [volume]);
+		mutedRef.current = muted;
+		if (audioRef.current) audioRef.current.volume = muted ? 0 : volume;
+	}, [muted, volume]);
 
 	const currentEntry = queue[currentIndex] ?? null;
 	const currentTrack = currentEntry?.track ?? null;
@@ -292,15 +299,20 @@ export function AudioPlayerProvider({
 			startPositionSeconds: startPosition,
 		})
 			.then((playback) => {
-				if (!active || generation !== loadGeneration.current || !audioRef.current) return;
+				if (!active || generation !== loadGeneration.current || !audioRef.current)
+					return;
 				const url = playbackUrl(playback.source);
-				audio.volume = volumeRef.current;
+				audio.volume = mutedRef.current ? 0 : volumeRef.current;
 				audio.preload = "metadata";
 				if (/\.m3u8(?:\?|$)/i.test(url) && shouldUseHlsJs() && Hls.isSupported()) {
 					const hls = new Hls({ enableWorker: true });
 					hlsRef.current = hls;
 					hls.on(Hls.Events.MANIFEST_PARSED, () => {
-						if (active && generation === loadGeneration.current && shouldPlayRef.current)
+						if (
+							active &&
+							generation === loadGeneration.current &&
+							shouldPlayRef.current
+						)
 							attemptPlay(entry);
 					});
 					hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -321,7 +333,9 @@ export function AudioPlayerProvider({
 				if (!active || generation !== loadGeneration.current) return;
 				setIsLoading(false);
 				setError(
-					loadError instanceof Error ? loadError.message : "Audio could not be loaded.",
+					loadError instanceof Error
+						? loadError.message
+						: "Audio could not be loaded.",
 				);
 			});
 		return () => {
@@ -351,7 +365,9 @@ export function AudioPlayerProvider({
 			useShuffle = shuffle,
 		) => {
 			void album;
-			const ordered = useShuffle ? shuffled(uniqueTracks(tracks)) : uniqueTracks(tracks);
+			const ordered = useShuffle
+				? shuffled(uniqueTracks(tracks))
+				: uniqueTracks(tracks);
 			if (!ordered.length) return;
 			const entries = makeEntries(ordered);
 			const requestedIndex = selectedTrackId
@@ -376,17 +392,14 @@ export function AudioPlayerProvider({
 					tracks = album.tracks;
 				} catch (loadError) {
 					setError(
-						loadError instanceof Error ? loadError.message : "Album could not be loaded.",
+						loadError instanceof Error
+							? loadError.message
+							: "Album could not be loaded.",
 					);
 				}
 			}
 			const available = tracks?.length ? tracks : [track];
-			playAlbum(
-				track,
-				available,
-				track.Id,
-				false,
-			);
+			playAlbum(track, available, track.Id, false);
 		},
 		[playAlbum, session],
 	);
@@ -459,6 +472,11 @@ export function AudioPlayerProvider({
 	const setVolume = useCallback((nextVolume: number) => {
 		const safeVolume = Math.max(0, Math.min(1, nextVolume));
 		setVolumeState(safeVolume);
+		setMuted(false);
+	}, []);
+
+	const toggleMuted = useCallback(() => {
+		setMuted((current) => !current);
 	}, []);
 
 	const toggleShuffle = useCallback(() => {
@@ -504,6 +522,43 @@ export function AudioPlayerProvider({
 		});
 	}, []);
 
+	const toggleFavorite = useCallback(async () => {
+		const entry = queueRef.current[currentIndexRef.current];
+		if (!entry) return;
+		const previous = Boolean(entry.track.UserData?.IsFavorite);
+		const next = !previous;
+		const updateCurrentTrack = (favorite: boolean) => {
+			setQueue((current) =>
+				current.map((candidate) =>
+					candidate.id === entry.id
+						? {
+								...candidate,
+								track: {
+									...candidate.track,
+									UserData: {
+										...candidate.track.UserData,
+										IsFavorite: favorite,
+									},
+								},
+							}
+						: candidate,
+				),
+			);
+		};
+
+		updateCurrentTrack(next);
+		try {
+			await setFavorite(session, entry.track.Id, next);
+		} catch (favoriteError) {
+			updateCurrentTrack(previous);
+			setError(
+				favoriteError instanceof Error
+					? favoriteError.message
+					: "Could not update the favorite.",
+			);
+		}
+	}, [session]);
+
 	const clearAudioPlayer = useCallback(() => {
 		shouldPlayRef.current = false;
 		setQueue([]);
@@ -529,6 +584,7 @@ export function AudioPlayerProvider({
 			isPlaying,
 			shuffle,
 			volume,
+			muted,
 			isLoading,
 			error,
 			autoplayBlocked,
@@ -543,10 +599,12 @@ export function AudioPlayerProvider({
 			playQueueItem,
 			seek,
 			setVolume,
+			toggleMuted,
 			toggleShuffle,
 			removeQueueItem,
 			reorderQueue,
 			setQueueOpen,
+			toggleFavorite,
 			clearAudioPlayer,
 		}),
 		[
@@ -572,10 +630,13 @@ export function AudioPlayerProvider({
 			resume,
 			seek,
 			setVolume,
+			toggleMuted,
 			shuffle,
 			togglePlay,
 			toggleShuffle,
+			toggleFavorite,
 			volume,
+			muted,
 		],
 	);
 
@@ -589,6 +650,7 @@ export function AudioPlayerProvider({
 
 export function useAudioPlayer() {
 	const value = useContext(AudioPlayerContext);
-	if (!value) throw new Error("useAudioPlayer must be used within AudioPlayerProvider");
+	if (!value)
+		throw new Error("useAudioPlayer must be used within AudioPlayerProvider");
 	return value;
 }

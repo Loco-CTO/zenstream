@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 
 type AppRouteShellProps = {
 	children: ReactNode;
+	shell?: ReactNode;
 };
 
 function isAppRoute(pathname: string) {
@@ -26,8 +27,8 @@ function isAppRoute(pathname: string) {
 	);
 }
 
-export function AppRouteShell({ children }: AppRouteShellProps) {
+export function AppRouteShell({ children, shell }: AppRouteShellProps) {
 	const pathname = usePathname();
 
-	return pathname && isAppRoute(pathname) ? <AppShell /> : children;
+	return pathname && isAppRoute(pathname) ? (shell ?? <AppShell />) : children;
 }

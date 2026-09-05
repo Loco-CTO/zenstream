@@ -41,15 +41,14 @@ type TransportLabels = {
 	resume: string;
 	next: string;
 	stop: string;
+	addFavorite: string;
+	removeFavorite: string;
 };
 
 type ActionLabels = {
-	shuffle: string;
 	volume: string;
 	mute: string;
 	unmute: string;
-	addFavorite: string;
-	removeFavorite: string;
 	queue: string;
 };
 
@@ -77,14 +76,13 @@ export function AudioPlayerBar() {
 		resume: t("resumeAudio"),
 		next: t("next"),
 		stop: t("stopPlaying"),
+		addFavorite: t("addFavorite"),
+		removeFavorite: t("removeFavorite"),
 	};
 	const actionLabels: ActionLabels = {
-		shuffle: t("shuffle"),
 		volume: t("volume"),
 		mute: t("mute"),
 		unmute: t("unmute"),
-		addFavorite: t("addFavorite"),
-		removeFavorite: t("removeFavorite"),
 		queue: t("queue"),
 	};
 
@@ -108,6 +106,7 @@ export function AudioPlayerBar() {
 					<div className="flex min-w-0 flex-col justify-center gap-1">
 						<TransportControls
 							player={player}
+							track={track}
 							labels={transportLabels}
 							includeShuffle
 							includeLoop
@@ -120,7 +119,7 @@ export function AudioPlayerBar() {
 						/>
 					</div>
 					<div className="min-w-0 justify-self-end">
-						<ActionControls player={player} track={track} labels={actionLabels} />
+						<ActionControls player={player} labels={actionLabels} />
 					</div>
 				</div>
 
@@ -137,6 +136,7 @@ export function AudioPlayerBar() {
 						/>
 						<TransportControls
 							player={player}
+							track={track}
 							labels={transportLabels}
 							includeShuffle
 							includeLoop
@@ -153,12 +153,7 @@ export function AudioPlayerBar() {
 								compact
 							/>
 						</div>
-						<ActionControls
-							player={player}
-							track={track}
-							labels={actionLabels}
-							compact
-						/>
+						<ActionControls player={player} labels={actionLabels} compact />
 					</div>
 				</div>
 			</div>
@@ -334,12 +329,14 @@ function TrackIdentity({
 
 function TransportControls({
 	player,
+	track,
 	labels,
 	includeShuffle,
 	includeLoop,
 	compact = false,
 }: {
 	player: AudioPlayer;
+	track: MediaItem | null;
 	labels: TransportLabels;
 	includeShuffle?: boolean;
 	includeLoop?: boolean;
@@ -356,6 +353,14 @@ function TransportControls({
 		<div
 			className={`flex items-center justify-center ${compact ? "gap-0" : "gap-1.5 lg:gap-3"}`}
 		>
+			<IconButton
+				label={labels.stop}
+				onClick={player.stop}
+				disabled={!player.currentTrack}
+				compact={compact}
+			>
+				<Square className="h-3.5 w-3.5 fill-current" />
+			</IconButton>
 			{includeShuffle && (
 				<IconButton
 					label={labels.shuffle}
@@ -402,14 +407,6 @@ function TransportControls({
 			>
 				<SkipForward className="h-4 w-4" />
 			</IconButton>
-			<IconButton
-				label={labels.stop}
-				onClick={player.stop}
-				disabled={!player.currentTrack}
-				compact={compact}
-			>
-				<Square className="h-3.5 w-3.5 fill-current" />
-			</IconButton>
 			{includeLoop && (
 				<IconButton
 					label={
@@ -429,6 +426,21 @@ function TransportControls({
 					) : (
 						<Repeat className="h-4 w-4" />
 					)}
+				</IconButton>
+			)}
+			{track && (
+				<IconButton
+					label={
+						track.UserData?.IsFavorite ? labels.removeFavorite : labels.addFavorite
+					}
+					onClick={() => void player.toggleFavorite()}
+					pressed={Boolean(track.UserData?.IsFavorite)}
+					compact={compact}
+				>
+					<Heart
+						className="h-4 w-4"
+						fill={track.UserData?.IsFavorite ? "currentColor" : "none"}
+					/>
 				</IconButton>
 			)}
 		</div>
@@ -488,31 +500,17 @@ function SeekControl({
 
 function ActionControls({
 	player,
-	track,
 	labels,
-	includeShuffle = false,
 	compact = false,
 }: {
 	player: AudioPlayer;
-	track: MediaItem | null;
 	labels: ActionLabels;
-	includeShuffle?: boolean;
 	compact?: boolean;
 }) {
 	return (
 		<div
 			className={`flex shrink-0 items-center ${compact ? "gap-0" : "gap-0.5 lg:gap-1"}`}
 		>
-			{includeShuffle && (
-				<IconButton
-					label={labels.shuffle}
-					onClick={player.toggleShuffle}
-					pressed={player.shuffle}
-					compact={compact}
-				>
-					<Shuffle className="h-4 w-4" />
-				</IconButton>
-			)}
 			<div className="flex shrink-0 items-center gap-1">
 				<IconButton
 					label={player.muted ? labels.unmute : labels.mute}
@@ -544,21 +542,6 @@ function ActionControls({
 			>
 				<ListMusic className="h-4 w-4" />
 			</IconButton>
-			{track && (
-				<IconButton
-					label={
-						track.UserData?.IsFavorite ? labels.removeFavorite : labels.addFavorite
-					}
-					onClick={() => void player.toggleFavorite()}
-					pressed={Boolean(track.UserData?.IsFavorite)}
-					compact={compact}
-				>
-					<Heart
-						className="h-4 w-4"
-						fill={track.UserData?.IsFavorite ? "currentColor" : "none"}
-					/>
-				</IconButton>
-			)}
 		</div>
 	);
 }

@@ -154,7 +154,7 @@ describe("AudioPlayerBar", () => {
 			name: /add to favorites/i,
 		})[0];
 		expect(
-			queueButton.compareDocumentPosition(favoriteButton) &
+			favoriteButton.compareDocumentPosition(queueButton) &
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
 		expect(

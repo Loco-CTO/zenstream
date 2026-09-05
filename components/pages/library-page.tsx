@@ -36,6 +36,7 @@ const CARD_MIN_WIDTH = 200;
 const MOBILE_CARD_MIN_WIDTH = 132;
 const GRID_GAP = 12;
 const CARD_TEXT_HEIGHT = 48;
+const MUSIC_CARD_TEXT_HEIGHT = 64;
 const OVERSCAN_ROWS = 3;
 
 const SORTS = [
@@ -586,7 +587,8 @@ function VirtualMediaGrid({
 	);
 	const cardWidth =
 		width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : minCardWidth;
-	const rowHeight = cardWidth * (music ? 1 : 1.5) + CARD_TEXT_HEIGHT + GRID_GAP;
+	const cardTextHeight = music ? MUSIC_CARD_TEXT_HEIGHT : CARD_TEXT_HEIGHT;
+	const rowHeight = cardWidth * (music ? 1 : 1.5) + cardTextHeight + GRID_GAP;
 	const rowCount = Math.ceil(items.length / columns);
 	const relativeTop = Math.max(0, viewport.scrollY - containerTop);
 	const startRow = Math.max(

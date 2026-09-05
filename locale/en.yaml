@@ -65,6 +65,7 @@ musicLibrary: Music Library
 album: Album
 artist: Artist
 track: Track
+disc: Disc
 plays: "{count} plays"
 playCount: Plays
 duration: Duration

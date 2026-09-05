@@ -75,6 +75,7 @@ export const TRANSLATION_KEYS = [
 	"album",
 	"artist",
 	"track",
+	"disc",
 	"plays",
 	"playCount",
 	"duration",

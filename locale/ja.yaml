@@ -67,6 +67,7 @@ musicLibrary: 音楽ライブラリ
 album: アルバム
 artist: アーティスト
 track: トラック
+disc: ディスク
 plays: "{count}回再生"
 playCount: 再生回数
 duration: 再生時間

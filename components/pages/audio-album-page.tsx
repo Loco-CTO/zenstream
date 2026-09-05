@@ -10,7 +10,7 @@ import {
 	Play,
 	Shuffle,
 } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
@@ -55,6 +55,11 @@ export function AudioAlbumPage({
 	const [mutationError, setMutationError] = useState<string | null>(null);
 	const image = seriesPosterImage(data.album);
 	const tracks = data.tracks.filter((track) => track.Type === "Audio");
+	const discNumbers = trackDiscNumbers(tracks);
+	const showDiscHeaders =
+		new Set(
+			discNumbers.filter((discNumber): discNumber is number => discNumber != null),
+		).size > 1;
 	const totalDuration = tracks.reduce(
 		(total, track) => total + durationSeconds(track),
 		0,
@@ -201,7 +206,7 @@ export function AudioAlbumPage({
 						)}
 						{data.album.Label && (
 							<div>
-								<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+								<p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-white/35">
 									{t("label")}
 								</p>
 								<span className="inline-block rounded border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium leading-none text-white/55">
@@ -275,22 +280,43 @@ export function AudioAlbumPage({
 					<AudioState title={t("audioEmpty")} compact />
 				) : (
 					<div className="overflow-hidden">
-						{tracks.map((track, index) => (
-							<TrackRow
-								key={track.Id}
-								track={track}
-								index={index}
-								selected={selectedTrackId === track.Id}
-								current={currentTrack?.Id === track.Id}
-								playing={currentTrack?.Id === track.Id && isPlaying}
-								liked={favoriteTracks.has(track.Id)}
-								playLabel={t("play")}
-								addFavoriteLabel={t("addFavorite")}
-								removeFavoriteLabel={t("removeFavorite")}
-								onPlay={() => void playTrack(track, tracks)}
-								onToggleFavorite={() => void toggleTrackFavorite(track)}
-							/>
-						))}
+						{tracks.map((track, index) => {
+							const discNumber = discNumbers[index];
+							const previousDiscNumber = discNumbers[index - 1];
+							const showDiscHeader =
+								showDiscHeaders &&
+								discNumber != null &&
+								(index === 0 || previousDiscNumber !== discNumber);
+
+							return (
+								<Fragment key={track.Id}>
+									{showDiscHeader && (
+										<div
+											role="row"
+											aria-label={`${t("disc")} ${discNumber}`}
+											className={`px-2 pb-2 pl-11 text-sm font-semibold uppercase tracking-[0.14em] text-white/45 ${
+												index === 0 ? "pt-2" : "mt-4 pt-5"
+											}`}
+										>
+											{t("disc")} {discNumber}
+										</div>
+									)}
+									<TrackRow
+										track={track}
+										index={index}
+										selected={selectedTrackId === track.Id}
+										current={currentTrack?.Id === track.Id}
+										playing={currentTrack?.Id === track.Id && isPlaying}
+										liked={favoriteTracks.has(track.Id)}
+										playLabel={t("play")}
+										addFavoriteLabel={t("addFavorite")}
+										removeFavoriteLabel={t("removeFavorite")}
+										onPlay={() => void playTrack(track, tracks)}
+										onToggleFavorite={() => void toggleTrackFavorite(track)}
+									/>
+								</Fragment>
+							);
+						})}
 					</div>
 				)}
 			</section>
@@ -430,6 +456,29 @@ function durationSeconds(track: MediaItem) {
 		track.UserData?.DurationSeconds ??
 		(track.RunTimeTicks ? track.RunTimeTicks / 10_000_000 : 0)
 	);
+}
+
+export function trackDiscNumbers(
+	tracks: MediaItem[],
+): Array<number | undefined> {
+	let currentDisc: number | undefined;
+	let previousTrack: number | undefined;
+
+	return tracks.map((track) => {
+		if (track.DiscNumber != null) {
+			currentDisc = track.DiscNumber;
+		} else if (currentDisc == null) {
+			currentDisc = 1;
+		} else if (
+			track.TrackNumber != null &&
+			previousTrack != null &&
+			track.TrackNumber < previousTrack
+		) {
+			currentDisc += 1;
+		}
+		previousTrack = track.TrackNumber;
+		return currentDisc;
+	});
 }
 
 function formatDuration(value: number) {

@@ -284,12 +284,12 @@ function TrackIdentity({
 				)}
 			</div>
 			<div className="min-w-0 leading-tight">
-				<p className="truncate text-[14px] font-semibold text-white/90">
+				<p className="truncate text-[18px] font-semibold text-white/90">
 					{track?.Name ?? fallback}
 				</p>
-				<p className="truncate text-[12px] text-white/55">{artist || " "}</p>
+				<p className="truncate text-[14px] text-white/55">{artist || " "}</p>
 				<p
-					className={`truncate text-[12px] ${error ? "text-red-200/80" : "text-white/35"}`}
+					className={`truncate text-[14px] ${error ? "text-red-200/80" : "text-white/35"}`}
 					title={error ?? album}
 					role={error ? "alert" : undefined}
 				>

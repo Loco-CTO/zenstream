@@ -9,6 +9,10 @@ import { describe, expect, it, vi } from "vitest";
 import { MediaRow } from "@/components/home/media-row";
 import type { MediaItem } from "@/lib/media-api";
 
+vi.mock("@/components/audio/audio-player-provider", () => ({
+	useAudioPlayer: () => ({ playTrack: vi.fn() }),
+}));
+
 const items = [
 	{ Id: "item-1", Name: "First title", Type: "Movie" },
 	{ Id: "item-2", Name: "Second title", Type: "Movie" },
@@ -43,6 +47,20 @@ function pointerEvent(type: string, properties: Record<string, unknown>) {
 }
 
 describe("MediaRow scrolling", () => {
+	it("keeps square audio cards at a consistent width", () => {
+		render(
+			<MediaRow
+				title="New Albums"
+				items={[{ Id: "album-1", Name: "Album", Type: "MusicAlbum" }]}
+				variant="square"
+				session={{ token: "token", userId: "user", username: "Alex" }}
+			/>,
+		);
+
+		const card = screen.getByRole("link", { name: "Album" }).closest("article");
+		expect(card).toHaveClass("w-[136px]", "shrink-0", "md:w-[188px]");
+	});
+
 	it("only shows navigation buttons when more content exists in that direction", async () => {
 		const scroller = renderRow();
 

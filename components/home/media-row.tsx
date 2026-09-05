@@ -65,7 +65,12 @@ export function MediaRow({
 								variant === "wide" ? (
 									<WideCard key={item.Id} item={item} session={session} />
 								) : variant === "square" ? (
-									<SquareAudioCard key={item.Id} item={item} session={session!} />
+									<SquareAudioCard
+										key={item.Id}
+										item={item}
+										session={session!}
+										className="w-[136px] shrink-0 sm:w-[168px] md:w-[188px]"
+									/>
 								) : (
 									<PosterCard key={item.Id} item={item} session={session} />
 								),

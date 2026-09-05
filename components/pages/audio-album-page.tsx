@@ -268,13 +268,15 @@ export function AudioAlbumPage({
 			)}
 
 			<section className="mt-2 px-6 md:px-10">
-				<div className="mb-1 grid items-center px-2 pb-2 text-[11px] font-semibold uppercase tracking-widest text-white/22 [grid-template-columns:36px_1fr_80px_56px]">
+				<div className="mb-1 grid items-center px-2 pb-2 text-[11px] font-semibold uppercase tracking-widest text-white/22 [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_32px]">
 					<span className="text-center">#</span>
 					<span>{t("track")}</span>
+					<span>{t("artist")}</span>
 					<span className="text-right">{t("playCount")}</span>
 					<span className="flex justify-end" aria-label={t("duration")}>
 						<Clock className="h-3.5 w-3.5" />
 					</span>
+					<span aria-hidden="true" />
 				</div>
 				{tracks.length === 0 ? (
 					<AudioState title={t("audioEmpty")} compact />
@@ -379,7 +381,7 @@ function TrackRow({
 					onPlay();
 				}
 			}}
-			className={`group/track grid cursor-pointer items-center rounded-md px-2 py-2.5 transition-colors [grid-template-columns:36px_minmax(0,1fr)_80px_56px] ${selected || current ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+			className={`group/track grid cursor-pointer items-center rounded-md px-2 py-2.5 transition-colors [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_32px] ${selected || current ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`}
 		>
 			<div role="cell" className="flex items-center justify-center">
 				{playing ? (
@@ -412,7 +414,7 @@ function TrackRow({
 					</>
 				)}
 			</div>
-			<div role="cell" className="flex min-w-0 items-center gap-3 pr-4">
+			<div role="cell" className="min-w-0 pr-4">
 				<button
 					type="button"
 					onClick={(event) => {
@@ -424,18 +426,13 @@ function TrackRow({
 				>
 					{track.Name}
 				</button>
-				<button
-					type="button"
-					aria-label={liked ? removeFavoriteLabel : addFavoriteLabel}
-					aria-pressed={liked}
-					onClick={(event) => {
-						event.stopPropagation();
-						onToggleFavorite();
-					}}
-					className={`shrink-0 rounded p-1 opacity-0 transition group-hover/track:opacity-100 focus:opacity-100 ${liked ? "text-white opacity-100" : "text-white/25 hover:text-white/60"}`}
-				>
-					<Heart className="h-3.5 w-3.5" fill={liked ? "currentColor" : "none"} />
-				</button>
+			</div>
+			<div
+				role="cell"
+				className="min-w-0 truncate px-2 text-sm text-white/45"
+				title={trackArtistLabel(track) || undefined}
+			>
+				{trackArtistLabel(track) || "—"}
 			</div>
 			<div
 				role="cell"
@@ -445,6 +442,20 @@ function TrackRow({
 			</div>
 			<div role="cell" className="text-right text-xs tabular-nums text-white/28">
 				{formatDuration(durationSeconds(track))}
+			</div>
+			<div role="cell" className="flex justify-end">
+				<button
+					type="button"
+					aria-label={liked ? removeFavoriteLabel : addFavoriteLabel}
+					aria-pressed={liked}
+					onClick={(event) => {
+						event.stopPropagation();
+						onToggleFavorite();
+					}}
+					className={`rounded p-1 transition group-hover/track:opacity-100 focus:opacity-100 ${liked ? "text-white opacity-100" : "text-white/25 opacity-0 hover:text-white/60"}`}
+				>
+					<Heart className="h-3.5 w-3.5" fill={liked ? "currentColor" : "none"} />
+				</button>
 			</div>
 		</div>
 	);
@@ -456,6 +467,17 @@ function durationSeconds(track: MediaItem) {
 		track.UserData?.DurationSeconds ??
 		(track.RunTimeTicks ? track.RunTimeTicks / 10_000_000 : 0)
 	);
+}
+
+export function trackArtistLabel(track: MediaItem) {
+	const artists = [
+		...(track.Artists ?? []),
+		...(track.ContributingArtists ?? []),
+	]
+		.map((artist) => artist.trim())
+		.filter(Boolean);
+	const uniqueArtists = Array.from(new Set(artists));
+	return uniqueArtists.join(", ") || track.AlbumArtist?.trim() || "";
 }
 
 export function trackDiscNumbers(

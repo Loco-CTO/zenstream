@@ -98,6 +98,28 @@ export function MediaPlaceholder() {
 	);
 }
 
+export function BlurHashGlow({
+	image,
+	className = "",
+}: {
+	image: Pick<MediaImage, "src" | "blurHash">;
+	className?: string;
+}) {
+	const placeholder = useMemo(
+		() => blurHashToDataUrl(image.blurHash),
+		[image.blurHash],
+	);
+	return (
+		<div
+			aria-hidden="true"
+			className={`pointer-events-none absolute inset-[-28%] scale-110 bg-cover bg-center opacity-45 blur-3xl ${className}`}
+			style={{
+				backgroundImage: `url("${placeholder ?? image.src}")`,
+			}}
+		/>
+	);
+}
+
 function blurHashToDataUrl(blurHash?: string | null) {
 	if (!blurHash) return null;
 	if (blurHashDataUrlCache.has(blurHash)) {

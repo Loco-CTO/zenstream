@@ -31,13 +31,26 @@ export interface MediaItem {
 	SeriesName?: string;
 	SeriesProductionYear?: number;
 	CollectionYearRange?: string;
+	AlbumId?: string;
+	ArtistId?: string;
+	Album?: string;
+	AlbumArtist?: string;
+	Artists?: string[];
+	ContributingArtists?: string[];
+	Label?: string;
+	Tags?: string[];
+	ReleaseDate?: string;
+	Show?: string;
 	ParentIndexNumber?: number;
 	IndexNumber?: number;
+	DiscNumber?: number;
+	TrackNumber?: number;
 	Overview?: string;
 	ProductionYear?: number;
 	PremiereDate?: string;
 	OfficialRating?: string;
 	RunTimeTicks?: number;
+	DurationSeconds?: number;
 	ChildCount?: number;
 	RecursiveItemCount?: number;
 	CommunityRating?: number;
@@ -334,6 +347,14 @@ export function clearMediaClientCache(
 			value && typeof value === "object" && "item" in value
 				? (value as DetailData).item
 				: (value as MediaItem | undefined);
+		if (scope.rootEntityId && value && typeof value === "object") {
+			const audioDetail = value as { album?: MediaItem; tracks?: MediaItem[] };
+			if (
+				audioDetail.album?.Id === scope.rootEntityId ||
+				audioDetail.tracks?.some((track) => track.Id === scope.rootEntityId)
+			)
+				return true;
+		}
 		return Boolean(scope.libraryId && item?.LibraryId === scope.libraryId);
 	};
 	for (const [key, cached] of clientCache) {
@@ -381,6 +402,20 @@ export interface DetailData {
 	collectionItems?: MediaItem[];
 }
 
+export interface AudioAlbumData {
+	album: MediaItem;
+	artist?: MediaItem | null;
+	tracks: MediaItem[];
+	relatedAlbums: MediaItem[];
+	catalogGeneration?: number;
+}
+
+export interface ArtistData {
+	artist: MediaItem;
+	albums: MediaItem[];
+	catalogGeneration?: number;
+}
+
 export interface HomeData {
 	latestItems: MediaItem[];
 	newlyAdded?: NewlyAddedSection[];
@@ -393,6 +428,7 @@ export interface HomeData {
 	myList?: MediaItem[];
 	recentlyPlayed?: MediaItem[];
 	genreRows?: HomeGenreSection[];
+	audioRows?: HomeAudioSection[];
 }
 
 export interface HomeLibrarySection extends NewlyAddedSection {
@@ -405,8 +441,15 @@ export interface HomeGenreSection {
 	items: MediaItem[];
 }
 
+export interface HomeAudioSection {
+	key: "newAlbums" | "recentlyPlayedAudio" | string;
+	titleKey: "newAlbums" | "recentlyPlayedAudio" | string;
+	variant: "square";
+	items: MediaItem[];
+}
+
 export type LibrarySortBy =
-	"title" | "added" | "lastAdded" | "release" | "rating" | "runtime";
+	"title" | "added" | "lastAdded" | "release" | "rating" | "runtime" | "year";
 
 export interface LibraryView extends MediaItem {
 	CollectionType?: string;
@@ -832,6 +875,12 @@ export async function fetchHomeData(
 					myList?: CatalogItem[];
 					recentlyPlayed?: CatalogItem[];
 					genreRows?: Array<{ genre: string; items: CatalogItem[] }>;
+					audioRows?: Array<{
+						key: string;
+						titleKey: string;
+						variant: "square";
+						items: CatalogItem[];
+					}>;
 				}>("derived", 18),
 				getLibraryViews(session),
 			]);
@@ -844,6 +893,10 @@ export async function fetchHomeData(
 				nextUp,
 				myList: (derived.myList ?? []).map(toMediaItem),
 				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
+				audioRows: (derived.audioRows ?? []).map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
 				genreRows: (derived.genreRows ?? []).map((row) => ({
 					...row,
 					items: row.items.map(toMediaItem),
@@ -879,6 +932,10 @@ export async function fetchHomeData(
 				nextUp,
 				myList: (derived.myList ?? []).map(toMediaItem),
 				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
+				audioRows: (derived.audioRows ?? []).map((row) => ({
+					...row,
+					items: row.items.map(toMediaItem),
+				})),
 				genreRows: (derived.genreRows ?? []).map((row) => ({
 					...row,
 					items: row.items.map(toMediaItem),
@@ -936,7 +993,9 @@ export async function getLibraryViews(session: AuthSession) {
 					? "tvshows"
 					: library.type === "movies"
 						? "movies"
-						: "boxsets",
+						: library.type === "music"
+							? "music"
+							: "boxsets",
 			SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
 			CatalogGeneration: library.catalogGeneration ?? 0,
 		})) as LibraryView[];
@@ -957,20 +1016,21 @@ export async function getLibraryItems(
 ): Promise<LibraryPage> {
 	const limit = options.limit ?? 40;
 	const params = new URLSearchParams({
-		libraryId: options.parentId,
 		page: String(Math.floor(options.startIndex / limit) + 1),
 		pageSize: String(limit),
 		view: "card",
 		sortBy: catalogSort(options.sortBy),
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
+	params.set("libraryId", options.parentId);
+	const endpoint = options.collectionType === "music" ? "music/albums" : "items";
 	return cachedClientRequest(
-		`library:${session.userId}:${options.parentId}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`,
+		`library:${session.userId}:${options.parentId}:${options.collectionType ?? ""}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`,
 		async (signal) => {
 			const result = await catalogRequest<{
 				items: CatalogItem[];
 				total: number;
-			}>(session, `/api/catalog/items?${params}`, {
+			}>(session, `/api/catalog/${endpoint}?${params}`, {
 				signal: combinedSignal(options.signal, signal),
 			});
 			return {
@@ -985,6 +1045,60 @@ export async function getLibraryItems(
 
 function catalogSort(value: LibrarySortBy) {
 	return value;
+}
+
+export async function fetchAudioAlbumData(
+	session: AuthSession,
+	albumId: string,
+	requestSignal?: AbortSignal,
+): Promise<AudioAlbumData> {
+	return cachedClientRequest(
+		`audio-album:${session.userId}:${albumId}`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				album: CatalogItem;
+				artist?: CatalogItem | null;
+				tracks?: CatalogItem[];
+				relatedAlbums?: CatalogItem[];
+				catalogGeneration?: number;
+			}>(session, `/api/catalog/music/albums/${encodeURIComponent(albumId)}`, {
+				signal: combinedSignal(requestSignal, signal),
+			});
+			return {
+				album: toMediaItem(result.album),
+				artist: result.artist ? toMediaItem(result.artist) : null,
+				tracks: (result.tracks ?? []).map(toMediaItem),
+				relatedAlbums: (result.relatedAlbums ?? []).map(toMediaItem),
+				catalogGeneration: result.catalogGeneration,
+			};
+		},
+		DETAIL_CACHE_TTL_MS,
+	);
+}
+
+export async function fetchArtistData(
+	session: AuthSession,
+	artistId: string,
+	requestSignal?: AbortSignal,
+): Promise<ArtistData> {
+	return cachedClientRequest(
+		`audio-artist:${session.userId}:${artistId}`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				artist: CatalogItem;
+				albums?: CatalogItem[];
+				catalogGeneration?: number;
+			}>(session, `/api/catalog/music/artists/${encodeURIComponent(artistId)}`, {
+				signal: combinedSignal(requestSignal, signal),
+			});
+			return {
+				artist: toMediaItem(result.artist),
+				albums: (result.albums ?? []).map(toMediaItem),
+				catalogGeneration: result.catalogGeneration,
+			};
+		},
+		DETAIL_CACHE_TTL_MS,
+	);
 }
 
 export async function fetchDetailData(
@@ -1654,6 +1768,30 @@ export async function reportPlayback(
 		},
 	);
 	clearMediaClientCache({ rootEntityId: itemId });
+}
+
+export async function recordAudioPlayStart(
+	session: AuthSession,
+	itemId: string,
+	playbackInstanceId: string,
+) {
+	const result = await catalogRequest(
+		session,
+		`/api/catalog/items/${encodeURIComponent(itemId)}/play-start`,
+		{
+			method: "POST",
+			body: JSON.stringify({ playbackInstanceId }),
+		},
+	);
+	clearMediaClientCache({ rootEntityId: itemId });
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { type: "catalog.changed", reason: "refresh", rootEntityId: itemId },
+			}),
+		);
+	}
+	return result;
 }
 
 export async function clearWatchHistory(session: AuthSession): Promise<void> {

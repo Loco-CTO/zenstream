@@ -1,10 +1,10 @@
 import { zenstreamVersion } from "@/lib/version";
 
 export type BrowserPlaybackProfile = {
-	Type: "Video";
+	Type: "Video" | "Audio";
 	Container: string;
-	VideoCodec: string;
-	AudioCodec: string;
+	VideoCodec?: string;
+	AudioCodec?: string;
 };
 
 export type BrowserDeviceProfile = {
@@ -81,6 +81,7 @@ export function browserDeviceMetadata(): BrowserDeviceMetadata {
 }
 
 type VideoElementLike = Pick<HTMLVideoElement, "canPlayType">;
+type AudioElementLike = Pick<HTMLAudioElement, "canPlayType">;
 
 function supports(video: VideoElementLike, mime: string) {
 	try {
@@ -95,6 +96,14 @@ function supportsVideoAudio(video: VideoElementLike, audioCodec: string) {
 		supports(video, `video/mp4; codecs="avc1.640029, ${audioCodec}"`) ||
 		supports(video, `video/mp4; codecs="avc1.640029, mp4a.${audioCodec}"`)
 	);
+}
+
+function supportsAudio(audio: AudioElementLike, mime: string) {
+	try {
+		return Boolean(audio.canPlayType(mime).replace(/no/, ""));
+	} catch {
+		return false;
+	}
 }
 
 function isIos() {
@@ -126,7 +135,13 @@ export function browserDeviceProfile(
 	video: VideoElementLike = typeof document === "undefined"
 		? { canPlayType: () => "" }
 		: document.createElement("video"),
+	audioElement?: AudioElementLike,
 ): BrowserDeviceProfile {
+	const audio: AudioElementLike =
+		audioElement ??
+		(typeof document === "undefined"
+			? video
+			: document.createElement("audio"));
 	const mp4Video = [
 		...(supports(video, 'video/mp4; codecs="hvc1"') ||
 		supports(video, 'video/mp4; codecs="hvc1.1.L120"') ||
@@ -198,6 +213,41 @@ export function browserDeviceProfile(
 			VideoCodec: webmVideo.join(","),
 			AudioCodec: webmAudio.join(","),
 		});
+	const audioProfiles: BrowserPlaybackProfile[] = [];
+	if (supportsAudio(audio, "audio/mpeg"))
+		audioProfiles.push({ Type: "Audio", Container: "mp3", AudioCodec: "mp3" });
+	if (supportsAudio(audio, 'audio/mp4; codecs="mp4a.40.2"'))
+		audioProfiles.push({
+			Type: "Audio",
+			Container: "m4a,mp4",
+			AudioCodec: "aac",
+		});
+	if (supportsAudio(audio, "audio/aac"))
+		audioProfiles.push({
+			Type: "Audio",
+			Container: "aac,adts",
+			AudioCodec: "aac",
+		});
+	if (
+		supportsAudio(audio, "audio/flac") ||
+		supportsAudio(audio, 'audio/flac; codecs="flac"')
+	)
+		audioProfiles.push({ Type: "Audio", Container: "flac", AudioCodec: "flac" });
+	const oggAudioCodecs = [
+		...(supportsAudio(audio, 'audio/ogg; codecs="vorbis"') ? ["vorbis"] : []),
+		...(supportsAudio(audio, 'audio/ogg; codecs="opus"') ? ["opus"] : []),
+	];
+	if (oggAudioCodecs.length)
+		audioProfiles.push({
+			Type: "Audio",
+			Container: "ogg,oga,opus",
+			AudioCodec: oggAudioCodecs.join(","),
+		});
+	if (supportsAudio(audio, "audio/wav"))
+		audioProfiles.push({ Type: "Audio", Container: "wav", AudioCodec: "pcm_s16le" });
+	if (supportsAudio(audio, "audio/aiff"))
+		audioProfiles.push({ Type: "Audio", Container: "aiff,aif", AudioCodec: "pcm_s16be" });
+	directPlayProfiles.push(...audioProfiles);
 	return {
 		directPlayProfiles,
 		// Modern desktop browsers can decode and downmix multichannel AAC/Opus
@@ -221,6 +271,11 @@ export function browserDeviceProfile(
 				Type: "Video",
 				Container: "ts",
 				VideoCodec: "h264",
+				AudioCodec: "aac",
+			},
+			{
+				Type: "Audio",
+				Container: "ts",
 				AudioCodec: "aac",
 			},
 		],

@@ -15,6 +15,8 @@ import {
 	fetchDetailData,
 	fetchPlayData,
 	fetchHomeData,
+	fetchAudioAlbumData,
+	fetchArtistData,
 	clearMediaClientCache,
 	clearMediaClientSession,
 	clearWatchHistory,
@@ -22,8 +24,10 @@ import {
 	primeResourceTicket,
 	revokeAuthSession,
 	validateBrowserSession,
+	type AudioAlbumData,
 	type DetailData,
 	type HomeData,
+	type ArtistData,
 } from "@/lib/media-api";
 import {
 	clearAuthCookies,
@@ -81,6 +85,14 @@ const CollectionPage = dynamic(
 		import("@/components/pages/collection-page").then((m) => m.CollectionPage),
 	{ ssr: false },
 );
+const AudioAlbumPage = dynamic(
+	() => import("@/components/pages/audio-album-page").then((m) => m.AudioAlbumPage),
+	{ ssr: false },
+);
+const ArtistPage = dynamic(
+	() => import("@/components/pages/artist-page").then((m) => m.ArtistPage),
+	{ ssr: false },
+);
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -108,6 +120,8 @@ import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-followe
 import { ToastProvider } from "@/components/ui/toast";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
+import { AudioPlayerProvider } from "@/components/audio/audio-player-provider";
+import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
 
 type AppStatus =
 	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
@@ -171,6 +185,8 @@ export function AppShell() {
 	const [searchData, setSearchData] = useState<string | null>(null);
 
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
+	const [audioAlbumData, setAudioAlbumData] = useState<AudioAlbumData | null>(null);
+	const [artistData, setArtistData] = useState<ArtistData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
@@ -251,6 +267,7 @@ export function AppShell() {
 	const detailTrailingRefresh = useRef(false);
 	const detailRefreshController = useRef<AbortController | null>(null);
 	const detailLoadController = useRef<AbortController | null>(null);
+	const audioLoadController = useRef<AbortController | null>(null);
 	const loadPreferences = useCallback((nextSession: AuthSession) => {
 		const generation = ++preferencesGeneration.current;
 		const localeGeneration = localeMutationGeneration.current;
@@ -399,6 +416,8 @@ export function AppShell() {
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
+	const audioAlbumId = audioAlbumIdFromPath(pathname);
+	const artistId = artistIdFromPath(pathname);
 	const searchQuery = searchParams.get("q") ?? "";
 	const serializedSearch = searchParams.toString();
 	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
@@ -478,6 +497,90 @@ export function AppShell() {
 			}
 		},
 		[fetchDetailPayload, pathname, searchQuery, start],
+	);
+
+	const loadAudioAlbum = useCallback(
+		async (
+			nextSession: AuthSession,
+			albumId: string,
+			requestedGeneration = routeLoadGeneration.current,
+		) => {
+			const isCurrent = () =>
+				sessionRef.current === nextSession &&
+				requestedGeneration === routeLoadGeneration.current;
+			const finishProgress = start();
+			audioLoadController.current?.abort();
+			const controller = new AbortController();
+			audioLoadController.current = controller;
+			if (isCurrent()) {
+				setStatus("loading");
+				setError(null);
+				setAudioAlbumData(null);
+				setArtistData(null);
+			}
+			try {
+				void primeArtworkTicket(nextSession);
+				void primeResourceTicket(nextSession);
+				const data = await fetchAudioAlbumData(nextSession, albumId, controller.signal);
+				if (isCurrent()) {
+					setAudioAlbumData(data);
+					setStatus("ready");
+				}
+			} catch (loadError) {
+				if (!controller.signal.aborted && isCurrent()) {
+					setError(
+						loadError instanceof Error ? loadError.message : "Could not load this album.",
+					);
+					setStatus("error");
+				}
+			} finally {
+				if (audioLoadController.current === controller) audioLoadController.current = null;
+				finishProgress();
+			}
+		},
+		[start],
+	);
+
+	const loadArtist = useCallback(
+		async (
+			nextSession: AuthSession,
+			requestedArtistId: string,
+			requestedGeneration = routeLoadGeneration.current,
+		) => {
+			const isCurrent = () =>
+				sessionRef.current === nextSession &&
+				requestedGeneration === routeLoadGeneration.current;
+			const finishProgress = start();
+			audioLoadController.current?.abort();
+			const controller = new AbortController();
+			audioLoadController.current = controller;
+			if (isCurrent()) {
+				setStatus("loading");
+				setError(null);
+				setAudioAlbumData(null);
+				setArtistData(null);
+			}
+			try {
+				void primeArtworkTicket(nextSession);
+				void primeResourceTicket(nextSession);
+				const data = await fetchArtistData(nextSession, requestedArtistId, controller.signal);
+				if (isCurrent()) {
+					setArtistData(data);
+					setStatus("ready");
+				}
+			} catch (loadError) {
+				if (!controller.signal.aborted && isCurrent()) {
+					setError(
+						loadError instanceof Error ? loadError.message : "Could not load this artist.",
+					);
+					setStatus("error");
+				}
+			} finally {
+				if (audioLoadController.current === controller) audioLoadController.current = null;
+				finishProgress();
+			}
+		},
+		[start],
 	);
 
 	const refreshDetail = useCallback(
@@ -576,7 +679,11 @@ export function AppShell() {
 		}
 		const finishProgress = start();
 		void (async () => {
-			if (detailId || playId)
+			if (audioAlbumId) {
+				await loadAudioAlbum(session, audioAlbumId, generation);
+			} else if (artistId) {
+				await loadArtist(session, artistId, generation);
+			} else if (detailId || playId)
 				await loadDetail(session, detailId ?? playId!, generation);
 			else if (
 				pathname === "/search" ||
@@ -599,9 +706,13 @@ export function AppShell() {
 			finishProgress();
 		})();
 	}, [
-		detailId,
+			detailId,
+		audioAlbumId,
+		artistId,
 		playId,
 		loadDetail,
+		loadAudioAlbum,
+		loadArtist,
 		loadHome,
 		loadPreferences,
 		pathname,
@@ -622,7 +733,11 @@ export function AppShell() {
 		const generation = ++routeLoadGeneration.current;
 		loadPreferences(nextSession);
 		void primeResourceTicket(nextSession);
-		if (detailId || playId)
+		if (audioAlbumId)
+			await loadAudioAlbum(nextSession, audioAlbumId, generation);
+		else if (artistId)
+			await loadArtist(nextSession, artistId, generation);
+		else if (detailId || playId)
 			await loadDetail(nextSession, detailId ?? playId!, generation);
 		else if (pathname === "/search" || pathname === "/notifications") {
 			if (generation === routeLoadGeneration.current) {
@@ -767,6 +882,21 @@ export function AppShell() {
 		refreshDetail,
 		session,
 	]);
+
+	useEffect(() => {
+		if (!session || (!audioAlbumId && !artistId)) return;
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{
+				reason?: "scan" | "refresh";
+				libraryId?: string;
+			}>;
+			if (event.detail?.reason === "scan") return;
+			if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
+			else if (artistId) void loadArtist(session, artistId);
+		};
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
+	}, [audioAlbumId, artistId, loadArtist, loadAudioAlbum, session]);
 
 	const handleLocaleChange = async (nextLocale: Locale) => {
 		const activeSession = session;
@@ -970,9 +1100,14 @@ export function AppShell() {
 							key={session.userId}
 							userId={session.userId}
 						>
-							<SyncplayProvider session={session}>
-								<SyncplayPlaybackFollower />
-								{pathname === "/settings" ? (
+							<AudioPlayerProvider
+								key={`${session.userId}:${session.token}`}
+								session={session}
+								watchHistoryEnabled={watchHistoryLoaded ? watchHistoryEnabled : true}
+							>
+								<SyncplayProvider session={session}>
+									<SyncplayPlaybackFollower />
+									{pathname === "/settings" ? (
 									<SettingsPage
 										displayName={session.username}
 										userId={session.userId}
@@ -1003,15 +1138,24 @@ export function AppShell() {
 											session={session}
 										/>
 										<MobileNav />
-										{renderStatus === "error" && (
-											<ErrorPanel
-												titleKey={detailId ? "detailLoadFailed" : "libraryLoadFailed"}
-												message={error}
-												onRetry={() =>
-													detailId ? loadDetail(session, detailId) : loadHome(session)
-												}
-											/>
-										)}
+											{renderStatus === "error" && (
+												<ErrorPanel
+													titleKey={
+														audioAlbumId || artistId
+														? "audioNotFound"
+														: detailId
+															? "detailLoadFailed"
+															: "libraryLoadFailed"
+													}
+													message={error}
+												onRetry={() => {
+													if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
+													else if (artistId) void loadArtist(session, artistId);
+													else if (detailId) void loadDetail(session, detailId);
+													else void loadHome(session);
+												}}
+												/>
+											)}
 										{renderStatus === "ready" && detailData && playId && (
 											<PlayerPage
 												initialData={detailData}
@@ -1028,7 +1172,13 @@ export function AppShell() {
 												<CollectionPage initialData={detailData} session={session} />
 											) : (
 												<DetailPage initialData={detailData} session={session} />
-											))}
+												))}
+										{renderStatus === "ready" && audioAlbumId && audioAlbumData && (
+											<AudioAlbumPage data={audioAlbumData} session={session} />
+										)}
+										{renderStatus === "ready" && artistId && artistData && (
+											<ArtistPage data={artistData} session={session} />
+										)}
 										{renderStatus === "ready" && pathname === "/library" && (
 											<LibraryPage session={session} />
 										)}
@@ -1046,6 +1196,8 @@ export function AppShell() {
 										)}
 										{homeData &&
 											!detailId &&
+											!audioAlbumId &&
+											!artistId &&
 											pathname !== "/library" &&
 											pathname !== "/favorites" &&
 											pathname !== "/calendar" &&
@@ -1055,7 +1207,9 @@ export function AppShell() {
 											)}
 									</div>
 								)}
-							</SyncplayProvider>
+									<AudioPlayerBar />
+								</SyncplayProvider>
+							</AudioPlayerProvider>
 						</PlaybackBehaviorPreferencesProvider>
 					)}
 				</SubtitlePreferencesProvider>
@@ -1112,5 +1266,15 @@ function detailIdFromPath(pathname: string) {
 
 function playIdFromPath(pathname: string) {
 	const match = pathname.match(/^\/play\/([^/]+)$/);
+	return match ? decodeURIComponent(match[1]) : null;
+}
+
+function audioAlbumIdFromPath(pathname: string) {
+	const match = pathname.match(/^\/album\/([^/]+)$/);
+	return match ? decodeURIComponent(match[1]) : null;
+}
+
+function artistIdFromPath(pathname: string) {
+	const match = pathname.match(/^\/artist\/([^/]+)$/);
 	return match ? decodeURIComponent(match[1]) : null;
 }

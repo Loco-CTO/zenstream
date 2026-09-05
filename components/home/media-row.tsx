@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import {
 	PosterCard,
 	StackedPosterCard,
+	SquareAudioCard,
 	WideCard,
 } from "@/components/home/media-card";
 import { stackNewlyAdded } from "@/lib/media";
@@ -24,7 +25,7 @@ export function MediaRow({
 }: {
 	title: string;
 	items: MediaItem[];
-	variant: "wide" | "poster";
+	variant: "wide" | "poster" | "square";
 	stackEpisodes?: boolean;
 	session?: AuthSession;
 	viewAllHref?: string;
@@ -60,9 +61,11 @@ export function MediaRow({
 									session={session}
 								/>
 							))
-						: items.map((item) =>
-								variant === "wide" ? (
+					: uniqueItems(items).map((item) =>
+							variant === "wide" ? (
 									<WideCard key={item.Id} item={item} session={session} />
+								) : variant === "square" ? (
+									<SquareAudioCard key={item.Id} item={item} session={session!} />
 								) : (
 									<PosterCard key={item.Id} item={item} session={session} />
 								),
@@ -71,6 +74,15 @@ export function MediaRow({
 			</section>
 		</DeferredRow>
 	);
+}
+
+function uniqueItems(items: MediaItem[]) {
+	const seen = new Set<string>();
+	return items.filter((item) => {
+		if (!item.Id || seen.has(item.Id)) return false;
+		seen.add(item.Id);
+		return true;
+	});
 }
 
 function DeferredRow({ children }: { children: React.ReactNode }) {

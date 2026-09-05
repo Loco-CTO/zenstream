@@ -44,6 +44,47 @@ japanese: Japanese
 logout: Log out
 all: All
 play: Play
+pause: Pause
+resume: Resume
+shuffle: Shuffle
+queue: Queue
+next: Next
+previous: Previous
+nowPlaying: Now playing
+addToQueue: Add to queue
+removeFromQueue: Remove from queue
+moveUp: Move up
+moveDown: Move down
+queueEmpty: Your queue is empty.
+audioPlaybackError: Audio could not be played.
+resumeAudio: Resume audio
+albums: Albums
+tracks: Tracks
+artists: Artists
+musicLibrary: Music Library
+album: Album
+artist: Artist
+track: Track
+plays: "{count} plays"
+playCount: Plays
+duration: Duration
+volume: Volume
+newAlbums: New Albums
+recentlyPlayedAudio: Recently Played Audio
+favoriteAudio: Favorite Audio
+favoriteAudioArtists: Favorite Artists
+favoriteAudioAlbums: Favorite Albums
+favoriteAudioTracks: Favorite Tracks
+audioLoading: Loading audio…
+audioEmpty: No music is available yet.
+audioNotFound: This album or artist was not found.
+albumArtist: Album artist
+contributors: Contributors
+tags: Tags
+label: Label
+moreSoundtracks: More Soundtracks
+trackList: Track list
+totalDuration: "{count} min"
 skipIntro: Skip intro
 skipOutro: Skip outro
 info: Info
@@ -227,6 +268,7 @@ sortAscending: Sort ascending
 sortDescending: Sort descending
 sortRating: Rating
 sortTitle: Title
+sortYear: Year
 sortDateAdded: Date added
 sortLastAdded: Last added
 sortReleaseDate: Release date

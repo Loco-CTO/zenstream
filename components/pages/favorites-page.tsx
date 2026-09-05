@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { WideCard, PosterCard } from "@/components/home/media-card";
+import { SquareAudioCard, WideCard, PosterCard } from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
@@ -51,7 +51,11 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 	}, [requestKey, session, sortBy, sortOrder, start]);
 
 	useEffect(() => {
-		const refresh = () => setRetryKey((value) => value + 1);
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }>;
+			if (event.detail?.reason === "scan") return;
+			setRetryKey((value) => value + 1);
+		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
 	}, []);
@@ -65,6 +69,9 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 	const episodes = items.filter((item) => item.Type === "Episode");
 	const movies = items.filter((item) => item.Type === "Movie");
 	const series = items.filter((item) => item.Type === "Series");
+	const audioArtists = uniqueItems(items.filter((item) => item.Type === "MusicArtist"));
+	const audioAlbums = uniqueItems(items.filter((item) => item.Type === "MusicAlbum"));
+	const audioTracks = uniqueItems(items.filter((item) => item.Type === "Audio"));
 
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8">
@@ -117,6 +124,27 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 				</div>
 			) : (
 				<>
+					{audioArtists.length > 0 && (
+						<HorizontalScroller title={t("favoriteAudioArtists")} className="mb-8">
+							<div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
+								{audioArtists.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} />)}
+							</div>
+						</HorizontalScroller>
+					)}
+					{audioAlbums.length > 0 && (
+						<HorizontalScroller title={t("favoriteAudioAlbums")} className="mb-8">
+							<div className="flex gap-4">
+								{audioAlbums.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} className="w-[148px] sm:w-[180px] md:w-[200px]" />)}
+							</div>
+						</HorizontalScroller>
+					)}
+					{audioTracks.length > 0 && (
+						<HorizontalScroller title={t("favoriteAudioTracks")} className="mb-8">
+							<div className="flex gap-4">
+								{audioTracks.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} className="w-[148px] sm:w-[180px] md:w-[200px]" />)}
+							</div>
+						</HorizontalScroller>
+					)}
 					{episodes.length > 0 && (
 						<HorizontalScroller title={t("favoriteEpisodes")} className="mb-8">
 							<div className="flex gap-4">
@@ -148,4 +176,13 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 			)}
 		</main>
 	);
+}
+
+function uniqueItems(items: MediaItem[]) {
+	const seen = new Set<string>();
+	return items.filter((item) => {
+		if (!item.Id || seen.has(item.Id)) return false;
+		seen.add(item.Id);
+		return true;
+	});
 }

@@ -247,8 +247,8 @@ describe("LibraryPage", () => {
 
 	it("uses the same music metadata allowance on desktop grids", async () => {
 		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
-			items: makeMusicItems(4),
-			totalRecordCount: 4,
+			items: makeMusicItems(5),
+			totalRecordCount: 5,
 		});
 		renderLibrary(true);
 
@@ -258,9 +258,12 @@ describe("LibraryPage", () => {
 			expect(screen.getAllByTestId("virtual-grid-row")).toHaveLength(2),
 		);
 
+		expect(screen.getAllByTestId("virtual-grid-row")[0]).toHaveStyle({
+			gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+		});
 		expect(
 			Number.parseFloat(screen.getAllByTestId("virtual-grid-row")[1].style.top),
-		).toBeCloseTo(334.667, 3);
+		).toBeCloseTo(267, 3);
 	});
 
 	it("supports sorting series by the date their latest episode was added", async () => {

@@ -149,7 +149,7 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 										key={item.Id}
 										item={item}
 										session={session}
-										className="w-[148px] sm:w-[180px] md:w-[200px]"
+										className="w-[136px] shrink-0 sm:w-[168px] md:w-[188px]"
 									/>
 								))}
 							</div>
@@ -163,7 +163,7 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 										key={item.Id}
 										item={item}
 										session={session}
-										className="w-[148px] sm:w-[180px] md:w-[200px]"
+										className="w-[136px] shrink-0 sm:w-[168px] md:w-[188px]"
 									/>
 								))}
 							</div>

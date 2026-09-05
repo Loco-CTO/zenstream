@@ -235,7 +235,7 @@ export function SquareAudioCard({
 								alt={item.Name}
 								draggable={false}
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 220px"
-								className={`brightness-[.85] ${MEDIA_CARD_IMAGE_CLASS}`}
+								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
 						{!image && <MediaPlaceholder />}
@@ -290,8 +290,7 @@ export function audioHref(item: MediaItem) {
 	return `/album/${item.Id}`;
 }
 
-export const MEDIA_CARD_IMAGE_CLASS =
-	"h-full w-full object-cover transition group-hover/card:brightness-50";
+export const MEDIA_CARD_IMAGE_CLASS = "h-full w-full object-cover transition";
 
 export const MEDIA_CARD_TAG_CLASS =
 	"rounded-full border border-white/10 bg-black/40 px-1.5 py-0.5 text-xs font-medium tracking-wide text-white/75 backdrop-blur-sm";

@@ -34,6 +34,8 @@ import { progressPercent } from "@/lib/media";
 const PAGE_SIZE = 40;
 const CARD_MIN_WIDTH = 200;
 const MOBILE_CARD_MIN_WIDTH = 132;
+const MUSIC_CARD_MIN_WIDTH = 184;
+const MOBILE_MUSIC_CARD_MIN_WIDTH = 124;
 const GRID_GAP = 12;
 const CARD_TEXT_HEIGHT = 48;
 const MUSIC_CARD_TEXT_HEIGHT = 64;
@@ -579,8 +581,13 @@ function VirtualMediaGrid({
 		};
 	}, []);
 
-	const minCardWidth =
-		width > 0 && width < 640 ? MOBILE_CARD_MIN_WIDTH : CARD_MIN_WIDTH;
+	const minCardWidth = music
+		? width > 0 && width < 640
+			? MOBILE_MUSIC_CARD_MIN_WIDTH
+			: MUSIC_CARD_MIN_WIDTH
+		: width > 0 && width < 640
+			? MOBILE_CARD_MIN_WIDTH
+			: CARD_MIN_WIDTH;
 	const columns = Math.max(
 		1,
 		Math.floor((width + GRID_GAP) / (minCardWidth + GRID_GAP)),

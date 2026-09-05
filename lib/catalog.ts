@@ -35,12 +35,12 @@ export type CatalogItem = {
 		releaseDate?: string;
 		runtimeMinutes?: number;
 		durationSeconds?: number;
-	albumArtist?: string;
-	artists?: Array<Record<string, unknown>>;
-	contributingArtists?: Array<Record<string, unknown>>;
-	album?: string;
-	albumId?: string;
-	show?: string;
+		albumArtist?: string;
+		artists?: Array<Record<string, unknown>>;
+		contributingArtists?: Array<Record<string, unknown>>;
+		album?: string;
+		albumId?: string;
+		show?: string;
 		label?: string;
 		tags?: string[];
 		communityRating?: number;
@@ -170,7 +170,8 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 	});
 	const releaseDate = item.metadata.date ?? item.metadata.releaseDate;
 	const productionYear = metadataYear(item.metadata.year, releaseDate);
-	const audioArtists = item.metadata.artists ?? item.metadata.contributingArtists;
+	const audioArtists =
+		item.metadata.artists ?? item.metadata.contributingArtists;
 	const albumId = item.albumId ?? item.metadata.albumId;
 	const durationSeconds =
 		typeof item.durationSeconds === "number"

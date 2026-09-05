@@ -39,8 +39,20 @@ describe("browser playback capabilities", () => {
 		);
 
 		expect(
-			profile.directPlayProfiles.filter((entry) => entry.Type === "Audio").map((entry) => entry.Container),
-		).toEqual(expect.arrayContaining(["mp3", "m4a,mp4", "aac,adts", "flac", "ogg,oga,opus", "wav", "aiff,aif"]));
+			profile.directPlayProfiles
+				.filter((entry) => entry.Type === "Audio")
+				.map((entry) => entry.Container),
+		).toEqual(
+			expect.arrayContaining([
+				"mp3",
+				"m4a,mp4",
+				"aac,adts",
+				"flac",
+				"ogg,oga,opus",
+				"wav",
+				"aiff,aif",
+			]),
+		);
 	});
 
 	it("accepts the browser's bare FLAC MIME response", () => {

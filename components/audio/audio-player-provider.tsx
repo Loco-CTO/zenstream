@@ -292,7 +292,8 @@ export function AudioPlayerProvider({
 			startPositionSeconds: startPosition,
 		})
 			.then((playback) => {
-				if (!active || generation !== loadGeneration.current || !audioRef.current) return;
+				if (!active || generation !== loadGeneration.current || !audioRef.current)
+					return;
 				const url = playbackUrl(playback.source);
 				audio.volume = volumeRef.current;
 				audio.preload = "metadata";
@@ -300,7 +301,11 @@ export function AudioPlayerProvider({
 					const hls = new Hls({ enableWorker: true });
 					hlsRef.current = hls;
 					hls.on(Hls.Events.MANIFEST_PARSED, () => {
-						if (active && generation === loadGeneration.current && shouldPlayRef.current)
+						if (
+							active &&
+							generation === loadGeneration.current &&
+							shouldPlayRef.current
+						)
 							attemptPlay(entry);
 					});
 					hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -321,7 +326,9 @@ export function AudioPlayerProvider({
 				if (!active || generation !== loadGeneration.current) return;
 				setIsLoading(false);
 				setError(
-					loadError instanceof Error ? loadError.message : "Audio could not be loaded.",
+					loadError instanceof Error
+						? loadError.message
+						: "Audio could not be loaded.",
 				);
 			});
 		return () => {
@@ -351,7 +358,9 @@ export function AudioPlayerProvider({
 			useShuffle = shuffle,
 		) => {
 			void album;
-			const ordered = useShuffle ? shuffled(uniqueTracks(tracks)) : uniqueTracks(tracks);
+			const ordered = useShuffle
+				? shuffled(uniqueTracks(tracks))
+				: uniqueTracks(tracks);
 			if (!ordered.length) return;
 			const entries = makeEntries(ordered);
 			const requestedIndex = selectedTrackId
@@ -376,17 +385,14 @@ export function AudioPlayerProvider({
 					tracks = album.tracks;
 				} catch (loadError) {
 					setError(
-						loadError instanceof Error ? loadError.message : "Album could not be loaded.",
+						loadError instanceof Error
+							? loadError.message
+							: "Album could not be loaded.",
 					);
 				}
 			}
 			const available = tracks?.length ? tracks : [track];
-			playAlbum(
-				track,
-				available,
-				track.Id,
-				false,
-			);
+			playAlbum(track, available, track.Id, false);
 		},
 		[playAlbum, session],
 	);
@@ -589,6 +595,7 @@ export function AudioPlayerProvider({
 
 export function useAudioPlayer() {
 	const value = useContext(AudioPlayerContext);
-	if (!value) throw new Error("useAudioPlayer must be used within AudioPlayerProvider");
+	if (!value)
+		throw new Error("useAudioPlayer must be used within AudioPlayerProvider");
 	return value;
 }

@@ -61,8 +61,8 @@ export function MediaRow({
 									session={session}
 								/>
 							))
-					: uniqueItems(items).map((item) =>
-							variant === "wide" ? (
+						: uniqueItems(items).map((item) =>
+								variant === "wide" ? (
 									<WideCard key={item.Id} item={item} session={session} />
 								) : variant === "square" ? (
 									<SquareAudioCard key={item.Id} item={item} session={session!} />

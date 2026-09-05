@@ -35,102 +35,122 @@ export function AudioPlayerBar() {
 		<>
 			{player.queueOpen && (
 				<div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] right-2 z-[80] w-[min(25rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#16131d]/95 shadow-2xl shadow-black/60 backdrop-blur-xl md:bottom-[4.5rem] md:right-6">
-				<div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-					<div>
-						<h2 className="text-sm font-semibold text-white">{t("queue")}</h2>
-						<p className="mt-0.5 text-xs text-white/35">
-							{player.queue.length} {t("tracks").toLocaleLowerCase()}
-						</p>
+					<div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+						<div>
+							<h2 className="text-sm font-semibold text-white">{t("queue")}</h2>
+							<p className="mt-0.5 text-xs text-white/35">
+								{player.queue.length} {t("tracks").toLocaleLowerCase()}
+							</p>
+						</div>
+						<button
+							type="button"
+							aria-label={t("close")}
+							onClick={() => player.setQueueOpen(false)}
+							className="rounded-full p-2 text-white/45 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-300"
+						>
+							<X className="h-4 w-4" />
+						</button>
 					</div>
-					<button
-						type="button"
-						aria-label={t("close")}
-						onClick={() => player.setQueueOpen(false)}
-						className="rounded-full p-2 text-white/45 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-300"
-					>
-						<X className="h-4 w-4" />
-					</button>
-				</div>
-				<div className="max-h-[min(60vh,30rem)] overflow-y-auto p-2">
-					{player.queue.length === 0 ? (
-						<p className="px-3 py-8 text-center text-sm text-white/40">{t("queueEmpty")}</p>
-					) : (
-						player.queue.map((entry, index) => {
-							const selected = index === player.currentIndex;
-							return (
-								<div
-									key={entry.id}
-									className={`flex items-center gap-2 rounded-xl px-2 py-2 ${selected ? "bg-violet-500/15" : "hover:bg-white/[0.05]"}`}
-								>
-									<button
-										type="button"
-										aria-label={`${t("play")} ${entry.track.Name}`}
-										onClick={() => player.playQueueItem(index)}
-										className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+					<div className="max-h-[min(60vh,30rem)] overflow-y-auto p-2">
+						{player.queue.length === 0 ? (
+							<p className="px-3 py-8 text-center text-sm text-white/40">
+								{t("queueEmpty")}
+							</p>
+						) : (
+							player.queue.map((entry, index) => {
+								const selected = index === player.currentIndex;
+								return (
+									<div
+										key={entry.id}
+										className={`flex items-center gap-2 rounded-xl px-2 py-2 ${selected ? "bg-violet-500/15" : "hover:bg-white/[0.05]"}`}
 									>
-										<p className="truncate text-xs font-medium text-white/85">{entry.track.Name}</p>
-										<p className="truncate text-[11px] text-white/35">
-											{entry.track.Album ?? entry.track.AlbumArtist ?? ""}
-										</p>
-									</button>
-									<div className="flex items-center gap-0.5">
 										<button
 											type="button"
-											aria-label={t("moveUp")}
-											disabled={index === 0}
-											onClick={() => player.reorderQueue(index, index - 1)}
-											className="rounded p-1 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+											aria-label={`${t("play")} ${entry.track.Name}`}
+											onClick={() => player.playQueueItem(index)}
+											className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 										>
-											<ChevronUp className="h-3.5 w-3.5" />
+											<p className="truncate text-xs font-medium text-white/85">
+												{entry.track.Name}
+											</p>
+											<p className="truncate text-[11px] text-white/35">
+												{entry.track.Album ?? entry.track.AlbumArtist ?? ""}
+											</p>
 										</button>
-										<button
-											type="button"
-											aria-label={t("moveDown")}
-											disabled={index === player.queue.length - 1}
-											onClick={() => player.reorderQueue(index, index + 1)}
-											className="rounded p-1 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
-										>
-											<ChevronDown className="h-3.5 w-3.5" />
-										</button>
-										<button
-											type="button"
-											aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
-											onClick={() => player.removeQueueItem(entry.id)}
-											className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200"
-										>
-											<X className="h-3.5 w-3.5" />
-										</button>
+										<div className="flex items-center gap-0.5">
+											<button
+												type="button"
+												aria-label={t("moveUp")}
+												disabled={index === 0}
+												onClick={() => player.reorderQueue(index, index - 1)}
+												className="rounded p-1 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+											>
+												<ChevronUp className="h-3.5 w-3.5" />
+											</button>
+											<button
+												type="button"
+												aria-label={t("moveDown")}
+												disabled={index === player.queue.length - 1}
+												onClick={() => player.reorderQueue(index, index + 1)}
+												className="rounded p-1 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+											>
+												<ChevronDown className="h-3.5 w-3.5" />
+											</button>
+											<button
+												type="button"
+												aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
+												onClick={() => player.removeQueueItem(entry.id)}
+												className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200"
+											>
+												<X className="h-3.5 w-3.5" />
+											</button>
+										</div>
 									</div>
-								</div>
-							);
-						})
-					)}
+								);
+							})
+						)}
+					</div>
 				</div>
-			</div>
 			)}
 
 			<div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[75] overflow-hidden border-t border-white/10 bg-[#100e16]/95 px-3 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl md:bottom-0 md:px-6">
 				{image && (
-					<div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+					<div
+						className="pointer-events-none absolute inset-0 overflow-hidden"
+						aria-hidden="true"
+					>
 						<BlurHashGlow image={image} className="opacity-30" />
 						<div className="absolute inset-0 bg-[#100e16]/80" />
 					</div>
 				)}
 				<div className="relative mx-auto flex max-w-[1800px] items-center gap-3">
 					<Link
-						href={track?.AlbumId ? `/album/${track.AlbumId}?trackId=${encodeURIComponent(track.Id)}` : "/library"}
+						href={
+							track?.AlbumId
+								? `/album/${track.AlbumId}?trackId=${encodeURIComponent(track.Id)}`
+								: "/library"
+						}
 						className="hidden min-w-0 items-center gap-2 sm:flex sm:w-52"
 					>
 						<div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-white/[0.06]">
 							{image ? (
-								<BlurHashImage image={image} alt="" sizes="40px" className="h-full w-full object-cover" />
+								<BlurHashImage
+									image={image}
+									alt=""
+									sizes="40px"
+									className="h-full w-full object-cover"
+								/>
 							) : (
 								<MediaPlaceholder />
 							)}
 						</div>
 						<div className="min-w-0">
-							<p className="truncate text-xs font-semibold text-white/85">{track?.Name ?? t("queue")}</p>
-							<p className="truncate text-[11px] text-white/35">{track?.AlbumArtist ?? track?.Album ?? ""}</p>
+							<p className="truncate text-xs font-semibold text-white/85">
+								{track?.Name ?? t("queue")}
+							</p>
+							<p className="truncate text-[11px] text-white/35">
+								{track?.AlbumArtist ?? track?.Album ?? ""}
+							</p>
 						</div>
 					</Link>
 
@@ -139,11 +159,21 @@ export function AudioPlayerBar() {
 							<SkipBack className="h-4 w-4" />
 						</IconButton>
 						<IconButton
-							label={player.isPlaying ? t("pause") : player.autoplayBlocked ? t("resumeAudio") : t("play")}
+							label={
+								player.isPlaying
+									? t("pause")
+									: player.autoplayBlocked
+										? t("resumeAudio")
+										: t("play")
+							}
 							onClick={player.autoplayBlocked ? player.resume : player.togglePlay}
 							primary
 						>
-							{player.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+							{player.isPlaying ? (
+								<Pause className="h-4 w-4" />
+							) : (
+								<Play className="ml-0.5 h-4 w-4 fill-current" />
+							)}
 						</IconButton>
 						<IconButton label={t("next")} onClick={player.playNext}>
 							<SkipForward className="h-4 w-4" />
@@ -166,13 +196,19 @@ export function AudioPlayerBar() {
 								aria-label={t("duration")}
 								className="h-1 min-w-0 flex-1 accent-violet-400"
 							/>
-							<span className="w-9 text-[10px] tabular-nums text-white/35">{formatTime(duration)}</span>
+							<span className="w-9 text-[10px] tabular-nums text-white/35">
+								{formatTime(duration)}
+							</span>
 						</div>
 						{player.error && (
 							<div className="mt-1 flex items-center gap-2 text-[10px] text-red-200/75">
 								<span className="truncate">{player.error}</span>
 								{player.autoplayBlocked && (
-									<button type="button" onClick={player.resume} className="shrink-0 underline hover:text-white">
+									<button
+										type="button"
+										onClick={player.resume}
+										className="shrink-0 underline hover:text-white"
+									>
 										{t("resumeAudio")}
 									</button>
 								)}
@@ -181,7 +217,11 @@ export function AudioPlayerBar() {
 					</div>
 
 					<div className="hidden items-center gap-2 md:flex">
-						<ShuffleButton active={player.shuffle} onClick={player.toggleShuffle} label={t("shuffle")} />
+						<ShuffleButton
+							active={player.shuffle}
+							onClick={player.toggleShuffle}
+							label={t("shuffle")}
+						/>
 						<Volume2 className="h-4 w-4 text-white/35" aria-hidden="true" />
 						<input
 							type="range"
@@ -194,7 +234,10 @@ export function AudioPlayerBar() {
 							className="w-20 accent-violet-400"
 						/>
 					</div>
-					<IconButton label={t("queue")} onClick={() => player.setQueueOpen(!player.queueOpen)}>
+					<IconButton
+						label={t("queue")}
+						onClick={() => player.setQueueOpen(!player.queueOpen)}
+					>
 						<ListMusic className="h-4 w-4" />
 					</IconButton>
 				</div>
@@ -226,7 +269,15 @@ function IconButton({
 	);
 }
 
-function ShuffleButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function ShuffleButton({
+	active,
+	onClick,
+	label,
+}: {
+	active: boolean;
+	onClick: () => void;
+	label: string;
+}) {
 	return (
 		<button
 			type="button"

@@ -139,9 +139,7 @@ export function browserDeviceProfile(
 ): BrowserDeviceProfile {
 	const audio: AudioElementLike =
 		audioElement ??
-		(typeof document === "undefined"
-			? video
-			: document.createElement("audio"));
+		(typeof document === "undefined" ? video : document.createElement("audio"));
 	const mp4Video = [
 		...(supports(video, 'video/mp4; codecs="hvc1"') ||
 		supports(video, 'video/mp4; codecs="hvc1.1.L120"') ||
@@ -244,9 +242,17 @@ export function browserDeviceProfile(
 			AudioCodec: oggAudioCodecs.join(","),
 		});
 	if (supportsAudio(audio, "audio/wav"))
-		audioProfiles.push({ Type: "Audio", Container: "wav", AudioCodec: "pcm_s16le" });
+		audioProfiles.push({
+			Type: "Audio",
+			Container: "wav",
+			AudioCodec: "pcm_s16le",
+		});
 	if (supportsAudio(audio, "audio/aiff"))
-		audioProfiles.push({ Type: "Audio", Container: "aiff,aif", AudioCodec: "pcm_s16be" });
+		audioProfiles.push({
+			Type: "Audio",
+			Container: "aiff,aif",
+			AudioCodec: "pcm_s16be",
+		});
 	directPlayProfiles.push(...audioProfiles);
 	return {
 		directPlayProfiles,

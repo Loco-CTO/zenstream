@@ -86,7 +86,8 @@ const CollectionPage = dynamic(
 	{ ssr: false },
 );
 const AudioAlbumPage = dynamic(
-	() => import("@/components/pages/audio-album-page").then((m) => m.AudioAlbumPage),
+	() =>
+		import("@/components/pages/audio-album-page").then((m) => m.AudioAlbumPage),
 	{ ssr: false },
 );
 const ArtistPage = dynamic(
@@ -185,7 +186,9 @@ export function AppShell() {
 	const [searchData, setSearchData] = useState<string | null>(null);
 
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
-	const [audioAlbumData, setAudioAlbumData] = useState<AudioAlbumData | null>(null);
+	const [audioAlbumData, setAudioAlbumData] = useState<AudioAlbumData | null>(
+		null,
+	);
 	const [artistData, setArtistData] = useState<ArtistData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
@@ -521,7 +524,11 @@ export function AppShell() {
 			try {
 				void primeArtworkTicket(nextSession);
 				void primeResourceTicket(nextSession);
-				const data = await fetchAudioAlbumData(nextSession, albumId, controller.signal);
+				const data = await fetchAudioAlbumData(
+					nextSession,
+					albumId,
+					controller.signal,
+				);
 				if (isCurrent()) {
 					setAudioAlbumData(data);
 					setStatus("ready");
@@ -529,12 +536,15 @@ export function AppShell() {
 			} catch (loadError) {
 				if (!controller.signal.aborted && isCurrent()) {
 					setError(
-						loadError instanceof Error ? loadError.message : "Could not load this album.",
+						loadError instanceof Error
+							? loadError.message
+							: "Could not load this album.",
 					);
 					setStatus("error");
 				}
 			} finally {
-				if (audioLoadController.current === controller) audioLoadController.current = null;
+				if (audioLoadController.current === controller)
+					audioLoadController.current = null;
 				finishProgress();
 			}
 		},
@@ -563,7 +573,11 @@ export function AppShell() {
 			try {
 				void primeArtworkTicket(nextSession);
 				void primeResourceTicket(nextSession);
-				const data = await fetchArtistData(nextSession, requestedArtistId, controller.signal);
+				const data = await fetchArtistData(
+					nextSession,
+					requestedArtistId,
+					controller.signal,
+				);
 				if (isCurrent()) {
 					setArtistData(data);
 					setStatus("ready");
@@ -571,12 +585,15 @@ export function AppShell() {
 			} catch (loadError) {
 				if (!controller.signal.aborted && isCurrent()) {
 					setError(
-						loadError instanceof Error ? loadError.message : "Could not load this artist.",
+						loadError instanceof Error
+							? loadError.message
+							: "Could not load this artist.",
 					);
 					setStatus("error");
 				}
 			} finally {
-				if (audioLoadController.current === controller) audioLoadController.current = null;
+				if (audioLoadController.current === controller)
+					audioLoadController.current = null;
 				finishProgress();
 			}
 		},
@@ -706,7 +723,7 @@ export function AppShell() {
 			finishProgress();
 		})();
 	}, [
-			detailId,
+		detailId,
 		audioAlbumId,
 		artistId,
 		playId,
@@ -733,10 +750,8 @@ export function AppShell() {
 		const generation = ++routeLoadGeneration.current;
 		loadPreferences(nextSession);
 		void primeResourceTicket(nextSession);
-		if (audioAlbumId)
-			await loadAudioAlbum(nextSession, audioAlbumId, generation);
-		else if (artistId)
-			await loadArtist(nextSession, artistId, generation);
+		if (audioAlbumId) await loadAudioAlbum(nextSession, audioAlbumId, generation);
+		else if (artistId) await loadArtist(nextSession, artistId, generation);
 		else if (detailId || playId)
 			await loadDetail(nextSession, detailId ?? playId!, generation);
 		else if (pathname === "/search" || pathname === "/notifications") {
@@ -1108,105 +1123,105 @@ export function AppShell() {
 								<SyncplayProvider session={session}>
 									<SyncplayPlaybackFollower />
 									{pathname === "/settings" ? (
-									<SettingsPage
-										displayName={session.username}
-										userId={session.userId}
-										session={session}
-										avatarVersion={avatarVersion}
-										onAvatarVersionChange={handleAvatarVersionChange}
-										locale={effectiveLocale}
-										onLocaleChange={handleLocaleChange}
-										metadataLanguages={metadataLanguages}
-										metadataLanguage={metadataLanguage}
-										onMetadataLanguageChange={handleMetadataLanguageChange}
-										playbackPreference={playbackPreference}
-										onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
-										watchHistoryEnabled={watchHistoryEnabled}
-										onWatchHistoryChange={handleWatchHistoryChange}
-										onClearWatchHistory={handleClearWatchHistory}
-										onPlaybackPreferenceLoad={() => loadPreferences(session)}
-										onPasswordChanged={handlePasswordChanged}
-										onLogout={handleLogout}
-									/>
-								) : (
-									<div className="min-h-screen bg-background text-foreground">
-										<Navbar
+										<SettingsPage
 											displayName={session.username}
 											userId={session.userId}
-											avatarVersion={avatarVersion}
-											onLogout={handleLogout}
 											session={session}
+											avatarVersion={avatarVersion}
+											onAvatarVersionChange={handleAvatarVersionChange}
+											locale={effectiveLocale}
+											onLocaleChange={handleLocaleChange}
+											metadataLanguages={metadataLanguages}
+											metadataLanguage={metadataLanguage}
+											onMetadataLanguageChange={handleMetadataLanguageChange}
+											playbackPreference={playbackPreference}
+											onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+											watchHistoryEnabled={watchHistoryEnabled}
+											onWatchHistoryChange={handleWatchHistoryChange}
+											onClearWatchHistory={handleClearWatchHistory}
+											onPlaybackPreferenceLoad={() => loadPreferences(session)}
+											onPasswordChanged={handlePasswordChanged}
+											onLogout={handleLogout}
 										/>
-										<MobileNav />
+									) : (
+										<div className="min-h-screen bg-background text-foreground">
+											<Navbar
+												displayName={session.username}
+												userId={session.userId}
+												avatarVersion={avatarVersion}
+												onLogout={handleLogout}
+												session={session}
+											/>
+											<MobileNav />
 											{renderStatus === "error" && (
 												<ErrorPanel
 													titleKey={
 														audioAlbumId || artistId
-														? "audioNotFound"
-														: detailId
-															? "detailLoadFailed"
-															: "libraryLoadFailed"
+															? "audioNotFound"
+															: detailId
+																? "detailLoadFailed"
+																: "libraryLoadFailed"
 													}
 													message={error}
-												onRetry={() => {
-													if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
-													else if (artistId) void loadArtist(session, artistId);
-													else if (detailId) void loadDetail(session, detailId);
-													else void loadHome(session);
-												}}
+													onRetry={() => {
+														if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
+														else if (artistId) void loadArtist(session, artistId);
+														else if (detailId) void loadDetail(session, detailId);
+														else void loadHome(session);
+													}}
 												/>
 											)}
-										{renderStatus === "ready" && detailData && playId && (
-											<PlayerPage
-												initialData={detailData}
-												session={session}
-												watchHistoryEnabled={watchHistoryEnabled}
-												watchHistoryLoaded={watchHistoryLoaded}
-											/>
-										)}
-										{renderStatus === "ready" &&
-											detailData &&
-											detailId &&
-											!playId &&
-											(detailData.item.Type === "BoxSet" ? (
-												<CollectionPage initialData={detailData} session={session} />
-											) : (
-												<DetailPage initialData={detailData} session={session} />
-												))}
-										{renderStatus === "ready" && audioAlbumId && audioAlbumData && (
-											<AudioAlbumPage data={audioAlbumData} session={session} />
-										)}
-										{renderStatus === "ready" && artistId && artistData && (
-											<ArtistPage data={artistData} session={session} />
-										)}
-										{renderStatus === "ready" && pathname === "/library" && (
-											<LibraryPage session={session} />
-										)}
-										{renderStatus === "ready" && pathname === "/favorites" && (
-											<FavoritesPage session={session} />
-										)}
-										{renderStatus === "ready" && pathname === "/calendar" && (
-											<CalendarPage session={session} />
-										)}
-										{renderStatus === "ready" && pathname === "/notifications" && (
-											<NotificationsPage session={session} />
-										)}
-										{renderStatus === "ready" && pathname === "/search" && (
-											<SearchPage session={session} query={searchData ?? searchQuery} />
-										)}
-										{homeData &&
-											!detailId &&
-											!audioAlbumId &&
-											!artistId &&
-											pathname !== "/library" &&
-											pathname !== "/favorites" &&
-											pathname !== "/calendar" &&
-											pathname !== "/notifications" &&
-											pathname !== "/search" && (
-												<HomePage data={homeData} session={session} />
+											{renderStatus === "ready" && detailData && playId && (
+												<PlayerPage
+													initialData={detailData}
+													session={session}
+													watchHistoryEnabled={watchHistoryEnabled}
+													watchHistoryLoaded={watchHistoryLoaded}
+												/>
 											)}
-									</div>
-								)}
+											{renderStatus === "ready" &&
+												detailData &&
+												detailId &&
+												!playId &&
+												(detailData.item.Type === "BoxSet" ? (
+													<CollectionPage initialData={detailData} session={session} />
+												) : (
+													<DetailPage initialData={detailData} session={session} />
+												))}
+											{renderStatus === "ready" && audioAlbumId && audioAlbumData && (
+												<AudioAlbumPage data={audioAlbumData} session={session} />
+											)}
+											{renderStatus === "ready" && artistId && artistData && (
+												<ArtistPage data={artistData} session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/library" && (
+												<LibraryPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/favorites" && (
+												<FavoritesPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/calendar" && (
+												<CalendarPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/notifications" && (
+												<NotificationsPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/search" && (
+												<SearchPage session={session} query={searchData ?? searchQuery} />
+											)}
+											{homeData &&
+												!detailId &&
+												!audioAlbumId &&
+												!artistId &&
+												pathname !== "/library" &&
+												pathname !== "/favorites" &&
+												pathname !== "/calendar" &&
+												pathname !== "/notifications" &&
+												pathname !== "/search" && (
+													<HomePage data={homeData} session={session} />
+												)}
+										</div>
+									)}
 									<AudioPlayerBar />
 								</SyncplayProvider>
 							</AudioPlayerProvider>

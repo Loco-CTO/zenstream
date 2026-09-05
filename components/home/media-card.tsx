@@ -213,7 +213,8 @@ export function SquareAudioCard({
 	const isTrack = item.Type === "Audio";
 	const secondary = isTrack
 		? [item.Album, item.AlbumArtist].filter(Boolean).join(" · ")
-		: item.AlbumArtist ?? (item.ProductionYear ? String(item.ProductionYear) : "");
+		: (item.AlbumArtist ??
+			(item.ProductionYear ? String(item.ProductionYear) : ""));
 	const href = audioHref(item);
 
 	return (
@@ -262,7 +263,9 @@ export function SquareAudioCard({
 			</div>
 			<div className="mt-2 min-w-0">
 				<p className="truncate text-xs font-medium text-white/85">{item.Name}</p>
-				{secondary && <p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>}
+				{secondary && (
+					<p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>
+				)}
 			</div>
 		</article>
 	);

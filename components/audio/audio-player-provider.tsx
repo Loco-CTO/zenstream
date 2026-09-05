@@ -30,6 +30,8 @@ export type AudioQueueEntry = {
 	playbackInstanceId: string;
 };
 
+export type AudioLoopMode = "off" | "queue" | "single";
+
 export type AudioPlayerState = {
 	queue: AudioQueueEntry[];
 	currentIndex: number;
@@ -40,6 +42,7 @@ export type AudioPlayerState = {
 	shuffle: boolean;
 	volume: number;
 	muted: boolean;
+	loopMode: AudioLoopMode;
 	isLoading: boolean;
 	error: string | null;
 	autoplayBlocked: boolean;
@@ -64,6 +67,7 @@ type AudioPlayerContextValue = AudioPlayerState & {
 	setVolume: (volume: number) => void;
 	toggleMuted: () => void;
 	toggleShuffle: () => void;
+	cycleLoopMode: () => void;
 	removeQueueItem: (entryId: string) => void;
 	reorderQueue: (fromIndex: number, toIndex: number) => void;
 	setQueueOpen: (open: boolean) => void;
@@ -114,6 +118,7 @@ export function AudioPlayerProvider({
 	const [shuffle, setShuffle] = useState(false);
 	const [volume, setVolumeState] = useState(1);
 	const [muted, setMuted] = useState(false);
+	const [loopMode, setLoopMode] = useState<AudioLoopMode>("off");
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [autoplayBlocked, setAutoplayBlocked] = useState(false);
@@ -126,6 +131,7 @@ export function AudioPlayerProvider({
 	const currentIndexRef = useRef(currentIndex);
 	const volumeRef = useRef(volume);
 	const mutedRef = useRef(muted);
+	const loopModeRef = useRef(loopMode);
 	const progressReportedAt = useRef(0);
 	const playStartPromises = useRef(new Map<string, Promise<void>>());
 	const playStartCompleted = useRef(new Set<string>());
@@ -141,6 +147,9 @@ export function AudioPlayerProvider({
 		mutedRef.current = muted;
 		if (audioRef.current) audioRef.current.volume = muted ? 0 : volume;
 	}, [muted, volume]);
+	useEffect(() => {
+		loopModeRef.current = loopMode;
+	}, [loopMode]);
 
 	const currentEntry = queue[currentIndex] ?? null;
 	const currentTrack = currentEntry?.track ?? null;
@@ -240,10 +249,32 @@ export function AudioPlayerProvider({
 		};
 		const onEnded = () => {
 			reportPosition(true);
+			const currentEntryAtEnd = queueRef.current[currentIndexRef.current];
+			if (!currentEntryAtEnd) {
+				shouldPlayRef.current = false;
+				setIsPlaying(false);
+				return;
+			}
+			if (loopModeRef.current === "single") {
+				shouldPlayRef.current = true;
+				audio.currentTime = 0;
+				setPositionSeconds(0);
+				attemptPlay(currentEntryAtEnd);
+				return;
+			}
 			const nextIndex = currentIndexRef.current + 1;
 			if (nextIndex < queueRef.current.length) {
 				setCurrentIndex(nextIndex);
 				shouldPlayRef.current = true;
+			} else if (loopModeRef.current === "queue") {
+				shouldPlayRef.current = true;
+				if (queueRef.current.length === 1) {
+					audio.currentTime = 0;
+					setPositionSeconds(0);
+					attemptPlay(currentEntryAtEnd);
+				} else {
+					setCurrentIndex(0);
+				}
 			} else {
 				shouldPlayRef.current = false;
 				setIsPlaying(false);
@@ -267,7 +298,7 @@ export function AudioPlayerProvider({
 			audio.removeEventListener("ended", onEnded);
 			audio.removeEventListener("error", onError);
 		};
-	}, [currentEntry, reportPosition, sendPlayStart]);
+	}, [attemptPlay, currentEntry, reportPosition, sendPlayStart]);
 
 	useEffect(() => {
 		const audio = audioRef.current;
@@ -483,6 +514,14 @@ export function AudioPlayerProvider({
 		setShuffle((current) => !current);
 	}, []);
 
+	const cycleLoopMode = useCallback(() => {
+		setLoopMode((current) => {
+			if (current === "off") return "queue";
+			if (current === "queue") return "single";
+			return "off";
+		});
+	}, []);
+
 	const removeQueueItem = useCallback((entryId: string) => {
 		setQueue((current) => {
 			const removedIndex = current.findIndex((entry) => entry.id === entryId);
@@ -570,6 +609,7 @@ export function AudioPlayerProvider({
 		setError(null);
 		setAutoplayBlocked(false);
 		setQueueOpen(false);
+		setLoopMode("off");
 		playStartPromises.current.clear();
 		playStartCompleted.current.clear();
 	}, []);
@@ -585,6 +625,7 @@ export function AudioPlayerProvider({
 			shuffle,
 			volume,
 			muted,
+			loopMode,
 			isLoading,
 			error,
 			autoplayBlocked,
@@ -601,6 +642,7 @@ export function AudioPlayerProvider({
 			setVolume,
 			toggleMuted,
 			toggleShuffle,
+			cycleLoopMode,
 			removeQueueItem,
 			reorderQueue,
 			setQueueOpen,
@@ -613,10 +655,12 @@ export function AudioPlayerProvider({
 			clearAudioPlayer,
 			currentIndex,
 			currentTrack,
+			cycleLoopMode,
 			durationSeconds,
 			error,
 			isLoading,
 			isPlaying,
+			loopMode,
 			playAlbum,
 			playNext,
 			playQueueItem,

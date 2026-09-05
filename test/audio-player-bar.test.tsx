@@ -123,12 +123,12 @@ describe("AudioPlayerBar", () => {
 		);
 		expect(
 			Array.from(bar.querySelectorAll("p")).some((element) =>
-				element.classList.contains("text-[14px]"),
+				element.classList.contains("text-[18px]"),
 			),
 		).toBe(true);
 		expect(
 			Array.from(bar.querySelectorAll("p")).filter((element) =>
-				element.classList.contains("text-[12px]"),
+				element.classList.contains("text-[14px]"),
 			).length,
 		).toBeGreaterThanOrEqual(2);
 		expect(
@@ -144,8 +144,11 @@ describe("AudioPlayerBar", () => {
 			screen.getAllByRole("button", { name: "Queue" }).length,
 		).toBeGreaterThan(0);
 		expect(
+			screen.getAllByRole("button", { name: "Loop off" }).length,
+		).toBeGreaterThan(0);
+		expect(
 			screen.queryByRole("button", {
-				name: /star|rating|timer|auto dj|repeat|lyrics|stop/i,
+				name: /star|rating|timer|auto dj|lyrics|stop/i,
 			}),
 		).not.toBeInTheDocument();
 		view.unmount();
@@ -160,6 +163,20 @@ describe("AudioPlayerBar", () => {
 			"aria-pressed",
 			"true",
 		);
+		fireEvent.click(screen.getAllByRole("button", { name: "Loop off" })[0]);
+		expect(
+			screen.getAllByRole("button", { name: "Loop queue" }).length,
+		).toBeGreaterThan(0);
+		fireEvent.click(screen.getAllByRole("button", { name: "Loop queue" })[0]);
+		expect(
+			screen.getAllByRole("button", { name: "Loop current track" }).length,
+		).toBeGreaterThan(0);
+		fireEvent.click(
+			screen.getAllByRole("button", { name: "Loop current track" })[0],
+		);
+		expect(
+			screen.getAllByRole("button", { name: "Loop off" }).length,
+		).toBeGreaterThan(0);
 
 		fireEvent.change(screen.getAllByRole("slider", { name: "Volume" })[0], {
 			target: { value: "0.4" },
@@ -200,6 +217,35 @@ describe("AudioPlayerBar", () => {
 		await waitFor(() =>
 			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
 		);
+	});
+
+	it("advances, wraps, and repeats according to the selected loop mode", async () => {
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+		const audio = document.querySelector("audio");
+		if (!audio) throw new Error("audio element was not rendered");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Loop off" })[0]);
+		fireEvent.ended(audio);
+		await waitFor(() =>
+			expect(screen.getAllByText("Track Two").length).toBeGreaterThan(0),
+		);
+
+		fireEvent.ended(audio);
+		await waitFor(() =>
+			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
+		);
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Loop queue" })[0]);
+		const playMock = vi.mocked(HTMLMediaElement.prototype.play);
+		const playCallsBeforeSingleLoop = playMock.mock.calls.length;
+		fireEvent.ended(audio);
+		await waitFor(() =>
+			expect(playMock.mock.calls.length).toBeGreaterThan(
+				playCallsBeforeSingleLoop,
+			),
+		);
+		expect(screen.getAllByText("Track One").length).toBeGreaterThan(0);
 	});
 
 	it("shows playback errors without removing the bar", async () => {

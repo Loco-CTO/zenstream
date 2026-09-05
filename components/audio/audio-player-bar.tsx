@@ -9,6 +9,8 @@ import {
 	LoaderCircle,
 	Pause,
 	Play,
+	Repeat,
+	Repeat1,
 	Shuffle,
 	SkipBack,
 	SkipForward,
@@ -29,6 +31,9 @@ type AudioPlayer = ReturnType<typeof useAudioPlayer>;
 
 type TransportLabels = {
 	shuffle: string;
+	loopOff: string;
+	loopQueue: string;
+	loopSingle: string;
 	previous: string;
 	play: string;
 	pause: string;
@@ -61,6 +66,9 @@ export function AudioPlayerBar() {
 	const album = track?.Album ?? "";
 	const transportLabels: TransportLabels = {
 		shuffle: t("shuffle"),
+		loopOff: t("loopOff"),
+		loopQueue: t("loopQueue"),
+		loopSingle: t("loopSingle"),
 		previous: t("previous"),
 		play: t("play"),
 		pause: t("pause"),
@@ -99,6 +107,7 @@ export function AudioPlayerBar() {
 							player={player}
 							labels={transportLabels}
 							includeShuffle
+							includeLoop
 						/>
 						<SeekControl
 							position={position}
@@ -123,7 +132,13 @@ export function AudioPlayerBar() {
 							error={player.error}
 							compact
 						/>
-						<TransportControls player={player} labels={transportLabels} compact />
+						<TransportControls
+							player={player}
+							labels={transportLabels}
+							includeShuffle
+							includeLoop
+							compact
+						/>
 					</div>
 					<div className="flex min-h-0 items-center gap-1">
 						<div className="min-w-0 flex-1">
@@ -139,7 +154,6 @@ export function AudioPlayerBar() {
 							player={player}
 							track={track}
 							labels={actionLabels}
-							includeShuffle
 							compact
 						/>
 					</div>
@@ -319,11 +333,13 @@ function TransportControls({
 	player,
 	labels,
 	includeShuffle,
+	includeLoop,
 	compact = false,
 }: {
 	player: AudioPlayer;
 	labels: TransportLabels;
 	includeShuffle?: boolean;
+	includeLoop?: boolean;
 	compact?: boolean;
 }) {
 	const playLabel = player.isPlaying
@@ -382,6 +398,26 @@ function TransportControls({
 			>
 				<SkipForward className="h-4 w-4" />
 			</IconButton>
+			{includeLoop && (
+				<IconButton
+					label={
+						player.loopMode === "off"
+							? labels.loopOff
+							: player.loopMode === "queue"
+								? labels.loopQueue
+								: labels.loopSingle
+					}
+					onClick={player.cycleLoopMode}
+					pressed={player.loopMode !== "off"}
+					compact={compact}
+				>
+					{player.loopMode === "single" ? (
+						<Repeat1 className="h-4 w-4" />
+					) : (
+						<Repeat className="h-4 w-4" />
+					)}
+				</IconButton>
+			)}
 		</div>
 	);
 }

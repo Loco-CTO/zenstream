@@ -47,6 +47,9 @@ play: Play
 pause: Pause
 resume: Resume
 shuffle: Shuffle
+loopOff: Loop off
+loopQueue: Loop queue
+loopSingle: Loop current track
 queue: Queue
 next: Next
 previous: Previous

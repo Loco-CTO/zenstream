@@ -49,6 +49,9 @@ play: 再生
 pause: 一時停止
 resume: 再開
 shuffle: シャッフル
+loopOff: ループオフ
+loopQueue: キューをループ
+loopSingle: 1曲ループ
 queue: キュー
 next: 次へ
 previous: 前へ

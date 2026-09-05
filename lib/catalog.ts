@@ -12,11 +12,17 @@ export type CatalogItem = {
 	seriesName?: string | null;
 	seriesProductionYear?: number | null;
 	seriesPrimaryImage?: { url?: string; blurHash?: string } | null;
+	collectionYearRange?: string | null;
 	seasonId?: string | null;
+	albumId?: string | null;
+	artistId?: string | null;
 	type: "movie" | "series" | "season" | "episode" | "collection" | string;
 	name: string;
 	seasonNumber?: number | null;
 	episodeNumber?: number | null;
+	discNumber?: number | null;
+	trackNumber?: number | null;
+	durationSeconds?: number | null;
 	dateAdded?: string;
 	lastAddedAt?: string;
 	childIds?: string[];
@@ -26,7 +32,16 @@ export type CatalogItem = {
 		description?: string;
 		year?: string | number;
 		date?: string;
+		releaseDate?: string;
 		runtimeMinutes?: number;
+		durationSeconds?: number;
+		albumArtist?: string;
+		artists?: Array<Record<string, unknown>>;
+		contributingArtists?: Array<Record<string, unknown>>;
+		album?: string;
+		albumId?: string;
+		show?: string;
+		label?: string;
 		tags?: string[];
 		communityRating?: number;
 		officialRating?: string;
@@ -91,6 +106,9 @@ const itemTypes: Record<string, string> = {
 	season: "Season",
 	episode: "Episode",
 	collection: "BoxSet",
+	artist: "MusicArtist",
+	release: "MusicAlbum",
+	track: "Audio",
 };
 
 function metadataYear(value: unknown, date: unknown) {
@@ -150,7 +168,17 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 				?.trim() ?? "";
 		return /^https?:\/\//i.test(url) ? [{ Url: url }] : [];
 	});
-	const productionYear = metadataYear(item.metadata.year, item.metadata.date);
+	const releaseDate = item.metadata.date ?? item.metadata.releaseDate;
+	const productionYear = metadataYear(item.metadata.year, releaseDate);
+	const audioArtists =
+		item.metadata.artists ?? item.metadata.contributingArtists;
+	const albumId = item.albumId ?? item.metadata.albumId;
+	const durationSeconds =
+		typeof item.durationSeconds === "number"
+			? item.durationSeconds
+			: typeof item.metadata.durationSeconds === "number"
+				? item.metadata.durationSeconds
+				: undefined;
 	return {
 		Id: item.id,
 		Name: item.metadata.title ?? item.name,
@@ -160,18 +188,42 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		SeriesProductionYear: item.seriesProductionYear ?? undefined,
 		SeriesPrimaryImageTag: item.seriesPrimaryImage?.url,
 		SeriesPrimaryImageBlurHash: item.seriesPrimaryImage?.blurHash,
+		CollectionYearRange: item.collectionYearRange ?? undefined,
+		AlbumId: albumId ?? undefined,
+		ArtistId: item.artistId ?? undefined,
+		Album: item.metadata.album ?? undefined,
+		AlbumArtist: item.metadata.albumArtist ?? undefined,
+		Artists: Array.isArray(audioArtists)
+			? audioArtists
+					.map((artist) => String(artist.name ?? "").trim())
+					.filter(Boolean)
+			: undefined,
+		ContributingArtists: Array.isArray(item.metadata.contributingArtists)
+			? item.metadata.contributingArtists
+					.map((artist) => String(artist.name ?? "").trim())
+					.filter(Boolean)
+			: undefined,
+		Label: item.metadata.label ?? undefined,
+		Tags: item.metadata.tags,
+		ReleaseDate: releaseDate,
+		Show: item.metadata.show,
 		SeasonId: item.seasonId ?? undefined,
 		ParentIndexNumber: item.seasonNumber ?? undefined,
+		DiscNumber: item.discNumber ?? undefined,
+		TrackNumber: item.trackNumber ?? undefined,
 		IndexNumber:
 			item.type === "season"
 				? (item.seasonNumber ?? undefined)
 				: (item.episodeNumber ?? undefined),
 		Overview: item.metadata.overview ?? item.metadata.description,
 		ProductionYear: productionYear,
-		PremiereDate: item.metadata.date,
-		RunTimeTicks: item.metadata.runtimeMinutes
-			? item.metadata.runtimeMinutes * 60 * 10_000_000
-			: undefined,
+		PremiereDate: releaseDate,
+		RunTimeTicks: durationSeconds
+			? durationSeconds * 10_000_000
+			: item.metadata.runtimeMinutes
+				? item.metadata.runtimeMinutes * 60 * 10_000_000
+				: undefined,
+		DurationSeconds: durationSeconds,
 		CommunityRating: item.metadata.communityRating,
 		OfficialRating: item.metadata.officialRating,
 		Genres: item.metadata.tags,

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PosterCard } from "@/components/home/media-card";
+import { SquareAudioCard, PosterCard } from "@/components/home/media-card";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { getSearchPage, type MediaItem } from "@/lib/media-api";
@@ -170,13 +170,25 @@ export function SearchPage({
 	}, [items.length, loadMore, loadMoreError, loadingMore, total]);
 
 	useEffect(() => {
-		const refresh = () => setRetryKey((value) => value + 1);
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }>;
+			if (event.detail?.reason === "scan") return;
+			setRetryKey((value) => value + 1);
+		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
 	}, []);
 
 	const showLoadingMore = loadingMore && loadedKey === requestKey;
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
+	const audioArtists = uniqueItems(
+		items.filter((item) => item.Type === "MusicArtist"),
+	);
+	const audioAlbums = uniqueItems(
+		items.filter((item) => item.Type === "MusicAlbum"),
+	);
+	const audioTracks = uniqueItems(items.filter((item) => item.Type === "Audio"));
+	const videoItems = uniqueItems(items.filter((item) => !isAudioItem(item)));
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
 			<div className="mx-auto max-w-[1800px]">
@@ -207,10 +219,43 @@ export function SearchPage({
 					</div>
 				) : (
 					<>
-						<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
-							{items.map((item) => (
-								<PosterCard key={item.Id} item={item} session={session} />
-							))}
+						<div className="space-y-10">
+							{audioArtists.length > 0 && (
+								<SearchAudioSection
+									title={t("artists")}
+									items={audioArtists}
+									session={session}
+								/>
+							)}
+							{audioAlbums.length > 0 && (
+								<SearchAudioSection
+									title={t("albums")}
+									items={audioAlbums}
+									session={session}
+								/>
+							)}
+							{audioTracks.length > 0 && (
+								<SearchAudioSection
+									title={t("tracks")}
+									items={audioTracks}
+									session={session}
+								/>
+							)}
+							{videoItems.length > 0 && (
+								<section aria-labelledby="video-search-results">
+									<h2
+										id="video-search-results"
+										className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50"
+									>
+										{t("movies")} / {t("series")}
+									</h2>
+									<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
+										{videoItems.map((item) => (
+											<PosterCard key={item.Id} item={item} session={session} />
+										))}
+									</div>
+								</section>
+							)}
 						</div>
 						{items.length < total && (
 							<>
@@ -233,6 +278,42 @@ export function SearchPage({
 				)}
 			</div>
 		</main>
+	);
+}
+
+function SearchAudioSection({
+	title,
+	items,
+	session,
+}: {
+	title: string;
+	items: MediaItem[];
+	session: AuthSession;
+}) {
+	return (
+		<section aria-label={title}>
+			<h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+				{title}
+			</h2>
+			<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
+				{items.map((item) => (
+					<SquareAudioCard
+						key={item.Id}
+						item={item}
+						session={session}
+						className="w-full"
+					/>
+				))}
+			</div>
+		</section>
+	);
+}
+
+function isAudioItem(item: MediaItem) {
+	return (
+		item.Type === "MusicArtist" ||
+		item.Type === "MusicAlbum" ||
+		item.Type === "Audio"
 	);
 }
 

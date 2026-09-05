@@ -270,6 +270,36 @@ describe("LibraryPage", () => {
 		expect(screen.queryByLabelText("Movie")).not.toBeInTheDocument();
 	});
 
+	it("shows collection child years instead of the internal BoxSet type", async () => {
+		vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockImplementation((_session, options) =>
+				Promise.resolve(
+					options.parentId === "collections"
+						? {
+								items: [
+									{
+										Id: "collection",
+										Name: "Code Geass Series",
+										Type: "BoxSet",
+										CollectionYearRange: "2007-2019",
+									},
+								],
+								totalRecordCount: 1,
+							}
+						: { items: [], totalRecordCount: 0 },
+				),
+			);
+		renderLibrary();
+
+		await screen.findByRole("heading", { name: "Shows" });
+		fireEvent.click(screen.getByRole("button", { name: "Collections" }));
+
+		expect(await screen.findByText("Code Geass Series")).toBeInTheDocument();
+		expect(screen.getByText("2007-2019")).toBeInTheDocument();
+		expect(screen.queryByText("BoxSet")).not.toBeInTheDocument();
+	});
+
 	it("ignores a failed request from the previous library after switching tabs", async () => {
 		let rejectShows!: (error: Error) => void;
 		const getLibraryItems = vi

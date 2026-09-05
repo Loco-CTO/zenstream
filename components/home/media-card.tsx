@@ -20,6 +20,7 @@ import {
 	useHoverPreview,
 } from "@/components/ui/hover-preview";
 import { useSyncplayPlayback } from "@/lib/syncplay-playback";
+import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 
 export function WideCard({
 	item,
@@ -195,11 +196,97 @@ export function StackedPosterCard({
 	);
 }
 
+/** A square artwork card used by music rows and the music library. */
+export function SquareAudioCard({
+	item,
+	session,
+	className = "",
+}: {
+	item: MediaItem;
+	session: AuthSession;
+	className?: string;
+}) {
+	const image = seriesPosterImage(item);
+	const { playTrack } = useAudioPlayer();
+	const { t } = useI18n();
+	void session;
+	const isTrack = item.Type === "Audio";
+	const secondary = isTrack
+		? [item.Album, item.AlbumArtist].filter(Boolean).join(" · ")
+		: (item.AlbumArtist ??
+			(item.ProductionYear ? String(item.ProductionYear) : ""));
+	const href = audioHref(item);
+
+	return (
+		<article
+			className={`group/card min-w-0 cursor-pointer select-none ${className}`}
+		>
+			<div className="relative">
+				<Link
+					href={href}
+					aria-label={item.Name}
+					draggable={false}
+					className="block"
+				>
+					<div className="relative aspect-square overflow-hidden rounded-md bg-[var(--c-card-thumb)] shadow-lg shadow-black/20">
+						{image && (
+							<BlurHashImage
+								image={image}
+								alt={item.Name}
+								draggable={false}
+								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 220px"
+								className={`${MEDIA_CARD_IMAGE_CLASS}`}
+							/>
+						)}
+						{!image && <MediaPlaceholder />}
+						{isTrack && item.UserData?.PlayCount != null && (
+							<span className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}>
+								{t("plays", { count: item.UserData.PlayCount })}
+							</span>
+						)}
+					</div>
+				</Link>
+				<div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition group-hover/card:opacity-100">
+					<button
+						type="button"
+						aria-label={`${t("play")} ${item.Name}`}
+						onClick={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+							void playTrack(item);
+						}}
+						className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-xl backdrop-blur transition hover:scale-110 hover:border-white/60 hover:bg-violet-500/80 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black"
+					>
+						<Play className="ml-0.5 h-4 w-4 fill-white text-white" />
+					</button>
+				</div>
+			</div>
+			<div className="mt-2 min-w-0">
+				<p className="truncate text-xs font-medium text-white/85">{item.Name}</p>
+				{secondary && (
+					<p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>
+				)}
+			</div>
+		</article>
+	);
+}
+
 function detailHref(item: MediaItem) {
 	if (item.Type === "BoxSet") return `/collection/${item.Id}`;
+	if (item.Type === "MusicArtist") return `/artist/${item.Id}`;
+	if (item.Type === "MusicAlbum") return `/album/${item.Id}`;
+	if (item.Type === "Audio") return audioHref(item);
 	return item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
 		: `/show/${item.Id}`;
+}
+
+export function audioHref(item: MediaItem) {
+	if (item.Type === "MusicArtist") return `/artist/${item.Id}`;
+	if (item.Type === "MusicAlbum") return `/album/${item.Id}`;
+	if (item.Type === "Audio" && item.AlbumId)
+		return `/album/${item.AlbumId}?trackId=${encodeURIComponent(item.Id)}`;
+	return `/album/${item.Id}`;
 }
 
 export const MEDIA_CARD_IMAGE_CLASS =
@@ -323,10 +410,13 @@ function CardText({ item }: { item: MediaItem }) {
 		);
 	}
 
+	const secondary = subtitle(item);
 	return (
 		<div className="mt-2">
 			<p className="truncate text-xs font-medium text-white/80">{item.Name}</p>
-			<p className="mt-0.5 truncate text-xs text-white/30">{subtitle(item)}</p>
+			{secondary && (
+				<p className="mt-0.5 truncate text-xs text-white/30">{secondary}</p>
+			)}
 		</div>
 	);
 }

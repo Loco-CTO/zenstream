@@ -85,6 +85,8 @@ export function releaseYear(
 }
 
 export function subtitle(item: MediaItem) {
+	if (item.Type === "BoxSet") return item.CollectionYearRange;
+
 	if (
 		item.Type === "Episode" &&
 		item.ParentIndexNumber != null &&

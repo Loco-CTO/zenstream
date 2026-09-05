@@ -25,6 +25,51 @@ describe("browser playback capabilities", () => {
 		expect(profile.maxAudioChannels).toBe(6);
 	});
 
+	it("uses the audio element to advertise supported music containers", () => {
+		const profile = browserDeviceProfile(
+			{ canPlayType: () => "" },
+			{
+				canPlayType: (mime) =>
+					/^(audio\/mpeg|audio\/mp4|audio\/aac|audio\/flac|audio\/ogg|audio\/wav|audio\/aiff)/.test(
+						mime,
+					)
+						? "probably"
+						: "",
+			},
+		);
+
+		expect(
+			profile.directPlayProfiles
+				.filter((entry) => entry.Type === "Audio")
+				.map((entry) => entry.Container),
+		).toEqual(
+			expect.arrayContaining([
+				"mp3",
+				"m4a,mp4",
+				"aac,adts",
+				"flac",
+				"ogg,oga,opus",
+				"wav",
+				"aiff,aif",
+			]),
+		);
+	});
+
+	it("accepts the browser's bare FLAC MIME response", () => {
+		const profile = browserDeviceProfile(
+			{ canPlayType: () => "" },
+			{
+				canPlayType: (mime) => (mime === "audio/flac" ? "probably" : ""),
+			},
+		);
+
+		expect(profile.directPlayProfiles).toContainEqual({
+			Type: "Audio",
+			Container: "flac",
+			AudioCodec: "flac",
+		});
+	});
+
 	it("persists one device identity for the browser login and player", () => {
 		const storage = new Map<string, string>();
 		Object.defineProperty(window, "localStorage", {

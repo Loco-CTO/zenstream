@@ -358,6 +358,7 @@ function TransportControls({
 					label={labels.shuffle}
 					onClick={player.toggleShuffle}
 					pressed={player.shuffle}
+					dimmed={!player.shuffle}
 					compact={compact}
 				>
 					<Shuffle className="h-4 w-4" />
@@ -409,6 +410,7 @@ function TransportControls({
 					}
 					onClick={player.cycleLoopMode}
 					pressed={player.loopMode !== "off"}
+					dimmed={player.loopMode === "off"}
 					compact={compact}
 				>
 					{player.loopMode === "single" ? (
@@ -556,6 +558,7 @@ function IconButton({
 	children,
 	primary = false,
 	pressed = false,
+	dimmed = false,
 	disabled = false,
 	compact = false,
 }: {
@@ -564,6 +567,7 @@ function IconButton({
 	children: ReactNode;
 	primary?: boolean;
 	pressed?: boolean;
+	dimmed?: boolean;
 	disabled?: boolean;
 	compact?: boolean;
 }) {
@@ -574,7 +578,7 @@ function IconButton({
 			aria-pressed={pressed || undefined}
 			onClick={onClick}
 			disabled={disabled}
-			className={`flex shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-25 ${compact ? "h-7 w-7" : primary ? "h-9 w-9 md:h-10 md:w-10" : "h-8 w-8"} ${primary ? "bg-white text-black hover:bg-violet-200" : pressed ? "text-white" : "text-white/55 hover:bg-white/10 hover:text-white"}`}
+			className={`flex shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-25 ${compact ? "h-7 w-7" : primary ? "h-9 w-9 md:h-10 md:w-10" : "h-8 w-8"} ${primary ? "bg-white text-black hover:bg-violet-200" : pressed ? "text-white" : dimmed ? "text-white/35 hover:bg-white/10 hover:text-white" : "text-white/55 hover:bg-white/10 hover:text-white"}`}
 		>
 			{children}
 		</button>

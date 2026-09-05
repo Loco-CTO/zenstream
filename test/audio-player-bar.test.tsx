@@ -134,6 +134,9 @@ describe("AudioPlayerBar", () => {
 		expect(
 			screen.getAllByRole("button", { name: "Shuffle" }).length,
 		).toBeGreaterThan(0);
+		expect(screen.getAllByRole("button", { name: "Shuffle" })[0]).toHaveClass(
+			"text-white/35",
+		);
 		expect(
 			screen.getAllByRole("button", { name: "Previous" }).length,
 		).toBeGreaterThan(0);
@@ -146,6 +149,9 @@ describe("AudioPlayerBar", () => {
 		expect(
 			screen.getAllByRole("button", { name: "Loop off" }).length,
 		).toBeGreaterThan(0);
+		expect(screen.getAllByRole("button", { name: "Loop off" })[0]).toHaveClass(
+			"text-white/35",
+		);
 		expect(
 			screen.queryByRole("button", {
 				name: /star|rating|timer|auto dj|lyrics|stop/i,

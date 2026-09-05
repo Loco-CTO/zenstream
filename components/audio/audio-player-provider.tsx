@@ -136,6 +136,7 @@ export function AudioPlayerProvider({
 	const progressReportedAt = useRef(0);
 	const playStartPromises = useRef(new Map<string, Promise<void>>());
 	const playStartCompleted = useRef(new Set<string>());
+	const playStartGeneration = useRef(0);
 
 	useEffect(() => {
 		queueRef.current = queue;
@@ -160,13 +161,15 @@ export function AudioPlayerProvider({
 			if (!watchHistoryEnabled || playStartCompleted.current.has(entry.id)) return;
 			const pending = playStartPromises.current.get(entry.id);
 			if (pending) return;
+			const generation = playStartGeneration.current;
 			const request = recordAudioPlayStart(
 				session,
 				entry.track.Id,
 				entry.playbackInstanceId,
 			)
 				.then(() => {
-					playStartCompleted.current.add(entry.id);
+					if (generation === playStartGeneration.current)
+						playStartCompleted.current.add(entry.id);
 				})
 				.catch((requestError) => {
 					playStartPromises.current.delete(entry.id);
@@ -460,18 +463,6 @@ export function AudioPlayerProvider({
 		}
 	}, [attemptPlay]);
 
-	const stop = useCallback(() => {
-		const audio = audioRef.current;
-		shouldPlayRef.current = false;
-		if (audio) {
-			audio.pause();
-			audio.currentTime = 0;
-		}
-		setPositionSeconds(0);
-		setIsPlaying(false);
-		setAutoplayBlocked(false);
-	}, []);
-
 	const resume = useCallback(() => {
 		const entry = queueRef.current[currentIndexRef.current];
 		if (!entry) return;
@@ -613,6 +604,15 @@ export function AudioPlayerProvider({
 
 	const clearAudioPlayer = useCallback(() => {
 		shouldPlayRef.current = false;
+		loadGeneration.current += 1;
+		hlsRef.current?.destroy();
+		hlsRef.current = null;
+		const audio = audioRef.current;
+		if (audio) {
+			audio.pause();
+			audio.removeAttribute("src");
+			audio.load();
+		}
 		setQueue([]);
 		setCurrentIndex(-1);
 		setIsPlaying(false);
@@ -623,9 +623,14 @@ export function AudioPlayerProvider({
 		setAutoplayBlocked(false);
 		setQueueOpen(false);
 		setLoopMode("off");
+		playStartGeneration.current += 1;
 		playStartPromises.current.clear();
 		playStartCompleted.current.clear();
 	}, []);
+
+	const stop = useCallback(() => {
+		clearAudioPlayer();
+	}, [clearAudioPlayer]);
 
 	const value = useMemo<AudioPlayerContextValue>(
 		() => ({

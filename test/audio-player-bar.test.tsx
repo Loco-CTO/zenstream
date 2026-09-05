@@ -63,6 +63,26 @@ function SeededBar() {
 	return <AudioPlayerBar />;
 }
 
+function StopHarness() {
+	const player = useAudioPlayer();
+	const seeded = useRef(false);
+
+	useEffect(() => {
+		if (seeded.current) return;
+		seeded.current = true;
+		player.playAlbum(album, tracks);
+	}, [player]);
+
+	return (
+		<>
+			<AudioPlayerBar />
+			<button type="button" onClick={() => player.playAlbum(album, tracks)}>
+				Start fresh queue
+			</button>
+		</>
+	);
+}
+
 function renderBar() {
 	return render(
 		<I18nProvider locale="en">
@@ -175,11 +195,6 @@ describe("AudioPlayerBar", () => {
 		renderBar();
 		await screen.findByTestId("audio-player-bar");
 
-		const pauseMock = vi.mocked(HTMLMediaElement.prototype.pause);
-		const pauseCallsBeforeStop = pauseMock.mock.calls.length;
-		fireEvent.click(screen.getAllByRole("button", { name: "Stop playing" })[0]);
-		expect(pauseMock.mock.calls.length).toBeGreaterThan(pauseCallsBeforeStop);
-
 		fireEvent.click(screen.getAllByRole("button", { name: "Shuffle" })[0]);
 		expect(screen.getAllByRole("button", { name: "Shuffle" })[0]).toHaveAttribute(
 			"aria-pressed",
@@ -239,6 +254,39 @@ describe("AudioPlayerBar", () => {
 		await waitFor(() =>
 			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
 		);
+	});
+
+	it("fully clears the player and allows a fresh queue to start", async () => {
+		render(
+			<I18nProvider locale="en">
+				<AudioPlayerProvider session={session}>
+					<StopHarness />
+				</AudioPlayerProvider>
+			</I18nProvider>,
+		);
+		await screen.findByTestId("audio-player-bar");
+		const audio = document.querySelector("audio");
+		if (!audio) throw new Error("audio element was not rendered");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		expect(screen.getByRole("dialog", { name: "Queue" })).toBeInTheDocument();
+		const pauseMock = vi.mocked(HTMLMediaElement.prototype.pause);
+		const pauseCallsBeforeStop = pauseMock.mock.calls.length;
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Stop playing" })[0]);
+
+		await waitFor(() =>
+			expect(screen.queryByTestId("audio-player-bar")).not.toBeInTheDocument(),
+		);
+		expect(
+			screen.queryByRole("dialog", { name: "Queue" }),
+		).not.toBeInTheDocument();
+		expect(audio.getAttribute("src")).toBeNull();
+		expect(pauseMock.mock.calls.length).toBeGreaterThan(pauseCallsBeforeStop);
+
+		fireEvent.click(screen.getByRole("button", { name: "Start fresh queue" }));
+		await screen.findByTestId("audio-player-bar");
+		expect(screen.getAllByText("Track One").length).toBeGreaterThan(0);
 	});
 
 	it("advances, wraps, and repeats according to the selected loop mode", async () => {

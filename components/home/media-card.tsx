@@ -8,7 +8,7 @@ import {
 	seriesPosterImage,
 	type MediaItem,
 } from "@/lib/media-api";
-import { progressPercent, subtitle } from "@/lib/media";
+import { progressPercent, releaseYear, subtitle } from "@/lib/media";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -213,7 +213,8 @@ export function SquareAudioCard({
 	const isTrack = item.Type === "Audio";
 	const secondary = isTrack
 		? [item.Album, item.AlbumArtist].filter(Boolean).join(" · ")
-		: item.AlbumArtist ?? (item.ProductionYear ? String(item.ProductionYear) : "");
+		: (item.AlbumArtist ?? "");
+	const year = !isTrack ? releaseYear(item) : undefined;
 	const href = audioHref(item);
 
 	return (
@@ -227,14 +228,14 @@ export function SquareAudioCard({
 					draggable={false}
 					className="block"
 				>
-					<div className="relative aspect-square overflow-hidden rounded-md bg-[var(--c-card-thumb)] shadow-lg shadow-black/20">
+					<div className="relative aspect-square overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 						{image && (
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
 								draggable={false}
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 220px"
-								className={`${MEDIA_CARD_IMAGE_CLASS}`}
+								className={`brightness-[.85] ${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}
 						{!image && <MediaPlaceholder />}
@@ -262,7 +263,10 @@ export function SquareAudioCard({
 			</div>
 			<div className="mt-2 min-w-0">
 				<p className="truncate text-xs font-medium text-white/85">{item.Name}</p>
-				{secondary && <p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>}
+				{secondary && (
+					<p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>
+				)}
+				{year && <p className="mt-0.5 text-xs text-white/20">{year}</p>}
 			</div>
 		</article>
 	);

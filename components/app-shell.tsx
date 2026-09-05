@@ -1270,11 +1270,11 @@ function playIdFromPath(pathname: string) {
 }
 
 function audioAlbumIdFromPath(pathname: string) {
-	const match = pathname.match(/^\/album\/([^/]+)$/);
+	const match = pathname.match(/^\/album\/([^/]+)\/?$/);
 	return match ? decodeURIComponent(match[1]) : null;
 }
 
 function artistIdFromPath(pathname: string) {
-	const match = pathname.match(/^\/artist\/([^/]+)$/);
+	const match = pathname.match(/^\/artist\/([^/]+)\/?$/);
 	return match ? decodeURIComponent(match[1]) : null;
 }

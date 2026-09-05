@@ -22,13 +22,12 @@ export function HomePage({
 	);
 	const hero = pickHeroItem({ ...data, latestItems: videoLatestItems });
 	const heroItems =
-		videoLatestItems.length > 0
-			? videoLatestItems
-			: hero
-				? [hero]
-				: [];
+		videoLatestItems.length > 0 ? videoLatestItems : hero ? [hero] : [];
 	const audioRows = (data.audioRows ?? [])
-		.map((section) => ({ ...section, items: uniqueItems(section.items).filter(isAudioItem) }))
+		.map((section) => ({
+			...section,
+			items: uniqueItems(section.items).filter(isAudioItem),
+		}))
 		.filter((section) => section.items.length > 0);
 	const mixedFavorites = uniqueItems(data.myList ?? []);
 	const audioFavorites = mixedFavorites.filter(isAudioItem);
@@ -98,7 +97,7 @@ export function HomePage({
 					items={videoFavorites}
 					variant="poster"
 					session={session}
-						viewAllHref="/favorites"
+					viewAllHref="/favorites"
 				/>
 				{audioFavorites.length > 0 && (
 					<MediaRow
@@ -136,7 +135,11 @@ export function HomePage({
 }
 
 function isAudioItem(item: { Type?: string }) {
-	return item.Type === "MusicArtist" || item.Type === "MusicAlbum" || item.Type === "Audio";
+	return (
+		item.Type === "MusicArtist" ||
+		item.Type === "MusicAlbum" ||
+		item.Type === "Audio"
+	);
 }
 
 function uniqueItems<T extends { Id: string }>(items: T[]) {

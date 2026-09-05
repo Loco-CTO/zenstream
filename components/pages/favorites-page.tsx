@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { SquareAudioCard, WideCard, PosterCard } from "@/components/home/media-card";
+import {
+	SquareAudioCard,
+	WideCard,
+	PosterCard,
+} from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
@@ -69,8 +73,12 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 	const episodes = items.filter((item) => item.Type === "Episode");
 	const movies = items.filter((item) => item.Type === "Movie");
 	const series = items.filter((item) => item.Type === "Series");
-	const audioArtists = uniqueItems(items.filter((item) => item.Type === "MusicArtist"));
-	const audioAlbums = uniqueItems(items.filter((item) => item.Type === "MusicAlbum"));
+	const audioArtists = uniqueItems(
+		items.filter((item) => item.Type === "MusicArtist"),
+	);
+	const audioAlbums = uniqueItems(
+		items.filter((item) => item.Type === "MusicAlbum"),
+	);
 	const audioTracks = uniqueItems(items.filter((item) => item.Type === "Audio"));
 
 	return (
@@ -127,21 +135,37 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 					{audioArtists.length > 0 && (
 						<HorizontalScroller title={t("favoriteAudioArtists")} className="mb-8">
 							<div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
-								{audioArtists.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} />)}
+								{audioArtists.map((item) => (
+									<SquareAudioCard key={item.Id} item={item} session={session} />
+								))}
 							</div>
 						</HorizontalScroller>
 					)}
 					{audioAlbums.length > 0 && (
 						<HorizontalScroller title={t("favoriteAudioAlbums")} className="mb-8">
 							<div className="flex gap-4">
-								{audioAlbums.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} className="w-[148px] sm:w-[180px] md:w-[200px]" />)}
+								{audioAlbums.map((item) => (
+									<SquareAudioCard
+										key={item.Id}
+										item={item}
+										session={session}
+										className="w-[148px] sm:w-[180px] md:w-[200px]"
+									/>
+								))}
 							</div>
 						</HorizontalScroller>
 					)}
 					{audioTracks.length > 0 && (
 						<HorizontalScroller title={t("favoriteAudioTracks")} className="mb-8">
 							<div className="flex gap-4">
-								{audioTracks.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} className="w-[148px] sm:w-[180px] md:w-[200px]" />)}
+								{audioTracks.map((item) => (
+									<SquareAudioCard
+										key={item.Id}
+										item={item}
+										session={session}
+										className="w-[148px] sm:w-[180px] md:w-[200px]"
+									/>
+								))}
 							</div>
 						</HorizontalScroller>
 					)}

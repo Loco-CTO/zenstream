@@ -1787,7 +1787,11 @@ export async function recordAudioPlayStart(
 	if (typeof window !== "undefined") {
 		window.dispatchEvent(
 			new CustomEvent("zenstream:catalog-changed", {
-				detail: { type: "catalog.changed", reason: "refresh", rootEntityId: itemId },
+				detail: {
+					type: "catalog.changed",
+					reason: "refresh",
+					rootEntityId: itemId,
+				},
 			}),
 		);
 	}

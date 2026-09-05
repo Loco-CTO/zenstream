@@ -181,8 +181,12 @@ export function SearchPage({
 
 	const showLoadingMore = loadingMore && loadedKey === requestKey;
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
-	const audioArtists = uniqueItems(items.filter((item) => item.Type === "MusicArtist"));
-	const audioAlbums = uniqueItems(items.filter((item) => item.Type === "MusicAlbum"));
+	const audioArtists = uniqueItems(
+		items.filter((item) => item.Type === "MusicArtist"),
+	);
+	const audioAlbums = uniqueItems(
+		items.filter((item) => item.Type === "MusicAlbum"),
+	);
 	const audioTracks = uniqueItems(items.filter((item) => item.Type === "Audio"));
 	const videoItems = uniqueItems(items.filter((item) => !isAudioItem(item)));
 	return (
@@ -217,19 +221,38 @@ export function SearchPage({
 					<>
 						<div className="space-y-10">
 							{audioArtists.length > 0 && (
-								<SearchAudioSection title={t("artists")} items={audioArtists} session={session} />
+								<SearchAudioSection
+									title={t("artists")}
+									items={audioArtists}
+									session={session}
+								/>
 							)}
 							{audioAlbums.length > 0 && (
-								<SearchAudioSection title={t("albums")} items={audioAlbums} session={session} />
+								<SearchAudioSection
+									title={t("albums")}
+									items={audioAlbums}
+									session={session}
+								/>
 							)}
 							{audioTracks.length > 0 && (
-								<SearchAudioSection title={t("tracks")} items={audioTracks} session={session} />
+								<SearchAudioSection
+									title={t("tracks")}
+									items={audioTracks}
+									session={session}
+								/>
 							)}
 							{videoItems.length > 0 && (
 								<section aria-labelledby="video-search-results">
-									<h2 id="video-search-results" className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50">{t("movies")} / {t("series")}</h2>
+									<h2
+										id="video-search-results"
+										className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50"
+									>
+										{t("movies")} / {t("series")}
+									</h2>
 									<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
-										{videoItems.map((item) => <PosterCard key={item.Id} item={item} session={session} />)}
+										{videoItems.map((item) => (
+											<PosterCard key={item.Id} item={item} session={session} />
+										))}
 									</div>
 								</section>
 							)}
@@ -269,16 +292,29 @@ function SearchAudioSection({
 }) {
 	return (
 		<section aria-label={title}>
-			<h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50">{title}</h2>
+			<h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+				{title}
+			</h2>
 			<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
-				{items.map((item) => <SquareAudioCard key={item.Id} item={item} session={session} className="w-full" />)}
+				{items.map((item) => (
+					<SquareAudioCard
+						key={item.Id}
+						item={item}
+						session={session}
+						className="w-full"
+					/>
+				))}
 			</div>
 		</section>
 	);
 }
 
 function isAudioItem(item: MediaItem) {
-	return item.Type === "MusicArtist" || item.Type === "MusicAlbum" || item.Type === "Audio";
+	return (
+		item.Type === "MusicArtist" ||
+		item.Type === "MusicAlbum" ||
+		item.Type === "Audio"
+	);
 }
 
 function rankSearchResults(items: MediaItem[], query: string) {

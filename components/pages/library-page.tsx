@@ -89,7 +89,12 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const availableSorts = useMemo(
 		() =>
 			isMusicLibrary
-				? SORTS.filter((item) => item.value === "title" || item.value === "year" || item.value === "added")
+				? SORTS.filter(
+						(item) =>
+							item.value === "title" ||
+							item.value === "year" ||
+							item.value === "added",
+					)
 				: SORTS.filter((item) => item.value !== "lastAdded" || supportsLastAdded),
 		[isMusicLibrary, supportsLastAdded],
 	);
@@ -164,8 +169,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			: isMusicLibrary
 				? "title"
 				: supportsLastAdded
-				? "lastAdded"
-				: "added";
+					? "lastAdded"
+					: "added";
 		if (selectedSort !== sortBy) {
 			setSort({ sortBy: selectedSort, sortOrder });
 			return;
@@ -638,7 +643,8 @@ function LibraryCard({
 	session: AuthSession;
 	music: boolean;
 }) {
-	if (music) return <SquareAudioCard item={item} session={session} className="w-full" />;
+	if (music)
+		return <SquareAudioCard item={item} session={session} className="w-full" />;
 	const image = posterImage(item);
 	const secondary =
 		item.Type === "BoxSet"

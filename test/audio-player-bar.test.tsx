@@ -265,7 +265,11 @@ describe("AudioPlayerBar", () => {
 		const list = queue.querySelector(".zenstream-audio-player-queue-list");
 
 		expect(list).toHaveClass("min-h-0", "flex-1", "overflow-y-auto", "pb-3");
-		expect(queue).toHaveClass("flex", "flex-col");
+		expect(queue).toHaveClass("flex", "flex-col", "bg-black", "border-white/10");
+		expect(queue).not.toHaveClass("bg-[#151419]/[0.98]", "backdrop-blur-2xl");
+		expect(
+			queue.querySelector(".zenstream-audio-player-queue-current"),
+		).toHaveClass("bg-white/[0.08]");
 		expect(
 			screen.getByRole("button", { name: "Play Track Two" }),
 		).toBeInTheDocument();

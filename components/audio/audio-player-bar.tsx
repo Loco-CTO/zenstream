@@ -168,9 +168,9 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 		<div
 			role="dialog"
 			aria-label={t("queue")}
-			className="zenstream-audio-player-queue fixed right-2 z-[90] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-xl border border-white/[0.12] bg-[#151419]/[0.98] shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:right-4"
+			className="zenstream-audio-player-queue fixed right-2 z-[90] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-white/10 bg-black shadow-[0_16px_40px_rgba(0,0,0,0.5)] md:right-4"
 		>
-			<div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+			<div className="flex items-center justify-between border-b border-white/10 px-3.5 py-3">
 				<div>
 					<h2 className="text-sm font-semibold text-white">{t("queue")}</h2>
 					<p className="mt-0.5 text-xs text-white/35">
@@ -181,12 +181,12 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 					type="button"
 					aria-label={t("close")}
 					onClick={() => player.setQueueOpen(false)}
-					className="rounded-full p-2 text-white/45 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+					className="rounded-md p-1.5 text-white/45 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 				>
 					<X className="h-4 w-4" />
 				</button>
 			</div>
-			<div className="zenstream-audio-player-queue-list min-h-0 flex-1 overflow-y-auto p-2 pb-3">
+			<div className="zenstream-audio-player-queue-list min-h-0 flex-1 overflow-y-auto p-1.5 pb-3">
 				{player.queue.length === 0 ? (
 					<p className="px-3 py-8 text-center text-sm text-white/40">
 						{t("queueEmpty")}
@@ -198,9 +198,9 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 						return (
 							<div
 								key={entry.id}
-								className={`flex items-center gap-2 rounded-xl px-2 py-2 ${selected ? "bg-violet-500/15" : "hover:bg-white/[0.05]"}`}
+								className={`flex items-center gap-2 rounded-md px-2 py-2 ${selected ? "zenstream-audio-player-queue-current bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.05]"}`}
 							>
-								<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded bg-white/[0.06]">
+								<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
 									{entryImage ? (
 										<BlurHashImage
 											image={entryImage}

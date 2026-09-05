@@ -241,7 +241,7 @@ describe("LibraryPage", () => {
 		);
 
 		expect(screen.getAllByTestId("virtual-grid-row")[1]).toHaveStyle({
-			top: "230px",
+			top: "242px",
 		});
 	});
 
@@ -263,7 +263,7 @@ describe("LibraryPage", () => {
 		});
 		expect(
 			Number.parseFloat(screen.getAllByTestId("virtual-grid-row")[1].style.top),
-		).toBeCloseTo(267, 3);
+		).toBeCloseTo(279, 3);
 	});
 
 	it("supports sorting series by the date their latest episode was added", async () => {

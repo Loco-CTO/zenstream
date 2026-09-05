@@ -127,6 +127,10 @@ import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
 type AppStatus =
 	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
 
+type AudioRouteLoadOptions = {
+	preserveCurrent?: boolean;
+};
+
 const EMPTY_PLAYBACK_PREFERENCE: PlaybackPreference = {
 	audioLanguage: null,
 	subtitleLanguage: null,
@@ -507,15 +511,17 @@ export function AppShell() {
 			nextSession: AuthSession,
 			albumId: string,
 			requestedGeneration = routeLoadGeneration.current,
+			options: AudioRouteLoadOptions = {},
 		) => {
+			const preserveCurrent = options.preserveCurrent === true;
 			const isCurrent = () =>
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
-			const finishProgress = start();
+			const finishProgress = preserveCurrent ? () => undefined : start();
 			audioLoadController.current?.abort();
 			const controller = new AbortController();
 			audioLoadController.current = controller;
-			if (isCurrent()) {
+			if (isCurrent() && !preserveCurrent) {
 				setStatus("loading");
 				setError(null);
 				setAudioAlbumData(null);
@@ -531,10 +537,10 @@ export function AppShell() {
 				);
 				if (isCurrent()) {
 					setAudioAlbumData(data);
-					setStatus("ready");
+					if (!preserveCurrent) setStatus("ready");
 				}
 			} catch (loadError) {
-				if (!controller.signal.aborted && isCurrent()) {
+				if (!preserveCurrent && !controller.signal.aborted && isCurrent()) {
 					setError(
 						loadError instanceof Error
 							? loadError.message
@@ -556,15 +562,17 @@ export function AppShell() {
 			nextSession: AuthSession,
 			requestedArtistId: string,
 			requestedGeneration = routeLoadGeneration.current,
+			options: AudioRouteLoadOptions = {},
 		) => {
+			const preserveCurrent = options.preserveCurrent === true;
 			const isCurrent = () =>
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
-			const finishProgress = start();
+			const finishProgress = preserveCurrent ? () => undefined : start();
 			audioLoadController.current?.abort();
 			const controller = new AbortController();
 			audioLoadController.current = controller;
-			if (isCurrent()) {
+			if (isCurrent() && !preserveCurrent) {
 				setStatus("loading");
 				setError(null);
 				setAudioAlbumData(null);
@@ -580,10 +588,10 @@ export function AppShell() {
 				);
 				if (isCurrent()) {
 					setArtistData(data);
-					setStatus("ready");
+					if (!preserveCurrent) setStatus("ready");
 				}
 			} catch (loadError) {
-				if (!controller.signal.aborted && isCurrent()) {
+				if (!preserveCurrent && !controller.signal.aborted && isCurrent()) {
 					setError(
 						loadError instanceof Error
 							? loadError.message
@@ -906,8 +914,14 @@ export function AppShell() {
 				libraryId?: string;
 			}>;
 			if (event.detail?.reason === "scan") return;
-			if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
-			else if (artistId) void loadArtist(session, artistId);
+			if (audioAlbumId)
+				void loadAudioAlbum(session, audioAlbumId, undefined, {
+					preserveCurrent: true,
+				});
+			else if (artistId)
+				void loadArtist(session, artistId, undefined, {
+					preserveCurrent: true,
+				});
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);

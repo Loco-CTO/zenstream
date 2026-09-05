@@ -29,6 +29,7 @@ const tracks: MediaItem[] = [
 		Name: "Track One",
 		Type: "Audio",
 		AlbumId: album.Id,
+		ArtistId: "artist-1",
 		Album: album.Name,
 		Artists: ["Track Artist"],
 		AlbumArtist: album.AlbumArtist,
@@ -41,6 +42,7 @@ const tracks: MediaItem[] = [
 		Name: "Track Two",
 		Type: "Audio",
 		AlbumId: album.Id,
+		ArtistId: "artist-1",
 		Album: album.Name,
 		ContributingArtists: ["Second Artist"],
 		AlbumArtist: album.AlbumArtist,
@@ -126,6 +128,18 @@ describe("AudioPlayerBar", () => {
 		expect(bar).toHaveTextContent("Track One");
 		expect(bar).toHaveTextContent("Track Artist");
 		expect(bar).toHaveTextContent("Album One");
+		for (const [name, href] of [
+			["Track One", "/album/album-1?trackId=track-1"],
+			["Track Artist", "/artist/artist-1"],
+			["Album One", "/album/album-1"],
+		] as const) {
+			const links = screen.getAllByRole("link", { name });
+			expect(links.length).toBe(2);
+			for (const link of links) {
+				expect(link).toHaveAttribute("href", href);
+				expect(link).toHaveClass("hover:underline");
+			}
+		}
 		expect(
 			bar.querySelectorAll('img[src*="/images/Primary"]').length,
 		).toBeGreaterThan(0);

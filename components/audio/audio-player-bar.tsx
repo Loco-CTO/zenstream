@@ -279,52 +279,85 @@ function TrackIdentity({
 	error: string | null;
 	compact?: boolean;
 }) {
+	const albumHref = track?.AlbumId
+		? `/album/${encodeURIComponent(track.AlbumId)}`
+		: undefined;
+	const trackHref = track?.AlbumId
+		? `/album/${encodeURIComponent(track.AlbumId)}?trackId=${encodeURIComponent(track.Id)}`
+		: undefined;
+	const artistHref = track?.ArtistId
+		? `/artist/${encodeURIComponent(track.ArtistId)}`
+		: undefined;
+	const linkClass =
+		"transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300";
+	const artwork = (
+		<div
+			className={`relative shrink-0 overflow-hidden rounded-md bg-white/[0.06] ${compact ? "h-11 w-11" : "h-14 w-14"}`}
+		>
+			{image ? (
+				<BlurHashImage
+					image={image}
+					alt=""
+					sizes={compact ? "44px" : "56px"}
+					className="h-full w-full object-cover"
+				/>
+			) : (
+				<MediaPlaceholder />
+			)}
+		</div>
+	);
 	const content = (
 		<>
-			<div
-				className={`relative shrink-0 overflow-hidden rounded-md bg-white/[0.06] ${compact ? "h-11 w-11" : "h-14 w-14"}`}
-			>
-				{image ? (
-					<BlurHashImage
-						image={image}
-						alt=""
-						sizes={compact ? "44px" : "56px"}
-						className="h-full w-full object-cover"
-					/>
-				) : (
-					<MediaPlaceholder />
-				)}
-			</div>
+			{albumHref ? (
+				<Link
+					href={albumHref}
+					aria-label={album ? `${album} artwork` : fallback}
+					className="shrink-0"
+				>
+					{artwork}
+				</Link>
+			) : (
+				artwork
+			)}
 			<div className="min-w-0 leading-tight">
 				<p className="truncate text-[18px] font-semibold text-white/90">
-					{track?.Name ?? fallback}
+					{trackHref ? (
+						<Link href={trackHref} className={linkClass}>
+							{track?.Name}
+						</Link>
+					) : (
+						(track?.Name ?? fallback)
+					)}
 				</p>
-				<p className="truncate text-[14px] text-white/55">{artist || " "}</p>
+				<p className="mt-1 truncate text-[14px] text-white/55">
+					{artistHref ? (
+						<Link href={artistHref} className={linkClass}>
+							{artist}
+						</Link>
+					) : (
+						artist || " "
+					)}
+				</p>
 				<p
-					className={`truncate text-[14px] ${error ? "text-red-200/80" : "text-white/35"}`}
+					className={`mt-0.5 truncate text-[14px] ${error ? "text-red-200/80" : "text-white/35"}`}
 					title={error ?? album}
 					role={error ? "alert" : undefined}
 				>
-					{error || album || " "}
+					{error ? (
+						error
+					) : albumHref ? (
+						<Link href={albumHref} className={linkClass}>
+							{album}
+						</Link>
+					) : (
+						album || " "
+					)}
 				</p>
 			</div>
 		</>
 	);
 
-	if (!track?.AlbumId) {
-		return (
-			<div className="flex min-w-0 flex-1 items-center gap-2">{content}</div>
-		);
-	}
-
-	return (
-		<Link
-			href={`/album/${track.AlbumId}?trackId=${encodeURIComponent(track.Id)}`}
-			className="flex min-w-0 flex-1 items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-		>
-			{content}
-		</Link>
-	);
+	return <div className="flex min-w-0 flex-1 items-center gap-2">{content}</div>;
 }
 
 function TransportControls({

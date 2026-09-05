@@ -59,6 +59,7 @@ type AudioPlayerContextValue = AudioPlayerState & {
 	playTrack: (track: MediaItem, albumTracks?: MediaItem[]) => Promise<void>;
 	addAlbumToQueue: (album: MediaItem, tracks: MediaItem[]) => void;
 	togglePlay: () => void;
+	stop: () => void;
 	resume: () => void;
 	playNext: () => void;
 	playPrevious: () => void;
@@ -459,6 +460,18 @@ export function AudioPlayerProvider({
 		}
 	}, [attemptPlay]);
 
+	const stop = useCallback(() => {
+		const audio = audioRef.current;
+		shouldPlayRef.current = false;
+		if (audio) {
+			audio.pause();
+			audio.currentTime = 0;
+		}
+		setPositionSeconds(0);
+		setIsPlaying(false);
+		setAutoplayBlocked(false);
+	}, []);
+
 	const resume = useCallback(() => {
 		const entry = queueRef.current[currentIndexRef.current];
 		if (!entry) return;
@@ -634,6 +647,7 @@ export function AudioPlayerProvider({
 			playTrack,
 			addAlbumToQueue,
 			togglePlay,
+			stop,
 			resume,
 			playNext,
 			playPrevious,
@@ -674,6 +688,7 @@ export function AudioPlayerProvider({
 			resume,
 			seek,
 			setVolume,
+			stop,
 			toggleMuted,
 			shuffle,
 			togglePlay,

@@ -144,8 +144,19 @@ describe("AudioPlayerBar", () => {
 			screen.getAllByRole("button", { name: "Next" }).length,
 		).toBeGreaterThan(0);
 		expect(
+			screen.getAllByRole("button", { name: "Stop playing" }).length,
+		).toBeGreaterThan(0);
+		expect(
 			screen.getAllByRole("button", { name: "Queue" }).length,
 		).toBeGreaterThan(0);
+		const queueButton = screen.getAllByRole("button", { name: "Queue" })[0];
+		const favoriteButton = screen.getAllByRole("button", {
+			name: /add to favorites/i,
+		})[0];
+		expect(
+			queueButton.compareDocumentPosition(favoriteButton) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
 		expect(
 			screen.getAllByRole("button", { name: "Loop off" }).length,
 		).toBeGreaterThan(0);
@@ -154,7 +165,7 @@ describe("AudioPlayerBar", () => {
 		);
 		expect(
 			screen.queryByRole("button", {
-				name: /star|rating|timer|auto dj|lyrics|stop/i,
+				name: /star|rating|timer|auto dj|lyrics/i,
 			}),
 		).not.toBeInTheDocument();
 		view.unmount();
@@ -163,6 +174,11 @@ describe("AudioPlayerBar", () => {
 	it("wires transport, seek, volume, shuffle, favorite, and queue actions", async () => {
 		renderBar();
 		await screen.findByTestId("audio-player-bar");
+
+		const pauseMock = vi.mocked(HTMLMediaElement.prototype.pause);
+		const pauseCallsBeforeStop = pauseMock.mock.calls.length;
+		fireEvent.click(screen.getAllByRole("button", { name: "Stop playing" })[0]);
+		expect(pauseMock.mock.calls.length).toBeGreaterThan(pauseCallsBeforeStop);
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Shuffle" })[0]);
 		expect(screen.getAllByRole("button", { name: "Shuffle" })[0]).toHaveAttribute(

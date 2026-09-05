@@ -14,6 +14,7 @@ import {
 	Shuffle,
 	SkipBack,
 	SkipForward,
+	Square,
 	Volume2,
 	VolumeX,
 	X,
@@ -39,6 +40,7 @@ type TransportLabels = {
 	pause: string;
 	resume: string;
 	next: string;
+	stop: string;
 };
 
 type ActionLabels = {
@@ -74,6 +76,7 @@ export function AudioPlayerBar() {
 		pause: t("pause"),
 		resume: t("resumeAudio"),
 		next: t("next"),
+		stop: t("stopPlaying"),
 	};
 	const actionLabels: ActionLabels = {
 		shuffle: t("shuffle"),
@@ -399,6 +402,14 @@ function TransportControls({
 			>
 				<SkipForward className="h-4 w-4" />
 			</IconButton>
+			<IconButton
+				label={labels.stop}
+				onClick={player.stop}
+				disabled={!player.currentTrack}
+				compact={compact}
+			>
+				<Square className="h-3.5 w-3.5 fill-current" />
+			</IconButton>
 			{includeLoop && (
 				<IconButton
 					label={
@@ -525,6 +536,14 @@ function ActionControls({
 					className={`zenstream-audio-volume-slider h-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-white ${compact ? "w-12" : "w-14 sm:w-16 lg:w-20"}`}
 				/>
 			</div>
+			<IconButton
+				label={labels.queue}
+				onClick={() => player.setQueueOpen(!player.queueOpen)}
+				pressed={player.queueOpen}
+				compact={compact}
+			>
+				<ListMusic className="h-4 w-4" />
+			</IconButton>
 			{track && (
 				<IconButton
 					label={
@@ -540,14 +559,6 @@ function ActionControls({
 					/>
 				</IconButton>
 			)}
-			<IconButton
-				label={labels.queue}
-				onClick={() => player.setQueueOpen(!player.queueOpen)}
-				pressed={player.queueOpen}
-				compact={compact}
-			>
-				<ListMusic className="h-4 w-4" />
-			</IconButton>
 		</div>
 	);
 }

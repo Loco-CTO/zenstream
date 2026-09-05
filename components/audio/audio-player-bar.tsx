@@ -168,7 +168,7 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 		<div
 			role="dialog"
 			aria-label={t("queue")}
-			className="zenstream-audio-player-queue fixed right-2 z-[90] w-[min(22rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-white/[0.12] bg-[#151419]/[0.98] shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:right-4"
+			className="zenstream-audio-player-queue fixed right-2 z-[90] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-xl border border-white/[0.12] bg-[#151419]/[0.98] shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:right-4"
 		>
 			<div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
 				<div>
@@ -186,7 +186,7 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 					<X className="h-4 w-4" />
 				</button>
 			</div>
-			<div className="max-h-[min(60vh,30rem)] overflow-y-auto p-2">
+			<div className="zenstream-audio-player-queue-list min-h-0 flex-1 overflow-y-auto p-2 pb-3">
 				{player.queue.length === 0 ? (
 					<p className="px-3 py-8 text-center text-sm text-white/40">
 						{t("queueEmpty")}

@@ -256,6 +256,21 @@ describe("AudioPlayerBar", () => {
 		);
 	});
 
+	it("keeps the final queue item inside the scrollable drawer", async () => {
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		const queue = screen.getByRole("dialog", { name: "Queue" });
+		const list = queue.querySelector(".zenstream-audio-player-queue-list");
+
+		expect(list).toHaveClass("min-h-0", "flex-1", "overflow-y-auto", "pb-3");
+		expect(queue).toHaveClass("flex", "flex-col");
+		expect(
+			screen.getByRole("button", { name: "Play Track Two" }),
+		).toBeInTheDocument();
+	});
+
 	it("fully clears the player and allows a fresh queue to start", async () => {
 		render(
 			<I18nProvider locale="en">

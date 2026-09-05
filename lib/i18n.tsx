@@ -80,6 +80,8 @@ export const TRANSLATION_KEYS = [
 	"playCount",
 	"duration",
 	"volume",
+	"mute",
+	"unmute",
 	"newAlbums",
 	"recentlyPlayedAudio",
 	"favoriteAudio",

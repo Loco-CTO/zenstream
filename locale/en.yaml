@@ -70,6 +70,8 @@ plays: "{count} plays"
 playCount: Plays
 duration: Duration
 volume: Volume
+mute: Mute
+unmute: Unmute
 newAlbums: New Albums
 recentlyPlayedAudio: Recently Played Audio
 favoriteAudio: Favorite Audio

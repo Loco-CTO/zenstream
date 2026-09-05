@@ -72,6 +72,8 @@ plays: "{count}回再生"
 playCount: 再生回数
 duration: 再生時間
 volume: 音量
+mute: ミュート
+unmute: ミュート解除
 newAlbums: 新しいアルバム
 recentlyPlayedAudio: 最近再生した音楽
 favoriteAudio: お気に入りの音楽

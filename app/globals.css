@@ -59,6 +59,36 @@ body {
 	overflow-x: clip;
 }
 
+.zenstream-audio-player-bar {
+	padding-top: 0.375rem;
+	padding-bottom: 0.5rem;
+}
+
+.zenstream-audio-player-queue {
+	bottom: 5.25rem;
+	max-height: min(60vh, 30rem);
+}
+
+.zenstream-audio-volume-slider {
+	accent-color: rgb(245 245 245);
+}
+
+.zenstream-audio-volume-slider::-webkit-slider-thumb {
+	appearance: none;
+	height: 0.75rem;
+	width: 0.75rem;
+	border-radius: 9999px;
+	background: rgb(245 245 245);
+}
+
+.zenstream-audio-volume-slider::-moz-range-thumb {
+	height: 0.75rem;
+	width: 0.75rem;
+	border: 0;
+	border-radius: 9999px;
+	background: rgb(245 245 245);
+}
+
 @media (max-width: 640px) {
 	html {
 		font-size: 16px;
@@ -69,6 +99,21 @@ body {
    landscape viewports where an anchored menu can otherwise extend above the
    screen or underneath the browser controls. */
 @media (max-width: 767px) {
+	.zenstream-audio-player-bar {
+		padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+	}
+
+	.zenstream-audio-player-queue {
+		bottom: calc(9.75rem + env(safe-area-inset-bottom));
+		left: max(0.5rem, env(safe-area-inset-left));
+		right: max(0.5rem, env(safe-area-inset-right));
+		width: auto;
+		max-width: none;
+		max-height: calc(
+			100dvh - 11rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+		);
+	}
+
 	.zenstream-player-panel {
 		position: fixed;
 		top: max(0.75rem, env(safe-area-inset-top));

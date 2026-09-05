@@ -20,7 +20,6 @@ import type { ReactNode } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { seriesPosterImage, type MediaItem } from "@/lib/media-api";
 import {
-	BlurHashGlow,
 	BlurHashImage,
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
@@ -86,16 +85,6 @@ export function AudioPlayerBar() {
 				data-testid="audio-player-bar"
 				className="zenstream-audio-player-bar fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[75] h-[5.75rem] overflow-visible border-t border-white/5 bg-[#090909]/[0.98] px-2 shadow-[0_-12px_30px_rgba(0,0,0,0.3)] backdrop-blur-2xl md:bottom-0 md:h-20 md:px-4"
 			>
-				{image && (
-					<div
-						className="pointer-events-none absolute inset-y-0 left-0 w-[min(24rem,45vw)] overflow-hidden"
-						aria-hidden="true"
-					>
-						<BlurHashGlow image={image} className="opacity-[0.12]" />
-						<div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#090909]/70 to-[#090909]" />
-					</div>
-				)}
-
 				<div className="relative hidden h-full min-w-0 grid-cols-[minmax(11rem,1fr)_minmax(15rem,40rem)_minmax(11rem,1fr)] items-center gap-3 md:grid lg:gap-5">
 					<TrackIdentity
 						track={track}
@@ -295,12 +284,12 @@ function TrackIdentity({
 				)}
 			</div>
 			<div className="min-w-0 leading-tight">
-				<p className="truncate text-sm font-semibold text-white/90">
+				<p className="truncate text-[14px] font-semibold text-white/90">
 					{track?.Name ?? fallback}
 				</p>
-				<p className="truncate text-xs text-white/55">{artist || " "}</p>
+				<p className="truncate text-[12px] text-white/55">{artist || " "}</p>
 				<p
-					className={`truncate text-xs ${error ? "text-red-200/80" : "text-white/35"}`}
+					className={`truncate text-[12px] ${error ? "text-red-200/80" : "text-white/35"}`}
 					title={error ?? album}
 					role={error ? "alert" : undefined}
 				>

@@ -112,10 +112,25 @@ describe("AudioPlayerBar", () => {
 		expect(
 			bar.querySelector('img[src*="/images/Backdrop"]'),
 		).not.toBeInTheDocument();
+		expect(
+			Array.from(bar.children).some(
+				(element) => element.getAttribute("aria-hidden") === "true",
+			),
+		).toBe(false);
 		expect(bar).toHaveClass("zenstream-audio-player-bar");
 		expect(screen.getAllByRole("slider", { name: "Volume" })[0]).toHaveClass(
 			"zenstream-audio-volume-slider",
 		);
+		expect(
+			Array.from(bar.querySelectorAll("p")).some((element) =>
+				element.classList.contains("text-[14px]"),
+			),
+		).toBe(true);
+		expect(
+			Array.from(bar.querySelectorAll("p")).filter((element) =>
+				element.classList.contains("text-[12px]"),
+			).length,
+		).toBeGreaterThanOrEqual(2);
 		expect(
 			screen.getAllByRole("button", { name: "Shuffle" }).length,
 		).toBeGreaterThan(0);

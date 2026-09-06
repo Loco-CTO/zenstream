@@ -72,7 +72,7 @@ export function ArtistPage({
 				</Link>
 
 				<header className="grid items-end gap-8 md:grid-cols-[11rem_minmax(0,1fr)] lg:grid-cols-[13rem_minmax(0,1fr)]">
-					<div className="relative aspect-square w-44 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 md:w-full">
+					<div className="relative aspect-square w-44 overflow-hidden rounded-2xl bg-white/[0.04] shadow-2xl shadow-black/40 md:w-full">
 						{image ? (
 							<BlurHashImage
 								image={image}

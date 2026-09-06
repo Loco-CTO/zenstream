@@ -518,6 +518,11 @@ export function AppShell() {
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
 			const finishProgress = preserveCurrent ? () => undefined : start();
+			// Catalog refresh events can arrive in bursts while a scan is publishing
+			// metadata. Keep the first route load alive instead of aborting it for
+			// every refresh; otherwise the page can remain in the loading state
+			// without ever receiving data.
+			if (preserveCurrent && audioLoadController.current) return;
 			audioLoadController.current?.abort();
 			const controller = new AbortController();
 			audioLoadController.current = controller;
@@ -569,6 +574,11 @@ export function AppShell() {
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
 			const finishProgress = preserveCurrent ? () => undefined : start();
+			// Catalog refresh events can arrive in bursts while a scan is publishing
+			// metadata. Keep the first route load alive instead of aborting it for
+			// every refresh; otherwise the page can remain in the loading state
+			// without ever receiving data.
+			if (preserveCurrent && audioLoadController.current) return;
 			audioLoadController.current?.abort();
 			const controller = new AbortController();
 			audioLoadController.current = controller;

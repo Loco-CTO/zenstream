@@ -102,7 +102,7 @@ export function AudioPlayerBar() {
 
 			<div
 				data-testid="audio-player-bar"
-				className="zenstream-audio-player-bar fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[75] h-[5.75rem] overflow-visible border-t border-white/5 bg-[#090909]/[0.98] px-2 shadow-[0_-12px_30px_rgba(0,0,0,0.3)] backdrop-blur-2xl md:bottom-0 md:h-20 md:px-4"
+				className="zenstream-audio-player-bar fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[75] h-[5.75rem] overflow-visible border-t border-white/5 bg-[#090909]/[0.98] px-2 backdrop-blur-2xl md:bottom-0 md:h-20 md:px-4"
 			>
 				<div className="relative hidden h-full min-w-0 grid-cols-[minmax(11rem,1fr)_minmax(15rem,40rem)_minmax(11rem,1fr)] items-center gap-3 md:grid lg:gap-5">
 					<TrackIdentity

@@ -65,6 +65,7 @@ export function AudioLyricsOverlay({
 	const closeRef = useRef<HTMLButtonElement | null>(null);
 	const lineRefs = useRef<Array<HTMLButtonElement | HTMLDivElement | null>>([]);
 	const ignoreScrollRef = useRef(false);
+	const scrollAnimationRef = useRef<number | null>(null);
 	const closeTimerRef = useRef<number | null>(null);
 	const previousOpenRef = useRef(open);
 	const isOpen = open && !closing;
@@ -138,15 +139,57 @@ export function AudioLyricsOverlay({
 
 	useEffect(() => {
 		if (!follow || activeIndex < 0) return;
+		const panel = panelRef.current;
 		const target = lineRefs.current[activeIndex];
-		if (!target || typeof target.scrollIntoView !== "function") return;
+		if (!panel || !target || typeof window.requestAnimationFrame !== "function")
+			return;
+		if (scrollAnimationRef.current !== null) {
+			window.cancelAnimationFrame(scrollAnimationRef.current);
+			scrollAnimationRef.current = null;
+		}
 		ignoreScrollRef.current = true;
-		target.scrollIntoView({ behavior: "smooth", block: "center" });
-		const timeout = window.setTimeout(() => {
+		const panelRect = panel.getBoundingClientRect();
+		const targetRect = target.getBoundingClientRect();
+		const targetOffset = targetRect.top - panelRect.top;
+		const unclampedTargetTop =
+			panel.scrollTop +
+			targetOffset -
+			Math.max(0, (panel.clientHeight - targetRect.height) / 2);
+		const targetTop = Math.min(
+			Math.max(0, panel.scrollHeight - panel.clientHeight),
+			Math.max(0, unclampedTargetTop),
+		);
+		const startTop = panel.scrollTop;
+		const distance = targetTop - startTop;
+		if (Math.abs(distance) < 1) {
 			ignoreScrollRef.current = false;
-		}, 450);
-		return () => window.clearTimeout(timeout);
-	}, [activeIndex, follow]);
+			return;
+		}
+		const duration = Math.min(700, Math.max(280, Math.abs(distance) * 0.45));
+		const startedAt = window.performance.now();
+		const animate = (now: number) => {
+			const progress = Math.min(1, (now - startedAt) / duration);
+			const eased =
+				progress < 0.5
+					? 2 * progress * progress
+					: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+			panel.scrollTop = startTop + distance * eased;
+			if (progress < 1) {
+				scrollAnimationRef.current = window.requestAnimationFrame(animate);
+				return;
+			}
+			scrollAnimationRef.current = null;
+			ignoreScrollRef.current = false;
+		};
+		scrollAnimationRef.current = window.requestAnimationFrame(animate);
+		return () => {
+			if (scrollAnimationRef.current !== null) {
+				window.cancelAnimationFrame(scrollAnimationRef.current);
+				scrollAnimationRef.current = null;
+			}
+			ignoreScrollRef.current = false;
+		};
+	}, [activeIndex, follow, panelRef]);
 
 	const artist = trackArtist(track);
 	const albumHref = track.AlbumId
@@ -399,21 +442,33 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 						<MediaPlaceholder />
 					)}
 				</div>
-				<button
-					type="button"
-					aria-label={`${t("play")} ${entry.track.Name}`}
-					onClick={() => player.playQueueItem(index)}
-					className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-				>
-					<p
-						className={`truncate text-sm font-semibold ${selected ? "text-white" : "text-white/75"}`}
+				<div className="min-w-0 flex-1">
+					<button
+						type="button"
+						aria-label={`${t("play")} ${entry.track.Name}`}
+						onClick={() => player.playQueueItem(index)}
+						className="block w-full min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 					>
-						{entry.track.Name}
-					</p>
-					<p className="mt-0.5 truncate text-xs text-white/45">
-						{trackArtist(entry.track) || entry.track.Album || ""}
-					</p>
-				</button>
+						<p
+							className={`truncate text-sm font-semibold ${selected ? "text-white" : "text-white/75"}`}
+						>
+							{entry.track.Name}
+						</p>
+					</button>
+					{trackArtist(entry.track) && entry.track.ArtistId ? (
+						<Link
+							href={`/artist/${encodeURIComponent(entry.track.ArtistId)}`}
+							onClick={(event) => event.stopPropagation()}
+							className="mt-0.5 block truncate text-xs text-white/45 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+						>
+							{trackArtist(entry.track)}
+						</Link>
+					) : (
+						<p className="mt-0.5 truncate text-xs text-white/45">
+							{trackArtist(entry.track) || entry.track.Album || ""}
+						</p>
+					)}
+				</div>
 				<span className="shrink-0 text-xs tabular-nums text-white/35">
 					{formatTime(duration)}
 				</span>
@@ -559,7 +614,7 @@ function LyricsPanel({
 										: `${t("seekToLyric")} ${line.text}`
 								}
 								aria-current={index === activeIndex ? "true" : undefined}
-								className={`block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity] duration-300 ease-out motion-reduce:transform-none motion-reduce:transition-none md:text-2xl ${index === activeIndex ? "scale-[1.06] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
+								className={`zenstream-audio-lyrics-line block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity] duration-300 ease-in-out md:text-2xl ${index === activeIndex ? "scale-[1.08] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
 							>
 								{line.text}
 							</button>

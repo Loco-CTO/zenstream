@@ -93,12 +93,6 @@ body {
 	scroll-behavior: smooth;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.zenstream-audio-lyrics-panel {
-		scroll-behavior: auto;
-	}
-}
-
 .zenstream-audio-lyrics-overlay button:focus-visible,
 .zenstream-audio-lyrics-overlay a:focus-visible {
 	position: relative;

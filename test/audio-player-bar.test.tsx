@@ -304,9 +304,17 @@ describe("AudioPlayerBar", () => {
 			"bg-white/[0.08]",
 		);
 		const firstItem = queue.querySelector('[data-track-id="track-1"]');
-		const firstItemMetadata = firstItem?.querySelectorAll("p");
-		expect(firstItemMetadata?.[0]).toHaveTextContent("Track One");
-		expect(firstItemMetadata?.[1]).toHaveTextContent("Track Artist");
+		if (!firstItem) throw new Error("first queue item was not rendered");
+		expect(
+			within(firstItem as HTMLElement).getByRole("button", {
+				name: "Play Track One",
+			}),
+		).toHaveTextContent("Track One");
+		const firstArtist = within(firstItem as HTMLElement).getByRole("link", {
+			name: "Track Artist",
+		});
+		expect(firstArtist).toHaveAttribute("href", "/artist/artist-1");
+		expect(firstArtist).toHaveClass("hover:underline");
 		expect(
 			within(queue).queryByRole("button", { name: "Move up" }),
 		).not.toBeInTheDocument();
@@ -489,7 +497,7 @@ describe("AudioPlayerBar", () => {
 		expect(overlay).toHaveClass("zenstream-audio-lyrics-overlay");
 		expect(
 			screen.getByRole("button", { name: "Seek to lyric First line" }),
-		).toHaveClass("scale-[1.06]", "text-white");
+		).toHaveClass("zenstream-audio-lyrics-line", "scale-[1.08]", "text-white");
 		expect(overlay.querySelector(".zenstream-audio-lyrics-panel")).toHaveClass(
 			"overflow-x-hidden",
 		);
@@ -526,8 +534,12 @@ describe("AudioPlayerBar", () => {
 			panel.querySelector('span[aria-hidden="true"] > span.h-2'),
 		).toHaveClass("w-4");
 		expect(panel.querySelectorAll(".relative.h-10")).toHaveLength(3);
+		const secondItem = panel.querySelector('[data-track-id="track-2"]');
+		if (!secondItem) throw new Error("second queue item was not rendered");
 		expect(
-			panel.querySelector('[data-track-id="track-2"] p:nth-of-type(2)'),
-		).toHaveTextContent("Second Artist");
+			within(secondItem as HTMLElement).getByRole("link", {
+				name: "Second Artist",
+			}),
+		).toHaveAttribute("href", "/artist/artist-1");
 	});
 });

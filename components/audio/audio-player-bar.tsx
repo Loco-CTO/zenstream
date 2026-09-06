@@ -3,8 +3,6 @@
 import Link from "next/link";
 import {
 	Captions,
-	ChevronDown,
-	ChevronUp,
 	Heart,
 	ListMusic,
 	LoaderCircle,
@@ -20,7 +18,7 @@ import {
 	VolumeX,
 	X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { seriesPosterImage, type MediaItem } from "@/lib/media-api";
 import {
@@ -174,12 +172,19 @@ export function AudioPlayerBar() {
 
 function QueuePanel({ player }: { player: AudioPlayer }) {
 	const { t } = useI18n();
+	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+	const [dropIndex, setDropIndex] = useState<number | null>(null);
+
+	function clearDragState() {
+		setDraggedIndex(null);
+		setDropIndex(null);
+	}
 
 	return (
 		<div
 			role="dialog"
 			aria-label={t("queue")}
-			className="zenstream-audio-player-queue fixed right-2 z-[90] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-white/10 bg-black shadow-[0_16px_40px_rgba(0,0,0,0.5)] md:right-4"
+			className="zenstream-audio-player-queue fixed right-2 z-[90] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-white/10 bg-[#090909]/[0.98] shadow-[0_16px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl md:right-4"
 		>
 			<div className="flex items-center justify-between border-b border-white/10 px-3.5 py-3">
 				<div>
@@ -206,10 +211,36 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 					player.queue.map((entry, index) => {
 						const selected = index === player.currentIndex;
 						const entryImage = seriesPosterImage(entry.track);
+						const dragging = draggedIndex === index;
+						const dropTarget = dropIndex === index && !dragging;
 						return (
 							<div
 								key={entry.id}
-								className={`flex items-center gap-2 rounded-md px-2 py-2 ${selected ? "zenstream-audio-player-queue-current bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.05]"}`}
+								draggable
+								data-testid={`audio-queue-item-${entry.id}`}
+								data-track-id={entry.track.Id}
+								onDragStart={(event) => {
+									setDraggedIndex(index);
+									setDropIndex(null);
+									if (event.dataTransfer) {
+										event.dataTransfer.effectAllowed = "move";
+										event.dataTransfer.setData("text/plain", entry.id);
+									}
+								}}
+								onDragOver={(event) => {
+									event.preventDefault();
+									if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+									if (draggedIndex !== index) setDropIndex(index);
+								}}
+								onDrop={(event) => {
+									event.preventDefault();
+									if (draggedIndex != null && draggedIndex !== index) {
+										player.reorderQueue(draggedIndex, index);
+									}
+									clearDragState();
+								}}
+								onDragEnd={clearDragState}
+								className={`flex cursor-grab items-center gap-2 rounded-md px-2 py-2 active:cursor-grabbing ${dragging ? "opacity-45" : ""} ${dropTarget ? "bg-white/[0.1] ring-1 ring-inset ring-white/25" : selected ? "zenstream-audio-player-queue-current bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.05]"}`}
 							>
 								<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
 									{entryImage ? (
@@ -229,41 +260,24 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 									onClick={() => player.playQueueItem(index)}
 									className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 								>
-									<p className="truncate text-xs font-medium text-white/85">
+									<p className="truncate text-base font-medium text-white/85">
 										{entry.track.Name}
 									</p>
-									<p className="truncate text-[11px] text-white/35">
+									<p className="truncate text-sm text-white/35">
 										{trackArtist(entry.track) || entry.track.Album || ""}
 									</p>
 								</button>
-								<div className="flex items-center gap-0.5">
-									<button
-										type="button"
-										aria-label={t("moveUp")}
-										disabled={index === 0}
-										onClick={() => player.reorderQueue(index, index - 1)}
-										className="rounded p-1 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
-									>
-										<ChevronUp className="h-3.5 w-3.5" />
-									</button>
-									<button
-										type="button"
-										aria-label={t("moveDown")}
-										disabled={index === player.queue.length - 1}
-										onClick={() => player.reorderQueue(index, index + 1)}
-										className="rounded p-1 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
-									>
-										<ChevronDown className="h-3.5 w-3.5" />
-									</button>
-									<button
-										type="button"
-										aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
-										onClick={() => player.removeQueueItem(entry.id)}
-										className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200"
-									>
-										<X className="h-3.5 w-3.5" />
-									</button>
-								</div>
+								<button
+									type="button"
+									aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
+									onClick={(event) => {
+										event.stopPropagation();
+										player.removeQueueItem(entry.id);
+									}}
+									className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200"
+								>
+									<X className="h-3.5 w-3.5" />
+								</button>
 							</div>
 						);
 					})

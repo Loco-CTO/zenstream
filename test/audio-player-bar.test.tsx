@@ -284,14 +284,53 @@ describe("AudioPlayerBar", () => {
 		const list = queue.querySelector(".zenstream-audio-player-queue-list");
 
 		expect(list).toHaveClass("min-h-0", "flex-1", "overflow-y-auto", "pb-3");
-		expect(queue).toHaveClass("flex", "flex-col", "bg-black", "border-white/10");
-		expect(queue).not.toHaveClass("bg-[#151419]/[0.98]", "backdrop-blur-2xl");
+		expect(queue).toHaveClass(
+			"flex",
+			"flex-col",
+			"bg-[#090909]/[0.98]",
+			"backdrop-blur-2xl",
+			"border-white/10",
+		);
+		expect(queue).not.toHaveClass("bg-black", "bg-[#151419]/[0.98]");
 		expect(
 			queue.querySelector(".zenstream-audio-player-queue-current"),
 		).toHaveClass("bg-white/[0.08]");
+		const firstItem = queue.querySelector('[data-track-id="track-1"]');
+		expect(firstItem?.querySelector("p.text-base")).toHaveTextContent(
+			"Track One",
+		);
+		expect(firstItem?.querySelector("p.text-sm")).toHaveTextContent(
+			"Track Artist",
+		);
+		expect(
+			within(queue).queryByRole("button", { name: "Move up" }),
+		).not.toBeInTheDocument();
+		expect(
+			within(queue).queryByRole("button", { name: "Move down" }),
+		).not.toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: "Play Track Two" }),
 		).toBeInTheDocument();
+	});
+
+	it("reorders queue items by dragging them directly", async () => {
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		const queue = screen.getByRole("dialog", { name: "Queue" });
+		const items = queue.querySelectorAll("[data-track-id]");
+		expect(items).toHaveLength(2);
+
+		fireEvent.dragStart(items[0]);
+		fireEvent.dragOver(items[1]);
+		fireEvent.drop(items[1]);
+
+		await waitFor(() => {
+			const orderedItems = Array.from(queue.querySelectorAll("[data-track-id]"));
+			expect(orderedItems[0]).toHaveAttribute("data-track-id", "track-2");
+			expect(orderedItems[1]).toHaveAttribute("data-track-id", "track-1");
+		});
 	});
 
 	it("fully clears the player and allows a fresh queue to start", async () => {

@@ -310,10 +310,9 @@ describe("AudioPlayerBar", () => {
 			queue.querySelector(".zenstream-audio-player-queue-current"),
 		).toHaveClass("bg-white/[0.08]");
 		const firstItem = queue.querySelector('[data-track-id="track-1"]');
-		expect(firstItem?.querySelector("p.text-sm")).toHaveTextContent("Track One");
-		expect(firstItem?.querySelector("p.text-xs")).toHaveTextContent(
-			"Track Artist",
-		);
+		const firstItemMetadata = firstItem?.querySelectorAll("p");
+		expect(firstItemMetadata?.[0]).toHaveTextContent("Track One");
+		expect(firstItemMetadata?.[1]).toHaveTextContent("Track Artist");
 		expect(
 			within(queue).queryByRole("button", { name: "Move up" }),
 		).not.toBeInTheDocument();

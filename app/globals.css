@@ -94,17 +94,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.zenstream-audio-lyrics-overlay {
-		opacity: 0;
-		transition: none;
-	}
-
-	.zenstream-audio-lyrics-overlay[data-open="true"] {
-		opacity: 1;
-		transform: none;
-		visibility: visible;
-	}
-
 	.zenstream-audio-lyrics-panel {
 		scroll-behavior: auto;
 	}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+	Captions,
 	ChevronDown,
 	ChevronUp,
 	Heart,
@@ -27,6 +28,7 @@ import {
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
+import { AudioLyricsOverlay } from "@/components/audio/audio-lyrics-overlay";
 
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
 
@@ -49,6 +51,7 @@ type ActionLabels = {
 	volume: string;
 	mute: string;
 	unmute: string;
+	lyrics: string;
 	queue: string;
 };
 
@@ -83,11 +86,19 @@ export function AudioPlayerBar() {
 		volume: t("volume"),
 		mute: t("mute"),
 		unmute: t("unmute"),
+		lyrics: t("openLyrics"),
 		queue: t("queue"),
 	};
 
 	return (
 		<>
+			{player.lyricsOpen && track && (
+				<AudioLyricsOverlay
+					key={track.Id}
+					track={track}
+					onClose={() => player.setLyricsOpen(false)}
+				/>
+			)}
 			{player.queueOpen && <QueuePanel player={player} />}
 
 			<div
@@ -568,8 +579,22 @@ function ActionControls({
 				/>
 			</div>
 			<IconButton
+				label={labels.lyrics}
+				onClick={() => {
+					player.setQueueOpen(false);
+					player.setLyricsOpen(!player.lyricsOpen);
+				}}
+				pressed={player.lyricsOpen}
+				compact={compact}
+			>
+				<Captions className="h-4 w-4" />
+			</IconButton>
+			<IconButton
 				label={labels.queue}
-				onClick={() => player.setQueueOpen(!player.queueOpen)}
+				onClick={() => {
+					player.setLyricsOpen(false);
+					player.setQueueOpen(!player.queueOpen);
+				}}
 				pressed={player.queueOpen}
 				compact={compact}
 			>

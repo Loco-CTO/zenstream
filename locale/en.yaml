@@ -75,6 +75,16 @@ duration: Duration
 volume: Volume
 mute: Mute
 unmute: Unmute
+lyrics: Lyrics
+openLyrics: Open lyrics
+closeLyrics: Close lyrics
+lyricsLoading: Loading lyrics…
+lyricsUnavailable: Lyrics are not available for this track.
+lyricsLoadFailed: Could not load lyrics.
+timedLyrics: Timed lyrics
+plainLyrics: Plain lyrics
+resumeLyricFollow: Resume follow
+seekToLyric: Seek to lyric
 newAlbums: New Albums
 recentlyPlayedAudio: Recently Played Audio
 favoriteAudio: Favorite Audio

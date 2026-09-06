@@ -47,9 +47,11 @@ export type AudioPlayerState = {
 	error: string | null;
 	autoplayBlocked: boolean;
 	queueOpen: boolean;
+	lyricsOpen: boolean;
 };
 
 type AudioPlayerContextValue = AudioPlayerState & {
+	session: AuthSession;
 	playAlbum: (
 		album: MediaItem,
 		tracks: MediaItem[],
@@ -72,6 +74,8 @@ type AudioPlayerContextValue = AudioPlayerState & {
 	removeQueueItem: (entryId: string) => void;
 	reorderQueue: (fromIndex: number, toIndex: number) => void;
 	setQueueOpen: (open: boolean) => void;
+	toggleLyrics: () => void;
+	setLyricsOpen: (open: boolean) => void;
 	toggleFavorite: () => Promise<void>;
 	clearAudioPlayer: () => void;
 };
@@ -124,6 +128,7 @@ export function AudioPlayerProvider({
 	const [error, setError] = useState<string | null>(null);
 	const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 	const [queueOpen, setQueueOpen] = useState(false);
+	const [lyricsOpen, setLyricsOpen] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const loadGeneration = useRef(0);
@@ -622,10 +627,15 @@ export function AudioPlayerProvider({
 		setError(null);
 		setAutoplayBlocked(false);
 		setQueueOpen(false);
+		setLyricsOpen(false);
 		setLoopMode("off");
 		playStartGeneration.current += 1;
 		playStartPromises.current.clear();
 		playStartCompleted.current.clear();
+	}, []);
+
+	const toggleLyrics = useCallback(() => {
+		setLyricsOpen((current) => !current);
 	}, []);
 
 	const stop = useCallback(() => {
@@ -634,6 +644,7 @@ export function AudioPlayerProvider({
 
 	const value = useMemo<AudioPlayerContextValue>(
 		() => ({
+			session,
 			queue,
 			currentIndex,
 			currentTrack,
@@ -648,6 +659,7 @@ export function AudioPlayerProvider({
 			error,
 			autoplayBlocked,
 			queueOpen,
+			lyricsOpen,
 			playAlbum,
 			playTrack,
 			addAlbumToQueue,
@@ -665,6 +677,8 @@ export function AudioPlayerProvider({
 			removeQueueItem,
 			reorderQueue,
 			setQueueOpen,
+			toggleLyrics,
+			setLyricsOpen,
 			toggleFavorite,
 			clearAudioPlayer,
 		}),
@@ -679,6 +693,7 @@ export function AudioPlayerProvider({
 			error,
 			isLoading,
 			isPlaying,
+			lyricsOpen,
 			loopMode,
 			playAlbum,
 			playNext,
@@ -692,13 +707,16 @@ export function AudioPlayerProvider({
 			reorderQueue,
 			resume,
 			seek,
+			session,
 			setVolume,
+			setLyricsOpen,
 			stop,
 			toggleMuted,
 			shuffle,
 			togglePlay,
 			toggleShuffle,
 			toggleFavorite,
+			toggleLyrics,
 			volume,
 			muted,
 		],

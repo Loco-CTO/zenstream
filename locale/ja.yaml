@@ -77,6 +77,16 @@ duration: 再生時間
 volume: 音量
 mute: ミュート
 unmute: ミュート解除
+lyrics: 歌詞
+openLyrics: 歌詞を開く
+closeLyrics: 歌詞を閉じる
+lyricsLoading: 歌詞を読み込んでいます…
+lyricsUnavailable: このトラックの歌詞はありません。
+lyricsLoadFailed: 歌詞を読み込めませんでした。
+timedLyrics: タイムド歌詞
+plainLyrics: 歌詞
+resumeLyricFollow: 現在位置に戻る
+seekToLyric: 歌詞の位置へ移動
 newAlbums: 新しいアルバム
 recentlyPlayedAudio: 最近再生した音楽
 favoriteAudio: お気に入りの音楽

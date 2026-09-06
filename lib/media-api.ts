@@ -98,6 +98,7 @@ export function savedPlaybackPositionSeconds(
 export interface MediaStream {
 	Index?: number;
 	Type?: "Video" | "Audio" | "Subtitle" | string;
+	Kind?: "lyrics" | "subtitle" | string;
 	Language?: string;
 	DisplayTitle?: string;
 	Title?: string;
@@ -143,6 +144,19 @@ export interface MediaSource {
 	MediaStreams?: MediaStream[];
 	Trickplay?: Record<string, TrickplayInfo>;
 }
+
+export type LyricLine = {
+	text: string;
+	startSeconds?: number;
+	endSeconds?: number;
+};
+
+export type AudioLyrics = {
+	source: "embedded" | "sidecar";
+	timed: boolean;
+	language: string | null;
+	lines: LyricLine[];
+};
 
 export interface BazarrSubtitleSummary {
 	language?: string | null;
@@ -1368,6 +1382,46 @@ export async function getPlaybackSource(
 	return mediaSourceFromPayload(response, itemId);
 }
 
+export async function getAudioLyrics(
+	session: AuthSession,
+	itemId: string,
+	signal?: AbortSignal,
+): Promise<AudioLyrics | null> {
+	const response = await catalogRequest<{
+		lyrics?: unknown;
+	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/lyrics`, {
+		signal,
+	});
+	return normalizeAudioLyrics(response.lyrics);
+}
+
+function normalizeAudioLyrics(value: unknown): AudioLyrics | null {
+	if (!isRecord(value) || !Array.isArray(value.lines)) return null;
+	const source = value.source === "embedded" ? "embedded" : "sidecar";
+	const lines = value.lines.flatMap((line): LyricLine[] => {
+		if (!isRecord(line) || typeof line.text !== "string") return [];
+		const result: LyricLine = { text: line.text };
+		if (
+			typeof line.startSeconds === "number" &&
+			Number.isFinite(line.startSeconds)
+		)
+			result.startSeconds = Math.max(0, line.startSeconds);
+		if (typeof line.endSeconds === "number" && Number.isFinite(line.endSeconds))
+			result.endSeconds = Math.max(result.startSeconds ?? 0, line.endSeconds);
+		return result.text.trim() ? [result] : [];
+	});
+	if (!lines.length) return null;
+	return {
+		source,
+		timed: Boolean(value.timed),
+		language:
+			typeof value.language === "string" && value.language.trim()
+				? value.language
+				: null,
+		lines,
+	};
+}
+
 export async function getBazarrStatus(
 	session: AuthSession,
 	itemId: string,
@@ -1595,7 +1649,13 @@ const playbackQualities = [0, 1, 2, 4, 8, 16, 32, 64].map(
 export function playbackStreams(
 	info: PlaybackInfo,
 	trickplay?: Record<string, Record<string, TrickplayInfo>>,
-) {
+): {
+	source: MediaSource | undefined;
+	audio: MediaStream[];
+	subtitles: MediaStream[];
+	lyrics?: MediaStream[];
+	qualities: number[];
+} {
 	const source = info.source;
 	const sourceWithTrickplay: MediaSource | undefined = source
 		? {
@@ -1609,7 +1669,10 @@ export function playbackStreams(
 			(stream) => stream.Type === "Audio",
 		),
 		subtitles: (source?.MediaStreams ?? []).filter(
-			(stream) => stream.Type === "Subtitle",
+			(stream) => stream.Type === "Subtitle" && stream.Kind !== "lyrics",
+		),
+		lyrics: (source?.MediaStreams ?? []).filter(
+			(stream) => stream.Type === "Subtitle" && stream.Kind === "lyrics",
 		),
 		qualities: playbackQualities,
 	};

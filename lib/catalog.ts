@@ -281,6 +281,7 @@ export function toMediaStreams(
 			const value = String(stream.codec_type ?? stream.type ?? "").toLowerCase();
 			return value ? `${value[0].toUpperCase()}${value.slice(1)}` : "";
 		})(),
+		Kind: typeof stream.kind === "string" ? String(stream.kind) : undefined,
 		Language:
 			typeof (stream.tags as Record<string, unknown> | undefined)?.language ===
 			"string"

@@ -79,6 +79,7 @@ vi.mock("@/lib/media-api", async () => {
 			source: { TranscodingUrl: "/video.m3u8" },
 			audio: [],
 			subtitles: [],
+			lyrics: [],
 			qualities: [],
 		}),
 		playbackUrl: vi.fn().mockReturnValue("/video.m3u8"),
@@ -89,6 +90,7 @@ const defaultPlaybackStreams = {
 	source: { TranscodingUrl: "/video.m3u8" },
 	audio: [],
 	subtitles: [],
+	lyrics: [],
 	qualities: [],
 } as ReturnType<typeof playbackStreams>;
 const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";

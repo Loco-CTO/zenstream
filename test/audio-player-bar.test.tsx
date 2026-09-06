@@ -107,6 +107,7 @@ describe("AudioPlayerBar", () => {
 		vi.spyOn(mediaApi, "recordAudioPlayStart").mockResolvedValue(undefined);
 		vi.spyOn(mediaApi, "reportPlayback").mockResolvedValue(undefined);
 		vi.spyOn(mediaApi, "setFavorite").mockResolvedValue(undefined);
+		vi.spyOn(mediaApi, "getAudioLyrics").mockResolvedValue(null);
 		vi
 			.spyOn(HTMLMediaElement.prototype, "load")
 			.mockImplementation(() => undefined);
@@ -199,9 +200,12 @@ describe("AudioPlayerBar", () => {
 		);
 		expect(
 			screen.queryByRole("button", {
-				name: /star|rating|timer|auto dj|lyrics/i,
+				name: /star|rating|timer|auto dj/i,
 			}),
 		).not.toBeInTheDocument();
+		expect(
+			screen.getAllByRole("button", { name: "Open lyrics" }).length,
+		).toBeGreaterThan(0);
 		view.unmount();
 	});
 
@@ -360,5 +364,44 @@ describe("AudioPlayerBar", () => {
 		const bar = await screen.findByTestId("audio-player-bar");
 		await waitFor(() => expect(bar).toHaveTextContent("Audio failed"));
 		expect(bar).toBeInTheDocument();
+	});
+
+	it("opens local lyrics and keeps the player bar mounted", async () => {
+		vi.mocked(mediaApi.getAudioLyrics).mockResolvedValue({
+			source: "sidecar",
+			timed: true,
+			language: null,
+			lines: [
+				{ text: "First line", startSeconds: 0, endSeconds: 4 },
+				{ text: "Second line", startSeconds: 4, endSeconds: 8 },
+			],
+		});
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		const overlay = await screen.findByTestId("audio-lyrics-overlay");
+		expect(overlay).toHaveAttribute("role", "dialog");
+		expect(overlay).toHaveTextContent("First line");
+		expect(overlay).toHaveTextContent("Second line");
+		expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
+		expect(
+			overlay.querySelector('img[src*="/images/Backdrop"]'),
+		).not.toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Next Up" })).toHaveAttribute(
+			"aria-selected",
+			"false",
+		);
+		fireEvent.click(screen.getByRole("tab", { name: "Next Up" }));
+		expect(screen.getByTestId("audio-next-up-panel")).toHaveTextContent(
+			"Track Two",
+		);
+		fireEvent.click(screen.getByRole("tab", { name: "Lyrics" }));
+		expect(overlay).toHaveTextContent("First line");
+
+		fireEvent.keyDown(document, { key: "Escape" });
+		await waitFor(() =>
+			expect(screen.queryByTestId("audio-lyrics-overlay")).not.toBeInTheDocument(),
+		);
 	});
 });

@@ -208,7 +208,7 @@ function ArtistCard({ artist }: { artist: MediaItem }) {
 			href={`/artist/${encodeURIComponent(artist.Id)}`}
 			className="group min-w-0 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 		>
-			<div className="mx-auto aspect-square w-full max-w-28 overflow-hidden rounded-full border border-white/10 bg-white/[0.04] transition duration-300 group-hover:scale-[1.03] group-hover:border-white/30">
+			<div className="relative mx-auto aspect-square w-full max-w-28 overflow-hidden rounded-full border border-white/10 bg-white/[0.04] transition duration-300 group-hover:scale-[1.03] group-hover:border-white/30">
 				{image ? (
 					<BlurHashImage
 						image={image}

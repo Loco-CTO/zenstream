@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import {
-	Captions,
 	Heart,
 	ListMusic,
 	LoaderCircle,
+	MicVocal,
 	Pause,
 	Play,
 	Repeat,
@@ -453,6 +453,37 @@ function ActionControls({
 		<div
 			className={`flex shrink-0 items-center ${compact ? "gap-0" : "gap-0.5 lg:gap-1"}`}
 		>
+			<IconButton
+				label={labels.lyrics}
+				onClick={() => {
+					if (player.lyricsOpen && !player.queueOpen) {
+						player.setLyricsOpen(false);
+						return;
+					}
+					player.setQueueOpen(false);
+					player.setLyricsOpen(true);
+				}}
+				pressed={player.lyricsOpen && !player.queueOpen}
+				compact={compact}
+			>
+				<MicVocal className="h-4 w-4" />
+			</IconButton>
+			<IconButton
+				label={labels.queue}
+				onClick={() => {
+					if (player.queueOpen && player.lyricsOpen) {
+						player.setQueueOpen(false);
+						player.setLyricsOpen(false);
+					} else {
+						player.setQueueOpen(true);
+						player.setLyricsOpen(true);
+					}
+				}}
+				pressed={player.queueOpen && player.lyricsOpen}
+				compact={compact}
+			>
+				<ListMusic className="h-4 w-4" />
+			</IconButton>
 			<div className="flex shrink-0 items-center gap-1">
 				<IconButton
 					label={player.muted ? labels.unmute : labels.mute}
@@ -476,33 +507,6 @@ function ActionControls({
 					className={`zenstream-audio-volume-slider h-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-white ${compact ? "w-12" : "w-14 sm:w-16 lg:w-20"}`}
 				/>
 			</div>
-			<IconButton
-				label={labels.lyrics}
-				onClick={() => {
-					player.setQueueOpen(false);
-					player.setLyricsOpen(!player.lyricsOpen);
-				}}
-				pressed={player.lyricsOpen}
-				compact={compact}
-			>
-				<Captions className="h-4 w-4" />
-			</IconButton>
-			<IconButton
-				label={labels.queue}
-				onClick={() => {
-					if (player.queueOpen && player.lyricsOpen) {
-						player.setQueueOpen(false);
-						player.setLyricsOpen(false);
-					} else {
-						player.setQueueOpen(true);
-						player.setLyricsOpen(true);
-					}
-				}}
-				pressed={player.queueOpen && player.lyricsOpen}
-				compact={compact}
-			>
-				<ListMusic className="h-4 w-4" />
-			</IconButton>
 		</div>
 	);
 }

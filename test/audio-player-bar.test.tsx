@@ -195,6 +195,11 @@ describe("AudioPlayerBar", () => {
 			favoriteButton.compareDocumentPosition(queueButton) &
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
+		const volumeSlider = screen.getAllByRole("slider", { name: "Volume" })[0];
+		expect(
+			queueButton.compareDocumentPosition(volumeSlider) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
 		expect(
 			screen.getAllByRole("button", { name: "Loop off" }).length,
 		).toBeGreaterThan(0);
@@ -408,6 +413,53 @@ describe("AudioPlayerBar", () => {
 		const bar = await screen.findByTestId("audio-player-bar");
 		await waitFor(() => expect(bar).toHaveTextContent("Audio failed"));
 		expect(bar).toBeInTheDocument();
+	});
+
+	it("switches between lyrics and queue without closing the overlay", async () => {
+		vi.mocked(mediaApi.getAudioLyrics).mockResolvedValue({
+			source: "sidecar",
+			timed: false,
+			language: null,
+			lines: [{ text: "Plain lyrics" }],
+		});
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		const overlay = await screen.findByTestId("audio-lyrics-overlay");
+		expect(screen.getByRole("tab", { name: "Lyrics" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute(
+			"aria-selected",
+			"false",
+		);
+		expect(screen.getAllByRole("button", { name: "Open lyrics" })[0]).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		expect(overlay).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		expect(screen.getByRole("tab", { name: "Lyrics" })).toHaveAttribute(
+			"aria-selected",
+			"false",
+		);
+		expect(
+			screen.getAllByRole("button", { name: "Open lyrics" })[0],
+		).not.toHaveAttribute("aria-pressed");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		expect(overlay).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Lyrics" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
 	});
 
 	it("opens local lyrics and keeps the player bar mounted", async () => {

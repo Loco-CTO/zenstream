@@ -190,7 +190,7 @@ export function AudioAlbumPage({
 				</div>
 				<div className="min-w-0 pb-1">
 					{typeLabel && (
-						<p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+						<p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
 							{typeLabel}
 						</p>
 					)}

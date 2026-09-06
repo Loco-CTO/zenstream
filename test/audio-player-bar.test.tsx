@@ -8,7 +8,10 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
+import {
+	AudioPlayerBar,
+	AudioPlayerWorkspace,
+} from "@/components/audio/audio-player-bar";
 import {
 	AudioPlayerProvider,
 	useAudioPlayer,
@@ -77,12 +80,12 @@ function StopHarness() {
 	}, [player]);
 
 	return (
-		<>
+		<AudioPlayerWorkspace>
 			<AudioPlayerBar />
 			<button type="button" onClick={() => player.playAlbum(album, tracks)}>
 				Start fresh queue
 			</button>
-		</>
+		</AudioPlayerWorkspace>
 	);
 }
 
@@ -90,7 +93,9 @@ function renderBar() {
 	return render(
 		<I18nProvider locale="en">
 			<AudioPlayerProvider session={session}>
-				<SeededBar />
+				<AudioPlayerWorkspace>
+					<SeededBar />
+				</AudioPlayerWorkspace>
 			</AudioPlayerProvider>
 		</I18nProvider>,
 	);
@@ -261,6 +266,10 @@ describe("AudioPlayerBar", () => {
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
 		expect(screen.getByRole("dialog", { name: "Queue" })).toBeInTheDocument();
+		expect(screen.getByTestId("audio-player-workspace")).toHaveAttribute(
+			"data-queue-open",
+			"true",
+		);
 		expect(screen.getByRole("dialog", { name: "Queue" })).toHaveClass(
 			"zenstream-audio-player-queue",
 		);
@@ -272,6 +281,11 @@ describe("AudioPlayerBar", () => {
 		fireEvent.click(screen.getAllByRole("button", { name: "Previous" })[0]);
 		await waitFor(() =>
 			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
+		);
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		expect(screen.getByTestId("audio-player-workspace")).toHaveAttribute(
+			"data-queue-open",
+			"false",
 		);
 	});
 
@@ -296,10 +310,8 @@ describe("AudioPlayerBar", () => {
 			queue.querySelector(".zenstream-audio-player-queue-current"),
 		).toHaveClass("bg-white/[0.08]");
 		const firstItem = queue.querySelector('[data-track-id="track-1"]');
-		expect(firstItem?.querySelector("p.text-base")).toHaveTextContent(
-			"Track One",
-		);
-		expect(firstItem?.querySelector("p.text-sm")).toHaveTextContent(
+		expect(firstItem?.querySelector("p.text-sm")).toHaveTextContent("Track One");
+		expect(firstItem?.querySelector("p.text-xs")).toHaveTextContent(
 			"Track Artist",
 		);
 		expect(

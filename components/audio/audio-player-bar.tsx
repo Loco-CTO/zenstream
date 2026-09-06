@@ -53,6 +53,20 @@ type ActionLabels = {
 	queue: string;
 };
 
+export function AudioPlayerWorkspace({ children }: { children: ReactNode }) {
+	const player = useAudioPlayer();
+
+	return (
+		<div
+			data-testid="audio-player-workspace"
+			data-queue-open={player.queueOpen ? "true" : "false"}
+			className="zenstream-audio-workspace"
+		>
+			{children}
+		</div>
+	);
+}
+
 export function AudioPlayerBar() {
 	const { t } = useI18n();
 	const player = useAudioPlayer();

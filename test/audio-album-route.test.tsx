@@ -39,6 +39,7 @@ vi.mock("@/components/audio/audio-player-provider", () => ({
 
 vi.mock("@/components/audio/audio-player-bar", () => ({
 	AudioPlayerBar: () => null,
+	AudioPlayerWorkspace: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock("@/lib/syncplay", () => ({
@@ -121,8 +122,8 @@ describe("audio album route refreshes", () => {
 
 		await waitFor(() =>
 			expect(screen.getByTestId("audio-album-page")).toHaveTextContent(
-			"Before play",
-		),
+				"Before play",
+			),
 		);
 
 		await act(async () => {

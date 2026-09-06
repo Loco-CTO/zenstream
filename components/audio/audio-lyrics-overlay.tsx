@@ -59,8 +59,7 @@ export function AudioLyricsOverlay({
 	const [closing, setClosing] = useState(false);
 	const lyrics = lyricsState.key === requestKey ? lyricsState.lyrics : null;
 	const loading = open && lyricsState.key !== requestKey;
-	const loadError =
-		lyricsState.key === requestKey ? lyricsState.error : null;
+	const loadError = lyricsState.key === requestKey ? lyricsState.error : null;
 	const activeTab: OverlayTab = player.queueOpen ? "nextUp" : "lyrics";
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -116,8 +115,7 @@ export function AudioLyricsOverlay({
 				setLyricsState({
 					key: requestKey,
 					lyrics: null,
-					error:
-						error instanceof Error ? error.message : t("lyricsLoadFailed"),
+					error: error instanceof Error ? error.message : t("lyricsLoadFailed"),
 				});
 			});
 		return () => controller.abort();
@@ -328,7 +326,8 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 	function renderEntry(entry: AudioPlayer["queue"][number], index: number) {
 		const selected = index === player.currentIndex;
 		const dragging = draggedIndex === index;
-		const dropBefore = dropTarget?.index === index && dropTarget.edge === "before";
+		const dropBefore =
+			dropTarget?.index === index && dropTarget.edge === "before";
 		const dropAfter = dropTarget?.index === index && dropTarget.edge === "after";
 		const entryImage = seriesPosterImage(entry.track);
 		const duration =
@@ -337,7 +336,7 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 		return (
 			<div
 				key={entry.id}
-					draggable
+				draggable
 				data-testid={`audio-queue-item-${entry.id}`}
 				data-track-id={entry.track.Id}
 				data-queue-index={index}
@@ -356,9 +355,7 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 					if (draggedIndex !== index) {
 						const bounds = event.currentTarget.getBoundingClientRect();
 						const edge =
-							event.clientY - bounds.top < bounds.height / 2
-								? "before"
-								: "after";
+							event.clientY - bounds.top < bounds.height / 2 ? "before" : "after";
 						setDropTarget({ index, edge });
 					}
 				}}

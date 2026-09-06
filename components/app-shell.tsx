@@ -1135,107 +1135,107 @@ export function AppShell() {
 								watchHistoryEnabled={watchHistoryLoaded ? watchHistoryEnabled : true}
 							>
 								<SyncplayProvider session={session}>
-										<SyncplayPlaybackFollower />
-										{pathname === "/settings" ? (
-											<SettingsPage
+									<SyncplayPlaybackFollower />
+									{pathname === "/settings" ? (
+										<SettingsPage
+											displayName={session.username}
+											userId={session.userId}
+											session={session}
+											avatarVersion={avatarVersion}
+											onAvatarVersionChange={handleAvatarVersionChange}
+											locale={effectiveLocale}
+											onLocaleChange={handleLocaleChange}
+											metadataLanguages={metadataLanguages}
+											metadataLanguage={metadataLanguage}
+											onMetadataLanguageChange={handleMetadataLanguageChange}
+											playbackPreference={playbackPreference}
+											onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+											watchHistoryEnabled={watchHistoryEnabled}
+											onWatchHistoryChange={handleWatchHistoryChange}
+											onClearWatchHistory={handleClearWatchHistory}
+											onPlaybackPreferenceLoad={() => loadPreferences(session)}
+											onPasswordChanged={handlePasswordChanged}
+											onLogout={handleLogout}
+										/>
+									) : (
+										<div className="min-h-screen bg-background text-foreground">
+											<Navbar
 												displayName={session.username}
 												userId={session.userId}
-												session={session}
 												avatarVersion={avatarVersion}
-												onAvatarVersionChange={handleAvatarVersionChange}
-												locale={effectiveLocale}
-												onLocaleChange={handleLocaleChange}
-												metadataLanguages={metadataLanguages}
-												metadataLanguage={metadataLanguage}
-												onMetadataLanguageChange={handleMetadataLanguageChange}
-												playbackPreference={playbackPreference}
-												onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
-												watchHistoryEnabled={watchHistoryEnabled}
-												onWatchHistoryChange={handleWatchHistoryChange}
-												onClearWatchHistory={handleClearWatchHistory}
-												onPlaybackPreferenceLoad={() => loadPreferences(session)}
-												onPasswordChanged={handlePasswordChanged}
 												onLogout={handleLogout}
+												session={session}
 											/>
-										) : (
-											<div className="min-h-screen bg-background text-foreground">
-												<Navbar
-													displayName={session.username}
-													userId={session.userId}
-													avatarVersion={avatarVersion}
-													onLogout={handleLogout}
-													session={session}
+											<MobileNav />
+											{renderStatus === "error" && (
+												<ErrorPanel
+													titleKey={
+														audioAlbumId || artistId
+															? "audioNotFound"
+															: detailId
+																? "detailLoadFailed"
+																: "libraryLoadFailed"
+													}
+													message={error}
+													onRetry={() => {
+														if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
+														else if (artistId) void loadArtist(session, artistId);
+														else if (detailId) void loadDetail(session, detailId);
+														else void loadHome(session);
+													}}
 												/>
-												<MobileNav />
-												{renderStatus === "error" && (
-													<ErrorPanel
-														titleKey={
-															audioAlbumId || artistId
-																? "audioNotFound"
-																: detailId
-																	? "detailLoadFailed"
-																	: "libraryLoadFailed"
-														}
-														message={error}
-														onRetry={() => {
-															if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
-															else if (artistId) void loadArtist(session, artistId);
-															else if (detailId) void loadDetail(session, detailId);
-															else void loadHome(session);
-														}}
-													/>
+											)}
+											{renderStatus === "ready" && detailData && playId && (
+												<PlayerPage
+													initialData={detailData}
+													session={session}
+													watchHistoryEnabled={watchHistoryEnabled}
+													watchHistoryLoaded={watchHistoryLoaded}
+												/>
+											)}
+											{renderStatus === "ready" &&
+												detailData &&
+												detailId &&
+												!playId &&
+												(detailData.item.Type === "BoxSet" ? (
+													<CollectionPage initialData={detailData} session={session} />
+												) : (
+													<DetailPage initialData={detailData} session={session} />
+												))}
+											{renderStatus === "ready" && audioAlbumId && audioAlbumData && (
+												<AudioAlbumPage data={audioAlbumData} session={session} />
+											)}
+											{renderStatus === "ready" && artistId && artistData && (
+												<ArtistPage data={artistData} session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/library" && (
+												<LibraryPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/favorites" && (
+												<FavoritesPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/calendar" && (
+												<CalendarPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/notifications" && (
+												<NotificationsPage session={session} />
+											)}
+											{renderStatus === "ready" && pathname === "/search" && (
+												<SearchPage session={session} query={searchData ?? searchQuery} />
+											)}
+											{homeData &&
+												!detailId &&
+												!audioAlbumId &&
+												!artistId &&
+												pathname !== "/library" &&
+												pathname !== "/favorites" &&
+												pathname !== "/calendar" &&
+												pathname !== "/notifications" &&
+												pathname !== "/search" && (
+													<HomePage data={homeData} session={session} />
 												)}
-												{renderStatus === "ready" && detailData && playId && (
-													<PlayerPage
-														initialData={detailData}
-														session={session}
-														watchHistoryEnabled={watchHistoryEnabled}
-														watchHistoryLoaded={watchHistoryLoaded}
-													/>
-												)}
-												{renderStatus === "ready" &&
-													detailData &&
-													detailId &&
-													!playId &&
-													(detailData.item.Type === "BoxSet" ? (
-														<CollectionPage initialData={detailData} session={session} />
-													) : (
-														<DetailPage initialData={detailData} session={session} />
-													))}
-												{renderStatus === "ready" && audioAlbumId && audioAlbumData && (
-													<AudioAlbumPage data={audioAlbumData} session={session} />
-												)}
-												{renderStatus === "ready" && artistId && artistData && (
-													<ArtistPage data={artistData} session={session} />
-												)}
-												{renderStatus === "ready" && pathname === "/library" && (
-													<LibraryPage session={session} />
-												)}
-												{renderStatus === "ready" && pathname === "/favorites" && (
-													<FavoritesPage session={session} />
-												)}
-												{renderStatus === "ready" && pathname === "/calendar" && (
-													<CalendarPage session={session} />
-												)}
-												{renderStatus === "ready" && pathname === "/notifications" && (
-													<NotificationsPage session={session} />
-												)}
-												{renderStatus === "ready" && pathname === "/search" && (
-													<SearchPage session={session} query={searchData ?? searchQuery} />
-												)}
-												{homeData &&
-													!detailId &&
-													!audioAlbumId &&
-													!artistId &&
-													pathname !== "/library" &&
-													pathname !== "/favorites" &&
-													pathname !== "/calendar" &&
-													pathname !== "/notifications" &&
-													pathname !== "/search" && (
-														<HomePage data={homeData} session={session} />
-													)}
-											</div>
-										)}
+										</div>
+									)}
 									<AudioPlayerBar />
 								</SyncplayProvider>
 							</AudioPlayerProvider>

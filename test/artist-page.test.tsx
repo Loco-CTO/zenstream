@@ -6,6 +6,11 @@ import type { ArtistData, MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
 const playerActions = vi.hoisted(() => ({ playAlbum: vi.fn() }));
+const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+	useRouter: () => router,
+}));
 
 vi.mock("next/link", () => ({
 	default: ({
@@ -86,6 +91,18 @@ function artistData(): ArtistData {
 }
 
 describe("artist page", () => {
+	it("returns to the previous view instead of routing to the library", () => {
+		render(<ArtistPage data={artistData()} session={session} />);
+
+		const originalHistoryLength = window.history.length;
+		window.history.pushState({}, "", "/artist/artist-1");
+		fireEvent.click(screen.getByRole("button", { name: "back" }));
+
+		expect(router.back).toHaveBeenCalledOnce();
+		expect(router.push).not.toHaveBeenCalled();
+		window.history.go(-(window.history.length - originalHistoryLength));
+	});
+
 	it("renders the redesigned release sections and related artist links", () => {
 		render(<ArtistPage data={artistData()} session={session} />);
 

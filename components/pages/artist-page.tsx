@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Play } from "lucide-react";
+import { ChevronLeft, Play } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
@@ -37,6 +38,7 @@ export function ArtistPage({
 	session: AuthSession;
 }) {
 	const { t } = useI18n();
+	const router = useRouter();
 	const { playAlbum } = useAudioPlayer();
 	const albums = uniqueItems(data.albums);
 	const tracks = uniqueItems(data.tracks);
@@ -49,6 +51,14 @@ export function ArtistPage({
 		...(data.artist.Genres ?? []),
 	]);
 	const releaseCount = uniqueItems([...albums, ...appearsIn]).length;
+
+	function goBack() {
+		if (window.history.length > 1) {
+			router.back();
+			return;
+		}
+		router.push("/");
+	}
 
 	return (
 		<main className="relative min-h-screen overflow-hidden px-4 pb-32 pt-20 sm:px-8 md:px-12 md:pb-28 md:pt-24">
@@ -64,12 +74,14 @@ export function ArtistPage({
 				/>
 			)}
 			<div className="relative mx-auto">
-				<Link
-					href="/library"
-					className="mb-8 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+				<button
+					type="button"
+					onClick={goBack}
+					aria-label={t("back")}
+					className="mb-8 inline-flex items-center gap-1 rounded-md px-2 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 				>
-					<ArrowLeft className="h-3.5 w-3.5" /> {t("musicLibrary")}
-				</Link>
+					<ChevronLeft className="h-4 w-4" /> {t("back")}
+				</button>
 
 				<header className="grid items-end gap-8 md:grid-cols-[11rem_minmax(0,1fr)] lg:grid-cols-[13rem_minmax(0,1fr)]">
 					<div className="relative aspect-square w-44 overflow-hidden rounded-2xl bg-white/[0.04] shadow-2xl shadow-black/40 md:w-full">

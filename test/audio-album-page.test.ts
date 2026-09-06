@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	albumTypeLabel,
+	trackArtistCredits,
 	trackArtistLabel,
 	trackDiscNumbers,
 } from "@/components/pages/audio-album-page";
@@ -58,16 +59,47 @@ describe("audio album track artist display", () => {
 			}),
 		).toBe("Album Artist");
 	});
+
+	it("uses per-credit IDs and the primary album artist fallback", () => {
+		expect(
+			trackArtistCredits({
+				...track("song", 1),
+				ArtistId: "album-artist-id",
+				AlbumArtist: "Album Artist",
+				ArtistCredits: [
+					{ Name: "Album Artist" },
+					{ Id: "guest-id", Name: "Guest Artist" },
+				],
+			}),
+		).toEqual([
+			{ Id: "album-artist-id", Name: "Album Artist" },
+			{ Id: "guest-id", Name: "Guest Artist" },
+		]);
+	});
+
+	it("keeps unresolved artist credits visible without an ID", () => {
+		expect(
+			trackArtistCredits({
+				...track("song", 1),
+				ArtistCredits: [{ Name: "Local Artist" }],
+			}),
+		).toEqual([{ Name: "Local Artist" }]);
+	});
 });
 
 describe("audio album type display", () => {
 	it("localizes the primary and secondary release types", () => {
 		expect(
-			albumTypeLabel("EP", ["Live", "EP"], (key) =>
-				({
-					albumTypeEp: "EP",
-					albumTypeLive: "Live",
-				} as Record<string, string>)[key] ?? key,
+			albumTypeLabel(
+				"EP",
+				["Live", "EP"],
+				(key) =>
+					(
+						({
+							albumTypeEp: "EP",
+							albumTypeLive: "Live",
+						}) as Record<string, string>
+					)[key] ?? key,
 			),
 		).toBe("EP · Live");
 	});

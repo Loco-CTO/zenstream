@@ -339,6 +339,32 @@ describe("catalog client", () => {
 		});
 	});
 
+	it("preserves and deduplicates music artist credits", () => {
+		const item = toMediaItem({
+			id: "track-1",
+			libraryId: "music",
+			artistId: "artist-main",
+			type: "track",
+			name: "Track",
+			metadata: {
+				artists: [
+					{ id: "artist-main", name: "Main Artist" },
+					{ name: "Guest Artist" },
+				],
+				contributingArtists: [
+					{ id: "artist-guest", name: "Guest Artist" },
+					{ id: "artist-third", name: "Third Artist" },
+				],
+			},
+		} satisfies CatalogItem);
+
+		expect(item.ArtistCredits).toEqual([
+			{ Id: "artist-main", Name: "Main Artist" },
+			{ Id: "artist-guest", Name: "Guest Artist" },
+			{ Id: "artist-third", Name: "Third Artist" },
+		]);
+	});
+
 	it("derives the production year from the metadata date", () => {
 		const item = toMediaItem({
 			id: "series-1",

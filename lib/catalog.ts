@@ -1,4 +1,4 @@
-import type { MediaItem, MediaStream } from "@/lib/media-api";
+import type { ArtistCredit, MediaItem, MediaStream } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { authenticatedFetch } from "@/lib/authenticated-request";
 
@@ -121,6 +121,42 @@ function metadataYear(value: unknown, date: unknown) {
 	return undefined;
 }
 
+function musicArtistCredits(
+	...sources: Array<Array<Record<string, unknown>> | undefined>
+): ArtistCredit[] {
+	const credits: ArtistCredit[] = [];
+	const byName = new Map<string, ArtistCredit>();
+	const byId = new Map<string, ArtistCredit>();
+
+	for (const source of sources) {
+		if (!Array.isArray(source)) continue;
+		for (const value of source) {
+			const name = String(value.name ?? value.Name ?? "").trim();
+			if (!name) continue;
+			const rawId = value.id ?? value.Id;
+			const id =
+				typeof rawId === "string" && rawId.trim() ? rawId.trim() : undefined;
+			const nameKey = name.toLocaleLowerCase();
+			const existing = (id ? byId.get(id) : undefined) ?? byName.get(nameKey);
+
+			if (existing) {
+				if (id && !existing.Id) {
+					existing.Id = id;
+					byId.set(id, existing);
+				}
+				continue;
+			}
+
+			const credit: ArtistCredit = id ? { Id: id, Name: name } : { Name: name };
+			credits.push(credit);
+			byName.set(nameKey, credit);
+			if (id) byId.set(id, credit);
+		}
+	}
+
+	return credits;
+}
+
 export function toMediaItem(item: CatalogItem): MediaItem {
 	const images = item.metadata.images ?? {};
 	const people = (["cast", "crew"] as const).flatMap((creditType) =>
@@ -174,6 +210,10 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 	const productionYear = metadataYear(item.metadata.year, releaseDate);
 	const audioArtists =
 		item.metadata.artists ?? item.metadata.contributingArtists;
+	const artistCredits = musicArtistCredits(
+		item.metadata.artists,
+		item.metadata.contributingArtists,
+	);
 	const albumId = item.albumId ?? item.metadata.albumId;
 	const durationSeconds =
 		typeof item.durationSeconds === "number"
@@ -209,6 +249,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 					.map((artist) => String(artist.name ?? "").trim())
 					.filter(Boolean)
 			: undefined,
+		ArtistCredits: artistCredits.length > 0 ? artistCredits : undefined,
 		Label: item.metadata.label ?? undefined,
 		Tags: item.metadata.tags,
 		ReleaseDate: releaseDate,

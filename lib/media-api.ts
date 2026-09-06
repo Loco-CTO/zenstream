@@ -24,6 +24,11 @@ export interface AuthResponse {
 	};
 }
 
+export interface ArtistCredit {
+	Id?: string;
+	Name: string;
+}
+
 export interface MediaItem {
 	Id: string;
 	Name: string;
@@ -39,6 +44,7 @@ export interface MediaItem {
 	AlbumSecondaryTypes?: string[];
 	Artists?: string[];
 	ContributingArtists?: string[];
+	ArtistCredits?: ArtistCredit[];
 	Label?: string;
 	Tags?: string[];
 	ReleaseDate?: string;

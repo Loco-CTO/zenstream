@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	changeAccountPassword,
+	fetchArtistData,
 	getAudioLyrics,
 	getSearchItems,
 	getSearchPage,
@@ -145,5 +146,76 @@ describe("audio lyrics requests", () => {
 		expect(result.subtitles[0]?.Kind).toBe("subtitle");
 		expect(result.lyrics).toHaveLength(1);
 		expect(result.lyrics?.[0]?.Kind).toBe("lyrics");
+	});
+});
+
+describe("audio artist requests", () => {
+	it("converts credited tracks, appearances, and related artists", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					artist: {
+						id: "artist-expanded",
+						libraryId: "music-library",
+						type: "artist",
+						name: "Featured Artist",
+						metadata: { title: "Featured Artist" },
+					},
+					albums: [],
+					tracks: [
+						{
+							id: "track-1",
+							libraryId: "music-library",
+							type: "track",
+							name: "Track 1",
+							metadata: {
+								title: "Track 1",
+								artists: [{ id: "artist-expanded", name: "Featured Artist" }],
+							},
+						},
+					],
+					appearsIn: [
+						{
+							id: "album-1",
+							libraryId: "music-library",
+							type: "release",
+							name: "Album 1",
+							metadata: { title: "Album 1", albumType: "Album" },
+						},
+					],
+					relatedArtists: [
+						{
+							id: "artist-related",
+							libraryId: "music-library",
+							type: "artist",
+							name: "Related Artist",
+							metadata: { title: "Related Artist" },
+						},
+					],
+					catalogGeneration: 7,
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			),
+		);
+
+		await expect(
+			fetchArtistData(session, "artist-expanded"),
+		).resolves.toMatchObject({
+			artist: { Id: "artist-expanded", Type: "MusicArtist" },
+			tracks: [
+				{
+					Id: "track-1",
+					Type: "Audio",
+					ArtistCredits: [{ Id: "artist-expanded", Name: "Featured Artist" }],
+				},
+			],
+			appearsIn: [{ Id: "album-1", Type: "MusicAlbum" }],
+			relatedArtists: [{ Id: "artist-related", Type: "MusicArtist" }],
+			catalogGeneration: 7,
+		});
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining("/api/catalog/music/artists/artist-expanded"),
+			expect.anything(),
+		);
 	});
 });

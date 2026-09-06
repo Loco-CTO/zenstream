@@ -66,6 +66,20 @@ tracks: Tracks
 artists: Artists
 musicLibrary: Music Library
 album: Album
+artistAppearsIn: Appears in
+artistAlbums: Albums
+artistEps: EPs
+artistSingles: Singles
+artistLive: Live
+artistRemixes: Remixes
+artistSoundtracks: Soundtracks
+relatedArtists: Related artists
+artistReleaseCount: "{count} releases"
+artistTrackCount: "{count} tracks"
+playAll: Play all
+artistNoMusic: No music is available for this artist yet.
+artistNoAppearances: No appearances yet.
+artistNoRelatedArtists: No related artists yet.
 albumTypeAlbum: Album
 albumTypeSingle: Single
 albumTypeEp: EP

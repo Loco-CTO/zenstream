@@ -435,6 +435,9 @@ export interface AudioAlbumData {
 export interface ArtistData {
 	artist: MediaItem;
 	albums: MediaItem[];
+	tracks: MediaItem[];
+	appearsIn: MediaItem[];
+	relatedArtists: MediaItem[];
 	catalogGeneration?: number;
 }
 
@@ -1109,6 +1112,9 @@ export async function fetchArtistData(
 			const result = await catalogRequest<{
 				artist: CatalogItem;
 				albums?: CatalogItem[];
+				tracks?: CatalogItem[];
+				appearsIn?: CatalogItem[];
+				relatedArtists?: CatalogItem[];
 				catalogGeneration?: number;
 			}>(session, `/api/catalog/music/artists/${encodeURIComponent(artistId)}`, {
 				signal: combinedSignal(requestSignal, signal),
@@ -1116,6 +1122,9 @@ export async function fetchArtistData(
 			return {
 				artist: toMediaItem(result.artist),
 				albums: (result.albums ?? []).map(toMediaItem),
+				tracks: (result.tracks ?? []).map(toMediaItem),
+				appearsIn: (result.appearsIn ?? []).map(toMediaItem),
+				relatedArtists: (result.relatedArtists ?? []).map(toMediaItem),
 				catalogGeneration: result.catalogGeneration,
 			};
 		},

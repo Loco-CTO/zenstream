@@ -66,6 +66,14 @@ tracks: Tracks
 artists: Artists
 musicLibrary: Music Library
 album: Album
+albumTypeAlbum: Album
+albumTypeSingle: Single
+albumTypeEp: EP
+albumTypeCompilation: Compilation
+albumTypeSoundtrack: Soundtrack
+albumTypeLive: Live
+albumTypeRemix: Remix
+albumTypeOther: Other
 artist: Artist
 track: Track
 disc: Disc

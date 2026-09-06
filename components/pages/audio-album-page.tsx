@@ -25,9 +25,43 @@ import {
 	BlurHashImage,
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
+
+const albumTypeTranslationKeys: Record<string, TranslationKey> = {
+	album: "albumTypeAlbum",
+	single: "albumTypeSingle",
+	ep: "albumTypeEp",
+	compilation: "albumTypeCompilation",
+	soundtrack: "albumTypeSoundtrack",
+	live: "albumTypeLive",
+	remix: "albumTypeRemix",
+	other: "albumTypeOther",
+};
+
+export function albumTypeLabel(
+	type: string | undefined,
+	secondaryTypes: string[] | undefined,
+	translate: (key: TranslationKey) => string,
+) {
+	const values = [type, ...(secondaryTypes ?? [])]
+		.map((value) => value?.trim())
+		.filter((value): value is string => Boolean(value))
+		.filter(
+			(value, index, all) =>
+				all.findIndex(
+					(candidate) => candidate.toLowerCase() === value.toLowerCase(),
+				) === index,
+		);
+
+	return values
+		.map((value) => {
+			const key = albumTypeTranslationKeys[value.toLowerCase()];
+			return key ? translate(key) : value;
+		})
+		.join(" · ");
+}
 
 export function AudioAlbumPage({
 	data,
@@ -67,6 +101,11 @@ export function AudioAlbumPage({
 	);
 	const year = releaseYear(data.album);
 	const artistName = data.artist?.Name ?? data.album.AlbumArtist;
+	const typeLabel = albumTypeLabel(
+		data.album.AlbumType,
+		data.album.AlbumSecondaryTypes,
+		t,
+	);
 
 	function goBack() {
 		if (window.history.length > 1) {
@@ -149,6 +188,11 @@ export function AudioAlbumPage({
 					</div>
 				</div>
 				<div className="min-w-0 pb-1">
+					{typeLabel && (
+						<p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+							{typeLabel}
+						</p>
+					)}
 					<h1 className="break-words text-3xl font-black leading-tight tracking-[-0.025em] text-white sm:text-4xl md:text-5xl">
 						{data.album.Name}
 					</h1>

@@ -36,6 +36,8 @@ export type CatalogItem = {
 		runtimeMinutes?: number;
 		durationSeconds?: number;
 		albumArtist?: string;
+		albumType?: string;
+		albumSecondaryTypes?: string[];
 		artists?: Array<Record<string, unknown>>;
 		contributingArtists?: Array<Record<string, unknown>>;
 		album?: string;
@@ -193,6 +195,10 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		ArtistId: item.artistId ?? undefined,
 		Album: item.metadata.album ?? undefined,
 		AlbumArtist: item.metadata.albumArtist ?? undefined,
+		AlbumType: item.metadata.albumType ?? undefined,
+		AlbumSecondaryTypes: Array.isArray(item.metadata.albumSecondaryTypes)
+			? item.metadata.albumSecondaryTypes.map((value) => String(value))
+			: undefined,
 		Artists: Array.isArray(audioArtists)
 			? audioArtists
 					.map((artist) => String(artist.name ?? "").trim())

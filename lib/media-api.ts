@@ -35,6 +35,8 @@ export interface MediaItem {
 	ArtistId?: string;
 	Album?: string;
 	AlbumArtist?: string;
+	AlbumType?: string;
+	AlbumSecondaryTypes?: string[];
 	Artists?: string[];
 	ContributingArtists?: string[];
 	Label?: string;

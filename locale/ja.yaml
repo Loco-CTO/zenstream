@@ -68,6 +68,14 @@ tracks: トラック
 artists: アーティスト
 musicLibrary: 音楽ライブラリ
 album: アルバム
+albumTypeAlbum: アルバム
+albumTypeSingle: シングル
+albumTypeEp: EP
+albumTypeCompilation: コンピレーション
+albumTypeSoundtrack: サウンドトラック
+albumTypeLive: ライブ
+albumTypeRemix: リミックス
+albumTypeOther: その他
 artist: アーティスト
 track: トラック
 disc: ディスク

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	albumTypeLabel,
 	trackArtistLabel,
 	trackDiscNumbers,
 } from "@/components/pages/audio-album-page";
@@ -56,5 +57,18 @@ describe("audio album track artist display", () => {
 				AlbumArtist: "Album Artist",
 			}),
 		).toBe("Album Artist");
+	});
+});
+
+describe("audio album type display", () => {
+	it("localizes the primary and secondary release types", () => {
+		expect(
+			albumTypeLabel("EP", ["Live", "EP"], (key) =>
+				({
+					albumTypeEp: "EP",
+					albumTypeLive: "Live",
+				} as Record<string, string>)[key] ?? key,
+			),
+		).toBe("EP · Live");
 	});
 });

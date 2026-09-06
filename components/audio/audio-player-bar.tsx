@@ -16,9 +16,8 @@ import {
 	Square,
 	Volume2,
 	VolumeX,
-	X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { seriesPosterImage, type MediaItem } from "@/lib/media-api";
 import {
@@ -52,20 +51,6 @@ type ActionLabels = {
 	lyrics: string;
 	queue: string;
 };
-
-export function AudioPlayerWorkspace({ children }: { children: ReactNode }) {
-	const player = useAudioPlayer();
-
-	return (
-		<div
-			data-testid="audio-player-workspace"
-			data-queue-open={player.queueOpen ? "true" : "false"}
-			className="zenstream-audio-workspace"
-		>
-			{children}
-		</div>
-	);
-}
 
 export function AudioPlayerBar() {
 	const { t } = useI18n();
@@ -108,10 +93,12 @@ export function AudioPlayerBar() {
 				<AudioLyricsOverlay
 					key={track.Id}
 					track={track}
-					onClose={() => player.setLyricsOpen(false)}
+					onClose={() => {
+						player.setLyricsOpen(false);
+						player.setQueueOpen(false);
+					}}
 				/>
 			)}
-			{player.queueOpen && <QueuePanel player={player} />}
 
 			<div
 				data-testid="audio-player-bar"
@@ -181,123 +168,6 @@ export function AudioPlayerBar() {
 				</div>
 			</div>
 		</>
-	);
-}
-
-function QueuePanel({ player }: { player: AudioPlayer }) {
-	const { t } = useI18n();
-	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-	const [dropIndex, setDropIndex] = useState<number | null>(null);
-
-	function clearDragState() {
-		setDraggedIndex(null);
-		setDropIndex(null);
-	}
-
-	return (
-		<div
-			role="dialog"
-			aria-label={t("queue")}
-			className="zenstream-audio-player-queue fixed right-2 z-[90] flex w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-white/10 bg-[#090909]/[0.98] shadow-[0_16px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl md:right-4"
-		>
-			<div className="flex items-center justify-between border-b border-white/10 px-3.5 py-3">
-				<div>
-					<h2 className="text-sm font-semibold text-white">{t("queue")}</h2>
-					<p className="mt-0.5 text-xs text-white/35">
-						{player.queue.length} {t("tracks").toLocaleLowerCase()}
-					</p>
-				</div>
-				<button
-					type="button"
-					aria-label={t("close")}
-					onClick={() => player.setQueueOpen(false)}
-					className="rounded-md p-1.5 text-white/45 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-				>
-					<X className="h-4 w-4" />
-				</button>
-			</div>
-			<div className="zenstream-audio-player-queue-list min-h-0 flex-1 overflow-y-auto p-1.5 pb-3">
-				{player.queue.length === 0 ? (
-					<p className="px-3 py-8 text-center text-sm text-white/40">
-						{t("queueEmpty")}
-					</p>
-				) : (
-					player.queue.map((entry, index) => {
-						const selected = index === player.currentIndex;
-						const entryImage = seriesPosterImage(entry.track);
-						const dragging = draggedIndex === index;
-						const dropTarget = dropIndex === index && !dragging;
-						return (
-							<div
-								key={entry.id}
-								draggable
-								data-testid={`audio-queue-item-${entry.id}`}
-								data-track-id={entry.track.Id}
-								onDragStart={(event) => {
-									setDraggedIndex(index);
-									setDropIndex(null);
-									if (event.dataTransfer) {
-										event.dataTransfer.effectAllowed = "move";
-										event.dataTransfer.setData("text/plain", entry.id);
-									}
-								}}
-								onDragOver={(event) => {
-									event.preventDefault();
-									if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-									if (draggedIndex !== index) setDropIndex(index);
-								}}
-								onDrop={(event) => {
-									event.preventDefault();
-									if (draggedIndex != null && draggedIndex !== index) {
-										player.reorderQueue(draggedIndex, index);
-									}
-									clearDragState();
-								}}
-								onDragEnd={clearDragState}
-								className={`flex cursor-grab items-center gap-2 rounded-md px-2 py-2 active:cursor-grabbing ${dragging ? "opacity-45" : ""} ${dropTarget ? "bg-white/[0.1] ring-1 ring-inset ring-white/25" : selected ? "zenstream-audio-player-queue-current bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.05]"}`}
-							>
-								<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
-									{entryImage ? (
-										<BlurHashImage
-											image={entryImage}
-											alt=""
-											sizes="36px"
-											className="h-full w-full object-cover"
-										/>
-									) : (
-										<MediaPlaceholder />
-									)}
-								</div>
-								<button
-									type="button"
-									aria-label={`${t("play")} ${entry.track.Name}`}
-									onClick={() => player.playQueueItem(index)}
-									className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-								>
-									<p className="truncate text-sm font-medium text-white/85">
-										{entry.track.Name}
-									</p>
-									<p className="truncate text-xs text-white/35">
-										{trackArtist(entry.track) || entry.track.Album || ""}
-									</p>
-								</button>
-								<button
-									type="button"
-									aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
-									onClick={(event) => {
-										event.stopPropagation();
-										player.removeQueueItem(entry.id);
-									}}
-									className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200"
-								>
-									<X className="h-3.5 w-3.5" />
-								</button>
-							</div>
-						);
-					})
-				)}
-			</div>
-		</div>
 	);
 }
 
@@ -620,10 +490,15 @@ function ActionControls({
 			<IconButton
 				label={labels.queue}
 				onClick={() => {
-					player.setLyricsOpen(false);
-					player.setQueueOpen(!player.queueOpen);
+					if (player.queueOpen && player.lyricsOpen) {
+						player.setQueueOpen(false);
+						player.setLyricsOpen(false);
+					} else {
+						player.setQueueOpen(true);
+						player.setLyricsOpen(true);
+					}
 				}}
-				pressed={player.queueOpen}
+				pressed={player.queueOpen && player.lyricsOpen}
 				compact={compact}
 			>
 				<ListMusic className="h-4 w-4" />

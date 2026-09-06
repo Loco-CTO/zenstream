@@ -39,7 +39,6 @@ vi.mock("@/components/audio/audio-player-provider", () => ({
 
 vi.mock("@/components/audio/audio-player-bar", () => ({
 	AudioPlayerBar: () => null,
-	AudioPlayerWorkspace: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock("@/lib/syncplay", () => ({

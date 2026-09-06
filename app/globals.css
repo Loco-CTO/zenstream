@@ -64,23 +64,6 @@ body {
 	padding-bottom: 0.5rem;
 }
 
-.zenstream-audio-workspace {
-	--zenstream-audio-queue-rail-width: 22rem;
-	min-width: 0;
-	transition: padding-right 180ms ease-out;
-}
-
-.zenstream-audio-player-queue {
-	bottom: 5.25rem;
-	max-height: min(30rem, calc(100dvh - 6rem));
-	flex-direction: column;
-}
-
-.zenstream-audio-player-queue-list {
-	overscroll-behavior: contain;
-	scroll-padding-block: 0.75rem;
-}
-
 .zenstream-audio-lyrics-overlay {
 	bottom: 5rem;
 	overscroll-behavior: contain;
@@ -124,17 +107,6 @@ body {
 @media (max-width: 767px) {
 	.zenstream-audio-player-bar {
 		padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-	}
-
-	.zenstream-audio-player-queue {
-		bottom: calc(9.75rem + env(safe-area-inset-bottom));
-		left: max(0.5rem, env(safe-area-inset-left));
-		right: max(0.5rem, env(safe-area-inset-right));
-		width: auto;
-		max-width: none;
-		max-height: calc(
-			100dvh - 10.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-		);
 	}
 
 	.zenstream-audio-lyrics-overlay {
@@ -206,22 +178,6 @@ body {
 
 	.zenstream-player-timeline-preview {
 		max-width: calc(100vw - 1.5rem);
-	}
-}
-
-@media (min-width: 768px) {
-	.zenstream-audio-workspace[data-queue-open="true"] {
-		padding-right: var(--zenstream-audio-queue-rail-width);
-	}
-
-	.zenstream-audio-player-queue {
-		top: 5rem;
-		right: 0;
-		bottom: 5rem;
-		width: var(--zenstream-audio-queue-rail-width);
-		max-height: none;
-		border-radius: 0;
-		border-right-width: 0;
 	}
 }
 

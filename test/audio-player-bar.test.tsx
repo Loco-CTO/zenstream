@@ -10,7 +10,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	AudioPlayerBar,
-	AudioPlayerWorkspace,
 } from "@/components/audio/audio-player-bar";
 import {
 	AudioPlayerProvider,
@@ -80,12 +79,12 @@ function StopHarness() {
 	}, [player]);
 
 	return (
-		<AudioPlayerWorkspace>
+		<>
 			<AudioPlayerBar />
 			<button type="button" onClick={() => player.playAlbum(album, tracks)}>
 				Start fresh queue
 			</button>
-		</AudioPlayerWorkspace>
+		</>
 	);
 }
 
@@ -93,9 +92,7 @@ function renderBar() {
 	return render(
 		<I18nProvider locale="en">
 			<AudioPlayerProvider session={session}>
-				<AudioPlayerWorkspace>
-					<SeededBar />
-				</AudioPlayerWorkspace>
+				<SeededBar />
 			</AudioPlayerProvider>
 		</I18nProvider>,
 	);
@@ -265,13 +262,11 @@ describe("AudioPlayerBar", () => {
 		);
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
-		expect(screen.getByRole("dialog", { name: "Queue" })).toBeInTheDocument();
-		expect(screen.getByTestId("audio-player-workspace")).toHaveAttribute(
-			"data-queue-open",
+		expect(screen.getByTestId("audio-lyrics-overlay")).toBeInTheDocument();
+		expect(screen.getByTestId("audio-next-up-panel")).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute(
+			"aria-selected",
 			"true",
-		);
-		expect(screen.getByRole("dialog", { name: "Queue" })).toHaveClass(
-			"zenstream-audio-player-queue",
 		);
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
@@ -283,31 +278,20 @@ describe("AudioPlayerBar", () => {
 			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
 		);
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
-		expect(screen.getByTestId("audio-player-workspace")).toHaveAttribute(
-			"data-queue-open",
-			"false",
-		);
+		expect(screen.queryByTestId("audio-lyrics-overlay")).not.toBeInTheDocument();
 	});
 
-	it("keeps the final queue item inside the scrollable drawer", async () => {
+	it("keeps the final queue item inside the queue page", async () => {
 		renderBar();
 		await screen.findByTestId("audio-player-bar");
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
-		const queue = screen.getByRole("dialog", { name: "Queue" });
-		const list = queue.querySelector(".zenstream-audio-player-queue-list");
+		const queue = screen.getByTestId("audio-next-up-panel");
 
-		expect(list).toHaveClass("min-h-0", "flex-1", "overflow-y-auto", "pb-3");
-		expect(queue).toHaveClass(
-			"flex",
-			"flex-col",
-			"bg-[#090909]/[0.98]",
-			"backdrop-blur-2xl",
-			"border-white/10",
-		);
+		expect(queue.querySelector(".min-h-0.flex-1.overflow-y-auto")).toBeInTheDocument();
 		expect(queue).not.toHaveClass("bg-black", "bg-[#151419]/[0.98]");
 		expect(
-			queue.querySelector(".zenstream-audio-player-queue-current"),
+			queue.querySelector('[data-track-id="track-1"]'),
 		).toHaveClass("bg-white/[0.08]");
 		const firstItem = queue.querySelector('[data-track-id="track-1"]');
 		const firstItemMetadata = firstItem?.querySelectorAll("p");
@@ -329,16 +313,27 @@ describe("AudioPlayerBar", () => {
 		await screen.findByTestId("audio-player-bar");
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
-		const queue = screen.getByRole("dialog", { name: "Queue" });
-		const items = queue.querySelectorAll("[data-track-id]");
+		const queue = screen.getByTestId("audio-next-up-panel");
+		expect(queue).not.toHaveTextContent("Next Up");
+		const list = queue.querySelector('[data-testid="audio-queue-list"]');
+		if (!list) throw new Error("queue list was not rendered");
+		const items = list.querySelectorAll("[data-track-id]");
 		expect(items).toHaveLength(2);
 
 		fireEvent.dragStart(items[0]);
 		fireEvent.dragOver(items[1]);
+		expect(items[1].querySelector("span.pointer-events-none")).toHaveClass(
+			"bg-white/85",
+		);
+		expect(items[1]).not.toHaveClass("bg-white/[0.1]");
 		fireEvent.drop(items[1]);
 
 		await waitFor(() => {
-			const orderedItems = Array.from(queue.querySelectorAll("[data-track-id]"));
+			const orderedItems = Array.from(list.querySelectorAll("[data-track-id]")).sort(
+				(a, b) =>
+					Number(a.getAttribute("data-queue-index")) -
+					Number(b.getAttribute("data-queue-index")),
+			);
 			expect(orderedItems[0]).toHaveAttribute("data-track-id", "track-2");
 			expect(orderedItems[1]).toHaveAttribute("data-track-id", "track-1");
 		});
@@ -357,7 +352,7 @@ describe("AudioPlayerBar", () => {
 		if (!audio) throw new Error("audio element was not rendered");
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
-		expect(screen.getByRole("dialog", { name: "Queue" })).toBeInTheDocument();
+		expect(screen.getByTestId("audio-lyrics-overlay")).toBeInTheDocument();
 		const pauseMock = vi.mocked(HTMLMediaElement.prototype.pause);
 		const pauseCallsBeforeStop = pauseMock.mock.calls.length;
 
@@ -366,9 +361,7 @@ describe("AudioPlayerBar", () => {
 		await waitFor(() =>
 			expect(screen.queryByTestId("audio-player-bar")).not.toBeInTheDocument(),
 		);
-		expect(
-			screen.queryByRole("dialog", { name: "Queue" }),
-		).not.toBeInTheDocument();
+		expect(screen.queryByTestId("audio-lyrics-overlay")).not.toBeInTheDocument();
 		expect(audio.getAttribute("src")).toBeNull();
 		expect(pauseMock.mock.calls.length).toBeGreaterThan(pauseCallsBeforeStop);
 
@@ -439,11 +432,11 @@ describe("AudioPlayerBar", () => {
 		expect(
 			overlay.querySelector('img[src*="/images/Backdrop"]'),
 		).not.toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: "Next Up" })).toHaveAttribute(
+		expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute(
 			"aria-selected",
 			"false",
 		);
-		fireEvent.click(screen.getByRole("tab", { name: "Next Up" }));
+		fireEvent.click(screen.getByRole("tab", { name: "Queue" }));
 		expect(screen.getByTestId("audio-next-up-panel")).toHaveTextContent(
 			"Track Two",
 		);
@@ -462,14 +455,16 @@ describe("AudioPlayerBar", () => {
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
 		const overlay = await screen.findByTestId("audio-lyrics-overlay");
-		fireEvent.click(screen.getByRole("tab", { name: "Next Up" }));
+		fireEvent.click(screen.getByRole("tab", { name: "Queue" }));
 
 		const panel = within(overlay).getByTestId("audio-next-up-panel");
-		expect(panel.querySelectorAll('span[style*="pulse"]')).toHaveLength(3);
+		expect(panel.querySelectorAll('span[style*="pulse"]')).toHaveLength(6);
 		expect(
-			panel.querySelector('span[aria-hidden="true"] > span.h-3'),
+			panel.querySelector('span[aria-hidden="true"] > span.h-2'),
 		).toHaveClass("w-4");
-		expect(panel.querySelectorAll(".relative.h-6")).toHaveLength(2);
-		expect(panel.querySelector(".relative.h-6")).toHaveClass("w-[5.5rem]");
+		expect(panel.querySelectorAll(".relative.h-10")).toHaveLength(3);
+		expect(panel.querySelector('[data-track-id="track-2"] p:nth-of-type(2)')).toHaveTextContent(
+			"Second Artist",
+		);
 	});
 });

@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-	ChevronDown,
-	ChevronUp,
-	LoaderCircle,
-	LocateFixed,
-	X,
-} from "lucide-react";
+import { ChevronDown, LoaderCircle, LocateFixed, X } from "lucide-react";
 import {
 	useEffect,
 	useMemo,
@@ -32,6 +26,10 @@ import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicato
 
 type OverlayTab = "nextUp" | "lyrics";
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
+type QueueDropTarget = {
+	index: number;
+	edge: "before" | "after";
+};
 
 export function AudioLyricsOverlay({
 	track,
@@ -47,7 +45,7 @@ export function AudioLyricsOverlay({
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [follow, setFollow] = useState(true);
-	const [activeTab, setActiveTab] = useState<OverlayTab>("lyrics");
+	const activeTab: OverlayTab = player.queueOpen ? "nextUp" : "lyrics";
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	const closeRef = useRef<HTMLButtonElement | null>(null);
 	const lineRefs = useRef<Array<HTMLButtonElement | HTMLDivElement | null>>([]);
@@ -111,7 +109,7 @@ export function AudioLyricsOverlay({
 			data-testid="audio-lyrics-overlay"
 			role="dialog"
 			aria-modal="true"
-			aria-label={`${t("lyrics")}: ${track.Name}`}
+			aria-label={`${activeTab === "nextUp" ? t("queue") : t("lyrics")}: ${track.Name}`}
 			className="zenstream-audio-lyrics-overlay fixed inset-x-0 top-0 z-[70] overflow-hidden bg-[#100c10] text-white"
 		>
 			<div className="absolute inset-0 overflow-hidden">
@@ -120,15 +118,17 @@ export function AudioLyricsOverlay({
 			</div>
 			<div className="relative flex h-full min-h-0 flex-col">
 				<header className="relative grid h-14 shrink-0 grid-cols-1 items-center px-4 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
-					<button
-						ref={closeRef}
-						type="button"
-						aria-label={t("closeLyrics")}
-						onClick={onClose}
-						className="absolute left-4 rounded-full p-2 text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 md:left-10 lg:left-14"
-					>
-						<ChevronDown className="h-5 w-5" />
-					</button>
+					<div className="absolute left-4 flex items-center gap-2 md:left-10 lg:left-14">
+						<button
+							ref={closeRef}
+							type="button"
+							aria-label={t("closeLyrics")}
+							onClick={onClose}
+							className="rounded-full p-2 text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+						>
+							<ChevronDown className="h-5 w-5" />
+						</button>
+					</div>
 					<nav
 						aria-label={t("lyrics")}
 						role="tablist"
@@ -136,15 +136,19 @@ export function AudioLyricsOverlay({
 					>
 						<TabButton
 							active={activeTab === "nextUp"}
-							label={t("nextUp")}
-							onClick={() => setActiveTab("nextUp")}
+							label={t("queue")}
+							onClick={() => {
+								player.setQueueOpen(true);
+							}}
 							tabId="audio-next-up-tab"
 							panelId="audio-next-up-panel"
 						/>
 						<TabButton
 							active={activeTab === "lyrics"}
 							label={t("lyrics")}
-							onClick={() => setActiveTab("lyrics")}
+							onClick={() => {
+								player.setQueueOpen(false);
+							}}
 							tabId="audio-lyrics-tab"
 							panelId="audio-lyrics-panel"
 						/>
@@ -255,88 +259,158 @@ function TabButton({
 
 function NextUpPanel({ player }: { player: AudioPlayer }) {
 	const { t } = useI18n();
+	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+	const [dropTarget, setDropTarget] = useState<QueueDropTarget | null>(null);
+
+	function clearDragState() {
+		setDraggedIndex(null);
+		setDropTarget(null);
+	}
+
+	function renderEntry(entry: AudioPlayer["queue"][number], index: number) {
+		const selected = index === player.currentIndex;
+		const dragging = draggedIndex === index;
+		const dropBefore = dropTarget?.index === index && dropTarget.edge === "before";
+		const dropAfter = dropTarget?.index === index && dropTarget.edge === "after";
+		const entryImage = seriesPosterImage(entry.track);
+		const duration =
+			entry.track.DurationSeconds ?? entry.track.UserData?.DurationSeconds ?? 0;
+
+		return (
+			<div
+				key={entry.id}
+					draggable
+				data-testid={`audio-queue-item-${entry.id}`}
+				data-track-id={entry.track.Id}
+				data-queue-index={index}
+				aria-current={selected ? "true" : undefined}
+				onDragStart={(event) => {
+					setDraggedIndex(index);
+					setDropTarget(null);
+					if (event.dataTransfer) {
+						event.dataTransfer.effectAllowed = "move";
+						event.dataTransfer.setData("text/plain", entry.id);
+					}
+				}}
+				onDragOver={(event) => {
+					event.preventDefault();
+					if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+					if (draggedIndex !== index) {
+						const bounds = event.currentTarget.getBoundingClientRect();
+						const edge =
+							event.clientY - bounds.top < bounds.height / 2
+								? "before"
+								: "after";
+						setDropTarget({ index, edge });
+					}
+				}}
+				onDrop={(event) => {
+					event.preventDefault();
+					if (draggedIndex != null) {
+						const edge = dropTarget?.index === index ? dropTarget.edge : "before";
+						const insertionIndex = index + (edge === "after" ? 1 : 0);
+						const targetIndex =
+							insertionIndex > draggedIndex ? insertionIndex - 1 : insertionIndex;
+						if (targetIndex !== draggedIndex) {
+							player.reorderQueue(draggedIndex, targetIndex);
+						}
+					}
+					clearDragState();
+				}}
+				onDragEnd={clearDragState}
+				className={`group relative flex cursor-grab items-center gap-3 rounded-md px-2 py-2.5 active:cursor-grabbing ${dragging ? "opacity-45" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+			>
+				{(dropBefore || dropAfter) && (
+					<span
+						aria-hidden="true"
+						className={`pointer-events-none absolute inset-x-2 z-10 h-0.5 rounded-full bg-white/85 ${dropBefore ? "-top-px" : "-bottom-px"}`}
+					/>
+				)}
+				<span
+					aria-hidden="true"
+					className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
+				>
+					{selected ? <AudioPlayingIndicator className="h-2 w-4" /> : index + 1}
+				</span>
+				<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
+					{entryImage ? (
+						<BlurHashImage
+							image={entryImage}
+							alt=""
+							sizes="40px"
+							className="h-full w-full object-cover"
+						/>
+					) : (
+						<MediaPlaceholder />
+					)}
+				</div>
+				<button
+					type="button"
+					aria-label={`${t("play")} ${entry.track.Name}`}
+					onClick={() => player.playQueueItem(index)}
+					className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+				>
+					<p
+						className={`truncate text-sm font-semibold ${selected ? "text-white" : "text-white/75"}`}
+					>
+						{entry.track.Name}
+					</p>
+					<p className="mt-0.5 truncate text-xs text-white/45">
+						{trackArtist(entry.track) || entry.track.Album || ""}
+					</p>
+				</button>
+				<span className="shrink-0 text-xs tabular-nums text-white/35">
+					{formatTime(duration)}
+				</span>
+				<button
+					type="button"
+					aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
+					onClick={(event) => {
+						event.stopPropagation();
+						player.removeQueueItem(entry.id);
+					}}
+					className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+				>
+					<X className="h-3.5 w-3.5" />
+				</button>
+			</div>
+		);
+	}
 
 	return (
 		<div
 			data-testid="audio-next-up-panel"
 			className="flex h-full min-h-0 flex-col"
 		>
-			<p className="mb-4 shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
-				{t("nextUp")}
-			</p>
 			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent]">
 				{player.queue.length === 0 ? (
 					<p className="py-10 text-center text-sm text-white/45">
 						{t("queueEmpty")}
 					</p>
 				) : (
-					<div className="space-y-1 pb-8">
-						{player.queue.map((entry, index) => {
-							const selected = index === player.currentIndex;
-							const duration =
-								entry.track.DurationSeconds ??
-								entry.track.UserData?.DurationSeconds ??
-								0;
-							return (
-								<div
-									key={entry.id}
-									aria-current={selected ? "true" : undefined}
-									className="group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-white/[0.04]"
-								>
-									<span
-										aria-hidden="true"
-										className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
-									>
-										{selected ? <AudioPlayingIndicator className="h-3 w-4" /> : index + 1}
+					<div className="space-y-6 pb-8">
+						{player.currentIndex >= 0 && (
+							<section>
+								<div className="mb-2 flex items-center justify-between gap-4 px-2">
+									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
+										{t("nowPlaying")}
+									</p>
+									<span className="text-xs text-white/40">
+										{player.queue.length} {t("tracks").toLocaleLowerCase()}
 									</span>
-									<button
-										type="button"
-										aria-label={`${t("play")} ${entry.track.Name}`}
-										onClick={() => player.playQueueItem(index)}
-										className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-									>
-										<span
-											className={`block truncate text-sm font-semibold ${selected ? "text-white" : "text-white/65"}`}
-										>
-											{entry.track.Name}
-										</span>
-									</button>
-									<div className="relative h-6 w-[5.5rem] shrink-0">
-										<span className="absolute inset-0 flex items-center justify-end text-xs tabular-nums text-white/35 group-hover:hidden group-focus-within:hidden">
-											{formatTime(duration)}
-										</span>
-										<div className="absolute inset-0 hidden items-center justify-end gap-0.5 group-hover:flex group-focus-within:flex">
-											<button
-												type="button"
-												aria-label={t("moveUp")}
-												disabled={index === 0}
-												onClick={() => player.reorderQueue(index, index - 1)}
-												className="rounded p-1 text-white/35 transition hover:bg-white/10 hover:text-white disabled:opacity-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-											>
-												<ChevronUp className="h-3.5 w-3.5" />
-											</button>
-											<button
-												type="button"
-												aria-label={t("moveDown")}
-												disabled={index === player.queue.length - 1}
-												onClick={() => player.reorderQueue(index, index + 1)}
-												className="rounded p-1 text-white/35 transition hover:bg-white/10 hover:text-white disabled:opacity-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-											>
-												<ChevronDown className="h-3.5 w-3.5" />
-											</button>
-											<button
-												type="button"
-												aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
-												onClick={() => player.removeQueueItem(entry.id)}
-												className="rounded p-1 text-white/35 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-											>
-												<X className="h-3.5 w-3.5" />
-											</button>
-										</div>
-									</div>
 								</div>
-							);
-						})}
+								{player.queue[player.currentIndex] &&
+									renderEntry(player.queue[player.currentIndex], player.currentIndex)}
+							</section>
+						)}
+						<section>
+							<p className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
+								{t("queue")}
+							</p>
+							<div data-testid="audio-queue-list" className="space-y-1">
+								{player.queue.map((entry, index) => renderEntry(entry, index))}
+							</div>
+						</section>
 					</div>
 				)}
 			</div>

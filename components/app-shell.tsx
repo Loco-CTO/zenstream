@@ -122,10 +122,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 import { AudioPlayerProvider } from "@/components/audio/audio-player-provider";
-import {
-	AudioPlayerBar,
-	AudioPlayerWorkspace,
-} from "@/components/audio/audio-player-bar";
+import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
 
 type AppStatus =
 	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
@@ -1137,8 +1134,7 @@ export function AppShell() {
 								session={session}
 								watchHistoryEnabled={watchHistoryLoaded ? watchHistoryEnabled : true}
 							>
-								<AudioPlayerWorkspace>
-									<SyncplayProvider session={session}>
+								<SyncplayProvider session={session}>
 										<SyncplayPlaybackFollower />
 										{pathname === "/settings" ? (
 											<SettingsPage
@@ -1240,9 +1236,8 @@ export function AppShell() {
 													)}
 											</div>
 										)}
-										<AudioPlayerBar />
-									</SyncplayProvider>
-								</AudioPlayerWorkspace>
+									<AudioPlayerBar />
+								</SyncplayProvider>
 							</AudioPlayerProvider>
 						</PlaybackBehaviorPreferencesProvider>
 					)}

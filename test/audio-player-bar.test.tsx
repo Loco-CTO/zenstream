@@ -283,7 +283,12 @@ describe("AudioPlayerBar", () => {
 			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
 		);
 		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
-		expect(screen.queryByTestId("audio-lyrics-overlay")).not.toBeInTheDocument();
+		await waitFor(() =>
+			expect(screen.getByTestId("audio-lyrics-overlay")).toHaveAttribute(
+				"data-open",
+				"false",
+			),
+		);
 	});
 
 	it("keeps the final queue item inside the queue page", async () => {
@@ -480,6 +485,13 @@ describe("AudioPlayerBar", () => {
 		expect(overlay).toHaveAttribute("role", "dialog");
 		expect(overlay).toHaveTextContent("First line");
 		expect(overlay).toHaveTextContent("Second line");
+		expect(overlay).toHaveClass("zenstream-audio-lyrics-overlay");
+		expect(
+			screen.getByRole("button", { name: "Seek to lyric First line" }),
+		).toHaveClass("scale-[1.06]", "text-white");
+		expect(
+			overlay.querySelector(".zenstream-audio-lyrics-panel"),
+		).toHaveClass("overflow-x-hidden");
 		expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
 		expect(
 			overlay.querySelector('img[src*="/images/Backdrop"]'),
@@ -497,7 +509,7 @@ describe("AudioPlayerBar", () => {
 
 		fireEvent.keyDown(document, { key: "Escape" });
 		await waitFor(() =>
-			expect(screen.queryByTestId("audio-lyrics-overlay")).not.toBeInTheDocument(),
+			expect(overlay).toHaveAttribute("data-open", "false"),
 		);
 	});
 

@@ -89,10 +89,11 @@ export function AudioPlayerBar() {
 
 	return (
 		<>
-			{player.lyricsOpen && track && (
+			{track && (
 				<AudioLyricsOverlay
 					key={track.Id}
 					track={track}
+					open={player.lyricsOpen}
 					onClose={() => {
 						player.setLyricsOpen(false);
 						player.setQueueOpen(false);

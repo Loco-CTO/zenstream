@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronDown, LoaderCircle, LocateFixed, X } from "lucide-react";
 import {
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -26,6 +27,11 @@ import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicato
 
 type OverlayTab = "nextUp" | "lyrics";
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
+type LyricsLoadState = {
+	key: string;
+	lyrics: AudioLyrics | null;
+	error: string | null;
+};
 type QueueDropTarget = {
 	index: number;
 	edge: "before" | "after";
@@ -33,49 +39,99 @@ type QueueDropTarget = {
 
 export function AudioLyricsOverlay({
 	track,
+	open,
 	onClose,
 }: {
 	track: MediaItem;
+	open: boolean;
 	onClose: () => void;
 }) {
 	const { t } = useI18n();
 	const player = useAudioPlayer();
 	const image = seriesPosterImage(track);
-	const [lyrics, setLyrics] = useState<AudioLyrics | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [loadError, setLoadError] = useState<string | null>(null);
+	const requestKey = `${player.session.userId}:${track.Id}`;
+	const [lyricsState, setLyricsState] = useState<LyricsLoadState>({
+		key: "",
+		lyrics: null,
+		error: null,
+	});
 	const [follow, setFollow] = useState(true);
+	const [closing, setClosing] = useState(false);
+	const lyrics = lyricsState.key === requestKey ? lyricsState.lyrics : null;
+	const loading = open && lyricsState.key !== requestKey;
+	const loadError =
+		lyricsState.key === requestKey ? lyricsState.error : null;
 	const activeTab: OverlayTab = player.queueOpen ? "nextUp" : "lyrics";
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	const closeRef = useRef<HTMLButtonElement | null>(null);
 	const lineRefs = useRef<Array<HTMLButtonElement | HTMLDivElement | null>>([]);
 	const ignoreScrollRef = useRef(false);
+	const closeTimerRef = useRef<number | null>(null);
+	const previousOpenRef = useRef(open);
+	const isOpen = open && !closing;
 
 	useEffect(() => {
+		if (!open) {
+			previousOpenRef.current = false;
+			return;
+		}
+		if (previousOpenRef.current) return;
+		previousOpenRef.current = true;
+		const timeout = window.setTimeout(() => setClosing(false), 0);
+		return () => window.clearTimeout(timeout);
+	}, [open]);
+
+	useEffect(
+		() => () => {
+			if (closeTimerRef.current !== null) {
+				window.clearTimeout(closeTimerRef.current);
+			}
+		},
+		[],
+	);
+
+	const requestClose = useCallback(() => {
+		if (!open || closing || closeTimerRef.current !== null) return;
+		setClosing(true);
+		closeTimerRef.current = window.setTimeout(() => {
+			closeTimerRef.current = null;
+			onClose();
+		}, 280);
+	}, [closing, onClose, open]);
+
+	useEffect(() => {
+		if (!open || lyricsState.key === requestKey) return;
 		const controller = new AbortController();
 		lineRefs.current = [];
 		void getAudioLyrics(player.session, track.Id, controller.signal)
-			.then(setLyrics)
+			.then((nextLyrics) => {
+				setLyricsState({
+					key: requestKey,
+					lyrics: nextLyrics,
+					error: null,
+				});
+			})
 			.catch((error: unknown) => {
 				if (controller.signal.aborted) return;
-				setLoadError(
-					error instanceof Error ? error.message : t("lyricsLoadFailed"),
-				);
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) setLoading(false);
+				setLyricsState({
+					key: requestKey,
+					lyrics: null,
+					error:
+						error instanceof Error ? error.message : t("lyricsLoadFailed"),
+				});
 			});
 		return () => controller.abort();
-	}, [player.session, t, track.Id]);
+	}, [lyricsState.key, open, player.session, requestKey, t, track.Id]);
 
 	useEffect(() => {
+		if (!isOpen) return;
 		closeRef.current?.focus();
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") onClose();
+			if (event.key === "Escape") requestClose();
 		};
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [onClose]);
+	}, [isOpen, requestClose]);
 
 	const activeIndex = useMemo(
 		() => activeLyricIndex(lyrics, player.positionSeconds),
@@ -107,23 +163,25 @@ export function AudioLyricsOverlay({
 	return (
 		<div
 			data-testid="audio-lyrics-overlay"
-			role="dialog"
-			aria-modal="true"
+			role={isOpen ? "dialog" : undefined}
+			aria-modal={isOpen ? "true" : undefined}
+			aria-hidden={!isOpen}
 			aria-label={`${activeTab === "nextUp" ? t("queue") : t("lyrics")}: ${track.Name}`}
 			className="zenstream-audio-lyrics-overlay fixed inset-x-0 top-0 z-[70] overflow-hidden bg-[#100c10] text-white"
+			data-open={isOpen ? "true" : "false"}
 		>
 			<div className="absolute inset-0 overflow-hidden">
 				{image && <BlurHashGlow image={image} className="opacity-10" />}
 				<div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(13,10,14,0.97),rgba(13,10,14,0.82)_42%,rgba(13,10,14,0.98))]" />
 			</div>
 			<div className="relative flex h-full min-h-0 flex-col">
-				<header className="relative grid h-14 shrink-0 grid-cols-1 items-center px-4 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
+				<header className="relative grid h-16 shrink-0 grid-cols-1 items-center px-4 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
 					<div className="absolute left-4 flex items-center gap-2 md:left-10 lg:left-14">
 						<button
 							ref={closeRef}
 							type="button"
 							aria-label={t("closeLyrics")}
-							onClick={onClose}
+							onClick={requestClose}
 							className="rounded-full p-2 text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 						>
 							<ChevronDown className="h-5 w-5" />
@@ -155,7 +213,7 @@ export function AudioLyricsOverlay({
 					</nav>
 				</header>
 
-				<div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden px-4 pb-5 pt-5 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 md:pb-8 md:pt-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
+				<div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden px-4 pb-5 pt-7 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 md:pb-8 md:pt-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
 					<section className="flex min-h-0 items-center justify-center md:justify-start">
 						<div className="w-full max-w-[13rem] text-center">
 							<div className="relative mx-auto aspect-square w-[min(56vw,13rem)] overflow-hidden rounded-md bg-black/45 shadow-2xl md:w-full">
@@ -451,7 +509,7 @@ function LyricsPanel({
 					if (!ignoreScrollRef.current) setFollow(false);
 				}}
 				aria-label={t("lyrics")}
-				className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-5 [scrollbar-color:rgba(255,255,255,0.25)_transparent] md:px-5 md:py-7"
+				className="zenstream-audio-lyrics-panel relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-5 [scrollbar-color:rgba(255,255,255,0.25)_transparent] md:px-5 md:py-7"
 			>
 				{lyrics?.timed && !follow && (
 					<div className="sticky top-2 z-10 flex justify-end">
@@ -504,14 +562,14 @@ function LyricsPanel({
 										: `${t("seekToLyric")} ${line.text}`
 								}
 								aria-current={index === activeIndex ? "true" : undefined}
-								className={`block w-full text-left text-xl font-semibold leading-relaxed transition md:text-2xl ${index === activeIndex ? "text-white" : "text-white/35 hover:text-white/75"} disabled:cursor-default`}
+								className={`block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity] duration-300 ease-out motion-reduce:transform-none motion-reduce:transition-none md:text-2xl ${index === activeIndex ? "scale-[1.06] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
 							>
 								{line.text}
 							</button>
 						))}
 					</div>
 				) : (
-					<div className="whitespace-pre-wrap pb-8 text-base leading-loose text-white/75 md:text-lg">
+					<div className="max-w-full whitespace-pre-wrap break-words pb-8 text-base leading-loose text-white/75 md:text-lg">
 						{lyrics.lines.map((line, index) => (
 							<div key={`${line.text}-${index}`}>{line.text}</div>
 						))}

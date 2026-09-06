@@ -67,6 +67,47 @@ body {
 .zenstream-audio-lyrics-overlay {
 	bottom: 5rem;
 	overscroll-behavior: contain;
+	transform-origin: center top;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(100%);
+	visibility: hidden;
+	transition:
+		opacity 280ms ease-in-out,
+		transform 280ms ease-in-out,
+		visibility 0s ease-in-out 280ms;
+}
+
+.zenstream-audio-lyrics-overlay[data-open="true"] {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateY(0);
+	visibility: visible;
+	transition:
+		opacity 280ms ease-in-out,
+		transform 280ms ease-in-out,
+		visibility 0s ease-in-out 0s;
+}
+
+.zenstream-audio-lyrics-panel {
+	scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.zenstream-audio-lyrics-overlay {
+		opacity: 0;
+		transition: none;
+	}
+
+	.zenstream-audio-lyrics-overlay[data-open="true"] {
+		opacity: 1;
+		transform: none;
+		visibility: visible;
+	}
+
+	.zenstream-audio-lyrics-panel {
+		scroll-behavior: auto;
+	}
 }
 
 .zenstream-audio-lyrics-overlay button:focus-visible,

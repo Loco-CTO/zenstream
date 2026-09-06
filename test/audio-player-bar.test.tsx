@@ -497,7 +497,12 @@ describe("AudioPlayerBar", () => {
 		expect(overlay).toHaveClass("zenstream-audio-lyrics-overlay");
 		expect(
 			screen.getByRole("button", { name: "Seek to lyric First line" }),
-		).toHaveClass("zenstream-audio-lyrics-line", "scale-[1.08]", "text-white");
+		).toHaveClass(
+			"zenstream-audio-lyrics-line",
+			"transition-[color,transform,opacity,scale]",
+			"scale-[1.08]",
+			"text-white",
+		);
 		expect(overlay.querySelector(".zenstream-audio-lyrics-panel")).toHaveClass(
 			"overflow-x-hidden",
 		);

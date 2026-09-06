@@ -614,7 +614,7 @@ function LyricsPanel({
 										: `${t("seekToLyric")} ${line.text}`
 								}
 								aria-current={index === activeIndex ? "true" : undefined}
-								className={`zenstream-audio-lyrics-line block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity] duration-300 ease-in-out md:text-2xl ${index === activeIndex ? "scale-[1.08] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
+								className={`zenstream-audio-lyrics-line block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity,scale] duration-300 ease-in-out md:text-2xl ${index === activeIndex ? "scale-[1.08] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
 							>
 								{line.text}
 							</button>

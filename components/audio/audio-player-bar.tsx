@@ -274,10 +274,10 @@ function QueuePanel({ player }: { player: AudioPlayer }) {
 									onClick={() => player.playQueueItem(index)}
 									className="min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 								>
-									<p className="truncate text-base font-medium text-white/85">
+									<p className="truncate text-sm font-medium text-white/85">
 										{entry.track.Name}
 									</p>
-									<p className="truncate text-sm text-white/35">
+									<p className="truncate text-xs text-white/35">
 										{trackArtist(entry.track) || entry.track.Album || ""}
 									</p>
 								</button>

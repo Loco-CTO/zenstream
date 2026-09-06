@@ -28,6 +28,7 @@ import {
 	BlurHashImage,
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
+import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
 
 type OverlayTab = "nextUp" | "lyrics";
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
@@ -284,17 +285,9 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 								>
 									<span
 										aria-hidden="true"
-										className={`w-6 shrink-0 text-right text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
+										className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
 									>
-										{selected ? (
-											<span className="inline-flex h-3 items-end gap-px">
-												<span className="h-1.5 w-px bg-current" />
-												<span className="h-3 w-px bg-current" />
-												<span className="h-2 w-px bg-current" />
-											</span>
-										) : (
-											index + 1
-										)}
+										{selected ? <AudioPlayingIndicator className="h-4 w-4" /> : index + 1}
 									</span>
 									<button
 										type="button"
@@ -308,36 +301,38 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 											{entry.track.Name}
 										</span>
 									</button>
-									<span className="shrink-0 text-xs tabular-nums text-white/35 group-hover:hidden">
-										{formatTime(duration)}
-									</span>
-									<div className="hidden shrink-0 items-center gap-0.5 group-hover:flex focus-within:flex">
-										<button
-											type="button"
-											aria-label={t("moveUp")}
-											disabled={index === 0}
-											onClick={() => player.reorderQueue(index, index - 1)}
-											className="rounded p-1 text-white/35 transition hover:bg-white/10 hover:text-white disabled:opacity-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-										>
-											<ChevronUp className="h-3.5 w-3.5" />
-										</button>
-										<button
-											type="button"
-											aria-label={t("moveDown")}
-											disabled={index === player.queue.length - 1}
-											onClick={() => player.reorderQueue(index, index + 1)}
-											className="rounded p-1 text-white/35 transition hover:bg-white/10 hover:text-white disabled:opacity-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-										>
-											<ChevronDown className="h-3.5 w-3.5" />
-										</button>
-										<button
-											type="button"
-											aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
-											onClick={() => player.removeQueueItem(entry.id)}
-											className="rounded p-1 text-white/35 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-										>
-											<X className="h-3.5 w-3.5" />
-										</button>
+									<div className="relative h-6 w-[5.5rem] shrink-0">
+										<span className="absolute inset-0 flex items-center justify-end text-xs tabular-nums text-white/35 group-hover:hidden group-focus-within:hidden">
+											{formatTime(duration)}
+										</span>
+										<div className="absolute inset-0 hidden items-center justify-end gap-0.5 group-hover:flex group-focus-within:flex">
+											<button
+												type="button"
+												aria-label={t("moveUp")}
+												disabled={index === 0}
+												onClick={() => player.reorderQueue(index, index - 1)}
+												className="rounded p-1 text-white/35 transition hover:bg-white/10 hover:text-white disabled:opacity-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+											>
+												<ChevronUp className="h-3.5 w-3.5" />
+											</button>
+											<button
+												type="button"
+												aria-label={t("moveDown")}
+												disabled={index === player.queue.length - 1}
+												onClick={() => player.reorderQueue(index, index + 1)}
+												className="rounded p-1 text-white/35 transition hover:bg-white/10 hover:text-white disabled:opacity-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+											>
+												<ChevronDown className="h-3.5 w-3.5" />
+											</button>
+											<button
+												type="button"
+												aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
+												onClick={() => player.removeQueueItem(entry.id)}
+												className="rounded p-1 text-white/35 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+											>
+												<X className="h-3.5 w-3.5" />
+											</button>
+										</div>
 									</div>
 								</div>
 							);

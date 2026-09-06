@@ -4,6 +4,7 @@ import {
 	fireEvent,
 	render,
 	screen,
+	within,
 	waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -403,5 +404,19 @@ describe("AudioPlayerBar", () => {
 		await waitFor(() =>
 			expect(screen.queryByTestId("audio-lyrics-overlay")).not.toBeInTheDocument(),
 		);
+	});
+
+	it("keeps next-up rows stable and uses the album playing indicator", async () => {
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		const overlay = await screen.findByTestId("audio-lyrics-overlay");
+		fireEvent.click(screen.getByRole("tab", { name: "Next Up" }));
+
+		const panel = within(overlay).getByTestId("audio-next-up-panel");
+		expect(panel.querySelectorAll('span[style*="pulse"]')).toHaveLength(3);
+		expect(panel.querySelectorAll(".relative.h-6")).toHaveLength(2);
+		expect(panel.querySelector(".relative.h-6")).toHaveClass("w-[5.5rem]");
 	});
 });

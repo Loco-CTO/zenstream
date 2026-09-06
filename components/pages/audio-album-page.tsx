@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
+import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
 
 export function AudioAlbumPage({
 	data,
@@ -385,21 +386,7 @@ function TrackRow({
 		>
 			<div role="cell" className="flex items-center justify-center">
 				{playing ? (
-					<div
-						className="flex h-4 w-4 items-end justify-center gap-[2px]"
-						aria-label={playLabel}
-					>
-						{[0.6, 1, 0.75].map((height, bar) => (
-							<span
-								key={bar}
-								className="w-[3px] rounded-full bg-white"
-								style={{
-									height: `${height * 100}%`,
-									animation: `pulse ${0.6 + bar * 0.15}s ease-in-out infinite alternate`,
-								}}
-							/>
-						))}
-					</div>
+					<AudioPlayingIndicator ariaLabel={playLabel} />
 				) : (
 					<>
 						<span

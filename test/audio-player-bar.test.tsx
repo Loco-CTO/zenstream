@@ -416,6 +416,9 @@ describe("AudioPlayerBar", () => {
 
 		const panel = within(overlay).getByTestId("audio-next-up-panel");
 		expect(panel.querySelectorAll('span[style*="pulse"]')).toHaveLength(3);
+		expect(
+			panel.querySelector('span[aria-hidden="true"] > span.h-3'),
+		).toHaveClass("w-4");
 		expect(panel.querySelectorAll(".relative.h-6")).toHaveLength(2);
 		expect(panel.querySelector(".relative.h-6")).toHaveClass("w-[5.5rem]");
 	});

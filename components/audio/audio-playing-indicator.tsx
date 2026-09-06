@@ -7,7 +7,7 @@ const BAR_HEIGHTS = [0.6, 1, 0.75];
 
 export function AudioPlayingIndicator({
 	ariaLabel,
-	className = "h-4 w-4",
+	className = "h-3 w-4",
 }: AudioPlayingIndicatorProps) {
 	return (
 		<span

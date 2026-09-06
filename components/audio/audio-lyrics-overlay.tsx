@@ -287,7 +287,7 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 										aria-hidden="true"
 										className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
 									>
-										{selected ? <AudioPlayingIndicator className="h-4 w-4" /> : index + 1}
+										{selected ? <AudioPlayingIndicator className="h-3 w-4" /> : index + 1}
 									</span>
 									<button
 										type="button"

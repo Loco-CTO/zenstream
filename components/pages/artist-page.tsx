@@ -97,7 +97,7 @@ export function ArtistPage({
 						)}
 					</div>
 					<div className="min-w-0 pb-1">
-						<p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-200/65">
+						<p className="text-xs font-bold uppercase tracking-[0.2em] text-white/45">
 							{t("artist")}
 						</p>
 						<h1 className="mt-2 break-words text-4xl font-black leading-[0.98] tracking-[-0.04em] text-white sm:text-5xl md:text-7xl">

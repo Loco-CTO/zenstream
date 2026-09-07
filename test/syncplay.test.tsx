@@ -28,6 +28,7 @@ vi.mock("@/lib/authenticated-request", async () => {
 				const [, path] = args;
 				if (path === "/api/auth/socket-ticket") {
 					socketTicketGate.requested = true;
+					socketTicketGate.requests += 1;
 					return (
 						socketTicketGate.response ??
 						new Response(JSON.stringify({ ticket: "socket-ticket" }))
@@ -42,10 +43,12 @@ vi.mock("@/lib/authenticated-request", async () => {
 const socketTicketGate = vi.hoisted(() => ({
 	response: null as Promise<Response> | null,
 	requested: false,
+	requests: 0,
 }));
 
 class TestSocket {
 	static latest: TestSocket | null = null;
+	static instances: TestSocket[] = [];
 	static openAutomatically = true;
 	static readonly CONNECTING = 0;
 	static readonly OPEN = 1;
@@ -64,11 +67,17 @@ class TestSocket {
 	constructor(url: string) {
 		this.url = url;
 		TestSocket.latest = this;
+		TestSocket.instances.push(this);
 		if (TestSocket.openAutomatically)
 			queueMicrotask(() => {
+				if (this.readyState !== TestSocket.CONNECTING) return;
 				this.readyState = TestSocket.OPEN;
 				this.onopen?.();
 			});
+	}
+	drop(reason = "network") {
+		this.readyState = TestSocket.CLOSED;
+		this.onclose?.({ reason });
 	}
 	receive(event: string, message?: unknown) {
 		const type = event.startsWith("syncplay:")
@@ -264,8 +273,10 @@ describe("SyncplayProvider", () => {
 		vi.restoreAllMocks();
 		TestSocket.openAutomatically = true;
 		TestSocket.latest = null;
+		TestSocket.instances = [];
 		socketTicketGate.response = null;
 		socketTicketGate.requested = false;
+		socketTicketGate.requests = 0;
 	});
 	it("normalizes a trailing slash in the public WebSocket origin", async () => {
 		const originalOrigin = process.env.NEXT_PUBLIC_ZSO_URL;
@@ -320,6 +331,145 @@ describe("SyncplayProvider", () => {
 			await Promise.resolve();
 		});
 		expect(TestSocket.latest).toBeNull();
+	});
+
+	it("retries a failed socket ticket and reconnects automatically", async () => {
+		let releaseTicket!: (response: Response) => void;
+		socketTicketGate.response = new Promise<Response>((resolve) => {
+			releaseTicket = resolve;
+		});
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(JSON.stringify({ groups: [] })));
+
+		const view = render(
+			<SyncplayTestProvider>
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() => expect(socketTicketGate.requested).toBe(true));
+		releaseTicket(
+			new Response(JSON.stringify({ message: "temporary failure" }), {
+				status: 503,
+			}),
+		);
+		socketTicketGate.response = null;
+
+		await waitFor(
+			() => expect(socketTicketGate.requests).toBeGreaterThanOrEqual(2),
+			{ timeout: 3_000 },
+		);
+		await waitFor(() => expect(TestSocket.instances).toHaveLength(1), {
+			timeout: 3_000,
+		});
+		view.unmount();
+	});
+
+	it("refreshes the snapshot and replays presence after a socket drop", async () => {
+		const initial = joinedGroup(1);
+		const refreshed = joinedGroup(2);
+		let groupReads = 0;
+		const presenceBodies: Array<Record<string, unknown>> = [];
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.endsWith("/groups") && (!init?.method || init.method === "GET")) {
+					groupReads += 1;
+					return new Response(
+						JSON.stringify({ groups: [groupReads === 1 ? initial : refreshed] }),
+					);
+				}
+				if (url.endsWith("/groups/group/presence")) {
+					presenceBodies.push(
+						JSON.parse(String(init?.body)) as Record<string, unknown>,
+					);
+					return new Response(JSON.stringify(refreshed));
+				}
+				throw new Error(`Unexpected request: ${url}`);
+			});
+
+		const view = render(
+			<SyncplayTestProvider>
+				<PresenceControl />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() => expect(screen.getByText("Presence")).toBeInTheDocument());
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+		await waitFor(() => expect(presenceBodies).toHaveLength(1));
+		const firstSocket = TestSocket.latest;
+		const readsBeforeReconnect = groupReads;
+
+		act(() => firstSocket?.drop());
+		await waitFor(() => expect(TestSocket.instances).toHaveLength(2), {
+			timeout: 3_000,
+		});
+		await waitFor(
+			() => expect(groupReads).toBeGreaterThan(readsBeforeReconnect),
+			{ timeout: 3_000 },
+		);
+		await waitFor(() => expect(presenceBodies).toHaveLength(2), {
+			timeout: 3_000,
+		});
+		expect(presenceBodies[1].presenceSequence).toBeGreaterThan(
+			presenceBodies[0].presenceSequence as number,
+		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/groups")),
+		).toHaveLength(groupReads);
+		view.unmount();
+	});
+
+	it("cancels a scheduled reconnect when the provider unmounts", async () => {
+		const view = render(
+			<SyncplayTestProvider>
+				<GroupCount />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() => expect(TestSocket.latest).not.toBeNull());
+		const socketCount = TestSocket.instances.length;
+		act(() => TestSocket.latest?.drop());
+		view.unmount();
+		await new Promise((resolve) => setTimeout(resolve, 650));
+		expect(TestSocket.instances).toHaveLength(socketCount);
+	});
+
+	it("restores the presence sequence across provider remounts", async () => {
+		const presenceBodies: Array<Record<string, unknown>> = [];
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.endsWith("/groups") && (!init?.method || init.method === "GET"))
+				return new Response(JSON.stringify({ groups: [joinedGroup(1)] }));
+			if (url.endsWith("/groups/group/presence")) {
+				presenceBodies.push(
+					JSON.parse(String(init?.body)) as Record<string, unknown>,
+				);
+				return new Response(JSON.stringify(joinedGroup(1)));
+			}
+			throw new Error(`Unexpected request: ${url}`);
+		});
+
+		const firstView = render(
+			<SyncplayTestProvider>
+				<PresenceControl />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() => expect(screen.getByText("Presence")).toBeInTheDocument());
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+		await waitFor(() => expect(presenceBodies).toHaveLength(1));
+		const firstSequence = presenceBodies[0].presenceSequence as number;
+		firstView.unmount();
+
+		const secondView = render(
+			<SyncplayTestProvider>
+				<PresenceControl />
+			</SyncplayTestProvider>,
+		);
+		await waitFor(() => expect(screen.getByText("Presence")).toBeInTheDocument());
+		fireEvent.click(screen.getByRole("button", { name: "Presence" }));
+		await waitFor(() => expect(presenceBodies).toHaveLength(2));
+		expect(presenceBodies[1].presenceSequence).toBeGreaterThan(firstSequence);
+		secondView.unmount();
 	});
 
 	it("loads visible groups even when the WebSocket never opens", async () => {

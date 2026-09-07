@@ -10,11 +10,16 @@ import {
 } from "react";
 type Socket = SyncplaySocket;
 type SyncplayEvent = unknown;
+const SYNCPLAY_RECONNECT_INITIAL_MS = 500;
+const SYNCPLAY_RECONNECT_MAX_MS = 30_000;
 class SyncplaySocket {
 	private ws: WebSocket | null = null;
 	private connecting: Promise<void> | null = null;
 	private connectGeneration = 0;
 	private ticketController: AbortController | null = null;
+	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private reconnectAttempt = 0;
+	private reconnectDisabled = false;
 	private listeners = new Map<string, ((value?: SyncplayEvent) => void)[]>();
 	id = "syncplay";
 	constructor(
@@ -68,12 +73,16 @@ class SyncplaySocket {
 		const isCurrent = () =>
 			this.connectGeneration === generation && this.ws === ws;
 		ws.onopen = () => {
-			if (isCurrent()) this.fire("connect");
+			if (isCurrent()) {
+				this.reconnectAttempt = 0;
+				this.fire("connect");
+			}
 		};
 		ws.onclose = (event) => {
 			if (!isCurrent()) return;
 			this.ws = null;
 			this.fire("disconnect", event.reason);
+			this.scheduleReconnect();
 		};
 		ws.onerror = () => {
 			if (isCurrent())
@@ -91,7 +100,20 @@ class SyncplaySocket {
 			else if (message.type === "clock") this.fire("clock", message);
 		};
 	}
+	private scheduleReconnect() {
+		if (this.reconnectDisabled || this.ws || this.reconnectTimer !== null) return;
+		const delay = Math.min(
+			SYNCPLAY_RECONNECT_MAX_MS,
+			SYNCPLAY_RECONNECT_INITIAL_MS * 2 ** this.reconnectAttempt,
+		);
+		this.reconnectAttempt = Math.min(this.reconnectAttempt + 1, 16);
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = null;
+			void this.connect();
+		}, delay);
+	}
 	async connect() {
+		this.reconnectDisabled = false;
 		if (
 			this.ws &&
 			(this.ws.readyState === WebSocket.OPEN ||
@@ -104,6 +126,12 @@ class SyncplaySocket {
 		this.ticketController = controller;
 		const pending = this.open(generation, controller).finally(() => {
 			if (this.connecting === pending) this.connecting = null;
+			if (
+				!this.ws &&
+				!this.reconnectDisabled &&
+				generation === this.connectGeneration
+			)
+				this.scheduleReconnect();
 		});
 		this.connecting = pending;
 		return pending;
@@ -132,9 +160,14 @@ class SyncplaySocket {
 		}
 	}
 	disconnect() {
+		this.reconnectDisabled = true;
 		this.connectGeneration += 1;
 		this.ticketController?.abort();
 		this.ticketController = null;
+		if (this.reconnectTimer !== null) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
 		this.connecting = null;
 		const ws = this.ws;
 		this.ws = null;
@@ -262,6 +295,7 @@ const emptyContext: Context = {
 const SyncplayContext = createContext<Context>(emptyContext);
 const SYNCPLAY_REQUEST_TIMEOUT_MS = 8_000;
 const SYNCPLAY_PARTICIPANT_KEY = "zenstream-syncplay-tab-id";
+const SYNCPLAY_PRESENCE_SEQUENCE_KEY = "zenstream-syncplay-presence-sequence";
 let memoryParticipantId: string | null = null;
 function participantId() {
 	if (typeof window === "undefined") return "server";
@@ -281,6 +315,29 @@ function participantId() {
 		/* private mode */
 	}
 	return generated;
+}
+function presenceSequenceKey(participant: string) {
+	return `${SYNCPLAY_PRESENCE_SEQUENCE_KEY}:${participant}`;
+}
+function readPresenceSequence(participant: string) {
+	try {
+		const value = Number(
+			window.sessionStorage.getItem(presenceSequenceKey(participant)),
+		);
+		return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+	} catch {
+		return 0;
+	}
+}
+function writePresenceSequence(participant: string, sequence: number) {
+	try {
+		window.sessionStorage.setItem(
+			presenceSequenceKey(participant),
+			String(sequence),
+		);
+	} catch {
+		/* private mode or unavailable storage */
+	}
 }
 function isCurrentParticipant(
 	member: { participantId?: string; userId?: string },
@@ -385,7 +442,13 @@ export function SyncplayProvider({
 	const latestSeekRef = useRef(0);
 	const presencePendingRef = useRef<SyncplayPresenceReport | null>(null);
 	const presenceWorkerRef = useRef<Promise<void> | null>(null);
-	const presenceSequenceRef = useRef(0);
+	const lastPresenceRef = useRef<{
+		groupId: string;
+		itemId: string | null;
+		viewing: boolean;
+		loading: boolean;
+	} | null>(null);
+	const replayPresenceRef = useRef<() => void>(() => undefined);
 	const revisionRef = useRef(new Map<string, number>());
 	const tombstonesRef = useRef(new Map<string, number>());
 	const clockOffsetRef = useRef(0);
@@ -408,6 +471,7 @@ export function SyncplayProvider({
 		toast: ReturnType<typeof useToast>;
 	} | null>(null);
 	const [currentParticipantId] = useState(participantId);
+	const presenceSequenceRef = useRef(readPresenceSequence(currentParticipantId));
 	const serverNow = useCallback(
 		() => Date.now() / 1000 + clockOffsetRef.current,
 		[],
@@ -428,6 +492,7 @@ export function SyncplayProvider({
 			},
 		);
 		if (group) revisionRef.current.set(group.id, group.revision);
+		if (!group) lastPresenceRef.current = null;
 		activeRef.current = group;
 		setActive(group);
 	}, []);
@@ -443,6 +508,8 @@ export function SyncplayProvider({
 			tombstonesRef.current.set(groupId, Number.MAX_SAFE_INTEGER);
 			latestSeekRef.current += 1;
 			presenceSequenceRef.current += 1;
+			writePresenceSequence(currentParticipantId, presenceSequenceRef.current);
+			lastPresenceRef.current = null;
 			if (presencePendingRef.current?.groupId === groupId)
 				presencePendingRef.current = null;
 			if (controlsUpdateRef.current?.groupId === groupId)
@@ -451,7 +518,7 @@ export function SyncplayProvider({
 			setCurrent(null);
 			syncplayDebug("stale group cleared", { groupId });
 		},
-		[setCurrent],
+		[currentParticipantId, setCurrent],
 	);
 	const announceOnce = useCallback((key: string, announce: () => void) => {
 		const keys = notificationKeysRef.current;
@@ -680,6 +747,7 @@ export function SyncplayProvider({
 	}, [adopt, setCurrent, t, toast]);
 	useEffect(() => {
 		let disposed = false;
+		let recoveryGeneration = 0;
 		// The HTTP snapshot is the source of truth when the WebSocket upgrade is
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
@@ -721,9 +789,14 @@ export function SyncplayProvider({
 			);
 		};
 		socket.on("connect", () => {
+			const generation = ++recoveryGeneration;
 			syncplayDebug("socket connected", { id: socket.id });
 			void refreshRef
 				.current()
+				.then(() => {
+					if (disposed || generation !== recoveryGeneration) return;
+					replayPresenceRef.current();
+				})
 				.catch((error) => syncplayDebug("socket refresh failed", error));
 			syncClock();
 		});
@@ -778,6 +851,7 @@ export function SyncplayProvider({
 		return () => {
 			window.clearInterval(clockTimer);
 			disposed = true;
+			recoveryGeneration += 1;
 			socket.disconnect();
 			if (socketRef.current === socket) socketRef.current = null;
 		};
@@ -909,6 +983,7 @@ export function SyncplayProvider({
 	const setWatchingTogether = async (value: boolean) => {
 		const group = activeRef.current;
 		if (!group) return;
+		if (!value) lastPresenceRef.current = null;
 		const update = (state: SyncplayGroup): SyncplayGroup => ({
 			...state,
 			members: state.members.map((member) =>
@@ -1068,6 +1143,13 @@ export function SyncplayProvider({
 		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
 		const revision = timelineRevision ?? group.timelineRevision ?? group.revision;
 		const sequence = ++presenceSequenceRef.current;
+		writePresenceSequence(currentParticipantId, sequence);
+		lastPresenceRef.current = {
+			groupId,
+			itemId: group.itemId,
+			viewing,
+			loading,
+		};
 		presencePendingRef.current = {
 			groupId,
 			itemId: group.itemId,
@@ -1079,6 +1161,18 @@ export function SyncplayProvider({
 		};
 		startPresenceWorker();
 		return presenceWorkerRef.current ?? Promise.resolve();
+	};
+	replayPresenceRef.current = () => {
+		const intent = lastPresenceRef.current;
+		const group = activeRef.current;
+		if (
+			!intent ||
+			!group ||
+			group.id !== intent.groupId ||
+			group.itemId !== intent.itemId
+		)
+			return;
+		void presence(intent.viewing, intent.loading);
 	};
 	const value = {
 		groups,

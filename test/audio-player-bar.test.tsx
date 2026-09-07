@@ -46,6 +46,10 @@ const tracks: MediaItem[] = [
 		ArtistId: "artist-1",
 		Album: album.Name,
 		ContributingArtists: ["Second Artist"],
+		ArtistCredits: [
+			{ Id: "artist-1", Name: "Second Artist", JoinPhrase: " feat. " },
+			{ Name: "Guest Artist", JoinPhrase: "" },
+		],
 		AlbumArtist: album.AlbumArtist,
 		DurationSeconds: 185,
 		ImageTags: { Primary: "/api/catalog/items/track-2/images/Primary" },
@@ -541,9 +545,10 @@ describe("AudioPlayerBar", () => {
 		expect(panel.querySelectorAll(".relative.h-10")).toHaveLength(3);
 		const secondItem = panel.querySelector('[data-track-id="track-2"]');
 		if (!secondItem) throw new Error("second queue item was not rendered");
+		expect(secondItem).toHaveTextContent("Second Artist feat. Guest Artist");
 		expect(
 			within(secondItem as HTMLElement).getByRole("link", {
-				name: "Second Artist",
+				name: "Second Artist feat. Guest Artist",
 			}),
 		).toHaveAttribute("href", "/artist/artist-1");
 	});

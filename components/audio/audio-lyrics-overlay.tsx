@@ -24,6 +24,7 @@ import {
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
+import { formatTrackArtists } from "@/lib/music";
 
 type OverlayTab = "nextUp" | "lyrics";
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
@@ -651,12 +652,7 @@ function activeLyricIndex(lyrics: AudioLyrics | null, position: number) {
 }
 
 function trackArtist(track: MediaItem) {
-	return (
-		track.Artists?.filter(Boolean).join(", ") ||
-		track.ContributingArtists?.filter(Boolean).join(", ") ||
-		track.AlbumArtist ||
-		""
-	);
+	return formatTrackArtists(track);
 }
 
 function formatTime(value: number) {

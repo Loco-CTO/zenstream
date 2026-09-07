@@ -85,6 +85,27 @@ describe("audio album track artist display", () => {
 			}),
 		).toEqual([{ Name: "Local Artist" }]);
 	});
+
+	it("renders the exact ordered join phrase for each credit", () => {
+		expect(
+			trackArtistLabel({
+				...track("call", 1),
+				ArtistCredits: [
+					{ Name: "ヰ世界情緒", JoinPhrase: "×" },
+					{ Name: "春猿火", JoinPhrase: "" },
+				],
+			}),
+		).toBe("ヰ世界情緒×春猿火");
+		expect(
+			trackArtistLabel({
+				...track("feat", 1),
+				ArtistCredits: [
+					{ Name: "明透", JoinPhrase: " feat. " },
+					{ Name: "Sooda", JoinPhrase: "" },
+				],
+			}),
+		).toBe("明透 feat. Sooda");
+	});
 });
 
 describe("audio album type display", () => {

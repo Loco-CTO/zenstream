@@ -164,8 +164,34 @@ describe("audio album track artist links", () => {
 				.getAllByRole("link", { name: "Aiobahn" })
 				.map((link) => link.getAttribute("href")),
 		).toEqual(["/artist/artist-aiobahn", "/artist/artist-aiobahn"]);
-		expect(
-			screen.getByRole("link", { name: "ヰ世界情緒" }),
-		).toHaveAttribute("href", "/artist/artist-uisekai");
+		expect(screen.getByRole("link", { name: "ヰ世界情緒" })).toHaveAttribute(
+			"href",
+			"/artist/artist-uisekai",
+		);
+	});
+
+	it("renders exact credit separators without merging artist links", () => {
+		const data = albumData();
+		data.tracks[0].ArtistCredits = [
+			{ Id: "artist-album", Name: "ヰ世界情緒", JoinPhrase: "×" },
+			{ Id: "artist-guest", Name: "春猿火", JoinPhrase: "" },
+		];
+
+		render(<AudioAlbumPage data={data} session={session} />);
+
+		const row = screen
+			.getAllByRole("row")
+			.find((candidate) => candidate.textContent?.includes("Track"));
+		if (!row) throw new Error("track row was not rendered");
+		expect(row).toHaveTextContent("ヰ世界情緒×春猿火");
+		expect(row).not.toHaveTextContent("ヰ世界情緒, 春猿火");
+		expect(within(row).getByRole("link", { name: "ヰ世界情緒" })).toHaveAttribute(
+			"href",
+			"/artist/artist-album",
+		);
+		expect(within(row).getByRole("link", { name: "春猿火" })).toHaveAttribute(
+			"href",
+			"/artist/artist-guest",
+		);
 	});
 });

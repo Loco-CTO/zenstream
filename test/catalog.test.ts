@@ -352,20 +352,24 @@ describe("catalog client", () => {
 			name: "Track",
 			metadata: {
 				artists: [
-					{ id: "artist-main", name: "Main Artist" },
+					{ id: "artist-main", name: "Main Artist", joinPhrase: "×" },
 					{ name: "Guest Artist" },
 				],
 				contributingArtists: [
-					{ id: "artist-guest", name: "Guest Artist" },
-					{ id: "artist-third", name: "Third Artist" },
+					{
+						id: "artist-guest",
+						name: "Guest Artist",
+						joinPhrase: " & ",
+					},
+					{ id: "artist-third", name: "Third Artist", joinPhrase: "" },
 				],
 			},
 		} satisfies CatalogItem);
 
 		expect(item.ArtistCredits).toEqual([
-			{ Id: "artist-main", Name: "Main Artist" },
-			{ Id: "artist-guest", Name: "Guest Artist" },
-			{ Id: "artist-third", Name: "Third Artist" },
+			{ Id: "artist-main", Name: "Main Artist", JoinPhrase: "×" },
+			{ Id: "artist-guest", Name: "Guest Artist", JoinPhrase: " & " },
+			{ Id: "artist-third", Name: "Third Artist", JoinPhrase: "" },
 		]);
 	});
 

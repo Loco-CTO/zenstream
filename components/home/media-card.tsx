@@ -8,7 +8,7 @@ import {
 	seriesPosterImage,
 	type MediaItem,
 } from "@/lib/media-api";
-import { progressPercent, subtitle } from "@/lib/media";
+import { progressPercent, releaseYear, subtitle } from "@/lib/media";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -20,6 +20,7 @@ import {
 	useHoverPreview,
 } from "@/components/ui/hover-preview";
 import { useSyncplayPlayback } from "@/lib/syncplay-playback";
+import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 
 export function WideCard({
 	item,
@@ -195,11 +196,90 @@ export function StackedPosterCard({
 	);
 }
 
+/** A square artwork card used by music rows and the music library. */
+export function SquareAudioCard({
+	item,
+	session,
+	className = "",
+}: {
+	item: MediaItem;
+	session: AuthSession;
+	className?: string;
+}) {
+	const image = seriesPosterImage(item);
+	const { playTrack } = useAudioPlayer();
+	const { t } = useI18n();
+	void session;
+	const isTrack = item.Type === "Audio";
+	const secondary = isTrack
+		? [item.Album, item.AlbumArtist].filter(Boolean).join(" · ")
+		: (item.AlbumArtist ?? "");
+	const year = !isTrack ? releaseYear(item) : undefined;
+	const href = audioHref(item);
+
+	return (
+		<article
+			className={`group/card min-w-0 cursor-pointer select-none ${className}`}
+		>
+			<div className="relative">
+				<Link
+					href={href}
+					aria-label={item.Name}
+					draggable={false}
+					className="block"
+				>
+					<div className="relative aspect-square overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+						{image && (
+							<BlurHashImage
+								image={image}
+								alt={item.Name}
+								draggable={false}
+								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 220px"
+								className={`${MEDIA_CARD_IMAGE_CLASS}`}
+							/>
+						)}
+						{!image && <MediaPlaceholder />}
+						{isTrack && item.UserData?.PlayCount != null && (
+							<span className={`absolute right-2 top-2 ${MEDIA_CARD_TAG_CLASS}`}>
+								{t("plays", { count: item.UserData.PlayCount })}
+							</span>
+						)}
+					</div>
+				</Link>
+				<MediaCardOverlay
+					href={href}
+					title={item.Name}
+					onPlay={() => playTrack(item)}
+					className="inset-x-0 top-0 aspect-square"
+				/>
+			</div>
+			<div className="mt-2 min-w-0">
+				<p className="truncate text-xs font-medium text-white/85">{item.Name}</p>
+				{secondary && (
+					<p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>
+				)}
+				{year && <p className="mt-0.5 text-xs text-white/20">{year}</p>}
+			</div>
+		</article>
+	);
+}
+
 function detailHref(item: MediaItem) {
 	if (item.Type === "BoxSet") return `/collection/${item.Id}`;
+	if (item.Type === "MusicArtist") return `/artist/${item.Id}`;
+	if (item.Type === "MusicAlbum") return `/album/${item.Id}`;
+	if (item.Type === "Audio") return audioHref(item);
 	return item.Type === "Episode" && item.SeriesId
 		? `/show/${item.SeriesId}/episode/${item.Id}`
 		: `/show/${item.Id}`;
+}
+
+export function audioHref(item: MediaItem) {
+	if (item.Type === "MusicArtist") return `/artist/${item.Id}`;
+	if (item.Type === "MusicAlbum") return `/album/${item.Id}`;
+	if (item.Type === "Audio" && item.AlbumId)
+		return `/album/${item.AlbumId}?trackId=${encodeURIComponent(item.Id)}`;
+	return `/album/${item.Id}`;
 }
 
 export const MEDIA_CARD_IMAGE_CLASS =
@@ -214,12 +294,14 @@ export function MediaCardOverlay({
 	item,
 	session,
 	className = "inset-0",
+	onPlay,
 }: {
 	href: string;
 	title?: string;
 	item?: MediaItem;
 	session?: AuthSession;
 	className?: string;
+	onPlay?: () => void | Promise<void>;
 }) {
 	const router = useRouter();
 	const { t } = useI18n();
@@ -232,11 +314,12 @@ export function MediaCardOverlay({
 			<button
 				type="button"
 				aria-label={title ? `${t("play")} ${title}` : t("play")}
-				disabled={Boolean(item && session && !canStartPlayback)}
+				disabled={Boolean(!onPlay && item && session && !canStartPlayback)}
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					if (item && session) void startPlayback(item).catch(() => undefined);
+					if (onPlay) void onPlay();
+					else if (item && session) void startPlayback(item).catch(() => undefined);
 					else router.push(playHref(href));
 				}}
 				className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur transition duration-200 hover:scale-110 hover:border-white/60 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-40"

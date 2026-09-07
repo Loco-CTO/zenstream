@@ -3,6 +3,7 @@ import { Noto_Sans } from "next/font/google";
 import { Suspense } from "react";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
+import { AppRouteShell } from "@/components/app-route-shell";
 import "./globals.css";
 
 export const viewport = {
@@ -42,7 +43,7 @@ export default function RootLayout({
 				<ServiceWorkerRegistration />
 				<ProgressProvider>
 					<Suspense fallback={<div className="min-h-screen bg-background" />}>
-						{children}
+						<AppRouteShell>{children}</AppRouteShell>
 					</Suspense>
 				</ProgressProvider>
 			</body>

@@ -7,6 +7,7 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AudioPlayerProvider } from "@/components/audio/audio-player-provider";
 import { LibraryPage } from "@/components/pages/library-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { I18nProvider } from "@/lib/i18n";
@@ -47,6 +48,7 @@ describe("LibraryPage", () => {
 			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
 			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
 			{ Id: "collections", Name: "Collections", CollectionType: "boxsets" },
+			{ Id: "music", Name: "Music", CollectionType: "music" },
 		]);
 	});
 
@@ -221,6 +223,49 @@ describe("LibraryPage", () => {
 		);
 	});
 
+	it("leaves room for music card metadata on narrow grids", async () => {
+		Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+			configurable: true,
+			get: () => 320,
+		});
+		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: makeMusicItems(4),
+			totalRecordCount: 4,
+		});
+		renderLibrary(true);
+
+		fireEvent.click(await screen.findByRole("button", { name: "Music" }));
+		await screen.findByRole("heading", { name: "Music" });
+		await waitFor(() =>
+			expect(screen.getAllByTestId("virtual-grid-row")).toHaveLength(2),
+		);
+
+		expect(screen.getAllByTestId("virtual-grid-row")[1]).toHaveStyle({
+			top: "242px",
+		});
+	});
+
+	it("uses the same music metadata allowance on desktop grids", async () => {
+		vi.spyOn(jellyfin, "getLibraryItems").mockResolvedValue({
+			items: makeMusicItems(5),
+			totalRecordCount: 5,
+		});
+		renderLibrary(true);
+
+		fireEvent.click(await screen.findByRole("button", { name: "Music" }));
+		await screen.findByRole("heading", { name: "Music" });
+		await waitFor(() =>
+			expect(screen.getAllByTestId("virtual-grid-row")).toHaveLength(2),
+		);
+
+		expect(screen.getAllByTestId("virtual-grid-row")[0]).toHaveStyle({
+			gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+		});
+		expect(
+			Number.parseFloat(screen.getAllByTestId("virtual-grid-row")[1].style.top),
+		).toBeCloseTo(279, 3);
+	});
+
 	it("supports sorting series by the date their latest episode was added", async () => {
 		const getLibraryItems = vi
 			.spyOn(jellyfin, "getLibraryItems")
@@ -332,11 +377,16 @@ describe("LibraryPage", () => {
 	});
 });
 
-function renderLibrary() {
+function renderLibrary(withAudioPlayer = false) {
+	const page = <LibraryPage session={session} />;
 	return render(
 		<ProgressProvider>
 			<I18nProvider locale="en">
-				<LibraryPage session={session} />
+				{withAudioPlayer ? (
+					<AudioPlayerProvider session={session}>{page}</AudioPlayerProvider>
+				) : (
+					page
+				)}
 			</I18nProvider>
 		</ProgressProvider>,
 	);
@@ -350,6 +400,19 @@ function makeItems(count: number, offset = 0): jellyfin.MediaItem[] {
 		ProductionYear: 2024,
 		ImageTags: {
 			Primary: `/api/catalog/items/item-${offset + index}/images/Primary?language=en&v=poster`,
+		},
+	}));
+}
+
+function makeMusicItems(count: number): jellyfin.MediaItem[] {
+	return Array.from({ length: count }, (_, index) => ({
+		Id: `album-${index}`,
+		Name: `Album ${index}`,
+		Type: "MusicAlbum",
+		AlbumArtist: index === 0 ? undefined : `Artist ${index}`,
+		ProductionYear: index === 0 ? undefined : 2024,
+		ImageTags: {
+			Primary: `/api/catalog/items/album-${index}/images/Primary?language=en&v=poster`,
 		},
 	}));
 }

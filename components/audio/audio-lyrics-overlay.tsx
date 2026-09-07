@@ -1,0 +1,667 @@
+"use client";
+
+import Link from "next/link";
+import { ChevronDown, LoaderCircle, LocateFixed, X } from "lucide-react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type MutableRefObject,
+} from "react";
+import { useAudioPlayer } from "@/components/audio/audio-player-provider";
+import {
+	getAudioLyrics,
+	seriesPosterImage,
+	type AudioLyrics,
+	type MediaItem,
+} from "@/lib/media-api";
+import { useI18n } from "@/lib/i18n";
+import {
+	BlurHashGlow,
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
+import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
+
+type OverlayTab = "nextUp" | "lyrics";
+type AudioPlayer = ReturnType<typeof useAudioPlayer>;
+type LyricsLoadState = {
+	key: string;
+	lyrics: AudioLyrics | null;
+	error: string | null;
+};
+type QueueDropTarget = {
+	index: number;
+	edge: "before" | "after";
+};
+
+export function AudioLyricsOverlay({
+	track,
+	open,
+	onClose,
+}: {
+	track: MediaItem;
+	open: boolean;
+	onClose: () => void;
+}) {
+	const { t } = useI18n();
+	const player = useAudioPlayer();
+	const image = seriesPosterImage(track);
+	const requestKey = `${player.session.userId}:${track.Id}`;
+	const [lyricsState, setLyricsState] = useState<LyricsLoadState>({
+		key: "",
+		lyrics: null,
+		error: null,
+	});
+	const [follow, setFollow] = useState(true);
+	const [closing, setClosing] = useState(false);
+	const lyrics = lyricsState.key === requestKey ? lyricsState.lyrics : null;
+	const loading = open && lyricsState.key !== requestKey;
+	const loadError = lyricsState.key === requestKey ? lyricsState.error : null;
+	const activeTab: OverlayTab = player.queueOpen ? "nextUp" : "lyrics";
+	const panelRef = useRef<HTMLDivElement | null>(null);
+	const closeRef = useRef<HTMLButtonElement | null>(null);
+	const lineRefs = useRef<Array<HTMLButtonElement | HTMLDivElement | null>>([]);
+	const ignoreScrollRef = useRef(false);
+	const scrollAnimationRef = useRef<number | null>(null);
+	const closeTimerRef = useRef<number | null>(null);
+	const previousOpenRef = useRef(open);
+	const isOpen = open && !closing;
+
+	useEffect(() => {
+		if (!open) {
+			previousOpenRef.current = false;
+			return;
+		}
+		if (previousOpenRef.current) return;
+		previousOpenRef.current = true;
+		const timeout = window.setTimeout(() => setClosing(false), 0);
+		return () => window.clearTimeout(timeout);
+	}, [open]);
+
+	useEffect(
+		() => () => {
+			if (closeTimerRef.current !== null) {
+				window.clearTimeout(closeTimerRef.current);
+			}
+		},
+		[],
+	);
+
+	const requestClose = useCallback(() => {
+		if (!open || closing || closeTimerRef.current !== null) return;
+		setClosing(true);
+		closeTimerRef.current = window.setTimeout(() => {
+			closeTimerRef.current = null;
+			onClose();
+		}, 280);
+	}, [closing, onClose, open]);
+
+	useEffect(() => {
+		if (!open || lyricsState.key === requestKey) return;
+		const controller = new AbortController();
+		lineRefs.current = [];
+		void getAudioLyrics(player.session, track.Id, controller.signal)
+			.then((nextLyrics) => {
+				setLyricsState({
+					key: requestKey,
+					lyrics: nextLyrics,
+					error: null,
+				});
+			})
+			.catch((error: unknown) => {
+				if (controller.signal.aborted) return;
+				setLyricsState({
+					key: requestKey,
+					lyrics: null,
+					error: error instanceof Error ? error.message : t("lyricsLoadFailed"),
+				});
+			});
+		return () => controller.abort();
+	}, [lyricsState.key, open, player.session, requestKey, t, track.Id]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		closeRef.current?.focus();
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") requestClose();
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [isOpen, requestClose]);
+
+	const activeIndex = useMemo(
+		() => activeLyricIndex(lyrics, player.positionSeconds),
+		[lyrics, player.positionSeconds],
+	);
+
+	useEffect(() => {
+		if (!follow || activeIndex < 0) return;
+		const panel = panelRef.current;
+		const target = lineRefs.current[activeIndex];
+		if (!panel || !target || typeof window.requestAnimationFrame !== "function")
+			return;
+		if (scrollAnimationRef.current !== null) {
+			window.cancelAnimationFrame(scrollAnimationRef.current);
+			scrollAnimationRef.current = null;
+		}
+		ignoreScrollRef.current = true;
+		const panelRect = panel.getBoundingClientRect();
+		const targetRect = target.getBoundingClientRect();
+		const targetOffset = targetRect.top - panelRect.top;
+		const unclampedTargetTop =
+			panel.scrollTop +
+			targetOffset -
+			Math.max(0, (panel.clientHeight - targetRect.height) / 2);
+		const targetTop = Math.min(
+			Math.max(0, panel.scrollHeight - panel.clientHeight),
+			Math.max(0, unclampedTargetTop),
+		);
+		const startTop = panel.scrollTop;
+		const distance = targetTop - startTop;
+		if (Math.abs(distance) < 1) {
+			ignoreScrollRef.current = false;
+			return;
+		}
+		const duration = Math.min(700, Math.max(280, Math.abs(distance) * 0.45));
+		const startedAt = window.performance.now();
+		const animate = (now: number) => {
+			const progress = Math.min(1, (now - startedAt) / duration);
+			const eased =
+				progress < 0.5
+					? 2 * progress * progress
+					: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+			panel.scrollTop = startTop + distance * eased;
+			if (progress < 1) {
+				scrollAnimationRef.current = window.requestAnimationFrame(animate);
+				return;
+			}
+			scrollAnimationRef.current = null;
+			ignoreScrollRef.current = false;
+		};
+		scrollAnimationRef.current = window.requestAnimationFrame(animate);
+		return () => {
+			if (scrollAnimationRef.current !== null) {
+				window.cancelAnimationFrame(scrollAnimationRef.current);
+				scrollAnimationRef.current = null;
+			}
+			ignoreScrollRef.current = false;
+		};
+	}, [activeIndex, follow, panelRef]);
+
+	const artist = trackArtist(track);
+	const albumHref = track.AlbumId
+		? `/album/${encodeURIComponent(track.AlbumId)}`
+		: undefined;
+	const artistHref = track.ArtistId
+		? `/artist/${encodeURIComponent(track.ArtistId)}`
+		: undefined;
+	const linkClass =
+		"transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300";
+
+	return (
+		<div
+			data-testid="audio-lyrics-overlay"
+			role={isOpen ? "dialog" : undefined}
+			aria-modal={isOpen ? "true" : undefined}
+			aria-hidden={!isOpen}
+			aria-label={`${activeTab === "nextUp" ? t("queue") : t("lyrics")}: ${track.Name}`}
+			className="zenstream-audio-lyrics-overlay fixed inset-x-0 top-0 z-[70] overflow-hidden bg-[#100c10] text-white"
+			data-open={isOpen ? "true" : "false"}
+		>
+			<div className="absolute inset-0 overflow-hidden">
+				{image && <BlurHashGlow image={image} className="opacity-10" />}
+				<div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(13,10,14,0.97),rgba(13,10,14,0.82)_42%,rgba(13,10,14,0.98))]" />
+			</div>
+			<div className="relative flex h-full min-h-0 flex-col">
+				<header className="relative grid h-16 shrink-0 grid-cols-1 items-center px-4 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
+					<div className="absolute left-4 flex items-center gap-2 md:left-10 lg:left-14">
+						<button
+							ref={closeRef}
+							type="button"
+							aria-label={t("closeLyrics")}
+							onClick={requestClose}
+							className="rounded-full p-2 text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+						>
+							<ChevronDown className="h-5 w-5" />
+						</button>
+					</div>
+					<nav
+						aria-label={t("lyrics")}
+						role="tablist"
+						className="mx-auto flex h-full items-center gap-7 md:col-start-2 md:mx-0"
+					>
+						<TabButton
+							active={activeTab === "nextUp"}
+							label={t("queue")}
+							onClick={() => {
+								player.setQueueOpen(true);
+							}}
+							tabId="audio-next-up-tab"
+							panelId="audio-next-up-panel"
+						/>
+						<TabButton
+							active={activeTab === "lyrics"}
+							label={t("lyrics")}
+							onClick={() => {
+								player.setQueueOpen(false);
+							}}
+							tabId="audio-lyrics-tab"
+							panelId="audio-lyrics-panel"
+						/>
+					</nav>
+				</header>
+
+				<div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden px-4 pb-5 pt-7 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)] md:gap-9 md:px-10 md:pb-8 md:pt-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:px-14">
+					<section className="flex min-h-0 items-center justify-center md:justify-start">
+						<div className="w-full max-w-[13rem] text-center">
+							<div className="relative mx-auto aspect-square w-[min(56vw,13rem)] overflow-hidden rounded-md bg-black/45 shadow-2xl md:w-full">
+								{image ? (
+									<BlurHashImage
+										image={image}
+										alt=""
+										sizes="(max-width: 767px) 56vw, 208px"
+										className="h-full w-full object-cover"
+									/>
+								) : (
+									<MediaPlaceholder />
+								)}
+							</div>
+							<div className="mt-4 min-w-0 md:mt-6">
+								<h1 className="truncate text-xl font-semibold text-white md:text-2xl">
+									{track.Name}
+								</h1>
+								<p className="mt-2 truncate text-base text-white/65">
+									{artistHref ? (
+										<Link href={artistHref} className={linkClass}>
+											{artist}
+										</Link>
+									) : (
+										artist || " "
+									)}
+								</p>
+								<p className="mt-1 truncate text-sm text-white/40">
+									{albumHref ? (
+										<Link href={albumHref} className={linkClass}>
+											{track.Album || " "}
+										</Link>
+									) : (
+										track.Album || " "
+									)}
+								</p>
+							</div>
+						</div>
+					</section>
+
+					<section
+						id={activeTab === "nextUp" ? "audio-next-up-panel" : "audio-lyrics-panel"}
+						role="tabpanel"
+						aria-labelledby={
+							activeTab === "nextUp" ? "audio-next-up-tab" : "audio-lyrics-tab"
+						}
+						className="min-h-0 overflow-hidden"
+					>
+						{activeTab === "nextUp" ? (
+							<NextUpPanel player={player} />
+						) : (
+							<LyricsPanel
+								activeIndex={activeIndex}
+								follow={follow}
+								ignoreScrollRef={ignoreScrollRef}
+								lineRefs={lineRefs}
+								loading={loading}
+								loadError={loadError}
+								lyrics={lyrics}
+								panelRef={panelRef}
+								player={player}
+								setFollow={setFollow}
+							/>
+						)}
+					</section>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function TabButton({
+	active,
+	label,
+	onClick,
+	tabId,
+	panelId,
+}: {
+	active: boolean;
+	label: string;
+	onClick: () => void;
+	tabId: string;
+	panelId: string;
+}) {
+	return (
+		<button
+			id={tabId}
+			type="button"
+			role="tab"
+			aria-selected={active}
+			aria-controls={panelId}
+			tabIndex={active ? 0 : -1}
+			onClick={onClick}
+			className={`relative flex h-full items-center px-1 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${active ? "text-white" : "text-white/35 hover:text-white/75"}`}
+		>
+			{label}
+			{active && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-white" />}
+		</button>
+	);
+}
+
+function NextUpPanel({ player }: { player: AudioPlayer }) {
+	const { t } = useI18n();
+	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+	const [dropTarget, setDropTarget] = useState<QueueDropTarget | null>(null);
+
+	function clearDragState() {
+		setDraggedIndex(null);
+		setDropTarget(null);
+	}
+
+	function renderEntry(entry: AudioPlayer["queue"][number], index: number) {
+		const selected = index === player.currentIndex;
+		const dragging = draggedIndex === index;
+		const dropBefore =
+			dropTarget?.index === index && dropTarget.edge === "before";
+		const dropAfter = dropTarget?.index === index && dropTarget.edge === "after";
+		const entryImage = seriesPosterImage(entry.track);
+		const duration =
+			entry.track.DurationSeconds ?? entry.track.UserData?.DurationSeconds ?? 0;
+
+		return (
+			<div
+				key={entry.id}
+				draggable
+				data-testid={`audio-queue-item-${entry.id}`}
+				data-track-id={entry.track.Id}
+				data-queue-index={index}
+				aria-current={selected ? "true" : undefined}
+				onDragStart={(event) => {
+					setDraggedIndex(index);
+					setDropTarget(null);
+					if (event.dataTransfer) {
+						event.dataTransfer.effectAllowed = "move";
+						event.dataTransfer.setData("text/plain", entry.id);
+					}
+				}}
+				onDragOver={(event) => {
+					event.preventDefault();
+					if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+					if (draggedIndex !== index) {
+						const bounds = event.currentTarget.getBoundingClientRect();
+						const edge =
+							event.clientY - bounds.top < bounds.height / 2 ? "before" : "after";
+						setDropTarget({ index, edge });
+					}
+				}}
+				onDrop={(event) => {
+					event.preventDefault();
+					if (draggedIndex != null) {
+						const edge = dropTarget?.index === index ? dropTarget.edge : "before";
+						const insertionIndex = index + (edge === "after" ? 1 : 0);
+						const targetIndex =
+							insertionIndex > draggedIndex ? insertionIndex - 1 : insertionIndex;
+						if (targetIndex !== draggedIndex) {
+							player.reorderQueue(draggedIndex, targetIndex);
+						}
+					}
+					clearDragState();
+				}}
+				onDragEnd={clearDragState}
+				className={`group relative flex cursor-grab items-center gap-3 rounded-md px-2 py-2.5 active:cursor-grabbing ${dragging ? "opacity-45" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+			>
+				{(dropBefore || dropAfter) && (
+					<span
+						aria-hidden="true"
+						className={`pointer-events-none absolute inset-x-2 z-10 h-0.5 rounded-full bg-white/85 ${dropBefore ? "-top-px" : "-bottom-px"}`}
+					/>
+				)}
+				<span
+					aria-hidden="true"
+					className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
+				>
+					{selected ? <AudioPlayingIndicator className="h-2 w-4" /> : index + 1}
+				</span>
+				<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
+					{entryImage ? (
+						<BlurHashImage
+							image={entryImage}
+							alt=""
+							sizes="40px"
+							className="h-full w-full object-cover"
+						/>
+					) : (
+						<MediaPlaceholder />
+					)}
+				</div>
+				<div className="min-w-0 flex-1">
+					<button
+						type="button"
+						aria-label={`${t("play")} ${entry.track.Name}`}
+						onClick={() => player.playQueueItem(index)}
+						className="block w-full min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+					>
+						<p
+							className={`truncate text-sm font-semibold ${selected ? "text-white" : "text-white/75"}`}
+						>
+							{entry.track.Name}
+						</p>
+					</button>
+					{trackArtist(entry.track) && entry.track.ArtistId ? (
+						<Link
+							href={`/artist/${encodeURIComponent(entry.track.ArtistId)}`}
+							onClick={(event) => event.stopPropagation()}
+							className="mt-0.5 block truncate text-xs text-white/45 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+						>
+							{trackArtist(entry.track)}
+						</Link>
+					) : (
+						<p className="mt-0.5 truncate text-xs text-white/45">
+							{trackArtist(entry.track) || entry.track.Album || ""}
+						</p>
+					)}
+				</div>
+				<span className="shrink-0 text-xs tabular-nums text-white/35">
+					{formatTime(duration)}
+				</span>
+				<button
+					type="button"
+					aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
+					onClick={(event) => {
+						event.stopPropagation();
+						player.removeQueueItem(entry.id);
+					}}
+					className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+				>
+					<X className="h-3.5 w-3.5" />
+				</button>
+			</div>
+		);
+	}
+
+	return (
+		<div
+			data-testid="audio-next-up-panel"
+			className="flex h-full min-h-0 flex-col"
+		>
+			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent]">
+				{player.queue.length === 0 ? (
+					<p className="py-10 text-center text-sm text-white/45">
+						{t("queueEmpty")}
+					</p>
+				) : (
+					<div className="space-y-6 pb-8">
+						{player.currentIndex >= 0 && (
+							<section>
+								<div className="mb-2 flex items-center justify-between gap-4 px-2">
+									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
+										{t("nowPlaying")}
+									</p>
+									<span className="text-xs text-white/40">
+										{player.queue.length} {t("tracks").toLocaleLowerCase()}
+									</span>
+								</div>
+								{player.queue[player.currentIndex] &&
+									renderEntry(player.queue[player.currentIndex], player.currentIndex)}
+							</section>
+						)}
+						<section>
+							<p className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
+								{t("queue")}
+							</p>
+							<div data-testid="audio-queue-list" className="space-y-1">
+								{player.queue.map((entry, index) => renderEntry(entry, index))}
+							</div>
+						</section>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function LyricsPanel({
+	activeIndex,
+	follow,
+	ignoreScrollRef,
+	lineRefs,
+	loading,
+	loadError,
+	lyrics,
+	panelRef,
+	player,
+	setFollow,
+}: {
+	activeIndex: number;
+	follow: boolean;
+	ignoreScrollRef: MutableRefObject<boolean>;
+	lineRefs: MutableRefObject<Array<HTMLButtonElement | HTMLDivElement | null>>;
+	loading: boolean;
+	loadError: string | null;
+	lyrics: AudioLyrics | null;
+	panelRef: MutableRefObject<HTMLDivElement | null>;
+	player: AudioPlayer;
+	setFollow: (value: boolean) => void;
+}) {
+	const { t } = useI18n();
+
+	return (
+		<div className="flex h-full min-h-0 flex-col">
+			<div
+				ref={panelRef}
+				onScroll={() => {
+					if (!ignoreScrollRef.current) setFollow(false);
+				}}
+				aria-label={t("lyrics")}
+				className="zenstream-audio-lyrics-panel relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-5 [scrollbar-color:rgba(255,255,255,0.25)_transparent] md:px-5 md:py-7"
+			>
+				{lyrics?.timed && !follow && (
+					<div className="sticky top-2 z-10 flex justify-end">
+						<button
+							type="button"
+							onClick={() => setFollow(true)}
+							className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs text-white/70 backdrop-blur transition hover:border-white/30 hover:bg-black/75 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+						>
+							<LocateFixed className="h-3.5 w-3.5" />
+							{t("resumeLyricFollow")}
+						</button>
+					</div>
+				)}
+				{loading ? (
+					<div
+						role="status"
+						className="flex h-full min-h-36 items-center justify-center text-white/55"
+					>
+						<LoaderCircle
+							className="h-6 w-6 animate-spin"
+							aria-label={t("lyricsLoading")}
+						/>
+					</div>
+				) : loadError ? (
+					<p role="alert" className="py-10 text-center text-sm text-red-200/80">
+						{loadError}
+					</p>
+				) : !lyrics ? (
+					<p role="status" className="py-10 text-center text-sm text-white/45">
+						{t("lyricsUnavailable")}
+					</p>
+				) : lyrics.timed ? (
+					<div className="space-y-5 pb-8 md:space-y-7 md:pb-10">
+						{lyrics.lines.map((line, index) => (
+							<button
+								key={`${line.startSeconds ?? "plain"}-${index}`}
+								ref={(element) => {
+									lineRefs.current[index] = element;
+								}}
+								type="button"
+								disabled={line.startSeconds === undefined}
+								onClick={() => {
+									if (line.startSeconds === undefined) return;
+									player.seek(line.startSeconds);
+									setFollow(true);
+								}}
+								aria-label={
+									line.startSeconds === undefined
+										? line.text
+										: `${t("seekToLyric")} ${line.text}`
+								}
+								aria-current={index === activeIndex ? "true" : undefined}
+								className={`zenstream-audio-lyrics-line block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity,scale] duration-300 ease-in-out md:text-2xl ${index === activeIndex ? "scale-[1.08] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
+							>
+								{line.text}
+							</button>
+						))}
+					</div>
+				) : (
+					<div className="max-w-full whitespace-pre-wrap break-words pb-8 text-base leading-loose text-white/75 md:text-lg">
+						{lyrics.lines.map((line, index) => (
+							<div key={`${line.text}-${index}`}>{line.text}</div>
+						))}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function activeLyricIndex(lyrics: AudioLyrics | null, position: number) {
+	if (!lyrics?.timed) return -1;
+	let active = -1;
+	for (const [index, line] of lyrics.lines.entries()) {
+		if (line.startSeconds === undefined || line.startSeconds > position) continue;
+		if (line.endSeconds !== undefined && position >= line.endSeconds) continue;
+		active = index;
+	}
+	if (active >= 0) return active;
+	for (let index = lyrics.lines.length - 1; index >= 0; index -= 1) {
+		const line = lyrics.lines[index];
+		if (line?.startSeconds !== undefined && line.startSeconds <= position) {
+			return index;
+		}
+	}
+	return -1;
+}
+
+function trackArtist(track: MediaItem) {
+	return (
+		track.Artists?.filter(Boolean).join(", ") ||
+		track.ContributingArtists?.filter(Boolean).join(", ") ||
+		track.AlbumArtist ||
+		""
+	);
+}
+
+function formatTime(value: number) {
+	if (!Number.isFinite(value) || value <= 0) return "0:00";
+	const seconds = Math.floor(value);
+	const minutes = Math.floor(seconds / 60);
+	return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}

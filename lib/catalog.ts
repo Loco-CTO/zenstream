@@ -1,4 +1,4 @@
-import type { MediaItem, MediaStream } from "@/lib/media-api";
+import type { ArtistCredit, MediaItem, MediaStream } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { authenticatedFetch } from "@/lib/authenticated-request";
 
@@ -14,10 +14,15 @@ export type CatalogItem = {
 	seriesPrimaryImage?: { url?: string; blurHash?: string } | null;
 	collectionYearRange?: string | null;
 	seasonId?: string | null;
+	albumId?: string | null;
+	artistId?: string | null;
 	type: "movie" | "series" | "season" | "episode" | "collection" | string;
 	name: string;
 	seasonNumber?: number | null;
 	episodeNumber?: number | null;
+	discNumber?: number | null;
+	trackNumber?: number | null;
+	durationSeconds?: number | null;
 	dateAdded?: string;
 	lastAddedAt?: string;
 	childIds?: string[];
@@ -27,7 +32,18 @@ export type CatalogItem = {
 		description?: string;
 		year?: string | number;
 		date?: string;
+		releaseDate?: string;
 		runtimeMinutes?: number;
+		durationSeconds?: number;
+		albumArtist?: string;
+		albumType?: string;
+		albumSecondaryTypes?: string[];
+		artists?: Array<Record<string, unknown>>;
+		contributingArtists?: Array<Record<string, unknown>>;
+		album?: string;
+		albumId?: string;
+		show?: string;
+		label?: string;
 		tags?: string[];
 		communityRating?: number;
 		officialRating?: string;
@@ -92,6 +108,9 @@ const itemTypes: Record<string, string> = {
 	season: "Season",
 	episode: "Episode",
 	collection: "BoxSet",
+	artist: "MusicArtist",
+	release: "MusicAlbum",
+	track: "Audio",
 };
 
 function metadataYear(value: unknown, date: unknown) {
@@ -100,6 +119,42 @@ function metadataYear(value: unknown, date: unknown) {
 		if (match) return Number(match[1]);
 	}
 	return undefined;
+}
+
+function musicArtistCredits(
+	...sources: Array<Array<Record<string, unknown>> | undefined>
+): ArtistCredit[] {
+	const credits: ArtistCredit[] = [];
+	const byName = new Map<string, ArtistCredit>();
+	const byId = new Map<string, ArtistCredit>();
+
+	for (const source of sources) {
+		if (!Array.isArray(source)) continue;
+		for (const value of source) {
+			const name = String(value.name ?? value.Name ?? "").trim();
+			if (!name) continue;
+			const rawId = value.id ?? value.Id;
+			const id =
+				typeof rawId === "string" && rawId.trim() ? rawId.trim() : undefined;
+			const nameKey = name.toLocaleLowerCase();
+			const existing = (id ? byId.get(id) : undefined) ?? byName.get(nameKey);
+
+			if (existing) {
+				if (id && !existing.Id) {
+					existing.Id = id;
+					byId.set(id, existing);
+				}
+				continue;
+			}
+
+			const credit: ArtistCredit = id ? { Id: id, Name: name } : { Name: name };
+			credits.push(credit);
+			byName.set(nameKey, credit);
+			if (id) byId.set(id, credit);
+		}
+	}
+
+	return credits;
 }
 
 export function toMediaItem(item: CatalogItem): MediaItem {
@@ -151,7 +206,21 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 				?.trim() ?? "";
 		return /^https?:\/\//i.test(url) ? [{ Url: url }] : [];
 	});
-	const productionYear = metadataYear(item.metadata.year, item.metadata.date);
+	const releaseDate = item.metadata.date ?? item.metadata.releaseDate;
+	const productionYear = metadataYear(item.metadata.year, releaseDate);
+	const audioArtists =
+		item.metadata.artists ?? item.metadata.contributingArtists;
+	const artistCredits = musicArtistCredits(
+		item.metadata.artists,
+		item.metadata.contributingArtists,
+	);
+	const albumId = item.albumId ?? item.metadata.albumId;
+	const durationSeconds =
+		typeof item.durationSeconds === "number"
+			? item.durationSeconds
+			: typeof item.metadata.durationSeconds === "number"
+				? item.metadata.durationSeconds
+				: undefined;
 	return {
 		Id: item.id,
 		Name: item.metadata.title ?? item.name,
@@ -162,18 +231,46 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		SeriesPrimaryImageTag: item.seriesPrimaryImage?.url,
 		SeriesPrimaryImageBlurHash: item.seriesPrimaryImage?.blurHash,
 		CollectionYearRange: item.collectionYearRange ?? undefined,
+		AlbumId: albumId ?? undefined,
+		ArtistId: item.artistId ?? undefined,
+		Album: item.metadata.album ?? undefined,
+		AlbumArtist: item.metadata.albumArtist ?? undefined,
+		AlbumType: item.metadata.albumType ?? undefined,
+		AlbumSecondaryTypes: Array.isArray(item.metadata.albumSecondaryTypes)
+			? item.metadata.albumSecondaryTypes.map((value) => String(value))
+			: undefined,
+		Artists: Array.isArray(audioArtists)
+			? audioArtists
+					.map((artist) => String(artist.name ?? "").trim())
+					.filter(Boolean)
+			: undefined,
+		ContributingArtists: Array.isArray(item.metadata.contributingArtists)
+			? item.metadata.contributingArtists
+					.map((artist) => String(artist.name ?? "").trim())
+					.filter(Boolean)
+			: undefined,
+		ArtistCredits: artistCredits.length > 0 ? artistCredits : undefined,
+		Label: item.metadata.label ?? undefined,
+		Tags: item.metadata.tags,
+		ReleaseDate: releaseDate,
+		Show: item.metadata.show,
 		SeasonId: item.seasonId ?? undefined,
 		ParentIndexNumber: item.seasonNumber ?? undefined,
+		DiscNumber: item.discNumber ?? undefined,
+		TrackNumber: item.trackNumber ?? undefined,
 		IndexNumber:
 			item.type === "season"
 				? (item.seasonNumber ?? undefined)
 				: (item.episodeNumber ?? undefined),
 		Overview: item.metadata.overview ?? item.metadata.description,
 		ProductionYear: productionYear,
-		PremiereDate: item.metadata.date,
-		RunTimeTicks: item.metadata.runtimeMinutes
-			? item.metadata.runtimeMinutes * 60 * 10_000_000
-			: undefined,
+		PremiereDate: releaseDate,
+		RunTimeTicks: durationSeconds
+			? durationSeconds * 10_000_000
+			: item.metadata.runtimeMinutes
+				? item.metadata.runtimeMinutes * 60 * 10_000_000
+				: undefined,
+		DurationSeconds: durationSeconds,
 		CommunityRating: item.metadata.communityRating,
 		OfficialRating: item.metadata.officialRating,
 		Genres: item.metadata.tags,
@@ -231,6 +328,7 @@ export function toMediaStreams(
 			const value = String(stream.codec_type ?? stream.type ?? "").toLowerCase();
 			return value ? `${value[0].toUpperCase()}${value.slice(1)}` : "";
 		})(),
+		Kind: typeof stream.kind === "string" ? String(stream.kind) : undefined,
 		Language:
 			typeof (stream.tags as Record<string, unknown> | undefined)?.language ===
 			"string"

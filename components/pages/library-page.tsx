@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
 	MediaCardOverlay,
 	MEDIA_CARD_IMAGE_CLASS,
+	SquareAudioCard,
 	WatchedIndicator,
 	WatchProgress,
 } from "@/components/home/media-card";
@@ -33,14 +34,19 @@ import { progressPercent } from "@/lib/media";
 const PAGE_SIZE = 40;
 const CARD_MIN_WIDTH = 200;
 const MOBILE_CARD_MIN_WIDTH = 132;
+const MUSIC_CARD_MIN_WIDTH = 184;
+const MOBILE_MUSIC_CARD_MIN_WIDTH = 124;
 const GRID_GAP = 12;
 const CARD_TEXT_HEIGHT = 48;
+const MUSIC_CARD_TEXT_HEIGHT = 64;
+const MUSIC_ROW_GAP = 24;
 const OVERSCAN_ROWS = 3;
 
 const SORTS = [
 	{ value: "rating", labelKey: "sortRating" },
 	{ value: "title", labelKey: "sortTitle" },
 	{ value: "added", labelKey: "sortDateAdded" },
+	{ value: "year", labelKey: "sortYear" },
 	{ value: "lastAdded", labelKey: "sortLastAdded" },
 	{ value: "release", labelKey: "sortReleaseDate" },
 	{ value: "runtime", labelKey: "sortRuntime" },
@@ -80,12 +86,21 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
 
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
+	const isMusicLibrary = activeLibrary?.CollectionType === "music";
 	const supportsLastAdded =
 		activeLibrary?.SupportsLastAdded ??
 		activeLibrary?.CollectionType !== "movies";
 	const availableSorts = useMemo(
-		() => SORTS.filter((item) => item.value !== "lastAdded" || supportsLastAdded),
-		[supportsLastAdded],
+		() =>
+			isMusicLibrary
+				? SORTS.filter(
+						(item) =>
+							item.value === "title" ||
+							item.value === "year" ||
+							item.value === "added",
+					)
+				: SORTS.filter((item) => item.value !== "lastAdded" || supportsLastAdded),
+		[isMusicLibrary, supportsLastAdded],
 	);
 	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
 
@@ -155,9 +170,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		if (!activeLibrary || !sortReady) return;
 		const selectedSort = availableSorts.some((item) => item.value === sortBy)
 			? sortBy
-			: supportsLastAdded
-				? "lastAdded"
-				: "added";
+			: isMusicLibrary
+				? "title"
+				: supportsLastAdded
+					? "lastAdded"
+					: "added";
 		if (selectedSort !== sortBy) {
 			setSort({ sortBy: selectedSort, sortOrder });
 			return;
@@ -191,6 +208,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	}, [
 		activeLibrary,
 		availableSorts,
+		isMusicLibrary,
 		libraryId,
 		queryLibraryId,
 		querySortBy,
@@ -324,15 +342,19 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	}, [activeLibrary, isSortAvailable, loadFirstPage, sortReady]);
 
 	useEffect(() => {
-		const refresh = (event: Event) => {
-			const libraryId = (event as CustomEvent<{ libraryId?: string }>).detail
-				?.libraryId;
+		const refresh = (rawEvent: Event) => {
+			const event = rawEvent as CustomEvent<{
+				libraryId?: string;
+				reason?: "scan" | "refresh";
+			}>;
+			const libraryId = event.detail?.libraryId;
 			if (libraryId && libraryId !== activeLibrary?.Id) return;
+			if (isMusicLibrary && event.detail?.reason === "scan") return;
 			void loadFirstPage(true);
 		};
 		window.addEventListener("zenstream:catalog-changed", refresh);
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
-	}, [activeLibrary?.Id, loadFirstPage]);
+	}, [activeLibrary?.Id, isMusicLibrary, loadFirstPage]);
 
 	const loadMore = useCallback(async () => {
 		if (
@@ -483,13 +505,17 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			) : !loading && libraries.length === 0 ? (
 				<EmptyState title={t("noLibraries")} detail={t("noLibrariesHint")} />
 			) : !loading && items.length === 0 ? (
-				<EmptyState title={t("emptyLibrary")} detail={t("emptyLibraryHint")} />
+				<EmptyState
+					title={isMusicLibrary ? t("audioEmpty") : t("emptyLibrary")}
+					detail={isMusicLibrary ? t("audioEmpty") : t("emptyLibraryHint")}
+				/>
 			) : (
 				<VirtualMediaGrid
 					items={items}
 					hasMore={loadedCount < total}
 					onLoadMore={loadMore}
 					session={session}
+					music={isMusicLibrary}
 				/>
 			)}
 
@@ -512,11 +538,13 @@ function VirtualMediaGrid({
 	hasMore,
 	onLoadMore,
 	session,
+	music,
 }: {
 	items: MediaItem[];
 	hasMore: boolean;
 	onLoadMore: () => void;
 	session: AuthSession;
+	music: boolean;
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [width, setWidth] = useState(0);
@@ -554,15 +582,22 @@ function VirtualMediaGrid({
 		};
 	}, []);
 
-	const minCardWidth =
-		width > 0 && width < 640 ? MOBILE_CARD_MIN_WIDTH : CARD_MIN_WIDTH;
+	const minCardWidth = music
+		? width > 0 && width < 640
+			? MOBILE_MUSIC_CARD_MIN_WIDTH
+			: MUSIC_CARD_MIN_WIDTH
+		: width > 0 && width < 640
+			? MOBILE_CARD_MIN_WIDTH
+			: CARD_MIN_WIDTH;
 	const columns = Math.max(
 		1,
 		Math.floor((width + GRID_GAP) / (minCardWidth + GRID_GAP)),
 	);
 	const cardWidth =
 		width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : minCardWidth;
-	const rowHeight = cardWidth * 1.5 + CARD_TEXT_HEIGHT + GRID_GAP;
+	const cardTextHeight = music ? MUSIC_CARD_TEXT_HEIGHT : CARD_TEXT_HEIGHT;
+	const rowGap = music ? MUSIC_ROW_GAP : GRID_GAP;
+	const rowHeight = cardWidth * (music ? 1 : 1.5) + cardTextHeight + rowGap;
 	const rowCount = Math.ceil(items.length / columns);
 	const relativeTop = Math.max(0, viewport.scrollY - containerTop);
 	const startRow = Math.max(
@@ -592,7 +627,7 @@ function VirtualMediaGrid({
 				}}
 			>
 				{rowItems.map((item) => (
-					<LibraryCard key={item.Id} item={item} session={session} />
+					<LibraryCard key={item.Id} item={item} session={session} music={music} />
 				))}
 			</div>,
 		);
@@ -613,10 +648,14 @@ function VirtualMediaGrid({
 function LibraryCard({
 	item,
 	session,
+	music,
 }: {
 	item: MediaItem;
 	session: AuthSession;
+	music: boolean;
 }) {
+	if (music)
+		return <SquareAudioCard item={item} session={session} className="w-full" />;
 	const image = posterImage(item);
 	const secondary =
 		item.Type === "BoxSet"

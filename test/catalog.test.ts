@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { catalogRequest, toMediaItem, type CatalogItem } from "@/lib/catalog";
+import {
+	catalogRequest,
+	toMediaItem,
+	toMediaStreams,
+	type CatalogItem,
+} from "@/lib/catalog";
 import {
 	authenticateByName,
 	fetchDetailData,
@@ -22,6 +27,16 @@ const session = { token: "opaque-token", userId: "user-1", username: "Alex" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("catalog client", () => {
+	it("preserves lyric stream kinds separately from subtitle streams", () => {
+		const streams = toMediaStreams([
+			{ codec_type: "subtitle", kind: "lyrics" },
+			{ codec_type: "subtitle", kind: "subtitle" },
+		]);
+
+		expect(streams[0]?.Kind).toBe("lyrics");
+		expect(streams[1]?.Kind).toBe("subtitle");
+	});
+
 	it("uses a stable direct artwork URL for the session capability", async () => {
 		document.cookie = "userId=user-1";
 		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -326,6 +341,32 @@ describe("catalog client", () => {
 			DurationSeconds: 120,
 			LastPlayedAt: "2026-07-26T00:00:00Z",
 		});
+	});
+
+	it("preserves and deduplicates music artist credits", () => {
+		const item = toMediaItem({
+			id: "track-1",
+			libraryId: "music",
+			artistId: "artist-main",
+			type: "track",
+			name: "Track",
+			metadata: {
+				artists: [
+					{ id: "artist-main", name: "Main Artist" },
+					{ name: "Guest Artist" },
+				],
+				contributingArtists: [
+					{ id: "artist-guest", name: "Guest Artist" },
+					{ id: "artist-third", name: "Third Artist" },
+				],
+			},
+		} satisfies CatalogItem);
+
+		expect(item.ArtistCredits).toEqual([
+			{ Id: "artist-main", Name: "Main Artist" },
+			{ Id: "artist-guest", Name: "Guest Artist" },
+			{ Id: "artist-third", Name: "Third Artist" },
+		]);
 	});
 
 	it("derives the production year from the metadata date", () => {

@@ -44,6 +44,85 @@ japanese: Japanese
 logout: Log out
 all: All
 play: Play
+pause: Pause
+resume: Resume
+shuffle: Shuffle
+loopOff: Loop off
+loopQueue: Loop queue
+loopSingle: Loop current track
+queue: Queue
+next: Next
+previous: Previous
+nowPlaying: Now playing
+addToQueue: Add to queue
+removeFromQueue: Remove from queue
+moveUp: Move up
+moveDown: Move down
+queueEmpty: Your queue is empty.
+audioPlaybackError: Audio could not be played.
+resumeAudio: Resume audio
+albums: Albums
+tracks: Tracks
+artists: Artists
+musicLibrary: Music Library
+album: Album
+artistAppearsIn: Appears in
+artistAlbums: Albums
+artistEps: EPs
+artistSingles: Singles
+artistLive: Live
+artistRemixes: Remixes
+artistSoundtracks: Soundtracks
+relatedArtists: Related artists
+artistReleaseCount: "{count} releases"
+artistTrackCount: "{count} tracks"
+playAll: Play all
+artistNoMusic: No music is available for this artist yet.
+artistNoAppearances: No appearances yet.
+artistNoRelatedArtists: No related artists yet.
+albumTypeAlbum: Album
+albumTypeSingle: Single
+albumTypeEp: EP
+albumTypeCompilation: Compilation
+albumTypeSoundtrack: Soundtrack
+albumTypeLive: Live
+albumTypeRemix: Remix
+albumTypeOther: Other
+artist: Artist
+track: Track
+disc: Disc
+plays: "{count} plays"
+playCount: Plays
+duration: Duration
+volume: Volume
+mute: Mute
+unmute: Unmute
+lyrics: Lyrics
+openLyrics: Open lyrics
+closeLyrics: Close lyrics
+lyricsLoading: Loading lyrics…
+lyricsUnavailable: Lyrics are not available for this track.
+lyricsLoadFailed: Could not load lyrics.
+timedLyrics: Timed lyrics
+plainLyrics: Plain lyrics
+resumeLyricFollow: Resume follow
+seekToLyric: Seek to lyric
+newAlbums: New Albums
+recentlyPlayedAudio: Recently Played Audio
+favoriteAudio: Favorite Audio
+favoriteAudioArtists: Favorite Artists
+favoriteAudioAlbums: Favorite Albums
+favoriteAudioTracks: Favorite Tracks
+audioLoading: Loading audio…
+audioEmpty: No music is available yet.
+audioNotFound: This album or artist was not found.
+albumArtist: Album artist
+contributors: Contributors
+tags: Tags
+label: Label
+moreSoundtracks: More Soundtracks
+trackList: Track list
+totalDuration: "{count} min"
 skipIntro: Skip intro
 skipOutro: Skip outro
 info: Info
@@ -227,6 +306,7 @@ sortAscending: Sort ascending
 sortDescending: Sort descending
 sortRating: Rating
 sortTitle: Title
+sortYear: Year
 sortDateAdded: Date added
 sortLastAdded: Last added
 sortReleaseDate: Release date

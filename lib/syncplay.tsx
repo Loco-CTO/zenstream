@@ -442,6 +442,7 @@ export function SyncplayProvider({
 	const latestSeekRef = useRef(0);
 	const presencePendingRef = useRef<SyncplayPresenceReport | null>(null);
 	const presenceWorkerRef = useRef<Promise<void> | null>(null);
+	const startPresenceWorkerRef = useRef<() => void>(() => undefined);
 	const lastPresenceRef = useRef<{
 		groupId: string;
 		itemId: string | null;
@@ -738,8 +739,6 @@ export function SyncplayProvider({
 			reconcile,
 			session.userId,
 			setCurrent,
-			t,
-			toast,
 		],
 	);
 	useEffect(() => {
@@ -1096,7 +1095,7 @@ export function SyncplayProvider({
 		commandChainRef.current = next;
 		return next;
 	};
-	const startPresenceWorker = () => {
+	const startPresenceWorker = useCallback(() => {
 		if (presenceWorkerRef.current) return;
 		presenceWorkerRef.current = (async () => {
 			while (presencePendingRef.current) {
@@ -1128,52 +1127,67 @@ export function SyncplayProvider({
 			presenceWorkerRef.current = null;
 			// A report can be queued in the same turn that the worker drains its
 			// last item. Start a replacement so it cannot be stranded.
-			if (presencePendingRef.current) startPresenceWorker();
+			if (presencePendingRef.current) startPresenceWorkerRef.current();
 		});
-	};
-	const presence = (
-		viewing: boolean,
-		loading: boolean,
-		mediaGeneration?: number,
-		timelineRevision?: number,
-	): Promise<void> => {
-		const group = activeRef.current;
-		if (!group) return Promise.resolve();
-		const groupId = group.id;
-		const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
-		const revision = timelineRevision ?? group.timelineRevision ?? group.revision;
-		const sequence = ++presenceSequenceRef.current;
-		writePresenceSequence(currentParticipantId, sequence);
-		lastPresenceRef.current = {
-			groupId,
-			itemId: group.itemId,
-			viewing,
-			loading,
+	}, [adopt, clearStaleGroup, session, t, toast]);
+	useEffect(() => {
+		startPresenceWorkerRef.current = startPresenceWorker;
+		return () => {
+			startPresenceWorkerRef.current = () => undefined;
 		};
-		presencePendingRef.current = {
-			groupId,
-			itemId: group.itemId,
-			viewing,
-			loading,
-			generation,
-			timelineRevision: revision,
-			sequence,
+	}, [startPresenceWorker]);
+	const presence = useCallback(
+		(
+			viewing: boolean,
+			loading: boolean,
+			mediaGeneration?: number,
+			timelineRevision?: number,
+		): Promise<void> => {
+			const group = activeRef.current;
+			if (!group) return Promise.resolve();
+			const groupId = group.id;
+			const generation = mediaGeneration ?? group.mediaGeneration ?? 0;
+			const revision =
+				timelineRevision ?? group.timelineRevision ?? group.revision;
+			const sequence = ++presenceSequenceRef.current;
+			writePresenceSequence(currentParticipantId, sequence);
+			lastPresenceRef.current = {
+				groupId,
+				itemId: group.itemId,
+				viewing,
+				loading,
+			};
+			presencePendingRef.current = {
+				groupId,
+				itemId: group.itemId,
+				viewing,
+				loading,
+				generation,
+				timelineRevision: revision,
+				sequence,
+			};
+			startPresenceWorker();
+			return presenceWorkerRef.current ?? Promise.resolve();
+		},
+		[currentParticipantId, startPresenceWorker],
+	);
+	useEffect(() => {
+		replayPresenceRef.current = () => {
+			const intent = lastPresenceRef.current;
+			const group = activeRef.current;
+			if (
+				!intent ||
+				!group ||
+				group.id !== intent.groupId ||
+				group.itemId !== intent.itemId
+			)
+				return;
+			void presence(intent.viewing, intent.loading);
 		};
-		startPresenceWorker();
-		return presenceWorkerRef.current ?? Promise.resolve();
-	};
-	replayPresenceRef.current = () => {
-		const intent = lastPresenceRef.current;
-		const group = activeRef.current;
-		if (
-			!intent ||
-			!group ||
-			group.id !== intent.groupId ||
-			group.itemId !== intent.itemId
-		)
-			return;
-		void presence(intent.viewing, intent.loading);
-	};
+		return () => {
+			replayPresenceRef.current = () => undefined;
+		};
+	}, [presence]);
 	const value = {
 		groups,
 		active,

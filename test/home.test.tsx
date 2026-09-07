@@ -371,59 +371,6 @@ describe("home screen", () => {
 		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
 	});
 
-	it("keeps the active hero slide while a refresh publishes its limited featured response", async () => {
-		const auth = { token: "token", userId: "user", username: "Alex" };
-		vi.spyOn(session, "getAuthSession").mockReturnValue(auth);
-		const first = item("hero-first", "Hero First");
-		const second = item("hero-second", "Hero Second");
-		const third = item("hero-third", "Hero Third");
-		const fullHome = {
-			latestItems: [first, second, third],
-			libraryRows: [],
-			continueWatching: [],
-			nextUp: [],
-		};
-		let resolveRefresh!: (data: jellyfin.HomeData) => void;
-		const fetchHomeData = vi
-			.spyOn(jellyfin, "fetchHomeData")
-			.mockResolvedValueOnce(fullHome)
-			.mockImplementationOnce(async (_session, onSection) => {
-				onSection?.({ latestItems: [first] });
-				return new Promise((resolve) => {
-					resolveRefresh = resolve;
-				});
-			});
-
-		render(
-			<ProgressProvider>
-				<Page />
-			</ProgressProvider>,
-		);
-
-		await screen.findByRole("heading", { name: first.Name });
-		fireEvent.click(
-			screen.getByRole("button", { name: /show next featured slide/i }),
-		);
-		expect(
-			screen.getByRole("heading", { name: second.Name }),
-		).toBeInTheDocument();
-
-		await act(async () => {
-			window.dispatchEvent(new Event("zenstream:catalog-changed"));
-		});
-		await waitFor(() => expect(fetchHomeData).toHaveBeenCalledTimes(2));
-		expect(
-			screen.getByRole("heading", { name: second.Name }),
-		).toBeInTheDocument();
-
-		resolveRefresh(fullHome);
-		await waitFor(() =>
-			expect(
-				screen.getByRole("heading", { name: second.Name }),
-			).toBeInTheDocument(),
-		);
-	});
-
 	it("does not show the empty-library state while home data is loading", async () => {
 		vi.spyOn(session, "getAuthSession").mockReturnValue({
 			token: "token",

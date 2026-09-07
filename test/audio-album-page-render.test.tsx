@@ -164,8 +164,9 @@ describe("audio album track artist links", () => {
 				.getAllByRole("link", { name: "Aiobahn" })
 				.map((link) => link.getAttribute("href")),
 		).toEqual(["/artist/artist-aiobahn", "/artist/artist-aiobahn"]);
-		expect(
-			screen.getByRole("link", { name: "ヰ世界情緒" }),
-		).toHaveAttribute("href", "/artist/artist-uisekai");
+		expect(screen.getByRole("link", { name: "ヰ世界情緒" })).toHaveAttribute(
+			"href",
+			"/artist/artist-uisekai",
+		);
 	});
 });

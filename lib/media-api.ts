@@ -352,7 +352,7 @@ export function clearMediaClientCache(
 		libraryId?: string;
 		rootEntityId?: string;
 	},
-	options?: { preserveHome?: boolean },
+	options?: { preserveHome?: boolean; abortInFlight?: boolean },
 ) {
 	const affected = (key: string, value?: unknown) => {
 		if (options?.preserveHome && key.startsWith("home:")) return false;
@@ -384,7 +384,10 @@ export function clearMediaClientCache(
 	}
 	for (const [key, pending] of clientInFlight) {
 		if (!affected(key)) continue;
-		pending.controller.abort();
+		// Catalog invalidation must not cancel a request that still belongs to an
+		// active route. Evicting the entry prevents reuse, while the identity check
+		// in the completion handler prevents the stale result from being cached.
+		if (options?.abortInFlight) pending.controller.abort();
 		clientInFlight.delete(key);
 	}
 	heroTrailerCache.clear();
@@ -539,6 +542,8 @@ export async function getSearchPage(
 				pageSize: result.pageSize ?? pageSize,
 			};
 		},
+		LIST_CACHE_TTL_MS,
+		!options.signal,
 	);
 }
 
@@ -988,13 +993,16 @@ export function getFavoriteItems(
 	if (options.sortOrder) params.set("sortOrder", options.sortOrder);
 	return cachedClientRequest(
 		`favorites:${session.userId}:${params}`,
-		async () => {
+		async (signal) => {
 			const result = await catalogRequest<{ items: CatalogItem[] }>(
 				session,
 				`/api/catalog/favorites?${params}`,
+				{ signal: combinedSignal(options.signal, signal) },
 			);
 			return result.items.map(toMediaItem);
 		},
+		LIST_CACHE_TTL_MS,
+		!options.signal,
 	);
 }
 
@@ -1098,6 +1106,7 @@ export async function fetchAudioAlbumData(
 			};
 		},
 		DETAIL_CACHE_TTL_MS,
+		!requestSignal,
 	);
 }
 
@@ -1129,6 +1138,7 @@ export async function fetchArtistData(
 			};
 		},
 		DETAIL_CACHE_TTL_MS,
+		!requestSignal,
 	);
 }
 
@@ -1280,6 +1290,7 @@ export async function fetchDetailData(
 			return { item, backgroundItem, seasons, episodes, similar, collectionItems };
 		},
 		DETAIL_CACHE_TTL_MS,
+		!requestSignal,
 	);
 	onSection?.(data);
 	return data;

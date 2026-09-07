@@ -127,6 +127,15 @@ import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
 type AppStatus =
 	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
 
+function isAbortError(value: unknown) {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"name" in value &&
+		(value as { name?: unknown }).name === "AbortError"
+	);
+}
+
 type AudioRouteLoadOptions = {
 	preserveCurrent?: boolean;
 };
@@ -266,6 +275,15 @@ export function AppShell() {
 	} | null>(null);
 	const loadHomeRef = useRef<
 		| ((nextSession: AuthSession, requestedGeneration?: number) => Promise<void>)
+		| null
+	>(null);
+	const loadDetailRef = useRef<
+		| ((
+				nextSession: AuthSession,
+				itemId: string,
+				requestedGeneration?: number,
+				retryCount?: number,
+		  ) => Promise<void>)
 		| null
 	>(null);
 	const homeDataRef = useRef<HomeData | null>(null);
@@ -455,6 +473,7 @@ export function AppShell() {
 			nextSession: AuthSession,
 			itemId: string,
 			requestedGeneration = routeLoadGeneration.current,
+			retryCount = 0,
 		) => {
 			const isCurrent = () =>
 				sessionRef.current === nextSession &&
@@ -493,6 +512,13 @@ export function AppShell() {
 				}
 			} catch (err) {
 				if (loadController.signal.aborted) return;
+				if (isAbortError(err) && retryCount === 0 && isCurrent()) {
+					const retry = loadDetailRef.current;
+					if (retry) {
+						await retry(nextSession, itemId, requestedGeneration, retryCount + 1);
+						return;
+					}
+				}
 				if (isCurrent()) {
 					setError(
 						err instanceof Error ? err.message : "Could not load this title.",
@@ -500,11 +526,16 @@ export function AppShell() {
 					setStatus("error");
 				}
 			} finally {
+				if (detailLoadController.current === loadController)
+					detailLoadController.current = null;
 				finishProgress();
 			}
 		},
 		[fetchDetailPayload, pathname, searchQuery, start],
 	);
+	useEffect(() => {
+		loadDetailRef.current = loadDetail;
+	}, [loadDetail]);
 
 	const loadAudioAlbum = useCallback(
 		async (
@@ -740,6 +771,10 @@ export function AppShell() {
 			} else await loadHome(session, generation);
 			finishProgress();
 		})();
+		return () => {
+			detailLoadController.current?.abort();
+			audioLoadController.current?.abort();
+		};
 	}, [
 		detailId,
 		audioAlbumId,
@@ -793,7 +828,7 @@ export function AppShell() {
 			clearAuthCookies();
 			clearMediaClientSession();
 			clearPreferenceCache();
-			clearMediaClientCache();
+			clearMediaClientCache(undefined, { abortInFlight: true });
 			routeLoadGeneration.current += 1;
 			preferencesGeneration.current += 1;
 			localeMutationGeneration.current += 1;
@@ -806,6 +841,8 @@ export function AppShell() {
 			watchHistoryMutationQueue.current = Promise.resolve();
 			detailRefreshGeneration.current += 1;
 			detailRefreshController.current?.abort();
+			detailLoadController.current?.abort();
+			audioLoadController.current?.abort();
 			sessionRef.current = null;
 			setAvatarVersion(null);
 			setSession(null);
@@ -892,6 +929,7 @@ export function AppShell() {
 
 	useEffect(() => {
 		detailRefreshGeneration.current += 1;
+		detailRefreshController.current?.abort();
 	}, [detailId, playId]);
 
 	useEffect(() => {

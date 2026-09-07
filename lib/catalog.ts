@@ -12,6 +12,7 @@ export type CatalogItem = {
 	seriesName?: string | null;
 	seriesProductionYear?: number | null;
 	seriesPrimaryImage?: { url?: string; blurHash?: string } | null;
+	collectionYearRange?: string | null;
 	seasonId?: string | null;
 	type: "movie" | "series" | "season" | "episode" | "collection" | string;
 	name: string;
@@ -160,6 +161,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		SeriesProductionYear: item.seriesProductionYear ?? undefined,
 		SeriesPrimaryImageTag: item.seriesPrimaryImage?.url,
 		SeriesPrimaryImageBlurHash: item.seriesPrimaryImage?.blurHash,
+		CollectionYearRange: item.collectionYearRange ?? undefined,
 		SeasonId: item.seasonId ?? undefined,
 		ParentIndexNumber: item.seasonNumber ?? undefined,
 		IndexNumber:

@@ -618,6 +618,10 @@ function LibraryCard({
 	session: AuthSession;
 }) {
 	const image = posterImage(item);
+	const secondary =
+		item.Type === "BoxSet"
+			? item.CollectionYearRange
+			: (item.ProductionYear ?? item.Type);
 	const href =
 		item.Type === "BoxSet"
 			? `/collection/${item.Id}`
@@ -654,9 +658,9 @@ function LibraryCard({
 					<p className="mt-2 truncate text-xs font-medium text-white/80">
 						{item.Name}
 					</p>
-					<p className="mt-0.5 truncate text-xs text-white/30">
-						{item.ProductionYear ?? item.Type}
-					</p>
+					{secondary && (
+						<p className="mt-0.5 truncate text-xs text-white/30">{secondary}</p>
+					)}
 				</Link>
 				<MediaCardOverlay
 					href={href}

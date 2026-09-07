@@ -140,4 +140,32 @@ describe("audio album track artist links", () => {
 
 		expect(playerActions.playTrack).not.toHaveBeenCalled();
 	});
+
+	it("uses the primary album artist in the header and separate track links", () => {
+		const data = albumData();
+		data.album.Name = "new world";
+		data.album.AlbumArtist = "Aiobahn";
+		data.artist = {
+			Id: "artist-aiobahn",
+			Name: "Aiobahn",
+			Type: "MusicArtist",
+		};
+		data.tracks[0].ArtistId = "artist-aiobahn";
+		data.tracks[0].AlbumArtist = "Aiobahn";
+		data.tracks[0].ArtistCredits = [
+			{ Id: "artist-aiobahn", Name: "Aiobahn" },
+			{ Id: "artist-uisekai", Name: "ヰ世界情緒" },
+		];
+
+		render(<AudioAlbumPage data={data} session={session} />);
+
+		expect(
+			screen
+				.getAllByRole("link", { name: "Aiobahn" })
+				.map((link) => link.getAttribute("href")),
+		).toEqual(["/artist/artist-aiobahn", "/artist/artist-aiobahn"]);
+		expect(
+			screen.getByRole("link", { name: "ヰ世界情緒" }),
+		).toHaveAttribute("href", "/artist/artist-uisekai");
+	});
 });

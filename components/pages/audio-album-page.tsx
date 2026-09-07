@@ -23,6 +23,7 @@ import {
 } from "@/lib/media-api";
 import {
 	artistCreditSeparator,
+	artistCreditsForAlbum,
 	artistCreditsForTrack,
 	formatArtistCredits,
 } from "@/lib/music";
@@ -106,7 +107,7 @@ export function AudioAlbumPage({
 		0,
 	);
 	const year = releaseYear(data.album);
-	const artistName = data.artist?.Name ?? data.album.AlbumArtist;
+	const albumArtistCredits = artistCreditsForAlbum(data.album, data.artist);
 	const typeLabel = albumTypeLabel(
 		data.album.AlbumType,
 		data.album.AlbumSecondaryTypes,
@@ -203,18 +204,26 @@ export function AudioAlbumPage({
 						{data.album.Name}
 					</h1>
 					<div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/45">
-						{artistName &&
-							(data.artist ? (
-								<Link
-									href={`/artist/${data.artist.Id}`}
-									className="font-semibold text-white/80 transition hover:text-white hover:underline"
-								>
-									{artistName}
-								</Link>
-							) : (
-								<span className="font-semibold text-white/80">{artistName}</span>
-							))}
-						{artistName && data.album.Show && <span>·</span>}
+						{albumArtistCredits.length > 0 && (
+							<span className="font-semibold text-white/80">
+								{albumArtistCredits.map((credit, index) => (
+									<Fragment key={`${credit.Id ?? credit.Name}-${index}`}>
+										{credit.Id ? (
+											<Link
+												href={`/artist/${encodeURIComponent(credit.Id)}`}
+												className="transition hover:text-white hover:underline focus:outline-none focus-visible:underline"
+											>
+												{credit.Name}
+											</Link>
+										) : (
+											<span>{credit.Name}</span>
+										)}
+										{artistCreditSeparator(albumArtistCredits, index)}
+									</Fragment>
+								))}
+							</span>
+						)}
+						{albumArtistCredits.length > 0 && data.album.Show && <span>·</span>}
 						{data.album.Show && (
 							<>
 								<span>{data.album.Show}</span>

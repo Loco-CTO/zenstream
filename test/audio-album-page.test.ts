@@ -6,6 +6,7 @@ import {
 	trackDiscNumbers,
 } from "@/components/pages/audio-album-page";
 import type { MediaItem } from "@/lib/media-api";
+import { artistCreditsForAlbum, formatArtistCredits } from "@/lib/music";
 
 function track(
 	id: string,
@@ -105,6 +106,52 @@ describe("audio album track artist display", () => {
 				],
 			}),
 		).toBe("明透 feat. Sooda");
+	});
+});
+
+describe("audio album artist display", () => {
+	it("keeps ordered album credits, IDs, and exact join phrases", () => {
+		const credits = artistCreditsForAlbum(
+			{
+				ArtistCredits: [
+					{ Id: "artist-one", Name: "ヰ世界情緒", JoinPhrase: "×" },
+					{ Id: "artist-two", Name: "春猿火", JoinPhrase: "" },
+				],
+				AlbumArtist: "ヰ世界情緒",
+			},
+			{ Id: "artist-one", Name: "ヰ世界情緒" },
+		);
+
+		expect(credits).toEqual([
+			{ Id: "artist-one", Name: "ヰ世界情緒", JoinPhrase: "×" },
+			{ Id: "artist-two", Name: "春猿火", JoinPhrase: "" },
+		]);
+		expect(formatArtistCredits(credits)).toBe("ヰ世界情緒×春猿火");
+	});
+
+	it("does not split a scalar joined album artist fallback", () => {
+		expect(
+			artistCreditsForAlbum({ AlbumArtist: "Artist One × Artist Two" }),
+		).toEqual([{ Name: "Artist One × Artist Two" }]);
+	});
+
+	it("uses the first structured credit when the scalar label is joined", () => {
+		expect(
+			artistCreditsForAlbum({
+				ArtistId: "artist-one",
+				AlbumArtist: "Artist One × Artist Two",
+				Artists: ["Artist One", "Artist Two"],
+			}),
+		).toEqual([{ Id: "artist-one", Name: "Artist One" }, { Name: "Artist Two" }]);
+	});
+
+	it("uses the primary artist for legacy album credit fallback", () => {
+		expect(
+			artistCreditsForAlbum(
+				{ AlbumArtist: "Album Artist" },
+				{ Id: "artist-primary", Name: "Album Artist" },
+			),
+		).toEqual([{ Id: "artist-primary", Name: "Album Artist" }]);
 	});
 });
 

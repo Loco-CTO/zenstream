@@ -170,6 +170,32 @@ describe("audio album track artist links", () => {
 		);
 	});
 
+	it("renders ordered co-release artists as separate header links", () => {
+		const data = albumData();
+		data.album.ArtistCredits = [
+			{ Id: "artist-uisekai", Name: "ヰ世界情緒", JoinPhrase: "×" },
+			{ Id: "artist-haruka", Name: "春猿火", JoinPhrase: "" },
+		];
+		data.album.AlbumArtist = "ヰ世界情緒";
+		data.artist = {
+			Id: "artist-uisekai",
+			Name: "ヰ世界情緒",
+			Type: "MusicArtist",
+		};
+
+		render(<AudioAlbumPage data={data} session={session} />);
+
+		const header = screen.getByRole("heading", { name: "Album" }).parentElement;
+		expect(header).toHaveTextContent("ヰ世界情緒×春猿火");
+		expect(
+			within(header as HTMLElement).getByRole("link", { name: "ヰ世界情緒" }),
+		).toHaveAttribute("href", "/artist/artist-uisekai");
+		expect(
+			within(header as HTMLElement).getByRole("link", { name: "春猿火" }),
+		).toHaveAttribute("href", "/artist/artist-haruka");
+		expect(header).not.toHaveTextContent("ヰ世界情緒, 春猿火");
+	});
+
 	it("renders exact credit separators without merging artist links", () => {
 		const data = albumData();
 		data.tracks[0].ArtistCredits = [

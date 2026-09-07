@@ -9,6 +9,7 @@ import {
 	type MediaItem,
 } from "@/lib/media-api";
 import { progressPercent, releaseYear, subtitle } from "@/lib/media";
+import { artistCreditsForAlbum, formatArtistCredits } from "@/lib/music";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -213,7 +214,7 @@ export function SquareAudioCard({
 	const isTrack = item.Type === "Audio";
 	const secondary = isTrack
 		? [item.Album, item.AlbumArtist].filter(Boolean).join(" · ")
-		: (item.AlbumArtist ?? "");
+		: formatArtistCredits(artistCreditsForAlbum(item));
 	const year = !isTrack ? releaseYear(item) : undefined;
 	const href = audioHref(item);
 

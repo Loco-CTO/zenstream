@@ -125,6 +125,50 @@ export function artistCreditsForTrack(
 	});
 }
 
+export function artistCreditsForAlbum(
+	album: Pick<
+		MediaItem,
+		| "ArtistCredits"
+		| "Artists"
+		| "ContributingArtists"
+		| "AlbumArtist"
+		| "ArtistId"
+	>,
+	primaryArtist?: Pick<MediaItem, "Id" | "Name"> | null,
+) {
+	const credits =
+		album.ArtistCredits && album.ArtistCredits.length > 0
+			? normalizeArtistCredits(album.ArtistCredits)
+			: normalizeArtistCredits([
+					...(album.Artists ?? []).map((Name): ArtistCredit => ({ Name })),
+					...(album.ContributingArtists ?? []).map((Name): ArtistCredit => ({
+						Name,
+					})),
+				]);
+	const primaryName = (primaryArtist?.Name ?? album.AlbumArtist)
+		?.trim()
+		.toLocaleLowerCase();
+	const primaryId = primaryArtist?.Id ?? album.ArtistId;
+	const primaryIndex = primaryName
+		? credits.findIndex(
+				(credit) => credit.Name.trim().toLocaleLowerCase() === primaryName,
+			)
+		: -1;
+
+	if (credits.length === 0) {
+		const fallbackName = primaryArtist?.Name?.trim() || album.AlbumArtist?.trim();
+		return fallbackName
+			? [{ Name: fallbackName, ...(primaryId ? { Id: primaryId } : {}) }]
+			: [];
+	}
+
+	return credits.map((credit, index) => {
+		if (credit.Id || !primaryId) return credit;
+		const isPrimary = primaryIndex >= 0 ? index === primaryIndex : index === 0;
+		return isPrimary ? { ...credit, Id: primaryId } : credit;
+	});
+}
+
 export function formatTrackArtists(track: MediaItem | null | undefined) {
 	return track ? formatArtistCredits(artistCreditsForTrack(track)) : "";
 }

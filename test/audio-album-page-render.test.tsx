@@ -140,4 +140,84 @@ describe("audio album track artist links", () => {
 
 		expect(playerActions.playTrack).not.toHaveBeenCalled();
 	});
+
+	it("uses the primary album artist in the header and separate track links", () => {
+		const data = albumData();
+		data.album.Name = "new world";
+		data.album.AlbumArtist = "Aiobahn";
+		data.artist = {
+			Id: "artist-aiobahn",
+			Name: "Aiobahn",
+			Type: "MusicArtist",
+		};
+		data.tracks[0].ArtistId = "artist-aiobahn";
+		data.tracks[0].AlbumArtist = "Aiobahn";
+		data.tracks[0].ArtistCredits = [
+			{ Id: "artist-aiobahn", Name: "Aiobahn" },
+			{ Id: "artist-uisekai", Name: "ヰ世界情緒" },
+		];
+
+		render(<AudioAlbumPage data={data} session={session} />);
+
+		expect(
+			screen
+				.getAllByRole("link", { name: "Aiobahn" })
+				.map((link) => link.getAttribute("href")),
+		).toEqual(["/artist/artist-aiobahn", "/artist/artist-aiobahn"]);
+		expect(screen.getByRole("link", { name: "ヰ世界情緒" })).toHaveAttribute(
+			"href",
+			"/artist/artist-uisekai",
+		);
+	});
+
+	it("renders ordered co-release artists as separate header links", () => {
+		const data = albumData();
+		data.album.ArtistCredits = [
+			{ Id: "artist-uisekai", Name: "ヰ世界情緒", JoinPhrase: "×" },
+			{ Id: "artist-haruka", Name: "春猿火", JoinPhrase: "" },
+		];
+		data.album.AlbumArtist = "ヰ世界情緒";
+		data.artist = {
+			Id: "artist-uisekai",
+			Name: "ヰ世界情緒",
+			Type: "MusicArtist",
+		};
+
+		render(<AudioAlbumPage data={data} session={session} />);
+
+		const header = screen.getByRole("heading", { name: "Album" }).parentElement;
+		expect(header).toHaveTextContent("ヰ世界情緒×春猿火");
+		expect(
+			within(header as HTMLElement).getByRole("link", { name: "ヰ世界情緒" }),
+		).toHaveAttribute("href", "/artist/artist-uisekai");
+		expect(
+			within(header as HTMLElement).getByRole("link", { name: "春猿火" }),
+		).toHaveAttribute("href", "/artist/artist-haruka");
+		expect(header).not.toHaveTextContent("ヰ世界情緒, 春猿火");
+	});
+
+	it("renders exact credit separators without merging artist links", () => {
+		const data = albumData();
+		data.tracks[0].ArtistCredits = [
+			{ Id: "artist-album", Name: "ヰ世界情緒", JoinPhrase: "×" },
+			{ Id: "artist-guest", Name: "春猿火", JoinPhrase: "" },
+		];
+
+		render(<AudioAlbumPage data={data} session={session} />);
+
+		const row = screen
+			.getAllByRole("row")
+			.find((candidate) => candidate.textContent?.includes("Track"));
+		if (!row) throw new Error("track row was not rendered");
+		expect(row).toHaveTextContent("ヰ世界情緒×春猿火");
+		expect(row).not.toHaveTextContent("ヰ世界情緒, 春猿火");
+		expect(within(row).getByRole("link", { name: "ヰ世界情緒" })).toHaveAttribute(
+			"href",
+			"/artist/artist-album",
+		);
+		expect(within(row).getByRole("link", { name: "春猿火" })).toHaveAttribute(
+			"href",
+			"/artist/artist-guest",
+		);
+	});
 });

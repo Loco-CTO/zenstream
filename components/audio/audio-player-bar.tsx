@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/blurhash-image";
 import { useI18n } from "@/lib/i18n";
 import { AudioLyricsOverlay } from "@/components/audio/audio-lyrics-overlay";
+import { formatTrackArtists } from "@/lib/music";
 
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
 
@@ -546,13 +547,7 @@ function IconButton({
 }
 
 function trackArtist(track: MediaItem | null) {
-	if (!track) return "";
-	return (
-		track.Artists?.filter(Boolean).join(", ") ||
-		track.ContributingArtists?.filter(Boolean).join(", ") ||
-		track.AlbumArtist ||
-		""
-	);
+	return formatTrackArtists(track);
 }
 
 function formatTime(value: number) {

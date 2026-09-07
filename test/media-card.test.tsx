@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	PosterCard,
 	StackedPosterCard,
+	SquareAudioCard,
 	WideCard,
 } from "@/components/home/media-card";
 import { EpisodeCard } from "@/components/pages/detail-page";
@@ -12,6 +13,10 @@ import { toMediaItem } from "@/lib/catalog";
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
+vi.mock("@/components/audio/audio-player-provider", () => ({
+	useAudioPlayer: () => ({ playTrack: vi.fn() }),
+}));
+
 const item = {
 	Id: "item-1",
 	Name: "Test title",
@@ -19,6 +24,31 @@ const item = {
 } as MediaItem;
 
 describe("media card sizing", () => {
+	it("shows ordered co-release credits on album cards", () => {
+		render(
+			<SquareAudioCard
+				item={{
+					Id: "album-1",
+					Name: "CALL",
+					Type: "MusicAlbum",
+					AlbumArtist: "ヰ世界情緒",
+					ArtistCredits: [
+						{ Id: "artist-one", Name: "ヰ世界情緒", JoinPhrase: "×" },
+						{ Id: "artist-two", Name: "春猿火", JoinPhrase: "" },
+					],
+				}}
+				session={{ token: "token", userId: "user", username: "Alex" }}
+			/>,
+		);
+
+		expect(screen.getByText("ヰ世界情緒×春猿火")).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "CALL" })).toHaveAttribute(
+			"href",
+			"/album/album-1",
+		);
+		expect(screen.getAllByRole("link")).toHaveLength(1);
+	});
+
 	it("maps canonical episode series titles for home cards", () => {
 		const mediaItem = toMediaItem({
 			id: "episode-1",

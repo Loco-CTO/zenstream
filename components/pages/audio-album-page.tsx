@@ -21,6 +21,12 @@ import {
 	type ArtistCredit,
 	type MediaItem,
 } from "@/lib/media-api";
+import {
+	artistCreditSeparator,
+	artistCreditsForAlbum,
+	artistCreditsForTrack,
+	formatArtistCredits,
+} from "@/lib/music";
 import { releaseDateLabel, releaseYear } from "@/lib/media";
 import {
 	BlurHashImage,
@@ -101,7 +107,7 @@ export function AudioAlbumPage({
 		0,
 	);
 	const year = releaseYear(data.album);
-	const artistName = data.artist?.Name ?? data.album.AlbumArtist;
+	const albumArtistCredits = artistCreditsForAlbum(data.album, data.artist);
 	const typeLabel = albumTypeLabel(
 		data.album.AlbumType,
 		data.album.AlbumSecondaryTypes,
@@ -198,18 +204,26 @@ export function AudioAlbumPage({
 						{data.album.Name}
 					</h1>
 					<div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/45">
-						{artistName &&
-							(data.artist ? (
-								<Link
-									href={`/artist/${data.artist.Id}`}
-									className="font-semibold text-white/80 transition hover:text-white hover:underline"
-								>
-									{artistName}
-								</Link>
-							) : (
-								<span className="font-semibold text-white/80">{artistName}</span>
-							))}
-						{artistName && data.album.Show && <span>·</span>}
+						{albumArtistCredits.length > 0 && (
+							<span className="font-semibold text-white/80">
+								{albumArtistCredits.map((credit, index) => (
+									<Fragment key={`${credit.Id ?? credit.Name}-${index}`}>
+										{credit.Id ? (
+											<Link
+												href={`/artist/${encodeURIComponent(credit.Id)}`}
+												className="transition hover:text-white hover:underline focus:outline-none focus-visible:underline"
+											>
+												{credit.Name}
+											</Link>
+										) : (
+											<span>{credit.Name}</span>
+										)}
+										{artistCreditSeparator(albumArtistCredits, index)}
+									</Fragment>
+								))}
+							</span>
+						)}
+						{albumArtistCredits.length > 0 && data.album.Show && <span>·</span>}
 						{data.album.Show && (
 							<>
 								<span>{data.album.Show}</span>
@@ -416,7 +430,7 @@ function TrackRow({
 	onToggleFavorite: () => void;
 }) {
 	const artistCredits = trackArtistCredits(track);
-	const artistLabel = artistCredits.map((artist) => artist.Name).join(", ");
+	const artistLabel = formatArtistCredits(artistCredits);
 
 	return (
 		<div
@@ -470,7 +484,6 @@ function TrackRow({
 				{artistCredits.length > 0
 					? artistCredits.map((artist, artistIndex) => (
 							<Fragment key={`${artist.Id ?? artist.Name}-${artistIndex}`}>
-								{artistIndex > 0 && ", "}
 								{artist.Id ? (
 									<Link
 										href={`/artist/${encodeURIComponent(artist.Id)}`}
@@ -483,6 +496,7 @@ function TrackRow({
 								) : (
 									<span>{artist.Name}</span>
 								)}
+								{artistCreditSeparator(artistCredits, artistIndex)}
 							</Fragment>
 						))
 					: "—"}
@@ -523,58 +537,11 @@ function durationSeconds(track: MediaItem) {
 }
 
 export function trackArtistLabel(track: MediaItem) {
-	return trackArtistCredits(track)
-		.map((artist) => artist.Name)
-		.join(", ");
+	return formatArtistCredits(trackArtistCredits(track));
 }
 
 export function trackArtistCredits(track: MediaItem): ArtistCredit[] {
-	const sourceCredits: ArtistCredit[] =
-		track.ArtistCredits && track.ArtistCredits.length > 0
-			? track.ArtistCredits
-			: [
-					...(track.Artists ?? []).map((Name): ArtistCredit => ({ Name })),
-					...(track.ContributingArtists ?? []).map((Name): ArtistCredit => ({
-						Name,
-					})),
-				];
-	const credits: ArtistCredit[] = [];
-	const byName = new Map<string, ArtistCredit>();
-	const byId = new Map<string, ArtistCredit>();
-
-	for (const sourceCredit of sourceCredits) {
-		const name = sourceCredit.Name.trim();
-		if (!name) continue;
-		const id = sourceCredit.Id?.trim() || undefined;
-		const nameKey = name.toLocaleLowerCase();
-		const existing = (id ? byId.get(id) : undefined) ?? byName.get(nameKey);
-		if (existing) {
-			if (id && !existing.Id) {
-				existing.Id = id;
-				byId.set(id, existing);
-			}
-			continue;
-		}
-
-		const credit: ArtistCredit = id ? { Id: id, Name: name } : { Name: name };
-		credits.push(credit);
-		byName.set(nameKey, credit);
-		if (id) byId.set(id, credit);
-	}
-
-	if (credits.length === 0) {
-		const albumArtist = track.AlbumArtist?.trim();
-		if (albumArtist) credits.push({ Name: albumArtist });
-	}
-
-	const albumArtist = track.AlbumArtist?.trim().toLocaleLowerCase();
-	return credits.map((credit, index) => {
-		if (credit.Id || !track.ArtistId) return credit;
-		const isPrimaryArtist = albumArtist
-			? credit.Name.trim().toLocaleLowerCase() === albumArtist
-			: index === 0;
-		return isPrimaryArtist ? { ...credit, Id: track.ArtistId } : credit;
-	});
+	return artistCreditsForTrack(track);
 }
 
 export function trackDiscNumbers(

@@ -28,6 +28,7 @@ export interface AuthResponse {
 export interface ArtistCredit {
 	Id?: string;
 	Name: string;
+	JoinPhrase?: string;
 }
 
 export interface MediaItem {

@@ -34,6 +34,8 @@ markRead: Mark as read
 markUnread: Mark as unread
 removeNotification: Remove notification
 loadMore: Load more
+showMore: Show more
+showLess: Show less
 follow: Follow
 unfollow: Unfollow
 profile: Profile

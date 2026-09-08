@@ -49,6 +49,7 @@ import {
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { BazarrSubtitles } from "@/components/ui/bazarr-subtitles";
+import { ExpandableDescription } from "@/components/ui/expandable-description";
 import {
 	HoverPreviewVideo,
 	useHoverPreview,
@@ -366,9 +367,10 @@ export function DetailPage({
 							</h1>
 							<Metadata item={item} locale={locale} />
 							{isEpisode && item.Overview && (
-								<p className="mt-4 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/45">
-									{item.Overview}
-								</p>
+								<ExpandableDescription
+									description={item.Overview}
+									className="mt-4 max-w-2xl text-sm leading-relaxed text-white/45"
+								/>
 							)}
 						</div>
 					</div>
@@ -456,9 +458,10 @@ export function DetailPage({
 						</div>
 					) : null}
 					{!isEpisode && item.Overview && (
-						<p className="max-w-3xl text-sm leading-relaxed text-white/50">
-							{item.Overview}
-						</p>
+						<ExpandableDescription
+							description={item.Overview}
+							className="max-w-3xl text-sm leading-relaxed text-white/50"
+						/>
 					)}
 
 					{(isSeries || isEpisode) && (

@@ -10,6 +10,7 @@ import {
 	Play,
 	Repeat,
 	Repeat1,
+	RepeatOff,
 	Shuffle,
 	SkipBack,
 	SkipForward,
@@ -365,7 +366,9 @@ function TransportControls({
 					dimmed={player.loopMode === "off"}
 					compact={compact}
 				>
-					{player.loopMode === "single" ? (
+					{player.loopMode === "off" ? (
+						<RepeatOff className="h-4 w-4" />
+					) : player.loopMode === "single" ? (
 						<Repeat1 className="h-4 w-4" />
 					) : (
 						<Repeat className="h-4 w-4" />

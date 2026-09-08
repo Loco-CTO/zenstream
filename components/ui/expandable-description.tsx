@@ -56,7 +56,7 @@ export function ExpandableDescription({
 			<p
 				id={descriptionId}
 				ref={textRef}
-				className={expanded ? undefined : "line-clamp-3"}
+				className={expanded ? undefined : "line-clamp-2"}
 			>
 				{description}
 			</p>

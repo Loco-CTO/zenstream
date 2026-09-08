@@ -3,11 +3,12 @@ import { catalogRequest } from "@/lib/catalog";
 
 export type NotificationItem = {
 	id: string;
-	kind: "new_episode" | "new_movie" | string;
+	kind: "new_episode" | "new_movie" | "new_release" | string;
 	title: string;
 	subtitle?: string | null;
 	itemId?: string | null;
 	seriesId?: string | null;
+	artistId?: string | null;
 	seasonNumber?: number | null;
 	episodeNumber?: number | null;
 	createdAt: string;

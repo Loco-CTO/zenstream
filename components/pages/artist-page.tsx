@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, Play } from "lucide-react";
+import { Bookmark, ChevronLeft, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
 import {
@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/blurhash-image";
 import { ExpandableDescription } from "@/components/ui/expandable-description";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
-import { seriesPosterImage, type MediaItem } from "@/lib/media-api";
+import {
+	seriesPosterImage,
+	setFollowing,
+	type MediaItem,
+} from "@/lib/media-api";
 import type { ArtistData } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
@@ -47,11 +51,40 @@ export function ArtistPage({
 	const relatedArtists = uniqueItems(data.relatedArtists);
 	const grouped = useMemo(() => groupReleases(albums), [albums]);
 	const image = seriesPosterImage(data.artist);
+	const [followOverride, setFollowOverride] = useState<{
+		artistId: string;
+		value: boolean;
+	} | null>(null);
+	const [followBusy, setFollowBusy] = useState(false);
+	const [followErrorArtistId, setFollowErrorArtistId] = useState<string | null>(
+		null,
+	);
+	const following =
+		followOverride?.artistId === data.artist.Id
+			? followOverride.value
+			: Boolean(data.artist.UserData?.IsFollowing);
+	const followError = followErrorArtistId === data.artist.Id;
 	const tags = uniqueStrings([
 		...(data.artist.Tags ?? []),
 		...(data.artist.Genres ?? []),
 	]);
 	const releaseCount = uniqueItems([...albums, ...appearsIn]).length;
+
+	async function toggleFollowing() {
+		const previous = following;
+		const next = !previous;
+		setFollowOverride({ artistId: data.artist.Id, value: next });
+		setFollowBusy(true);
+		setFollowErrorArtistId(null);
+		try {
+			await setFollowing(session, data.artist.Id, next);
+		} catch {
+			setFollowOverride({ artistId: data.artist.Id, value: previous });
+			setFollowErrorArtistId(data.artist.Id);
+		} finally {
+			setFollowBusy(false);
+		}
+	}
 
 	function goBack() {
 		if (window.history.length > 1) {
@@ -140,6 +173,22 @@ export function ArtistPage({
 						<Play className="h-4 w-4 fill-current" />
 						{t("playAll")}
 					</button>
+					<button
+						type="button"
+						disabled={followBusy}
+						onClick={() => void toggleFollowing()}
+						aria-label={t(following ? "unfollow" : "follow")}
+						title={t(following ? "unfollow" : "follow")}
+						className={`inline-flex h-12 items-center gap-2 rounded-full border px-5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-wait disabled:opacity-50 ${following ? "border-violet-400/40 bg-violet-500/15 text-violet-200" : "border-white/15 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
+					>
+						<Bookmark className={`h-4 w-4 ${following ? "fill-violet-300" : ""}`} />
+						{t(following ? "unfollow" : "follow")}
+					</button>
+					{followError && (
+						<p role="alert" className="text-xs text-red-200/80">
+							{t("detailLoadFailed")}
+						</p>
+					)}
 				</div>
 
 				{tracks.length === 0 ? (

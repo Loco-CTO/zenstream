@@ -13,6 +13,7 @@ import {
 import { ExpandableDescription } from "@/components/ui/expandable-description";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import {
+	fetchArtistTracks,
 	seriesPosterImage,
 	setFollowing,
 	type MediaItem,
@@ -47,6 +48,7 @@ export function ArtistPage({
 	const { playAlbum } = useAudioPlayer();
 	const albums = uniqueItems(data.albums);
 	const tracks = uniqueItems(data.tracks);
+	const trackCount = data.trackCount ?? tracks.length;
 	const appearsIn = uniqueItems(data.appearsIn);
 	const relatedArtists = uniqueItems(data.relatedArtists);
 	const grouped = useMemo(() => groupReleases(albums), [albums]);
@@ -56,6 +58,8 @@ export function ArtistPage({
 		value: boolean;
 	} | null>(null);
 	const [followBusy, setFollowBusy] = useState(false);
+	const [playBusy, setPlayBusy] = useState(false);
+	const [playError, setPlayError] = useState(false);
 	const [followErrorArtistId, setFollowErrorArtistId] = useState<string | null>(
 		null,
 	);
@@ -69,6 +73,22 @@ export function ArtistPage({
 		...(data.artist.Genres ?? []),
 	]);
 	const releaseCount = uniqueItems([...albums, ...appearsIn]).length;
+
+	async function playAll() {
+		if (playBusy || trackCount === 0) return;
+		setPlayBusy(true);
+		setPlayError(false);
+		try {
+			const queue = tracks.length
+				? tracks
+				: await fetchArtistTracks(session, data.artist.Id);
+			if (queue.length > 0) playAlbum(data.artist, queue);
+		} catch {
+			setPlayError(true);
+		} finally {
+			setPlayBusy(false);
+		}
+	}
 
 	async function toggleFollowing() {
 		const previous = following;
@@ -146,7 +166,7 @@ export function ArtistPage({
 						<div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/45">
 							<span>{t("artistReleaseCount", { count: releaseCount })}</span>
 							<span aria-hidden="true">·</span>
-							<span>{t("artistTrackCount", { count: tracks.length })}</span>
+							<span>{t("artistTrackCount", { count: trackCount })}</span>
 						</div>
 						{tags.length > 0 && (
 							<div className="mt-4 flex flex-wrap gap-2">
@@ -166,8 +186,9 @@ export function ArtistPage({
 				<div className="mt-8 flex items-center gap-3">
 					<button
 						type="button"
-						disabled={tracks.length === 0}
-						onClick={() => playAlbum(data.artist, tracks)}
+						disabled={trackCount === 0 || playBusy}
+						onClick={() => void playAll()}
+						aria-busy={playBusy}
 						className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black transition hover:scale-[1.03] hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
 					>
 						<Play className="h-4 w-4 fill-current" />
@@ -184,6 +205,11 @@ export function ArtistPage({
 						<Bookmark className={`h-4 w-4 ${following ? "fill-violet-300" : ""}`} />
 						{t(following ? "unfollow" : "follow")}
 					</button>
+					{playError && (
+						<p role="alert" className="text-xs text-red-200/80">
+							{t("detailLoadFailed")}
+						</p>
+					)}
 					{followError && (
 						<p role="alert" className="text-xs text-red-200/80">
 							{t("detailLoadFailed")}
@@ -191,7 +217,7 @@ export function ArtistPage({
 					)}
 				</div>
 
-				{tracks.length === 0 ? (
+				{trackCount === 0 ? (
 					<div className="mt-16 rounded-xl border border-white/10 bg-black/20 px-6 py-16 text-center text-sm text-white/45">
 						{t("artistNoMusic")}
 					</div>

@@ -5,6 +5,18 @@ import { normalizeArtistCredits } from "@/lib/music";
 
 export { orchestratorBaseUrl } from "@/lib/authenticated-request";
 
+export type LastFmProviderMetadata = {
+	name?: string;
+	mbid?: string;
+	url?: string;
+	listeners?: number;
+	playcount?: number;
+	stats?: { listeners?: number; playcount?: number };
+	tags?: Array<{ name?: string; url?: string; count?: number }>;
+	wiki?: { published?: string; summary?: string; content?: string };
+	[key: string]: unknown;
+};
+
 export type CatalogItem = {
 	id: string;
 	libraryId: string;
@@ -52,6 +64,10 @@ export type CatalogItem = {
 		credits?: {
 			cast?: Array<Record<string, unknown>>;
 			crew?: Array<Record<string, unknown>>;
+		};
+		providers?: {
+			lastfm?: LastFmProviderMetadata;
+			[key: string]: unknown;
 		};
 		trailers?: Array<Record<string, unknown>>;
 		images?: Partial<

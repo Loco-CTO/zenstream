@@ -249,7 +249,7 @@ export function AudioAlbumPage({
 					<div className="mt-5 flex flex-col gap-3">
 						{data.album.Genres && data.album.Genres.length > 0 && (
 							<div>
-								<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+								<p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-white/35">
 									{t("tags")}
 								</p>
 								<div className="flex flex-wrap gap-1.5">

@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { PosterCard } from "@/components/home/media-card";
 import type { DetailData } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
+import { ExpandableDescription } from "@/components/ui/expandable-description";
 import { useI18n } from "@/lib/i18n";
 
 export function CollectionPage({
@@ -44,6 +45,12 @@ export function CollectionPage({
 					<p className="mt-1 text-xs uppercase tracking-widest text-white/25">
 						{t("collectionItems", { count: items.length })}
 					</p>
+					{initialData.item.Overview && (
+						<ExpandableDescription
+							description={initialData.item.Overview}
+							className="mt-4 max-w-2xl text-sm leading-6 text-white/55"
+						/>
+					)}
 				</div>
 			</header>
 			{items.length === 0 ? (

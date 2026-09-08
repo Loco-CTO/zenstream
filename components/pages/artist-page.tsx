@@ -10,6 +10,7 @@ import {
 	BlurHashImage,
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
+import { ExpandableDescription } from "@/components/ui/expandable-description";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { seriesPosterImage, type MediaItem } from "@/lib/media-api";
 import type { ArtistData } from "@/lib/media-api";
@@ -104,9 +105,10 @@ export function ArtistPage({
 							{data.artist.Name}
 						</h1>
 						{data.artist.Overview && (
-							<p className="mt-5 max-w-2xl text-sm leading-6 text-white/55">
-								{data.artist.Overview}
-							</p>
+							<ExpandableDescription
+								description={data.artist.Overview}
+								className="mt-5 max-w-2xl text-sm leading-6 text-white/55"
+							/>
 						)}
 						<div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/45">
 							<span>{t("artistReleaseCount", { count: releaseCount })}</span>

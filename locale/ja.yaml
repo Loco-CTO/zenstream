@@ -36,6 +36,8 @@ markRead: 既読にする
 markUnread: 未読にする
 removeNotification: 通知を削除
 loadMore: さらに読み込む
+showMore: もっと見る
+showLess: 閉じる
 follow: フォロー
 unfollow: フォローを解除
 profile: プロフィール

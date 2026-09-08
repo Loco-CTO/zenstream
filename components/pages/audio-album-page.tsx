@@ -32,6 +32,7 @@ import {
 	BlurHashImage,
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
+import { ExpandableDescription } from "@/components/ui/expandable-description";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
@@ -246,6 +247,12 @@ export function AudioAlbumPage({
 							</>
 						)}
 					</div>
+					{data.album.Overview && (
+						<ExpandableDescription
+							description={data.album.Overview}
+							className="mt-4 max-w-2xl text-sm leading-6 text-white/55"
+						/>
+					)}
 					<div className="mt-5 flex flex-col gap-3">
 						{data.album.Genres && data.album.Genres.length > 0 && (
 							<div>

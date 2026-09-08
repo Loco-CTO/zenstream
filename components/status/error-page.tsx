@@ -160,6 +160,7 @@ function IconOnlyTopbar() {
 					alt="ZenStream"
 					width={40}
 					height={40}
+					loading="eager"
 					className="h-9 w-9 object-contain md:h-10 md:w-10"
 				/>
 			</Link>

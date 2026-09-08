@@ -819,7 +819,7 @@ export function EpisodeCard({
 			>
 				<Link
 					href={`/show/${seriesId}/episode/${episode.Id}`}
-					className="block h-full w-full overflow-hidden rounded bg-white/5"
+					className="relative block h-full w-full overflow-hidden rounded bg-white/5"
 				>
 					{horizontal && <HoverPreviewVideo preview={preview} />}
 					{image && (

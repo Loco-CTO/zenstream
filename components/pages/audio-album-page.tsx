@@ -182,7 +182,7 @@ export function AudioAlbumPage({
 			</button>
 			<section className="flex flex-col items-start gap-6 px-6 pb-8 pt-32 sm:flex-row sm:items-end md:gap-8 md:px-10">
 				<div className="relative h-44 w-44 shrink-0 overflow-hidden rounded-sm bg-[var(--c-card-thumb)] shadow-2xl md:h-52 md:w-52">
-					<div className="h-full w-full">
+					<div className="relative h-full w-full">
 						{image ? (
 							<BlurHashImage
 								image={image}

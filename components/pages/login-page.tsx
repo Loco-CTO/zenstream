@@ -46,6 +46,7 @@ export function LoginPage({
 					alt="ZenStream"
 					width={48}
 					height={48}
+					loading="eager"
 					className="mb-7 h-12 w-12 object-contain"
 				/>
 				<h1 className="text-3xl font-black tracking-normal text-white">

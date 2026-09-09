@@ -16,6 +16,10 @@ import {
 import { I18nProvider } from "@/lib/i18n";
 import * as mediaApi from "@/lib/media-api";
 import type { MediaItem } from "@/lib/media-api";
+import {
+	AUDIO_PLAYER_PREFERENCES_STORAGE_KEY,
+	VIDEO_PLAYER_PREFERENCES_STORAGE_KEY,
+} from "@/lib/player-preferences";
 
 const session = { token: "token", userId: "user", username: "Alex" };
 const album: MediaItem = {
@@ -100,9 +104,23 @@ function renderBar() {
 	);
 }
 
+function installLocalStorage() {
+	const storage = new Map<string, string>();
+	Object.defineProperty(window, "localStorage", {
+		configurable: true,
+		value: {
+			getItem: (key: string) => storage.get(key) ?? null,
+			setItem: (key: string, value: string) => storage.set(key, value),
+			removeItem: (key: string) => storage.delete(key),
+			clear: () => storage.clear(),
+		},
+	});
+}
+
 describe("AudioPlayerBar", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		installLocalStorage();
 		vi.spyOn(mediaApi, "getPlaybackInfo").mockResolvedValue({
 			source: { url: "/api/catalog/audio/track-1", mode: "direct" },
 			sessionId: undefined,
@@ -291,6 +309,97 @@ describe("AudioPlayerBar", () => {
 				"false",
 			),
 		);
+	});
+
+	it("restores and persists the separate audio profile", async () => {
+		window.localStorage.setItem(
+			AUDIO_PLAYER_PREFERENCES_STORAGE_KEY,
+			JSON.stringify({
+				volume: 0.4,
+				muted: true,
+				shuffle: true,
+				loopMode: "single",
+			}),
+		);
+		window.localStorage.setItem(
+			VIDEO_PLAYER_PREFERENCES_STORAGE_KEY,
+			JSON.stringify({ volume: 0.8, muted: false }),
+		);
+
+		const first = renderBar();
+		await screen.findByTestId("audio-player-bar");
+		expect(screen.getAllByRole("button", { name: "Shuffle" })[0]).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		expect(
+			screen.getAllByRole("button", { name: "Loop current track" }).length,
+		).toBeGreaterThan(0);
+		expect(
+			screen.getAllByRole("button", { name: "Unmute" }).length,
+		).toBeGreaterThan(0);
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Unmute" })[0]);
+		const volume = screen.getAllByRole("slider", { name: "Volume" })[0];
+		expect(volume).toHaveValue("0.4");
+		fireEvent.change(volume, { target: { value: "0.7" } });
+		fireEvent.click(screen.getAllByRole("button", { name: "Shuffle" })[0]);
+		fireEvent.click(
+			screen.getAllByRole("button", { name: "Loop current track" })[0],
+		);
+
+		expect(
+			JSON.parse(
+				window.localStorage.getItem(AUDIO_PLAYER_PREFERENCES_STORAGE_KEY) ?? "",
+			),
+		).toEqual({ volume: 0.7, muted: false, shuffle: false, loopMode: "off" });
+		expect(
+			window.localStorage.getItem(VIDEO_PLAYER_PREFERENCES_STORAGE_KEY),
+		).toBe(JSON.stringify({ volume: 0.8, muted: false }));
+
+		first.unmount();
+		const second = renderBar();
+		await screen.findByTestId("audio-player-bar");
+		expect(screen.getAllByRole("slider", { name: "Volume" })[0]).toHaveValue(
+			"0.7",
+		);
+		expect(
+			screen.getAllByRole("button", { name: "Shuffle" })[0],
+		).not.toHaveAttribute("aria-pressed");
+		expect(
+			screen.getAllByRole("button", { name: "Loop off" }).length,
+		).toBeGreaterThan(0);
+		second.unmount();
+	});
+
+	it("keeps the loop preference when Stop clears the current queue", async () => {
+		window.localStorage.setItem(
+			AUDIO_PLAYER_PREFERENCES_STORAGE_KEY,
+			JSON.stringify({
+				volume: 1,
+				muted: false,
+				shuffle: false,
+				loopMode: "queue",
+			}),
+		);
+		render(
+			<I18nProvider locale="en">
+				<AudioPlayerProvider session={session}>
+					<StopHarness />
+				</AudioPlayerProvider>
+			</I18nProvider>,
+		);
+		await screen.findByTestId("audio-player-bar");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Stop playing" })[0]);
+		await waitFor(() =>
+			expect(screen.queryByTestId("audio-player-bar")).not.toBeInTheDocument(),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Start fresh queue" }));
+		await screen.findByTestId("audio-player-bar");
+		expect(
+			screen.getAllByRole("button", { name: "Loop queue" }).length,
+		).toBeGreaterThan(0);
 	});
 
 	it("keeps the final queue item inside the queue page", async () => {

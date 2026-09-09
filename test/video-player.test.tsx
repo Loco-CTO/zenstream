@@ -42,6 +42,10 @@ import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-p
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
 import {
+	AUDIO_PLAYER_PREFERENCES_STORAGE_KEY,
+	VIDEO_PLAYER_PREFERENCES_STORAGE_KEY,
+} from "@/lib/player-preferences";
+import {
 	getEpisodes,
 	getPlaybackInfo,
 	getSeasons,
@@ -1406,6 +1410,82 @@ describe("video player controls", () => {
 		const timer = getByTestId("player-time");
 		expect(timer).toHaveTextContent("-23:45 / 23:45");
 		expect(timer).toHaveAccessibleName("Show elapsed time");
+	});
+
+	it("restores and persists the separate video profile", () => {
+		const item = {
+			Id: "movie",
+			Name: "Movie",
+			Type: "Movie",
+			RunTimeTicks: 1_425 * 10_000_000,
+		} as MediaItem;
+		const streams = {
+			source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as never;
+		window.localStorage.setItem(
+			AUDIO_PLAYER_PREFERENCES_STORAGE_KEY,
+			JSON.stringify({
+				volume: 0.2,
+				muted: false,
+				shuffle: true,
+				loopMode: "single",
+			}),
+		);
+		window.localStorage.setItem(
+			VIDEO_PLAYER_PREFERENCES_STORAGE_KEY,
+			JSON.stringify({ volume: 0.35, muted: true }),
+		);
+		const props = {
+			item,
+			session: { token: "token", userId: "user", username: "Alex" },
+			initialStreams: streams,
+			onClose: vi.fn(),
+		};
+		const renderPlayer = () =>
+			render(
+				<I18nProvider locale="en">
+					<SubtitlePreferencesProvider>
+						<VideoPlayer {...props} />
+					</SubtitlePreferencesProvider>
+				</I18nProvider>,
+			);
+
+		const first = renderPlayer();
+		expect(first.getByRole("button", { name: "Unmute" })).toBeInTheDocument();
+		const firstSlider = first.getByRole("slider", { name: "Volume" });
+		expect(firstSlider).toHaveValue("0");
+		fireEvent.click(first.getByRole("button", { name: "Unmute" }));
+		expect(firstSlider).toHaveValue("0.35");
+		fireEvent.change(firstSlider, { target: { value: "0.6" } });
+		fireEvent.click(first.getByRole("button", { name: "Mute" }));
+
+		expect(
+			JSON.parse(
+				window.localStorage.getItem(VIDEO_PLAYER_PREFERENCES_STORAGE_KEY) ?? "",
+			),
+		).toEqual({ volume: 0.6, muted: true });
+		expect(
+			window.localStorage.getItem(AUDIO_PLAYER_PREFERENCES_STORAGE_KEY),
+		).toBe(
+			JSON.stringify({
+				volume: 0.2,
+				muted: false,
+				shuffle: true,
+				loopMode: "single",
+			}),
+		);
+
+		first.unmount();
+		const second = renderPlayer();
+		expect(second.getByRole("button", { name: "Unmute" })).toBeInTheDocument();
+		const secondSlider = second.getByRole("slider", { name: "Volume" });
+		expect(secondSlider).toHaveValue("0");
+		fireEvent.click(second.getByRole("button", { name: "Unmute" }));
+		expect(secondSlider).toHaveValue("0.6");
+		second.unmount();
 	});
 
 	it("adds the selected VTT stream as a native subtitle track", () => {

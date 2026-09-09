@@ -70,6 +70,11 @@ import {
 } from "@/lib/subtitle-preferences";
 import { useSyncplay, type SyncplayGroup } from "@/lib/syncplay";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
+import {
+	readStoredVideoPlayerPreferences,
+	writeStoredVideoPlayerPreferences,
+	type VideoPlayerPreferences,
+} from "@/lib/player-preferences";
 
 type Props = {
 	item: MediaItem;
@@ -89,6 +94,10 @@ type Props = {
 	onNext?: (item: MediaItem) => void;
 	onPlayedChange?: (played: boolean) => void;
 };
+
+type VideoPreferencesUpdate =
+	| Partial<VideoPlayerPreferences>
+	| ((current: VideoPlayerPreferences) => Partial<VideoPlayerPreferences>);
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 type TimeDisplayMode = "elapsed" | "remaining";
 const PLAYER_TIME_DISPLAY_STORAGE_KEY = "zenstream:player:time-display";
@@ -626,8 +635,10 @@ export function VideoPlayer({
 	});
 	const [trackMenu, setTrackMenu] = useState<"audio" | "subtitle" | null>(null);
 	const [playing, setPlaying] = useState(false);
-	const [muted, setMuted] = useState(false);
-	const [volume, setVolume] = useState(1);
+	const [preferences, setPreferences] = useState<VideoPlayerPreferences>(() =>
+		readStoredVideoPlayerPreferences(),
+	);
+	const { muted, volume } = preferences;
 	const [speed, setSpeed] = useState("1");
 	const [quality, setQuality] = useState("0");
 	const [audio, setAudio] = useState(
@@ -670,6 +681,28 @@ export function VideoPlayer({
 	const [previewUnavailable, setPreviewUnavailable] = useState(false);
 	const [nextItem, setNextItem] = useState<MediaItem | null>(null);
 	const [nextChecked, setNextChecked] = useState(false);
+	const updatePreferences = useCallback((update: VideoPreferencesUpdate) => {
+		setPreferences((current) => {
+			const changes = typeof update === "function" ? update(current) : update;
+			const next = { ...current, ...changes };
+			writeStoredVideoPlayerPreferences(next);
+			return next;
+		});
+	}, []);
+	const setVideoMuted = useCallback(
+		(nextMuted: boolean) => updatePreferences({ muted: nextMuted }),
+		[updatePreferences],
+	);
+	const setVideoVolume = useCallback(
+		(nextVolume: number) =>
+			updatePreferences((current) => ({
+				volume: Number.isFinite(nextVolume)
+					? Math.max(0, Math.min(1, nextVolume))
+					: current.volume,
+				muted: false,
+			})),
+		[updatePreferences],
+	);
 	const savedPositionSeconds = savedPlaybackPositionSeconds(item);
 	const knownDuration = item.RunTimeTicks ? item.RunTimeTicks / 10_000_000 : 0;
 	const displayedCurrentTime =
@@ -1339,7 +1372,7 @@ export function VideoPlayer({
 			suppressSyncPlayRef.current = true;
 			void startSyncedMedia(
 				video,
-				() => setMuted(true),
+				() => setVideoMuted(true),
 				() => {
 					// A rejected play() means this member is not ready, even if the
 					// media element previously emitted canplay. Clear the optimistic
@@ -1352,7 +1385,7 @@ export function VideoPlayer({
 				if (!started) suppressSyncPlayRef.current = false;
 			});
 		},
-		[reportBuffering],
+		[reportBuffering, setVideoMuted],
 	);
 	const acknowledgeMediaReady = useCallback(
 		(
@@ -3230,15 +3263,14 @@ export function VideoPlayer({
 								step="0.01"
 								value={muted ? 0 : volume}
 								onChange={(event) => {
-									setVolume(Number(event.target.value));
-									setMuted(false);
+									setVideoVolume(Number(event.target.value));
 								}}
 								className="zenstream-player-volume-input h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300"
 							/>
 						</div>
 						<button
 							aria-label={muted ? "Unmute" : "Mute"}
-							onClick={() => setMuted(!muted)}
+							onClick={() => setVideoMuted(!muted)}
 							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 						>
 							{muted ? <VolumeX /> : <Volume2 />}

@@ -23,14 +23,20 @@ import {
 } from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
+import {
+	readStoredAudioPlayerPreferences,
+	writeStoredAudioPlayerPreferences,
+	type AudioLoopMode,
+	type AudioPlayerPreferences,
+} from "@/lib/player-preferences";
+
+export type { AudioLoopMode } from "@/lib/player-preferences";
 
 export type AudioQueueEntry = {
 	id: string;
 	track: MediaItem;
 	playbackInstanceId: string;
 };
-
-export type AudioLoopMode = "off" | "queue" | "single";
 
 export type AudioPlayerState = {
 	queue: AudioQueueEntry[];
@@ -80,6 +86,10 @@ type AudioPlayerContextValue = AudioPlayerState & {
 	clearAudioPlayer: () => void;
 };
 
+type AudioPreferencesUpdate =
+	| Partial<AudioPlayerPreferences>
+	| ((current: AudioPlayerPreferences) => Partial<AudioPlayerPreferences>);
+
 const AudioPlayerContext = createContext<AudioPlayerContextValue | null>(null);
 
 function newPlaybackInstanceId() {
@@ -120,10 +130,10 @@ export function AudioPlayerProvider({
 	const [positionSeconds, setPositionSeconds] = useState(0);
 	const [durationSeconds, setDurationSeconds] = useState(0);
 	const [isPlaying, setIsPlaying] = useState(false);
-	const [shuffle, setShuffle] = useState(false);
-	const [volume, setVolumeState] = useState(1);
-	const [muted, setMuted] = useState(false);
-	const [loopMode, setLoopMode] = useState<AudioLoopMode>("off");
+	const [preferences, setPreferences] = useState<AudioPlayerPreferences>(() =>
+		readStoredAudioPlayerPreferences(),
+	);
+	const { shuffle, volume, muted, loopMode } = preferences;
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [autoplayBlocked, setAutoplayBlocked] = useState(false);
@@ -142,6 +152,15 @@ export function AudioPlayerProvider({
 	const playStartPromises = useRef(new Map<string, Promise<void>>());
 	const playStartCompleted = useRef(new Set<string>());
 	const playStartGeneration = useRef(0);
+
+	const updatePreferences = useCallback((update: AudioPreferencesUpdate) => {
+		setPreferences((current) => {
+			const changes = typeof update === "function" ? update(current) : update;
+			const next = { ...current, ...changes };
+			writeStoredAudioPlayerPreferences(next);
+			return next;
+		});
+	}, []);
 
 	useEffect(() => {
 		queueRef.current = queue;
@@ -509,27 +528,36 @@ export function AudioPlayerProvider({
 		setPositionSeconds(audio.currentTime);
 	}, []);
 
-	const setVolume = useCallback((nextVolume: number) => {
-		const safeVolume = Math.max(0, Math.min(1, nextVolume));
-		setVolumeState(safeVolume);
-		setMuted(false);
-	}, []);
+	const setVolume = useCallback(
+		(nextVolume: number) => {
+			updatePreferences((current) => ({
+				volume: Number.isFinite(nextVolume)
+					? Math.max(0, Math.min(1, nextVolume))
+					: current.volume,
+				muted: false,
+			}));
+		},
+		[updatePreferences],
+	);
 
 	const toggleMuted = useCallback(() => {
-		setMuted((current) => !current);
-	}, []);
+		updatePreferences((current) => ({ muted: !current.muted }));
+	}, [updatePreferences]);
 
 	const toggleShuffle = useCallback(() => {
-		setShuffle((current) => !current);
-	}, []);
+		updatePreferences((current) => ({ shuffle: !current.shuffle }));
+	}, [updatePreferences]);
 
 	const cycleLoopMode = useCallback(() => {
-		setLoopMode((current) => {
-			if (current === "off") return "queue";
-			if (current === "queue") return "single";
-			return "off";
-		});
-	}, []);
+		updatePreferences((current) => ({
+			loopMode:
+				current.loopMode === "off"
+					? "queue"
+					: current.loopMode === "queue"
+						? "single"
+						: "off",
+		}));
+	}, [updatePreferences]);
 
 	const removeQueueItem = useCallback((entryId: string) => {
 		setQueue((current) => {
@@ -628,7 +656,6 @@ export function AudioPlayerProvider({
 		setAutoplayBlocked(false);
 		setQueueOpen(false);
 		setLyricsOpen(false);
-		setLoopMode("off");
 		playStartGeneration.current += 1;
 		playStartPromises.current.clear();
 		playStartCompleted.current.clear();

@@ -65,7 +65,9 @@ describe("SearchOverlay", () => {
 		first.reject(new DOMException("Aborted", "AbortError"));
 		await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 		expect(search.mock.calls[1]?.[1]).toBe("abc");
-		expect(screen.queryByText("Could not search your library")).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("Could not search your library"),
+		).not.toBeInTheDocument();
 
 		second.resolve([item("two", "About Time")]);
 		await screen.findByText("About Time");

@@ -77,7 +77,23 @@ export function SearchOverlay({
 	};
 	const select = (item: MediaItem) => {
 		onClose();
-		router.push(`/show/${item.Id}`);
+		if (item.Type === "MusicArtist") {
+			router.push(`/artist/${encodeURIComponent(item.Id)}`);
+			return;
+		}
+		if (item.Type === "MusicAlbum") {
+			router.push(`/album/${encodeURIComponent(item.Id)}`);
+			return;
+		}
+		if (item.Type === "Audio") {
+			const albumId = item.AlbumId ?? item.Id;
+			const track = item.AlbumId
+				? `?trackId=${encodeURIComponent(item.Id)}`
+				: "";
+			router.push(`/album/${encodeURIComponent(albumId)}${track}`);
+			return;
+		}
+		router.push(`/show/${encodeURIComponent(item.Id)}`);
 	};
 	return (
 		<div
@@ -120,41 +136,62 @@ export function SearchOverlay({
 									{t("noSearchResults")}
 								</p>
 							)}
-							{suggestions.map((item) => (
-								<button
-									type="button"
-									key={item.Id}
-									onClick={() => select(item)}
-									className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-white/[0.06]"
-								>
-									<div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-white/5">
-										{(() => {
-											const image = posterImage(item);
-											return image ? (
+							{suggestions.map((item) => {
+								const music = isMusicItem(item);
+								const image = posterImage(item);
+								return (
+									<button
+										type="button"
+										key={item.Id}
+										onClick={() => select(item)}
+										className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-white/[0.06]"
+									>
+										<div
+											className={`relative h-12 shrink-0 overflow-hidden rounded bg-white/5 ${music ? "w-12" : "w-9"}`}
+										>
+											{image && (
 												<BlurHashImage
 													image={image}
 													alt=""
-													sizes="36px"
+													sizes={music ? "48px" : "36px"}
 													className="h-full w-full object-cover"
 												/>
-											) : null;
-										})()}
-									</div>
-									<span className="min-w-0">
-										<span className="block truncate text-sm text-white/80">
-											{item.Name}
+											)}
+										</div>
+										<span className="min-w-0">
+											<span className="block truncate text-sm text-white/80">
+												{item.Name}
+											</span>
+											<span className="block text-xs text-white/35">
+												{searchTypeLabel(item, t)}
+												{item.ProductionYear ? ` · ${item.ProductionYear}` : ""}
+											</span>
 										</span>
-										<span className="block text-xs text-white/35">
-											{item.Type === "Series" ? t("series") : t("movie")}
-											{item.ProductionYear ? ` · ${item.ProductionYear}` : ""}
-										</span>
-									</span>
-								</button>
-							))}
+									</button>
+								);
+							})}
 						</div>
 					)}
 				</form>
 			</div>
 		</div>
 	);
+}
+
+function isMusicItem(item: MediaItem) {
+	return (
+		item.Type === "MusicArtist" ||
+		item.Type === "MusicAlbum" ||
+		item.Type === "Audio"
+	);
+}
+
+function searchTypeLabel(
+	item: MediaItem,
+	t: ReturnType<typeof useI18n>["t"],
+) {
+	if (item.Type === "MusicArtist") return t("artist");
+	if (item.Type === "MusicAlbum") return t("album");
+	if (item.Type === "Audio") return t("track");
+	return item.Type === "Series" ? t("series") : t("movie");
 }

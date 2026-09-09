@@ -40,36 +40,72 @@ afterEach(() => {
 });
 
 describe("SearchOverlay", () => {
-	it("debounces autocomplete while still searching one-character queries", async () => {
-		vi.useFakeTimers();
+	it("starts a one-character search immediately", async () => {
 		const search = vi.spyOn(mediaApi, "getSearchItems").mockResolvedValue([]);
 		renderOverlay();
 		const input = screen.getByRole("textbox", { name: "Search" });
 
 		fireEvent.change(input, { target: { value: "a" } });
-		await act(async () => {
-			await vi.advanceTimersByTimeAsync(249);
-		});
-		expect(search).not.toHaveBeenCalled();
-
-		await act(async () => {
-			await vi.advanceTimersByTimeAsync(1);
-		});
+		await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
 		expect(search).toHaveBeenCalledTimes(1);
 		expect(search.mock.calls[0]?.[1]).toBe("a");
+	});
 
+	it("queues only the newest query while an active request is canceled", async () => {
+		const first = deferred<MediaItem[]>();
+		const second = deferred<MediaItem[]>();
+		let firstSignal: AbortSignal | undefined;
+		const search = vi
+			.spyOn(mediaApi, "getSearchItems")
+			.mockImplementationOnce((_session, _query, options) => {
+				firstSignal = options?.signal;
+				return first.promise;
+			})
+			.mockImplementationOnce(() => second.promise);
+		renderOverlay();
+		const input = screen.getByRole("textbox", { name: "Search" });
+
+		fireEvent.change(input, { target: { value: "a" } });
+		await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
 		fireEvent.change(input, { target: { value: "ab" } });
 		fireEvent.change(input, { target: { value: "abc" } });
-		await act(async () => {
-			await vi.advanceTimersByTimeAsync(249);
-		});
+		expect(firstSignal?.aborted).toBe(true);
 		expect(search).toHaveBeenCalledTimes(1);
-		await act(async () => {
-			await vi.advanceTimersByTimeAsync(1);
-		});
-		expect(search).toHaveBeenCalledTimes(2);
 
+		first.reject(new DOMException("Aborted", "AbortError"));
+		await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 		expect(search.mock.calls[1]?.[1]).toBe("abc");
+		expect(
+			screen.queryByText("Could not search your library"),
+		).not.toBeInTheDocument();
+
+		second.resolve([item("two", "About Time")]);
+		await screen.findByText("About Time");
+	});
+
+	it("clears queued searches when the input is emptied", async () => {
+		const first = deferred<MediaItem[]>();
+		let firstSignal: AbortSignal | undefined;
+		const search = vi
+			.spyOn(mediaApi, "getSearchItems")
+			.mockImplementationOnce((_session, _query, options) => {
+				firstSignal = options?.signal;
+				return first.promise;
+			});
+		renderOverlay();
+		const input = screen.getByRole("textbox", { name: "Search" });
+
+		fireEvent.change(input, { target: { value: "a" } });
+		await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+		fireEvent.change(input, { target: { value: "ab" } });
+		fireEvent.change(input, { target: { value: "" } });
+
+		expect(firstSignal?.aborted).toBe(true);
+		first.resolve([item("one", "Alpha")]);
+		await waitFor(() =>
+			expect(screen.queryByText("Alpha")).not.toBeInTheDocument(),
+		);
+		expect(search).toHaveBeenCalledTimes(1);
 	});
 
 	it("keeps the latest completed results visible while the next query loads", async () => {
@@ -111,11 +147,12 @@ describe("SearchOverlay", () => {
 		fireEvent.change(input, { target: { value: "a" } });
 		await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
 		fireEvent.change(input, { target: { value: "ab" } });
+		fireEvent.change(input, { target: { value: "abc" } });
+		first.resolve([item("one", "Alpha")]);
 		await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 
 		second.resolve([item("two", "About Time")]);
 		await screen.findByText("About Time");
-		first.resolve([item("one", "Alpha")]);
 
 		await waitFor(() => {
 			expect(screen.queryByText("Alpha")).not.toBeInTheDocument();

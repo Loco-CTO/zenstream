@@ -7,7 +7,15 @@ import { getSearchItems, posterImage, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 
-const SEARCH_DEBOUNCE_MS = 250;
+type PendingSearch = {
+	query: string;
+	version: number;
+	session: AuthSession;
+};
+
+type ActiveSearch = PendingSearch & {
+	controller: AbortController;
+};
 
 export function SearchOverlay({
 	session,
@@ -24,6 +32,9 @@ export function SearchOverlay({
 	const [error, setError] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const requestVersionRef = useRef(0);
+	const activeSearchRef = useRef<ActiveSearch | null>(null);
+	const queuedSearchRef = useRef<PendingSearch | null>(null);
+	const mountedRef = useRef(true);
 
 	const handleQueryChange = (value: string) => {
 		setQuery(value);
@@ -38,34 +49,62 @@ export function SearchOverlay({
 		inputRef.current?.focus();
 	}, []);
 	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+			queuedSearchRef.current = null;
+			activeSearchRef.current?.controller.abort();
+		};
+	}, []);
+	useEffect(() => {
 		const value = query.trim();
 		const requestVersion = ++requestVersionRef.current;
-		if (!value) return;
-		const controller = new AbortController();
-		const timer = window.setTimeout(() => {
-			getSearchItems(session, value, { limit: 8, signal: controller.signal })
+		queuedSearchRef.current = value
+			? { query: value, version: requestVersion, session }
+			: null;
+		activeSearchRef.current?.controller.abort();
+
+		const drainSearchQueue = () => {
+			if (
+				!mountedRef.current ||
+				activeSearchRef.current ||
+				!queuedSearchRef.current
+			)
+				return;
+			const next = queuedSearchRef.current;
+			queuedSearchRef.current = null;
+			const active: ActiveSearch = {
+				...next,
+				controller: new AbortController(),
+			};
+			activeSearchRef.current = active;
+			const isCurrent = () =>
+				mountedRef.current &&
+				!active.controller.signal.aborted &&
+				requestVersionRef.current === active.version;
+			getSearchItems(active.session, active.query, {
+				limit: 8,
+				signal: active.controller.signal,
+			})
 				.then((results) => {
-					if (
-						controller.signal.aborted ||
-						requestVersionRef.current !== requestVersion
-					)
-						return;
+					if (!isCurrent()) return;
 					setSuggestions(results);
-					setResultQuery(value);
+					setResultQuery(active.query);
 					setError(false);
 				})
 				.catch(() => {
-					if (
-						!controller.signal.aborted &&
-						requestVersionRef.current === requestVersion
-					)
-						setError(true);
+					if (isCurrent()) setError(true);
 				})
-				.finally(() => undefined);
-		}, SEARCH_DEBOUNCE_MS);
+				.finally(() => {
+					if (activeSearchRef.current !== active) return;
+					activeSearchRef.current = null;
+					drainSearchQueue();
+				});
+		};
+		drainSearchQueue();
 		return () => {
-			window.clearTimeout(timer);
-			controller.abort();
+			if (activeSearchRef.current?.version === requestVersion)
+				activeSearchRef.current.controller.abort();
 		};
 	}, [query, session]);
 

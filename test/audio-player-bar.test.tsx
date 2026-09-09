@@ -480,7 +480,7 @@ describe("AudioPlayerBar", () => {
 		);
 	});
 
-	it("opens local lyrics and keeps the player bar mounted", async () => {
+	it("opens local lyrics, follows playback, and keeps the player bar mounted", async () => {
 		vi.mocked(mediaApi.getAudioLyrics).mockResolvedValue({
 			source: "sidecar",
 			timed: true,
@@ -518,6 +518,18 @@ describe("AudioPlayerBar", () => {
 			"aria-selected",
 			"false",
 		);
+		const lyricsPanel = overlay.querySelector<HTMLElement>(
+			".zenstream-audio-lyrics-panel",
+		);
+		if (!lyricsPanel) throw new Error("lyrics panel was not rendered");
+		fireEvent.scroll(lyricsPanel);
+		expect(
+			screen.queryByRole("button", { name: "Resume follow" }),
+		).not.toBeInTheDocument();
+		fireEvent.wheel(lyricsPanel, { deltaY: 120 });
+		expect(
+			screen.getByRole("button", { name: "Resume follow" }),
+		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("tab", { name: "Queue" }));
 		expect(screen.getByTestId("audio-next-up-panel")).toHaveTextContent(
 			"Track Two",

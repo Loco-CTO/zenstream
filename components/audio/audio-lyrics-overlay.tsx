@@ -65,7 +65,6 @@ export function AudioLyricsOverlay({
 	const panelRef = useRef<HTMLDivElement | null>(null);
 	const closeRef = useRef<HTMLButtonElement | null>(null);
 	const lineRefs = useRef<Array<HTMLButtonElement | HTMLDivElement | null>>([]);
-	const ignoreScrollRef = useRef(false);
 	const scrollAnimationRef = useRef<number | null>(null);
 	const closeTimerRef = useRef<number | null>(null);
 	const previousOpenRef = useRef(open);
@@ -99,6 +98,14 @@ export function AudioLyricsOverlay({
 			onClose();
 		}, 280);
 	}, [closing, onClose, open]);
+
+	const stopFollowing = useCallback(() => {
+		if (scrollAnimationRef.current !== null) {
+			window.cancelAnimationFrame(scrollAnimationRef.current);
+			scrollAnimationRef.current = null;
+		}
+		setFollow(false);
+	}, []);
 
 	useEffect(() => {
 		if (!open || lyricsState.key === requestKey) return;
@@ -148,7 +155,6 @@ export function AudioLyricsOverlay({
 			window.cancelAnimationFrame(scrollAnimationRef.current);
 			scrollAnimationRef.current = null;
 		}
-		ignoreScrollRef.current = true;
 		const panelRect = panel.getBoundingClientRect();
 		const targetRect = target.getBoundingClientRect();
 		const targetOffset = targetRect.top - panelRect.top;
@@ -163,7 +169,6 @@ export function AudioLyricsOverlay({
 		const startTop = panel.scrollTop;
 		const distance = targetTop - startTop;
 		if (Math.abs(distance) < 1) {
-			ignoreScrollRef.current = false;
 			return;
 		}
 		const duration = Math.min(700, Math.max(280, Math.abs(distance) * 0.45));
@@ -180,7 +185,6 @@ export function AudioLyricsOverlay({
 				return;
 			}
 			scrollAnimationRef.current = null;
-			ignoreScrollRef.current = false;
 		};
 		scrollAnimationRef.current = window.requestAnimationFrame(animate);
 		return () => {
@@ -188,7 +192,6 @@ export function AudioLyricsOverlay({
 				window.cancelAnimationFrame(scrollAnimationRef.current);
 				scrollAnimationRef.current = null;
 			}
-			ignoreScrollRef.current = false;
 		};
 	}, [activeIndex, follow, panelRef]);
 
@@ -310,7 +313,6 @@ export function AudioLyricsOverlay({
 							<LyricsPanel
 								activeIndex={activeIndex}
 								follow={follow}
-								ignoreScrollRef={ignoreScrollRef}
 								lineRefs={lineRefs}
 								loading={loading}
 								loadError={loadError}
@@ -318,6 +320,7 @@ export function AudioLyricsOverlay({
 								panelRef={panelRef}
 								player={player}
 								setFollow={setFollow}
+								stopFollowing={stopFollowing}
 							/>
 						)}
 					</section>
@@ -532,7 +535,6 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 function LyricsPanel({
 	activeIndex,
 	follow,
-	ignoreScrollRef,
 	lineRefs,
 	loading,
 	loadError,
@@ -540,10 +542,10 @@ function LyricsPanel({
 	panelRef,
 	player,
 	setFollow,
+	stopFollowing,
 }: {
 	activeIndex: number;
 	follow: boolean;
-	ignoreScrollRef: MutableRefObject<boolean>;
 	lineRefs: MutableRefObject<Array<HTMLButtonElement | HTMLDivElement | null>>;
 	loading: boolean;
 	loadError: string | null;
@@ -551,6 +553,7 @@ function LyricsPanel({
 	panelRef: MutableRefObject<HTMLDivElement | null>;
 	player: AudioPlayer;
 	setFollow: (value: boolean) => void;
+	stopFollowing: () => void;
 }) {
 	const { t } = useI18n();
 
@@ -558,8 +561,30 @@ function LyricsPanel({
 		<div className="flex h-full min-h-0 flex-col">
 			<div
 				ref={panelRef}
-				onScroll={() => {
-					if (!ignoreScrollRef.current) setFollow(false);
+				tabIndex={0}
+				onKeyDown={(event) => {
+					if (
+						[
+							"ArrowDown",
+							"ArrowUp",
+							"End",
+							"Home",
+							"PageDown",
+							"PageUp",
+							" ",
+						].includes(event.key)
+					) {
+						stopFollowing();
+					}
+				}}
+				onPointerDown={(event) => {
+					if (event.button === 0 && event.target === event.currentTarget) {
+						stopFollowing();
+					}
+				}}
+				onTouchMove={stopFollowing}
+				onWheel={(event) => {
+					if (event.deltaX !== 0 || event.deltaY !== 0) stopFollowing();
 				}}
 				aria-label={t("lyrics")}
 				className="zenstream-audio-lyrics-panel relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-5 [scrollbar-color:rgba(255,255,255,0.25)_transparent] md:px-5 md:py-7"

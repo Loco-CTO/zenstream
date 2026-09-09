@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ArtistPage } from "@/components/pages/artist-page";
@@ -7,6 +7,7 @@ import type { AuthSession } from "@/lib/session";
 
 const playerActions = vi.hoisted(() => ({ playAlbum: vi.fn() }));
 const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+const followActions = vi.hoisted(() => ({ setFollowing: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => router,
@@ -29,6 +30,13 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/audio/audio-player-provider", () => ({
 	useAudioPlayer: () => ({ playAlbum: playerActions.playAlbum }),
+}));
+
+vi.mock("@/lib/media-api", async () => ({
+	...(await vi.importActual<typeof import("@/lib/media-api")>(
+		"@/lib/media-api",
+	)),
+	setFollowing: followActions.setFollowing,
 }));
 
 vi.mock("@/components/home/media-card", () => ({
@@ -132,5 +140,29 @@ describe("artist page", () => {
 			data.artist,
 			data.tracks,
 		);
+	});
+
+	it("follows the artist and rolls back when the mutation fails", async () => {
+		followActions.setFollowing.mockResolvedValueOnce(undefined);
+		const data = artistData();
+		data.artist.UserData = { IsFollowing: false };
+		render(<ArtistPage data={data} session={session} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "follow" }));
+		expect(screen.getByRole("button", { name: "unfollow" })).toBeInTheDocument();
+		await waitFor(() =>
+			expect(followActions.setFollowing).toHaveBeenCalledWith(
+				session,
+				"artist-1",
+				true,
+			),
+		);
+
+		followActions.setFollowing.mockRejectedValueOnce(new Error("failed"));
+		fireEvent.click(screen.getByRole("button", { name: "unfollow" }));
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: "unfollow" })).toBeInTheDocument(),
+		);
+		expect(screen.getByRole("alert")).toHaveTextContent("detailLoadFailed");
 	});
 });

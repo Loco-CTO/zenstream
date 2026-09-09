@@ -22,12 +22,12 @@ list: List
 search: Search
 notifications: Notifications
 notificationInbox: Notification inbox
-notificationInboxDescription: New episodes and movies are listed here.
+notificationInboxDescription: New episodes, movies, and music releases are listed here.
 unreadNotifications: unread
 notificationActions: Notification actions
 viewAllNotifications: View all notifications
 notificationsEmpty: No notifications yet
-notificationsEmptyDescription: Follow a series or movie to get notified when new playable media is added.
+notificationsEmptyDescription: Follow a series, movie, or artist to get notified when new playable media is added.
 notificationsLoadFailed: Could not load notifications
 markAllRead: Mark all read
 markRead: Mark as read

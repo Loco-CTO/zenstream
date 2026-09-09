@@ -343,6 +343,20 @@ describe("catalog client", () => {
 		});
 	});
 
+	it("maps artist follow state into the web media model", () => {
+		const item = toMediaItem({
+			id: "artist-1",
+			libraryId: "music",
+			type: "artist",
+			name: "Artist One",
+			metadata: {},
+			userState: { following: true },
+		} satisfies CatalogItem);
+
+		expect(item.Type).toBe("MusicArtist");
+		expect(item.UserData?.IsFollowing).toBe(true);
+	});
+
 	it("preserves and deduplicates music artist credits", () => {
 		const item = toMediaItem({
 			id: "track-1",

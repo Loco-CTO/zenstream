@@ -306,7 +306,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 			IsFavorite: item.userState?.favorite,
 			Played: item.userState?.played,
 			IsFollowing:
-				item.type === "movie" || item.type === "series"
+				item.type === "movie" || item.type === "series" || item.type === "artist"
 					? item.userState?.following
 					: undefined,
 			UnplayedItemCount: item.userState?.unplayedItemCount,

@@ -441,6 +441,7 @@ export interface ArtistData {
 	artist: MediaItem;
 	albums: MediaItem[];
 	tracks: MediaItem[];
+	trackCount?: number;
 	appearsIn: MediaItem[];
 	relatedArtists: MediaItem[];
 	catalogGeneration?: number;
@@ -1122,20 +1123,44 @@ export async function fetchArtistData(
 				artist: CatalogItem;
 				albums?: CatalogItem[];
 				tracks?: CatalogItem[];
+				trackCount?: number;
 				appearsIn?: CatalogItem[];
 				relatedArtists?: CatalogItem[];
 				catalogGeneration?: number;
-			}>(session, `/api/catalog/music/artists/${encodeURIComponent(artistId)}`, {
-				signal: combinedSignal(requestSignal, signal),
-			});
+			}>(
+				session,
+				`/api/catalog/music/artists/${encodeURIComponent(artistId)}?includeTracks=false`,
+				{ signal: combinedSignal(requestSignal, signal) },
+			);
 			return {
 				artist: toMediaItem(result.artist),
 				albums: (result.albums ?? []).map(toMediaItem),
 				tracks: (result.tracks ?? []).map(toMediaItem),
+				trackCount: result.trackCount ?? result.tracks?.length ?? 0,
 				appearsIn: (result.appearsIn ?? []).map(toMediaItem),
 				relatedArtists: (result.relatedArtists ?? []).map(toMediaItem),
 				catalogGeneration: result.catalogGeneration,
 			};
+		},
+		DETAIL_CACHE_TTL_MS,
+		!requestSignal,
+	);
+}
+
+export async function fetchArtistTracks(
+	session: AuthSession,
+	artistId: string,
+	requestSignal?: AbortSignal,
+): Promise<MediaItem[]> {
+	return cachedClientRequest(
+		`audio-artist-tracks:${session.userId}:${artistId}`,
+		async (signal) => {
+			const result = await catalogRequest<{ tracks?: CatalogItem[] }>(
+				session,
+				`/api/catalog/music/artists/${encodeURIComponent(artistId)}/tracks`,
+				{ signal: combinedSignal(requestSignal, signal) },
+			);
+			return (result.tracks ?? []).map(toMediaItem);
 		},
 		DETAIL_CACHE_TTL_MS,
 		!requestSignal,

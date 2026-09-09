@@ -8,6 +8,7 @@ import type { AuthSession } from "@/lib/session";
 const playerActions = vi.hoisted(() => ({ playAlbum: vi.fn() }));
 const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
 const followActions = vi.hoisted(() => ({ setFollowing: vi.fn() }));
+const artistTrackActions = vi.hoisted(() => ({ fetchArtistTracks: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => router,
@@ -37,6 +38,7 @@ vi.mock("@/lib/media-api", async () => ({
 		"@/lib/media-api",
 	)),
 	setFollowing: followActions.setFollowing,
+	fetchArtistTracks: artistTrackActions.fetchArtistTracks,
 }));
 
 vi.mock("@/components/home/media-card", () => ({
@@ -140,6 +142,26 @@ describe("artist page", () => {
 			data.artist,
 			data.tracks,
 		);
+	});
+
+	it("loads the artist queue only when play all is requested", async () => {
+		const data = artistData();
+		const queue = [{ Id: "track-lazy-1", Name: "Lazy Track", Type: "Audio" }];
+		data.tracks = [];
+		data.trackCount = queue.length;
+		artistTrackActions.fetchArtistTracks.mockResolvedValueOnce(queue);
+		playerActions.playAlbum.mockClear();
+
+		render(<ArtistPage data={data} session={session} />);
+		fireEvent.click(screen.getByRole("button", { name: "playAll" }));
+
+		await waitFor(() =>
+			expect(artistTrackActions.fetchArtistTracks).toHaveBeenCalledWith(
+				session,
+				data.artist.Id,
+			),
+		);
+		expect(playerActions.playAlbum).toHaveBeenCalledWith(data.artist, queue);
 	});
 
 	it("follows the artist and rolls back when the mutation fails", async () => {

@@ -146,9 +146,7 @@ describe("artist page", () => {
 
 	it("loads the artist queue only when play all is requested", async () => {
 		const data = artistData();
-		const queue = [
-			{ Id: "track-lazy-1", Name: "Lazy Track", Type: "Audio" },
-		];
+		const queue = [{ Id: "track-lazy-1", Name: "Lazy Track", Type: "Audio" }];
 		data.tracks = [];
 		data.trackCount = queue.length;
 		artistTrackActions.fetchArtistTracks.mockResolvedValueOnce(queue);

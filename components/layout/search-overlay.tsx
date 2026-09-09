@@ -87,9 +87,7 @@ export function SearchOverlay({
 		}
 		if (item.Type === "Audio") {
 			const albumId = item.AlbumId ?? item.Id;
-			const track = item.AlbumId
-				? `?trackId=${encodeURIComponent(item.Id)}`
-				: "";
+			const track = item.AlbumId ? `?trackId=${encodeURIComponent(item.Id)}` : "";
 			router.push(`/album/${encodeURIComponent(albumId)}${track}`);
 			return;
 		}
@@ -186,10 +184,7 @@ function isMusicItem(item: MediaItem) {
 	);
 }
 
-function searchTypeLabel(
-	item: MediaItem,
-	t: ReturnType<typeof useI18n>["t"],
-) {
+function searchTypeLabel(item: MediaItem, t: ReturnType<typeof useI18n>["t"]) {
 	if (item.Type === "MusicArtist") return t("artist");
 	if (item.Type === "MusicAlbum") return t("album");
 	if (item.Type === "Audio") return t("track");

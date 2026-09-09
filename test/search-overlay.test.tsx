@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import * as mediaApi from "@/lib/media-api";
@@ -24,21 +24,42 @@ function renderOverlay() {
 	return render(<SearchOverlay session={session} onClose={() => undefined} />);
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
 
 describe("SearchOverlay", () => {
-	it("searches immediately for every non-empty query, including one character", async () => {
+	it("debounces autocomplete while still searching one-character queries", async () => {
+		vi.useFakeTimers();
 		const search = vi.spyOn(mediaApi, "getSearchItems").mockResolvedValue([]);
 		renderOverlay();
 		const input = screen.getByRole("textbox", { name: "Search" });
 
 		fireEvent.change(input, { target: { value: "a" } });
-		await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
-		fireEvent.change(input, { target: { value: "ab" } });
-		await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(249);
+		});
+		expect(search).not.toHaveBeenCalled();
 
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(search).toHaveBeenCalledTimes(1);
 		expect(search.mock.calls[0]?.[1]).toBe("a");
-		expect(search.mock.calls[1]?.[1]).toBe("ab");
+
+		fireEvent.change(input, { target: { value: "ab" } });
+		fireEvent.change(input, { target: { value: "abc" } });
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(249);
+		});
+		expect(search).toHaveBeenCalledTimes(1);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1);
+		});
+		expect(search).toHaveBeenCalledTimes(2);
+
+		expect(search.mock.calls[1]?.[1]).toBe("abc");
 	});
 
 	it("keeps the latest completed results visible while the next query loads", async () => {
@@ -78,6 +99,7 @@ describe("SearchOverlay", () => {
 		const input = screen.getByRole("textbox", { name: "Search" });
 
 		fireEvent.change(input, { target: { value: "a" } });
+		await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
 		fireEvent.change(input, { target: { value: "ab" } });
 		await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
 

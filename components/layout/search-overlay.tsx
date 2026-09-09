@@ -7,6 +7,8 @@ import { getSearchItems, posterImage, type MediaItem } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 export function SearchOverlay({
 	session,
 	onClose,
@@ -40,26 +42,29 @@ export function SearchOverlay({
 		const requestVersion = ++requestVersionRef.current;
 		if (!value) return;
 		const controller = new AbortController();
-		getSearchItems(session, value, { limit: 8, signal: controller.signal })
-			.then((results) => {
-				if (
-					controller.signal.aborted ||
-					requestVersionRef.current !== requestVersion
-				)
-					return;
-				setSuggestions(results);
-				setResultQuery(value);
-				setError(false);
-			})
-			.catch(() => {
-				if (
-					!controller.signal.aborted &&
-					requestVersionRef.current === requestVersion
-				)
-					setError(true);
-			})
-			.finally(() => undefined);
+		const timer = window.setTimeout(() => {
+			getSearchItems(session, value, { limit: 8, signal: controller.signal })
+				.then((results) => {
+					if (
+						controller.signal.aborted ||
+						requestVersionRef.current !== requestVersion
+					)
+						return;
+					setSuggestions(results);
+					setResultQuery(value);
+					setError(false);
+				})
+				.catch(() => {
+					if (
+						!controller.signal.aborted &&
+						requestVersionRef.current === requestVersion
+					)
+						setError(true);
+				})
+				.finally(() => undefined);
+		}, SEARCH_DEBOUNCE_MS);
 		return () => {
+			window.clearTimeout(timer);
 			controller.abort();
 		};
 	}, [query, session]);

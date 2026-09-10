@@ -117,6 +117,20 @@ describe("home screen", () => {
 					titleKey: "topRated",
 					items: [item("top-1", "Top Rated")],
 				},
+				{
+					libraryId: "music-first",
+					libraryName: "Music First",
+					titleKey: "newlyAddedOn",
+					variant: "square",
+					items: [item("music-first-1", "First Album", "MusicAlbum")],
+				},
+				{
+					libraryId: "music-second",
+					libraryName: "Music Second",
+					titleKey: "newlyAddedOn",
+					variant: "square",
+					items: [item("music-second-1", "Second Album", "MusicAlbum")],
+				},
 			],
 			continueWatching: [item("resume-1", "Resume Show")],
 			nextUp: [item("next-1", "Next Episode")],
@@ -124,7 +138,20 @@ describe("home screen", () => {
 			newReleases: [item("new-1", "New Release")],
 			movies: [item("movie-1", "Movie")],
 			myList: [item("list-1", "Favorite")],
+			favoriteMusic: [
+				item("favorite-artist", "Favorite Artist", "MusicArtist"),
+				item("favorite-album", "Favorite Album", "MusicAlbum"),
+				item("favorite-track", "Favorite Track", "Audio"),
+			],
 			recentlyPlayed: [item("recent-1", "Recently Played Title")],
+			audioRows: [
+				{
+					key: "newAlbums",
+					titleKey: "newAlbums",
+					variant: "square",
+					items: [item("legacy-album", "Legacy New Album", "MusicAlbum")],
+				},
+			],
 			genreRows: [{ genre: "Drama", items: [item("drama-1", "Drama Title")] }],
 		});
 
@@ -152,6 +179,10 @@ describe("home screen", () => {
 		expect(screen.getByText("Newly Added Movie")).toBeInTheDocument();
 		expect(screen.getByText("Top Rated on Anime")).toBeInTheDocument();
 		expect(screen.getByText("Top Rated")).toBeInTheDocument();
+		expect(screen.getByText("Newly Added on Music First")).toBeInTheDocument();
+		expect(screen.getByText("First Album")).toBeInTheDocument();
+		expect(screen.getByText("Newly Added on Music Second")).toBeInTheDocument();
+		expect(screen.getByText("Second Album")).toBeInTheDocument();
 		expect(
 			within(
 				screen.getByText("Newly Added on Anime").closest("section")!,
@@ -159,13 +190,25 @@ describe("home screen", () => {
 		).not.toBeInTheDocument();
 		expect(screen.getByText("Continue Watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
-		expect(screen.getByText("My List")).toBeInTheDocument();
+		expect(screen.getByText("Favorite Music")).toBeInTheDocument();
+		expect(screen.getByText("Favorite Artist")).toBeInTheDocument();
+		expect(screen.getByText("Favorite Album")).toBeInTheDocument();
+		expect(screen.getByText("Favorite Track")).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Favorites" }),
+		).toBeInTheDocument();
+		expect(screen.queryByText("My List")).not.toBeInTheDocument();
 		expect(screen.queryByText("Recently Played")).not.toBeInTheDocument();
+		expect(screen.queryByText("New Albums")).not.toBeInTheDocument();
+		expect(screen.queryByText("Recently Played Audio")).not.toBeInTheDocument();
+		expect(screen.queryByText("Favorite Audio")).not.toBeInTheDocument();
 		expect(screen.getByText("Drama")).toBeInTheDocument();
 		expect(screen.getByText("Favorite")).toBeInTheDocument();
 		expect(screen.queryByText("Recently Played Title")).not.toBeInTheDocument();
 		expect(
-			within(screen.getByText("My List").closest("section")!).getByRole("link", {
+			within(
+				screen.getByRole("heading", { name: "Favorites" }).closest("section")!,
+			).getByRole("link", {
 				name: /all/i,
 			}),
 		).toHaveAttribute("href", "/favorites");
@@ -183,9 +226,18 @@ describe("home screen", () => {
 			sectionHeadings.indexOf("Top Rated on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Top Rated on Anime")).toBeLessThan(
-			sectionHeadings.indexOf("My List"),
+			sectionHeadings.indexOf("Newly Added on Music First"),
 		);
-		expect(sectionHeadings.indexOf("My List")).toBeLessThan(
+		expect(sectionHeadings.indexOf("Newly Added on Music First")).toBeLessThan(
+			sectionHeadings.indexOf("Newly Added on Music Second"),
+		);
+		expect(sectionHeadings.indexOf("Newly Added on Music Second")).toBeLessThan(
+			sectionHeadings.indexOf("Favorite Music"),
+		);
+		expect(sectionHeadings.indexOf("Favorite Music")).toBeLessThan(
+			sectionHeadings.indexOf("Favorites"),
+		);
+		expect(sectionHeadings.indexOf("Favorites")).toBeLessThan(
 			sectionHeadings.indexOf("Drama"),
 		);
 
@@ -409,11 +461,11 @@ describe("home screen", () => {
 	});
 });
 
-function item(id: string, name: string): jellyfin.MediaItem {
+function item(id: string, name: string, type = "Series"): jellyfin.MediaItem {
 	return {
 		Id: id,
 		Name: name,
-		Type: "Series",
+		Type: type,
 		ProductionYear: 2024,
 		Overview: "Overview",
 		ImageTags: {

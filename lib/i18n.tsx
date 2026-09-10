@@ -122,6 +122,7 @@ export const TRANSLATION_KEYS = [
 	"newAlbums",
 	"recentlyPlayedAudio",
 	"favoriteAudio",
+	"favoriteMusic",
 	"favoriteAudioArtists",
 	"favoriteAudioAlbums",
 	"favoriteAudioTracks",

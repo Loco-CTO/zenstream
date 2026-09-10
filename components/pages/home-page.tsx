@@ -23,52 +23,35 @@ export function HomePage({
 	const hero = pickHeroItem({ ...data, latestItems: videoLatestItems });
 	const heroItems =
 		videoLatestItems.length > 0 ? videoLatestItems : hero ? [hero] : [];
-	const audioRows = (data.audioRows ?? [])
-		.map((section) => ({
-			...section,
-			items: uniqueItems(section.items).filter(isAudioItem),
-		}))
-		.filter((section) => section.items.length > 0);
 	const mixedFavorites = uniqueItems(data.myList ?? []);
-	const audioFavorites = mixedFavorites.filter(isAudioItem);
+	const favoriteMusic = uniqueItems(data.favoriteMusic ?? []).filter(
+		isAudioItem,
+	);
 	const videoFavorites = mixedFavorites.filter((item) => !isAudioItem(item));
 	const canonicalLibraryRows = (data.libraryRows ?? []).filter(
 		(section) =>
 			(section.titleKey === "newlyAddedOn" || section.titleKey === "topRated") &&
 			section.items.length > 0,
 	);
-	const canonicalNewlyAdded = canonicalLibraryRows.filter(
+	const hasCanonicalNewlyAdded = canonicalLibraryRows.some(
 		(section) => section.titleKey === "newlyAddedOn",
 	);
-	const legacyNewlyAdded =
-		canonicalNewlyAdded.length === 0
-			? (data.newlyAdded ?? [])
-					.filter((section) => section.items.length > 0)
-					.map((section) => ({
-						...section,
-						titleKey: "newlyAddedOn" as const,
-						stackEpisodes: false,
-					}))
-			: [];
-	const libraryRows = [
-		...canonicalNewlyAdded,
-		...legacyNewlyAdded,
-		...canonicalLibraryRows.filter((section) => section.titleKey === "topRated"),
-	];
+	const legacyNewlyAdded = !hasCanonicalNewlyAdded
+		? (data.newlyAdded ?? [])
+				.filter((section) => section.items.length > 0)
+				.map((section) => ({
+					...section,
+					titleKey: "newlyAddedOn" as const,
+					stackEpisodes: false,
+					variant: "poster" as const,
+				}))
+		: [];
+	const libraryRows = [...legacyNewlyAdded, ...canonicalLibraryRows];
 
 	return (
 		<main className="pb-24 md:pb-0">
 			<Hero items={heroItems} session={session} />
 			<div className="relative z-10 mt-[-1.5rem] space-y-1">
-				{audioRows.map((section) => (
-					<MediaRow
-						key={`audio:${section.key}`}
-						title={t(section.titleKey as Parameters<typeof t>[0])}
-						items={section.items}
-						variant="square"
-						session={session}
-					/>
-				))}
 				{HOME_ROWS.slice(0, 2).map((row) => (
 					<MediaRow
 						key={row.key}
@@ -86,28 +69,28 @@ export function HomePage({
 							{ library: section.libraryName },
 						)}
 						items={uniqueItems(section.items)}
-						variant="poster"
+						variant={section.variant ?? "poster"}
 						stackEpisodes={section.stackEpisodes}
 						session={session}
 						viewAllHref={undefined}
 					/>
 				))}
-				<MediaRow
-					title={t("myList")}
-					items={videoFavorites}
-					variant="poster"
-					session={session}
-					viewAllHref="/favorites"
-				/>
-				{audioFavorites.length > 0 && (
+				{favoriteMusic.length > 0 && (
 					<MediaRow
-						title={t("favoriteAudio")}
-						items={audioFavorites}
+						title={t("favoriteMusic")}
+						items={favoriteMusic}
 						variant="square"
 						session={session}
 						viewAllHref="/favorites"
 					/>
 				)}
+				<MediaRow
+					title={t("favorites")}
+					items={videoFavorites}
+					variant="poster"
+					session={session}
+					viewAllHref="/favorites"
+				/>
 				{(data.genreRows ?? []).map((section) => (
 					<MediaRow
 						key={`genre:${section.genre}`}

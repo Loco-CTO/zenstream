@@ -457,6 +457,7 @@ export interface HomeData {
 	newReleases?: MediaItem[];
 	movies?: MediaItem[];
 	myList?: MediaItem[];
+	favoriteMusic?: MediaItem[];
 	recentlyPlayed?: MediaItem[];
 	genreRows?: HomeGenreSection[];
 	audioRows?: HomeAudioSection[];
@@ -465,6 +466,7 @@ export interface HomeData {
 export interface HomeLibrarySection extends NewlyAddedSection {
 	titleKey: "newlyAddedOn" | "topRated";
 	stackEpisodes?: boolean;
+	variant?: "poster" | "square";
 }
 
 export interface HomeGenreSection {
@@ -908,6 +910,7 @@ export async function fetchHomeData(
 				section<{ nextUp?: CatalogItem[] }>("nextUp", 18),
 				section<{
 					myList?: CatalogItem[];
+					favoriteMusic?: CatalogItem[];
 					recentlyPlayed?: CatalogItem[];
 					genreRows?: Array<{ genre: string; items: CatalogItem[] }>;
 					audioRows?: Array<{
@@ -927,6 +930,7 @@ export async function fetchHomeData(
 				continueWatching,
 				nextUp,
 				myList: (derived.myList ?? []).map(toMediaItem),
+				favoriteMusic: (derived.favoriteMusic ?? []).map(toMediaItem),
 				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
 				audioRows: (derived.audioRows ?? []).map((row) => ({
 					...row,
@@ -962,6 +966,7 @@ export async function fetchHomeData(
 				continueWatching,
 				nextUp,
 				myList: (derived.myList ?? []).map(toMediaItem),
+				favoriteMusic: (derived.favoriteMusic ?? []).map(toMediaItem),
 				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
 				audioRows: (derived.audioRows ?? []).map((row) => ({
 					...row,

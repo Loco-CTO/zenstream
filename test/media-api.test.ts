@@ -48,14 +48,18 @@ describe("changeAccountPassword", () => {
 
 describe("search pagination requests", () => {
 	it("includes page, page size, and card view in result requests", async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response(
-					JSON.stringify({ items: [], total: 41, page: 2, pageSize: 20 }),
-					{ status: 200, headers: { "Content-Type": "application/json" } },
-				),
-			);
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					items: [],
+					total: 41,
+					page: 2,
+					pageSize: 20,
+					facets: { all: 41, movie: 10, series: 31 },
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			),
+		);
 
 		await expect(
 			getSearchPage(session, "paged-search", { page: 2, pageSize: 20 }),
@@ -64,11 +68,45 @@ describe("search pagination requests", () => {
 			total: 41,
 			page: 2,
 			pageSize: 20,
+			facets: { all: 41, movie: 10, series: 31 },
 		});
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			expect.stringContaining(
 				"/api/catalog/search?query=paged-search&page=2&pageSize=20&view=card",
+			),
+			expect.anything(),
+		);
+	});
+
+	it("sends the selected server-side type filter", async () => {
+		const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					items: [],
+					total: 3,
+					page: 1,
+					pageSize: 20,
+					facets: { all: 41, movie: 10, series: 3 },
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			),
+		);
+
+		await expect(
+			getSearchPage(session, "paged-search", {
+				page: 1,
+				pageSize: 20,
+				type: "series",
+			}),
+		).resolves.toMatchObject({
+			total: 3,
+			facets: { all: 41, series: 3 },
+		});
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"/api/catalog/search?query=paged-search&page=1&pageSize=20&view=card&type=series",
 			),
 			expect.anything(),
 		);

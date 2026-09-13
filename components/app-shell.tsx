@@ -1269,7 +1269,11 @@ export function AppShell() {
 												<NotificationsPage session={session} />
 											)}
 											{renderStatus === "ready" && pathname === "/search" && (
-												<SearchPage session={session} query={searchData ?? searchQuery} />
+												<SearchPage
+													key={searchData ?? searchQuery}
+													session={session}
+													query={searchData ?? searchQuery}
+												/>
 											)}
 											{homeData &&
 												!detailId &&

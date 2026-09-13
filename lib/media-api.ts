@@ -495,11 +495,31 @@ export interface LibraryPage {
 	totalRecordCount: number;
 }
 
+export type SearchResultType =
+	"movie" | "series" | "collection" | "release" | "artist" | "track";
+
+export type SearchFilter = "all" | SearchResultType;
+
+export type SearchFacets = { all: number } & Record<SearchResultType, number>;
+
+export function emptySearchFacets(): SearchFacets {
+	return {
+		all: 0,
+		movie: 0,
+		series: 0,
+		collection: 0,
+		release: 0,
+		artist: 0,
+		track: 0,
+	};
+}
+
 export interface SearchPage {
 	items: MediaItem[];
 	total: number;
 	page: number;
 	pageSize: number;
+	facets: SearchFacets;
 }
 
 export async function getSearchPage(
@@ -508,6 +528,7 @@ export async function getSearchPage(
 	options: {
 		page?: number;
 		pageSize?: number;
+		type?: SearchFilter;
 		signal?: AbortSignal;
 	} = {},
 ): Promise<SearchPage> {
@@ -518,33 +539,45 @@ export async function getSearchPage(
 			total: 0,
 			page: options.page ?? 1,
 			pageSize: options.pageSize ?? 20,
+			facets: emptySearchFacets(),
 		};
 	}
 	const page = options.page ?? 1;
 	const pageSize = options.pageSize ?? 20;
+	const type = options.type && options.type !== "all" ? options.type : undefined;
 	const params = new URLSearchParams({
 		query: term,
 		page: String(page),
 		pageSize: String(pageSize),
 		view: "card",
 	});
+	if (type) params.set("type", type);
 	return cachedClientRequest(
-		`search:${session.userId}:${term.toLocaleLowerCase()}:${page}:${pageSize}:card`,
+		`search:${session.userId}:${term.toLocaleLowerCase()}:${type ?? "all"}:${page}:${pageSize}:card`,
 		async (signal) => {
 			const result = await catalogRequest<{
 				items?: CatalogItem[];
 				total?: number;
 				page?: number;
 				pageSize?: number;
+				facets?: Partial<SearchFacets>;
 			}>(session, `/api/catalog/search?${params}`, {
 				signal: combinedSignal(options.signal, signal),
 			});
 			const items = (result.items ?? []).map(toMediaItem);
+			const facets = emptySearchFacets();
+			for (const key of Object.keys(facets) as Array<keyof SearchFacets>) {
+				const value = result.facets?.[key];
+				if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+					facets[key] = Math.floor(value);
+				}
+			}
 			return {
 				items,
 				total: Number.isFinite(result.total) ? Number(result.total) : items.length,
 				page: result.page ?? page,
 				pageSize: result.pageSize ?? pageSize,
+				facets,
 			};
 		},
 		LIST_CACHE_TTL_MS,

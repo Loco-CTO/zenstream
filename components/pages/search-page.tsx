@@ -1,13 +1,46 @@
 "use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SquareAudioCard, PosterCard } from "@/components/home/media-card";
+import Link from "next/link";
+import {
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
-import { getSearchPage, type MediaItem } from "@/lib/media-api";
-import { useI18n } from "@/lib/i18n";
+import {
+	emptySearchFacets,
+	getSearchPage,
+	landscapeImage,
+	posterImage,
+	type MediaItem,
+	type SearchFacets,
+	type SearchFilter,
+} from "@/lib/media-api";
+import { releaseYear, runtimeLabel } from "@/lib/media";
+import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
 const SEARCH_PAGE_SIZE = 20;
+const FILTER_ORDER: SearchFilter[] = [
+	"all",
+	"series",
+	"movie",
+	"release",
+	"artist",
+	"track",
+	"collection",
+];
+
+const FILTER_LABEL_KEYS: Record<SearchFilter, TranslationKey> = {
+	all: "all",
+	series: "series",
+	movie: "movie",
+	release: "album",
+	artist: "artist",
+	track: "track",
+	collection: "collection",
+};
 
 export function SearchPage({
 	session,
@@ -16,9 +49,11 @@ export function SearchPage({
 	session: AuthSession;
 	query: string;
 }) {
-	const { t } = useI18n();
+	const { locale, t } = useI18n();
 	const { start } = useProgress();
+	const [selectedFilter, setSelectedFilter] = useState<SearchFilter>("all");
 	const [items, setItems] = useState<MediaItem[]>([]);
+	const [facets, setFacets] = useState<SearchFacets>(() => emptySearchFacets());
 	const [total, setTotal] = useState(0);
 	const [loadedKey, setLoadedKey] = useState<string | null>(null);
 	const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -33,7 +68,8 @@ export function SearchPage({
 	const requestedPagesRef = useRef(new Set<number>());
 	const loadingMoreRef = useRef(false);
 	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-	const requestKey = `${query}:${retryKey}`;
+	const activeFilter = selectedFilter;
+	const requestKey = `${query}:${activeFilter}:${retryKey}`;
 	const loading = loadedKey !== requestKey;
 	const error = errorKey === requestKey;
 
@@ -54,9 +90,11 @@ export function SearchPage({
 			finished = true;
 			finishProgress();
 		};
+
 		getSearchPage(session, query, {
 			page: 1,
 			pageSize: SEARCH_PAGE_SIZE,
+			type: activeFilter,
 			signal: controller.signal,
 		})
 			.then((page) => {
@@ -65,11 +103,12 @@ export function SearchPage({
 					requestGenerationRef.current !== requestGeneration
 				)
 					return;
-				const nextItems = uniqueItems(rankSearchResults(page.items, query));
+				const nextItems = uniqueItems(page.items);
 				itemsRef.current = nextItems;
 				totalRef.current = page.total;
 				setItems(nextItems);
 				setTotal(page.total);
+				setFacets(page.facets ?? emptySearchFacets());
 				loadedPageRef.current = page.page;
 				setErrorKey(null);
 				setLoadMoreError(false);
@@ -90,7 +129,7 @@ export function SearchPage({
 			controller.abort();
 			finish();
 		};
-	}, [query, requestKey, session, start]);
+	}, [activeFilter, query, requestKey, session, start]);
 
 	const retry = useCallback(() => {
 		setItems([]);
@@ -123,6 +162,7 @@ export function SearchPage({
 			const page = await getSearchPage(session, query, {
 				page: nextPage,
 				pageSize: SEARCH_PAGE_SIZE,
+				type: activeFilter,
 				signal: controller.signal,
 			});
 			if (
@@ -130,14 +170,12 @@ export function SearchPage({
 				requestGenerationRef.current !== requestGeneration
 			)
 				return;
-			const nextItems = uniqueItems([
-				...itemsRef.current,
-				...rankSearchResults(page.items, query),
-			]);
+			const nextItems = uniqueItems([...itemsRef.current, ...page.items]);
 			itemsRef.current = nextItems;
 			totalRef.current = page.total;
 			setItems(nextItems);
 			setTotal(page.total);
+			setFacets(page.facets ?? emptySearchFacets());
 			loadedPageRef.current = nextPage;
 		} catch {
 			requestedPagesRef.current.delete(nextPage);
@@ -154,7 +192,7 @@ export function SearchPage({
 			}
 			finishProgress();
 		}
-	}, [error, loading, query, session, start]);
+	}, [activeFilter, error, loading, query, session, start]);
 
 	useEffect(() => {
 		const sentinel = loadMoreSentinelRef.current;
@@ -179,39 +217,57 @@ export function SearchPage({
 		return () => window.removeEventListener("zenstream:catalog-changed", refresh);
 	}, []);
 
+	const featured = findFeaturedItem(items);
+	const visibleItems = featured
+		? items.filter((item) => item.Id !== featured.item.Id)
+		: items;
+	const filterOptions = FILTER_ORDER.filter(
+		(filter) => filter === "all" || facets[filter] > 0,
+	);
 	const showLoadingMore = loadingMore && loadedKey === requestKey;
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
-	const audioArtists = uniqueItems(
-		items.filter((item) => item.Type === "MusicArtist"),
-	);
-	const audioAlbums = uniqueItems(
-		items.filter((item) => item.Type === "MusicAlbum"),
-	);
-	const audioTracks = uniqueItems(items.filter((item) => item.Type === "Audio"));
-	const videoItems = uniqueItems(items.filter((item) => !isAudioItem(item)));
+
 	return (
-		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-8 md:px-12 md:pb-10 md:pt-28">
-			<div className="mx-auto max-w-[1800px]">
-				<header className="mb-8 flex flex-col items-start gap-4 border-b border-white/[0.07] pb-5 sm:flex-row sm:items-end sm:justify-between">
-					<div className="min-w-0">
-						<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
-							{title}
-						</h1>
+		<main className="min-h-screen px-4 pb-24 pt-28 sm:px-6 md:px-8 md:pt-24">
+			<div className="mx-auto max-w-4xl">
+				<h1 className="sr-only">{title}</h1>
+				{!loading && !error && (
+					<div
+						role="tablist"
+						aria-label={t("search")}
+						className="mb-7 flex gap-2 overflow-x-auto pb-1"
+					>
+						{filterOptions.map((filter) => (
+							<button
+								key={filter}
+								type="button"
+								role="tab"
+								aria-selected={activeFilter === filter}
+								aria-label={`${t(FILTER_LABEL_KEYS[filter])} ${facets[filter]}`}
+								onClick={() => setSelectedFilter(filter)}
+								className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 ${
+									activeFilter === filter
+										? "border-white bg-white text-black"
+										: "border-white/10 bg-white/[0.025] text-white/55 hover:border-white/25 hover:text-white"
+								}`}
+							>
+								<span>{t(FILTER_LABEL_KEYS[filter])}</span>
+								<span
+									className={activeFilter === filter ? "text-black/60" : "text-white/30"}
+								>
+									{facets[filter]}
+								</span>
+							</button>
+						))}
 					</div>
-					<div className="flex shrink-0 items-center gap-2">
-						{!loading && !error && (
-							<p className="pb-0.5 text-xs uppercase tracking-widest text-white/25">
-								{t("items", { count: total })}
-							</p>
-						)}
-					</div>
-				</header>
+				)}
+
 				{error ? (
 					<ErrorPanel message={t("searchLoadFailed")} onRetry={retry} />
 				) : loading ? (
-					<SearchGridSkeleton />
+					<SearchResultsSkeleton />
 				) : items.length === 0 ? (
-					<div className="rounded-2xl border border-white/10 bg-white/[0.025] px-6 py-20 text-center shadow-2xl shadow-black/20">
+					<div className="border-t border-white/[0.08] px-6 py-20 text-center">
 						<h2 className="text-lg font-semibold text-white/80">
 							{t("noSearchResults")}
 						</h2>
@@ -219,43 +275,13 @@ export function SearchPage({
 					</div>
 				) : (
 					<>
-						<div className="space-y-10">
-							{audioArtists.length > 0 && (
-								<SearchAudioSection
-									title={t("artists")}
-									items={audioArtists}
-									session={session}
-								/>
-							)}
-							{audioAlbums.length > 0 && (
-								<SearchAudioSection
-									title={t("albums")}
-									items={audioAlbums}
-									session={session}
-								/>
-							)}
-							{audioTracks.length > 0 && (
-								<SearchAudioSection
-									title={t("tracks")}
-									items={audioTracks}
-									session={session}
-								/>
-							)}
-							{videoItems.length > 0 && (
-								<section aria-labelledby="video-search-results">
-									<h2
-										id="video-search-results"
-										className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50"
-									>
-										{t("movies")} / {t("series")}
-									</h2>
-									<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
-										{videoItems.map((item) => (
-											<PosterCard key={item.Id} item={item} session={session} />
-										))}
-									</div>
-								</section>
-							)}
+						{featured && (
+							<SearchFeatured item={featured.item} image={featured.image} t={t} />
+						)}
+						<div className={featured ? "mt-5" : ""}>
+							{visibleItems.map((item) => (
+								<SearchResultRow key={item.Id} item={item} locale={locale} t={t} />
+							))}
 						</div>
 						{items.length < total && (
 							<>
@@ -281,66 +307,184 @@ export function SearchPage({
 	);
 }
 
-function SearchAudioSection({
-	title,
-	items,
-	session,
+function SearchFeatured({
+	item,
+	image,
+	t,
 }: {
-	title: string;
-	items: MediaItem[];
-	session: AuthSession;
+	item: MediaItem;
+	image: NonNullable<ReturnType<typeof landscapeImage>>;
+	t: ReturnType<typeof useI18n>["t"];
 }) {
 	return (
-		<section aria-label={title}>
-			<h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
-				{title}
-			</h2>
-			<div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7 [&>article]:w-full">
-				{items.map((item) => (
-					<SquareAudioCard
-						key={item.Id}
-						item={item}
-						session={session}
-						className="w-full"
-					/>
+		<Link
+			href={searchItemHref(item)}
+			aria-label={item.Name}
+			data-testid="search-featured"
+			className="group relative isolate block aspect-[4.5/1] min-h-44 overflow-hidden rounded-xl bg-[var(--c-card-thumb)]"
+		>
+			<BlurHashImage
+				image={image}
+				alt={item.Name}
+				sizes="(max-width: 896px) calc(100vw - 2rem), 896px"
+				className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+			/>
+			<div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-black/20" />
+			<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+			<div className="absolute inset-x-5 bottom-5 sm:inset-x-6 sm:bottom-6">
+				<p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+					{searchItemLabel(item, t)}
+				</p>
+				<h2 className="mt-1 truncate text-2xl font-black tracking-tight text-white sm:text-3xl">
+					{item.Name}
+				</h2>
+				{releaseYear(item) && (
+					<p className="mt-1 text-xs text-white/45">{releaseYear(item)}</p>
+				)}
+			</div>
+		</Link>
+	);
+}
+
+function SearchResultRow({
+	item,
+	locale,
+	t,
+}: {
+	item: MediaItem;
+	locale: Locale;
+	t: ReturnType<typeof useI18n>["t"];
+}) {
+	const image = rowImage(item);
+	const secondary = rowSecondary(item);
+	const metadata = [releaseYear(item), runtimeLabel(item, locale)].filter(
+		Boolean,
+	);
+	return (
+		<article
+			data-testid="search-result-row"
+			className="border-t border-white/[0.08]"
+		>
+			<Link
+				href={searchItemHref(item)}
+				aria-label={item.Name}
+				className="group flex min-h-[76px] items-center gap-3 py-3 transition hover:bg-white/[0.025] sm:gap-4 sm:px-2"
+			>
+				<div className="relative h-12 w-[76px] shrink-0 overflow-hidden rounded-md bg-[var(--c-card-thumb)] sm:h-14 sm:w-[88px]">
+					{image ? (
+						<BlurHashImage
+							image={image}
+							alt=""
+							sizes="88px"
+							className="h-full w-full object-cover"
+						/>
+					) : (
+						<MediaPlaceholder />
+					)}
+				</div>
+				<div className="min-w-0 flex-1">
+					<h2 className="truncate text-sm font-semibold text-white/90 transition group-hover:text-white">
+						{item.Name}
+					</h2>
+					{secondary && (
+						<p className="mt-0.5 truncate text-xs text-white/40">{secondary}</p>
+					)}
+					<div className="mt-1.5 flex min-w-0 items-center gap-2 text-[10px] text-white/30">
+						<span className="shrink-0 rounded bg-white/[0.08] px-1.5 py-0.5 font-semibold text-white/55">
+							{searchItemLabel(item, t)}
+						</span>
+						{metadata.map((value) => (
+							<span key={value} className="truncate">
+								{value}
+							</span>
+						))}
+					</div>
+				</div>
+			</Link>
+		</article>
+	);
+}
+
+function SearchResultsSkeleton() {
+	return (
+		<div className="animate-pulse">
+			<div className="mb-7 flex gap-2">
+				{Array.from({ length: 4 }, (_, index) => (
+					<div key={index} className="h-8 w-20 rounded-full bg-white/[0.06]" />
 				))}
 			</div>
-		</section>
+			{Array.from({ length: 6 }, (_, index) => (
+				<div
+					key={index}
+					className="flex min-h-[76px] items-center gap-4 border-t border-white/[0.08] py-3"
+				>
+					<div className="h-14 w-[88px] shrink-0 rounded-md bg-white/[0.06]" />
+					<div className="min-w-0 flex-1">
+						<div className="h-3 w-2/5 rounded bg-white/[0.06]" />
+						<div className="mt-2 h-2.5 w-1/4 rounded bg-white/[0.04]" />
+						<div className="mt-2 h-4 w-20 rounded bg-white/[0.04]" />
+					</div>
+				</div>
+			))}
+		</div>
 	);
 }
 
-function isAudioItem(item: MediaItem) {
-	return (
-		item.Type === "MusicArtist" ||
-		item.Type === "MusicAlbum" ||
-		item.Type === "Audio"
-	);
+function findFeaturedItem(items: MediaItem[]) {
+	for (const item of items) {
+		if (item.Type !== "Movie" && item.Type !== "Series" && item.Type !== "BoxSet")
+			continue;
+		const image = landscapeImage(item);
+		if (image) return { item, image };
+	}
+	return null;
 }
 
-function rankSearchResults(items: MediaItem[], query: string) {
-	const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-	const normalizedQuery = terms.join(" ");
-	return items
-		.map((item, index) => {
-			const title = item.Name.trim().toLocaleLowerCase();
-			const words = title.split(/\s+/);
-			const score =
-				title === normalizedQuery
-					? 1000
-					: title.startsWith(normalizedQuery)
-						? 700
-						: terms.every((term) => words.some((word) => word.startsWith(term)))
-							? 500
-							: terms.every((term) => title.includes(term))
-								? 300
-								: terms.reduce(
-										(total, term) => total + (title.includes(term) ? 1 : 0),
-										0,
-									) * 50;
-			return { item, index, score };
-		})
-		.sort((a, b) => b.score - a.score || a.index - b.index)
-		.map(({ item }) => item);
+function rowImage(item: MediaItem) {
+	return landscapeImage(item) ?? posterImage(item);
+}
+
+function rowSecondary(item: MediaItem) {
+	if (item.Type === "MusicArtist") {
+		return item.Genres?.slice(0, 2).join(" · ") || undefined;
+	}
+	if (item.Type === "MusicAlbum") {
+		return item.AlbumArtist || item.Artists?.join(" · ") || undefined;
+	}
+	if (item.Type === "Audio") {
+		return (
+			[item.AlbumArtist, item.Album].filter(Boolean).join(" · ") || undefined
+		);
+	}
+	return item.SeriesName || undefined;
+}
+
+function searchItemLabel(item: MediaItem, t: ReturnType<typeof useI18n>["t"]) {
+	const filter = filterForItem(item);
+	return t(FILTER_LABEL_KEYS[filter]);
+}
+
+function filterForItem(item: MediaItem): SearchFilter {
+	if (item.Type === "Movie") return "movie";
+	if (item.Type === "Series") return "series";
+	if (item.Type === "BoxSet") return "collection";
+	if (item.Type === "MusicAlbum") return "release";
+	if (item.Type === "MusicArtist") return "artist";
+	return "track";
+}
+
+function searchItemHref(item: MediaItem) {
+	if (item.Type === "BoxSet")
+		return `/collection/${encodeURIComponent(item.Id)}`;
+	if (item.Type === "MusicArtist")
+		return `/artist/${encodeURIComponent(item.Id)}`;
+	if (item.Type === "MusicAlbum") return `/album/${encodeURIComponent(item.Id)}`;
+	if (item.Type === "Audio") {
+		const albumId = item.AlbumId ?? item.Id;
+		const track = item.AlbumId ? `?trackId=${encodeURIComponent(item.Id)}` : "";
+		return `/album/${encodeURIComponent(albumId)}${track}`;
+	}
+	return `/show/${encodeURIComponent(item.Id)}`;
 }
 
 function uniqueItems(items: MediaItem[]) {
@@ -350,18 +494,4 @@ function uniqueItems(items: MediaItem[]) {
 		seen.add(item.Id);
 		return true;
 	});
-}
-
-function SearchGridSkeleton() {
-	return (
-		<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-5 lg:grid-cols-6 2xl:grid-cols-7">
-			{Array.from({ length: 14 }, (_, index) => (
-				<div key={index} className="animate-pulse">
-					<div className="aspect-[2/3] rounded-sm bg-white/[0.06]" />
-					<div className="mt-3 h-3 w-4/5 rounded bg-white/[0.06]" />
-					<div className="mt-2 h-2.5 w-2/5 rounded bg-white/[0.04]" />
-				</div>
-			))}
-		</div>
-	);
 }

@@ -159,6 +159,7 @@ noSearchResults: No matching titles found
 searchResults: Search results
 movie: Movie
 series: Series
+collection: Collection
 close: Close
 localeSaveFailed: Could not save your language setting.
 continueWatching: Continue Watching

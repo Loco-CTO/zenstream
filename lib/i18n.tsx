@@ -169,6 +169,7 @@ export const TRANSLATION_KEYS = [
 	"searchResults",
 	"movie",
 	"series",
+	"collection",
 	"close",
 	"localeSaveFailed",
 	"continueWatching",

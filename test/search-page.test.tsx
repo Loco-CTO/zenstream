@@ -1,9 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { SearchPage } from "@/components/pages/search-page";
 import {
+	emptySearchFacets,
 	getSearchPage,
+	landscapeImage,
+	posterImage,
 	type MediaItem,
 	type SearchPage as SearchPageData,
 } from "@/lib/media-api";
@@ -14,6 +17,7 @@ vi.mock("@/components/home/media-card", () => ({
 
 vi.mock("@/lib/i18n", () => ({
 	useI18n: () => ({
+		locale: "en",
 		t: (key: string, values?: { count?: number }) =>
 			key === "items" ? `${key}:${values?.count ?? ""}` : key,
 	}),
@@ -22,7 +26,12 @@ vi.mock("@/lib/i18n", () => ({
 vi.mock("@/lib/media-api", async () => {
 	const actual =
 		await vi.importActual<typeof import("@/lib/media-api")>("@/lib/media-api");
-	return { ...actual, getSearchPage: vi.fn() };
+	return {
+		...actual,
+		getSearchPage: vi.fn(),
+		landscapeImage: vi.fn(actual.landscapeImage),
+		posterImage: vi.fn(actual.posterImage),
+	};
 });
 
 const session = { token: "token", userId: "user", username: "Alex" };
@@ -37,13 +46,22 @@ function page(
 	items: MediaItem[],
 	total = items.length,
 	pageNumber = 1,
+	facetOverrides: Partial<ReturnType<typeof emptySearchFacets>> = {},
 ): SearchPageData {
-	return { items, total, page: pageNumber, pageSize: 20 };
+	return {
+		items,
+		total,
+		page: pageNumber,
+		pageSize: 20,
+		facets: { ...emptySearchFacets(), all: total, ...facetOverrides },
+	};
 }
 
 describe("SearchPage", () => {
 	beforeEach(() => {
 		vi.mocked(getSearchPage).mockReset();
+		vi.mocked(landscapeImage).mockReset();
+		vi.mocked(posterImage).mockReset();
 	});
 
 	afterEach(() => {
@@ -60,10 +78,131 @@ describe("SearchPage", () => {
 		);
 
 		expect(await screen.findByText("A Livid")).toBeInTheDocument();
+		expect(screen.getByRole("main")).toHaveClass("pt-32", "md:pt-24");
 		expect(screen.getByRole("progressbar")).toHaveAttribute(
 			"aria-valuetext",
 			"Idle",
 		);
+	});
+
+	it("shows server facets and requests a filtered page when a pill is selected", async () => {
+		const series: MediaItem = {
+			Id: "series-1",
+			Name: "Livid Series",
+			Type: "Series",
+		};
+		vi
+			.mocked(getSearchPage)
+			.mockResolvedValueOnce(page([result], 2, 1, { movie: 1, series: 1 }))
+			.mockResolvedValueOnce(page([series], 1, 1, { series: 1 }));
+
+		render(
+			<ProgressProvider>
+				<SearchPage session={session} query="livid" />
+			</ProgressProvider>,
+		);
+
+		expect(await screen.findByText("A Livid")).toBeInTheDocument();
+		expect(screen.getByRole("tablist")).toHaveClass(
+			"max-w-full",
+			"touch-pan-x",
+			"overflow-x-auto",
+			"overscroll-x-contain",
+			"[scrollbar-width:none]",
+			"[&::-webkit-scrollbar]:hidden",
+		);
+		expect(screen.getByRole("tab", { name: "series 1" })).toHaveClass(
+			"shrink-0",
+			"whitespace-nowrap",
+		);
+		fireEvent.click(screen.getByRole("tab", { name: "series 1" }));
+		expect(await screen.findByText("Livid Series")).toBeInTheDocument();
+		expect(vi.mocked(getSearchPage)).toHaveBeenNthCalledWith(
+			2,
+			session,
+			"livid",
+			expect.objectContaining({ page: 1, pageSize: 20, type: "series" }),
+		);
+	});
+
+	it("does not render a featured panel when no backdrop is available", async () => {
+		vi.mocked(getSearchPage).mockResolvedValue(page([result]));
+
+		render(
+			<ProgressProvider>
+				<SearchPage session={session} query="livid" />
+			</ProgressProvider>,
+		);
+
+		expect(await screen.findByText("A Livid")).toBeInTheDocument();
+		expect(screen.queryByTestId("search-featured")).not.toBeInTheDocument();
+		expect(screen.getByTestId("search-result-row")).toBeInTheDocument();
+	});
+
+	it("uses poster proportions for video results and square cover art for music", async () => {
+		const album: MediaItem = {
+			Id: "album-1",
+			Name: "Livid Album",
+			Type: "MusicAlbum",
+			AlbumArtist: "Livid Artist",
+		};
+		vi.mocked(posterImage).mockImplementation((item) => ({
+			src: `/${item.Id}.jpg`,
+			blurHash: undefined,
+			width: 280,
+			height: 420,
+		}));
+		vi
+			.mocked(getSearchPage)
+			.mockResolvedValue(page([result, album], 2, 1, { movie: 1, release: 1 }));
+
+		render(
+			<ProgressProvider>
+				<SearchPage session={session} query="livid" />
+			</ProgressProvider>,
+		);
+
+		expect(await screen.findByText("Livid Album")).toBeInTheDocument();
+		const artwork = screen.getAllByTestId("search-result-artwork");
+		expect(artwork[0]).toHaveClass("aspect-[2/3]");
+		expect(artwork[1]).toHaveClass("aspect-square");
+	});
+
+	it("uses the highest-ranked backdrop result as the featured panel", async () => {
+		const series: MediaItem = {
+			Id: "series-1",
+			Name: "Livid Series",
+			Type: "Series",
+			ProductionYear: 2026,
+		};
+		vi.mocked(landscapeImage).mockImplementation((item) =>
+			item.Id === "series-1"
+				? {
+						src: "/backdrop.jpg",
+						blurHash: undefined,
+						width: 400,
+						height: 225,
+					}
+				: null,
+		);
+		vi.mocked(getSearchPage).mockResolvedValue(page([series]));
+
+		render(
+			<ProgressProvider>
+				<SearchPage session={session} query="livid" />
+			</ProgressProvider>,
+		);
+
+		const featured = await screen.findByTestId("search-featured");
+		expect(featured).toBeInTheDocument();
+		expect(featured).toHaveClass(
+			"w-full",
+			"aspect-[4/3]",
+			"min-h-56",
+			"md:aspect-[3/1]",
+			"md:min-h-64",
+		);
+		expect(screen.queryByTestId("search-result-row")).not.toBeInTheDocument();
 	});
 
 	it("finishes the global progress task after a failed search", async () => {
@@ -101,8 +240,8 @@ describe("SearchPage", () => {
 		);
 		vi
 			.mocked(getSearchPage)
-			.mockResolvedValueOnce(page([result], 2, 1))
-			.mockResolvedValueOnce(page([result, secondResult], 2, 2));
+			.mockResolvedValueOnce(page([result], 2, 1, { movie: 2 }))
+			.mockResolvedValueOnce(page([result, secondResult], 2, 2, { movie: 2 }));
 
 		render(
 			<ProgressProvider>
@@ -111,7 +250,7 @@ describe("SearchPage", () => {
 		);
 
 		expect(await screen.findByText("Another Livid")).toBeInTheDocument();
-		expect(screen.getByText("items:2")).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "all 2" })).toBeInTheDocument();
 		expect(vi.mocked(getSearchPage)).toHaveBeenNthCalledWith(
 			1,
 			session,

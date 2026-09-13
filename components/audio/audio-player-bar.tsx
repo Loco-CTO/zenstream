@@ -320,7 +320,7 @@ function TransportControls({
 			<IconButton
 				label={labels.previous}
 				onClick={player.playPrevious}
-				disabled={disabled || player.currentIndex <= 0}
+				disabled={disabled || player.queue.length <= 1}
 				compact={compact}
 			>
 				<SkipBack className="h-4 w-4" />
@@ -343,11 +343,7 @@ function TransportControls({
 			<IconButton
 				label={labels.next}
 				onClick={player.playNext}
-				disabled={
-					disabled ||
-					player.currentIndex < 0 ||
-					player.currentIndex >= player.queue.length - 1
-				}
+				disabled={disabled || player.queue.length <= 1}
 				compact={compact}
 			>
 				<SkipForward className="h-4 w-4" />

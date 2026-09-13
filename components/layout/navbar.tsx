@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { LogOut, Search, Settings } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { LogOut, Search, Settings, X } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { NotificationMenu } from "@/components/notifications/notification-menu";
@@ -27,10 +27,26 @@ export function Navbar({
 }) {
 	const { t } = useI18n();
 	const pathname = usePathname();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const isSearchPage = pathname === "/search";
+	const routeSearchQuery = isSearchPage ? (searchParams.get("q") ?? "") : "";
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
 	const profileRef = useRef<HTMLDivElement>(null);
 	const profileTriggerRef = useRef<HTMLButtonElement>(null);
+
+	const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		const value = String(
+			new FormData(event.currentTarget).get("query") ?? "",
+		).trim();
+		router.push(value ? `/search?q=${encodeURIComponent(value)}` : "/search");
+	};
+
+	const clearSearch = () => {
+		router.push("/search");
+	};
 
 	useEffect(() => {
 		if (!profileOpen) return;
@@ -92,6 +108,34 @@ export function Navbar({
 							{t("calendar")}
 						</Link>
 					</div>
+					{isSearchPage && (
+						<form
+							key={routeSearchQuery}
+							onSubmit={submitSearch}
+							className="absolute left-0 right-0 top-14 z-10 md:left-1/2 md:right-auto md:top-1/2 md:w-[min(38rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2"
+						>
+							<div className="flex h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-4 shadow-2xl shadow-black/25 backdrop-blur-xl focus-within:border-violet-400/40 md:max-w-[38rem]">
+								<Search className="h-[17px] w-[17px] shrink-0 text-white/40" />
+								<input
+									name="query"
+									defaultValue={routeSearchQuery}
+									placeholder={t("searchPlaceholder")}
+									className="min-w-0 flex-1 bg-transparent text-sm font-medium text-white outline-none placeholder:text-white/25"
+									aria-label={t("search")}
+								/>
+								{routeSearchQuery && (
+									<button
+										type="button"
+										aria-label={t("close")}
+										onClick={clearSearch}
+										className="shrink-0 text-white/35 transition hover:text-white/75"
+									>
+										<X className="h-4 w-4" />
+									</button>
+								)}
+							</div>
+						</form>
+					)}
 					<div className="flex-1" />
 					<div
 						data-testid="header-actions"

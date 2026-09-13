@@ -324,6 +324,7 @@ noSearchResults: 一致するタイトルが見つかりません
 searchResults: 検索結果
 movie: 映画
 series: シリーズ
+collection: コレクション
 close: 閉じる
 playNext: 次のエピソードを再生
 stopPlaying: 再生を停止

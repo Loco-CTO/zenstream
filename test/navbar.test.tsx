@@ -1,9 +1,24 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { Navbar } from "@/components/layout/navbar";
 import * as notifications from "@/lib/notifications";
 
+const navigation = vi.hoisted(() => ({ pathname: "/", query: "" }));
+const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+	usePathname: () => navigation.pathname,
+	useRouter: () => router,
+	useSearchParams: () => new URLSearchParams(navigation.query),
+}));
+
 describe("Navbar", () => {
+	beforeEach(() => {
+		navigation.pathname = "/";
+		navigation.query = "";
+		router.push.mockReset();
+	});
+
 	const renderNavbar = () =>
 		render(
 			<Navbar
@@ -66,6 +81,30 @@ describe("Navbar", () => {
 			"href",
 			"/library",
 		);
+	});
+
+	it("submits the shared search form on the search route", () => {
+		navigation.pathname = "/search";
+		navigation.query = "q=old";
+		renderNavbar();
+
+		const input = screen.getByRole("textbox", { name: "Search" });
+		expect(input).toHaveValue("old");
+		expect(input.closest("form")).toHaveClass(
+			"left-0",
+			"right-0",
+			"top-14",
+			"md:left-1/2",
+			"md:right-auto",
+			"md:top-1/2",
+			"md:w-[min(38rem,calc(100vw-2rem))]",
+			"md:-translate-x-1/2",
+			"md:-translate-y-1/2",
+		);
+		fireEvent.change(input, { target: { value: "Demon Slayer" } });
+		fireEvent.submit(input.closest("form")!);
+
+		expect(router.push).toHaveBeenCalledWith("/search?q=Demon%20Slayer");
 	});
 
 	it("renders the profile popup with the shared neutral glass styling", () => {

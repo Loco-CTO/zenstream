@@ -686,6 +686,38 @@ describe("detail views", () => {
 		});
 	});
 
+	it("keeps duplicate people entries collision-safe", () => {
+		const consoleError = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => undefined);
+		renderDetail({
+			item: {
+				...movie(),
+				People: [
+					{
+						Name: "Tatsuya Suzuki",
+						Role: "Animation Director",
+						Type: "Crew",
+					},
+					{
+						Name: "Tatsuya Suzuki",
+						Role: "Animation Director",
+						Type: "Crew",
+					},
+				],
+			},
+			seasons: [],
+			episodes: [],
+			similar: [],
+		});
+
+		expect(
+			consoleError.mock.calls.find(([message]) =>
+				String(message).includes("same key"),
+			),
+		).toBeUndefined();
+	});
+
 	it("rolls back an optimistic favorite mutation after failure", async () => {
 		vi.mocked(fetch).mockImplementation(async (input, init) => {
 			if (

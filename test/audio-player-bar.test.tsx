@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
+import { clearAudioLyricsCache } from "@/components/audio/audio-lyrics-cache";
 import {
 	AudioPlayerProvider,
 	useAudioPlayer,
@@ -94,6 +95,28 @@ function StopHarness() {
 	);
 }
 
+function PlayerStateProbe() {
+	const player = useAudioPlayer();
+	return (
+		<output
+			data-testid="player-state"
+			data-track-id={player.currentTrack?.Id ?? ""}
+			data-playing={String(player.isPlaying)}
+		/>
+	);
+}
+
+function renderBarWithStateProbe() {
+	return render(
+		<I18nProvider locale="en">
+			<AudioPlayerProvider session={session}>
+				<SeededBar />
+				<PlayerStateProbe />
+			</AudioPlayerProvider>
+		</I18nProvider>,
+	);
+}
+
 function renderBar() {
 	return render(
 		<I18nProvider locale="en">
@@ -120,6 +143,7 @@ function installLocalStorage() {
 describe("AudioPlayerBar", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		clearAudioLyricsCache();
 		installLocalStorage();
 		vi.spyOn(mediaApi, "getPlaybackInfo").mockResolvedValue({
 			source: { url: "/api/catalog/audio/track-1", mode: "direct" },
@@ -503,33 +527,77 @@ describe("AudioPlayerBar", () => {
 		expect(screen.getAllByText("Track One").length).toBeGreaterThan(0);
 	});
 
-	it("advances, wraps, and repeats according to the selected loop mode", async () => {
+	it("advances and stops after every queue item has played when loop is off", async () => {
+		renderBarWithStateProbe();
+		await screen.findByTestId("audio-player-bar");
+		const audio = document.querySelector("audio");
+		if (!audio) throw new Error("audio element was not rendered");
+		const state = screen.getByTestId("player-state");
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
+
+		fireEvent.ended(audio);
+		await waitFor(() =>
+			expect(state).toHaveAttribute("data-track-id", "track-2"),
+		);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
+
+		fireEvent.ended(audio);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "false"));
+		expect(state).toHaveAttribute("data-track-id", "track-2");
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Loop off" })[0]);
+		const playMock = vi.mocked(HTMLMediaElement.prototype.play);
+		const playCallsBeforeQueueLoop = playMock.mock.calls.length;
+		fireEvent.ended(audio);
+		await waitFor(() =>
+			expect(playMock.mock.calls.length).toBeGreaterThan(playCallsBeforeQueueLoop),
+		);
+		expect(screen.getAllByText("Track One").length).toBeGreaterThan(0);
+	});
+
+	it("selects shuffled queue entries once per pass and stops when the pass is complete", async () => {
+		renderBarWithStateProbe();
+		await screen.findByTestId("audio-player-bar");
+		const audio = document.querySelector("audio");
+		if (!audio) throw new Error("audio element was not rendered");
+		const state = screen.getByTestId("player-state");
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Shuffle" })[0]);
+		fireEvent.ended(audio);
+		await waitFor(() =>
+			expect(state).toHaveAttribute("data-track-id", "track-2"),
+		);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
+
+		const playCallsAfterSecondTrack = vi.mocked(HTMLMediaElement.prototype.play)
+			.mock.calls.length;
+		fireEvent.ended(audio);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "false"));
+		expect(state).toHaveAttribute("data-track-id", "track-2");
+		expect(vi.mocked(HTMLMediaElement.prototype.play).mock.calls.length).toBe(
+			playCallsAfterSecondTrack,
+		);
+	});
+
+	it("starts a different queue entry at zero after the previous entry was paused", async () => {
 		renderBar();
 		await screen.findByTestId("audio-player-bar");
 		const audio = document.querySelector("audio");
 		if (!audio) throw new Error("audio element was not rendered");
+		audio.currentTime = 15;
 
-		fireEvent.click(screen.getAllByRole("button", { name: "Loop off" })[0]);
-		fireEvent.ended(audio);
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		fireEvent.click(screen.getByRole("button", { name: "Play Track Two" }));
 		await waitFor(() =>
-			expect(screen.getAllByText("Track Two").length).toBeGreaterThan(0),
-		);
-
-		fireEvent.ended(audio);
-		await waitFor(() =>
-			expect(screen.getAllByText("Track One").length).toBeGreaterThan(0),
-		);
-
-		fireEvent.click(screen.getAllByRole("button", { name: "Loop queue" })[0]);
-		const playMock = vi.mocked(HTMLMediaElement.prototype.play);
-		const playCallsBeforeSingleLoop = playMock.mock.calls.length;
-		fireEvent.ended(audio);
-		await waitFor(() =>
-			expect(playMock.mock.calls.length).toBeGreaterThan(
-				playCallsBeforeSingleLoop,
+			expect(mediaApi.getPlaybackInfo).toHaveBeenCalledWith(
+				session,
+				"track-2",
+				expect.objectContaining({ startPositionSeconds: 0 }),
 			),
 		);
-		expect(screen.getAllByText("Track One").length).toBeGreaterThan(0);
+		fireEvent.loadedMetadata(audio);
+		expect(audio.currentTime).toBe(0);
 	});
 
 	it("shows playback errors without removing the bar", async () => {
@@ -552,6 +620,12 @@ describe("AudioPlayerBar", () => {
 		});
 		renderBar();
 		await screen.findByTestId("audio-player-bar");
+		await waitFor(() =>
+			expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-1"),
+		);
+		await waitFor(() =>
+			expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-2"),
+		);
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
 		const overlay = await screen.findByTestId("audio-lyrics-overlay");

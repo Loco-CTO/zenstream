@@ -90,6 +90,14 @@ describe("Navbar", () => {
 
 		const input = screen.getByRole("textbox", { name: "Search" });
 		expect(input).toHaveValue("old");
+		expect(input.closest("form")).toHaveClass(
+			"md:left-1/2",
+			"md:right-auto",
+			"md:top-1/2",
+			"md:w-[min(38rem,calc(100vw-2rem))]",
+			"md:-translate-x-1/2",
+			"md:-translate-y-1/2",
+		);
 		fireEvent.change(input, { target: { value: "Demon Slayer" } });
 		fireEvent.submit(input.closest("form")!);
 

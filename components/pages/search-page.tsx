@@ -321,7 +321,7 @@ function SearchFeatured({
 			href={searchItemHref(item)}
 			aria-label={item.Name}
 			data-testid="search-featured"
-			className="group relative isolate block aspect-[3.6/1] min-h-52 overflow-hidden rounded-xl bg-[var(--c-card-thumb)]"
+			className="group relative isolate block aspect-[3/1] min-h-64 overflow-hidden rounded-xl bg-[var(--c-card-thumb)]"
 		>
 			<BlurHashImage
 				image={image}

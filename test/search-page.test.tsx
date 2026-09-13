@@ -182,7 +182,7 @@ describe("SearchPage", () => {
 
 		const featured = await screen.findByTestId("search-featured");
 		expect(featured).toBeInTheDocument();
-		expect(featured).toHaveClass("aspect-[3.6/1]", "min-h-52");
+		expect(featured).toHaveClass("aspect-[3/1]", "min-h-64");
 		expect(screen.queryByTestId("search-result-row")).not.toBeInTheDocument();
 	});
 

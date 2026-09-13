@@ -112,7 +112,7 @@ export function Navbar({
 						<form
 							key={routeSearchQuery}
 							onSubmit={submitSearch}
-							className="absolute left-0 right-0 top-14 z-10 md:static md:flex md:min-w-0 md:flex-1 md:justify-center"
+							className="absolute left-0 right-0 top-14 z-10 md:left-1/2 md:right-auto md:top-1/2 md:w-[min(38rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2"
 						>
 							<div className="flex h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-4 shadow-2xl shadow-black/25 backdrop-blur-xl focus-within:border-violet-400/40 md:max-w-[38rem]">
 								<Search className="h-[17px] w-[17px] shrink-0 text-white/40" />

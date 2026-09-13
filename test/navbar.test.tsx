@@ -91,6 +91,9 @@ describe("Navbar", () => {
 		const input = screen.getByRole("textbox", { name: "Search" });
 		expect(input).toHaveValue("old");
 		expect(input.closest("form")).toHaveClass(
+			"left-0",
+			"right-0",
+			"top-14",
 			"md:left-1/2",
 			"md:right-auto",
 			"md:top-1/2",

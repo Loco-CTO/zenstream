@@ -78,6 +78,7 @@ describe("SearchPage", () => {
 		);
 
 		expect(await screen.findByText("A Livid")).toBeInTheDocument();
+		expect(screen.getByRole("main")).toHaveClass("pt-32", "md:pt-24");
 		expect(screen.getByRole("progressbar")).toHaveAttribute(
 			"aria-valuetext",
 			"Idle",
@@ -102,6 +103,18 @@ describe("SearchPage", () => {
 		);
 
 		expect(await screen.findByText("A Livid")).toBeInTheDocument();
+		expect(screen.getByRole("tablist")).toHaveClass(
+			"max-w-full",
+			"touch-pan-x",
+			"overflow-x-auto",
+			"overscroll-x-contain",
+			"[scrollbar-width:none]",
+			"[&::-webkit-scrollbar]:hidden",
+		);
+		expect(screen.getByRole("tab", { name: "series 1" })).toHaveClass(
+			"shrink-0",
+			"whitespace-nowrap",
+		);
 		fireEvent.click(screen.getByRole("tab", { name: "series 1" }));
 		expect(await screen.findByText("Livid Series")).toBeInTheDocument();
 		expect(vi.mocked(getSearchPage)).toHaveBeenNthCalledWith(
@@ -182,7 +195,13 @@ describe("SearchPage", () => {
 
 		const featured = await screen.findByTestId("search-featured");
 		expect(featured).toBeInTheDocument();
-		expect(featured).toHaveClass("aspect-[3/1]", "min-h-64");
+		expect(featured).toHaveClass(
+			"w-full",
+			"aspect-[4/3]",
+			"min-h-56",
+			"md:aspect-[3/1]",
+			"md:min-h-64",
+		);
 		expect(screen.queryByTestId("search-result-row")).not.toBeInTheDocument();
 	});
 

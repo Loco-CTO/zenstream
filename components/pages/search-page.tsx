@@ -228,14 +228,14 @@ export function SearchPage({
 	const title = query ? `${t("searchResults")} · ${query}` : t("search");
 
 	return (
-		<main className="min-h-screen px-4 pb-24 pt-28 sm:px-6 md:px-8 md:pt-24">
+		<main className="min-h-screen px-4 pb-24 pt-32 sm:px-6 md:px-8 md:pt-24">
 			<div className="mx-auto max-w-4xl">
 				<h1 className="sr-only">{title}</h1>
 				{!loading && !error && (
 					<div
 						role="tablist"
 						aria-label={t("search")}
-						className="mb-7 flex gap-2 overflow-x-auto pb-1"
+						className="mb-7 flex max-w-full touch-pan-x gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 					>
 						{filterOptions.map((filter) => (
 							<button
@@ -245,7 +245,7 @@ export function SearchPage({
 								aria-selected={activeFilter === filter}
 								aria-label={`${t(FILTER_LABEL_KEYS[filter])} ${facets[filter]}`}
 								onClick={() => setSelectedFilter(filter)}
-								className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 ${
+								className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 ${
 									activeFilter === filter
 										? "border-white bg-white text-black"
 										: "border-white/10 bg-white/[0.025] text-white/55 hover:border-white/25 hover:text-white"
@@ -321,7 +321,7 @@ function SearchFeatured({
 			href={searchItemHref(item)}
 			aria-label={item.Name}
 			data-testid="search-featured"
-			className="group relative isolate block aspect-[3/1] min-h-64 overflow-hidden rounded-xl bg-[var(--c-card-thumb)]"
+			className="group relative isolate block w-full aspect-[4/3] min-h-56 overflow-hidden rounded-xl bg-[var(--c-card-thumb)] md:aspect-[3/1] md:min-h-64"
 		>
 			<BlurHashImage
 				image={image}

@@ -48,17 +48,32 @@ describe("audio queue selection", () => {
 
 	it("keeps track repeat scoped to forced end-of-track transitions", () => {
 		expect(
-		selectNextAudioQueueEntry(entries, 1, false, "single", true, new Set(["a", "b"])),
+			selectNextAudioQueueEntry(
+				entries,
+				1,
+				false,
+				"single",
+				true,
+				new Set(["a", "b"]),
+			),
 		).toMatchObject({ index: 1 });
 		expect(
-		selectNextAudioQueueEntry(entries, 1, false, "single", false, new Set(["a", "b"])),
+			selectNextAudioQueueEntry(
+				entries,
+				1,
+				false,
+				"single",
+				false,
+				new Set(["a", "b"]),
+			),
 		).toMatchObject({ index: 2 });
 	});
 
 	it("uses shuffle history for previous", () => {
-		expect(
-		selectPreviousAudioQueueEntry(entries, 2, true, ["a", "b"]),
-		).toEqual({ index: 1, history: ["a"] });
+		expect(selectPreviousAudioQueueEntry(entries, 2, true, ["a", "b"])).toEqual({
+			index: 1,
+			history: ["a"],
+		});
 		expect(selectPreviousAudioQueueEntry(entries, 0, true, [])).toBeNull();
 	});
 });

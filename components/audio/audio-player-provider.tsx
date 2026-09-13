@@ -197,10 +197,9 @@ export function AudioPlayerProvider({
 
 	useEffect(() => {
 		if (!currentEntry) return;
-		const candidates = [
-			currentEntry,
-			queue[currentIndex + 1],
-		].filter((entry): entry is AudioQueueEntry => Boolean(entry));
+		const candidates = [currentEntry, queue[currentIndex + 1]].filter(
+			(entry): entry is AudioQueueEntry => Boolean(entry),
+		);
 		for (const entry of candidates) {
 			prefetchAudioLyrics(session, entry.track.Id);
 		}
@@ -302,10 +301,7 @@ export function AudioPlayerProvider({
 				current &&
 				current.id !== target.id
 			) {
-				shuffleHistoryRef.current = [
-					...shuffleHistoryRef.current,
-					current.id,
-				];
+				shuffleHistoryRef.current = [...shuffleHistoryRef.current, current.id];
 			}
 			pendingStartPositionRef.current = {
 				entryId: target.id,
@@ -652,21 +648,24 @@ export function AudioPlayerProvider({
 		transitionToQueueIndex(selection.index, { recordHistory: false });
 	}, [transitionToQueueIndex]);
 
-	const playQueueItem = useCallback((index: number) => {
-		if (index < 0 || index >= queueRef.current.length) return;
-		if (index === currentIndexRef.current) {
-			const entry = queueRef.current[index];
-			const audio = audioRef.current;
-			shouldPlayRef.current = true;
-			if (audio?.ended) {
-				audio.currentTime = 0;
-				setPositionSeconds(0);
+	const playQueueItem = useCallback(
+		(index: number) => {
+			if (index < 0 || index >= queueRef.current.length) return;
+			if (index === currentIndexRef.current) {
+				const entry = queueRef.current[index];
+				const audio = audioRef.current;
+				shouldPlayRef.current = true;
+				if (audio?.ended) {
+					audio.currentTime = 0;
+					setPositionSeconds(0);
+				}
+				if (audio?.getAttribute("src")) attemptPlay(entry);
+				return;
 			}
-			if (audio?.getAttribute("src")) attemptPlay(entry);
-			return;
-		}
-		transitionToQueueIndex(index);
-	}, [attemptPlay, transitionToQueueIndex]);
+			transitionToQueueIndex(index);
+		},
+		[attemptPlay, transitionToQueueIndex],
+	);
 
 	const seek = useCallback((nextPosition: number) => {
 		const audio = audioRef.current;

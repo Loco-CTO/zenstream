@@ -533,22 +533,16 @@ describe("AudioPlayerBar", () => {
 		const audio = document.querySelector("audio");
 		if (!audio) throw new Error("audio element was not rendered");
 		const state = screen.getByTestId("player-state");
-		await waitFor(() =>
-			expect(state).toHaveAttribute("data-playing", "true"),
-		);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
 
 		fireEvent.ended(audio);
 		await waitFor(() =>
 			expect(state).toHaveAttribute("data-track-id", "track-2"),
 		);
-		await waitFor(() =>
-			expect(state).toHaveAttribute("data-playing", "true"),
-		);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
 
 		fireEvent.ended(audio);
-		await waitFor(() =>
-			expect(state).toHaveAttribute("data-playing", "false"),
-		);
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "false"));
 		expect(state).toHaveAttribute("data-track-id", "track-2");
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Loop off" })[0]);
@@ -556,9 +550,7 @@ describe("AudioPlayerBar", () => {
 		const playCallsBeforeQueueLoop = playMock.mock.calls.length;
 		fireEvent.ended(audio);
 		await waitFor(() =>
-			expect(playMock.mock.calls.length).toBeGreaterThan(
-				playCallsBeforeQueueLoop,
-			),
+			expect(playMock.mock.calls.length).toBeGreaterThan(playCallsBeforeQueueLoop),
 		);
 		expect(screen.getAllByText("Track One").length).toBeGreaterThan(0);
 	});
@@ -573,11 +565,13 @@ describe("AudioPlayerBar", () => {
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Shuffle" })[0]);
 		fireEvent.ended(audio);
-		await waitFor(() => expect(state).toHaveAttribute("data-track-id", "track-2"));
+		await waitFor(() =>
+			expect(state).toHaveAttribute("data-track-id", "track-2"),
+		);
 		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
 
-		const playCallsAfterSecondTrack = vi.mocked(HTMLMediaElement.prototype.play).mock.calls
-			.length;
+		const playCallsAfterSecondTrack = vi.mocked(HTMLMediaElement.prototype.play)
+			.mock.calls.length;
 		fireEvent.ended(audio);
 		await waitFor(() => expect(state).toHaveAttribute("data-playing", "false"));
 		expect(state).toHaveAttribute("data-track-id", "track-2");

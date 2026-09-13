@@ -1,7 +1,4 @@
-import {
-	getAudioLyrics,
-	type AudioLyrics,
-} from "@/lib/media-api";
+import { getAudioLyrics, type AudioLyrics } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
 const MAX_ENTRIES = 48;

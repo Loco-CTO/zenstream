@@ -11,7 +11,11 @@ import {
 	type MutableRefObject,
 } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
-import { seriesPosterImage, type AudioLyrics, type MediaItem } from "@/lib/media-api";
+import {
+	seriesPosterImage,
+	type AudioLyrics,
+	type MediaItem,
+} from "@/lib/media-api";
 import { loadAudioLyrics } from "@/components/audio/audio-lyrics-cache";
 import { useI18n } from "@/lib/i18n";
 import {

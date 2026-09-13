@@ -19,12 +19,15 @@ function randomIndex(values: number[], random: () => number) {
 	if (values.length === 0) return -1;
 	const sampled = random();
 	const value = Number.isFinite(sampled) ? sampled : 0;
-	return values[Math.min(values.length - 1, Math.max(0, Math.floor(value * values.length)))];
+	return values[
+		Math.min(values.length - 1, Math.max(0, Math.floor(value * values.length)))
+	];
 }
 
 function orderedAfterCurrent(size: number, currentIndex: number) {
-	return Array.from({ length: Math.max(0, size - 1) }, (_, offset) =>
-		(currentIndex + 1 + offset) % size,
+	return Array.from(
+		{ length: Math.max(0, size - 1) },
+		(_, offset) => (currentIndex + 1 + offset) % size,
 	);
 }
 

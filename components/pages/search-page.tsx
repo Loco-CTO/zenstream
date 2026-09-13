@@ -356,6 +356,7 @@ function SearchResultRow({
 	t: ReturnType<typeof useI18n>["t"];
 }) {
 	const image = rowImage(item);
+	const posterArtwork = isPosterResult(item);
 	const secondary = rowSecondary(item);
 	const metadata = [releaseYear(item), runtimeLabel(item, locale)].filter(
 		Boolean,
@@ -368,14 +369,17 @@ function SearchResultRow({
 			<Link
 				href={searchItemHref(item)}
 				aria-label={item.Name}
-				className="group flex min-h-[76px] items-center gap-3 py-3 transition hover:bg-white/[0.025] sm:gap-4 sm:px-2"
+				className={`group flex items-center gap-3 py-3 transition hover:bg-white/[0.025] sm:gap-4 sm:px-2 ${posterArtwork ? "min-h-[96px] sm:min-h-[108px]" : "min-h-[76px]"}`}
 			>
-				<div className="relative h-12 w-[76px] shrink-0 overflow-hidden rounded-md bg-[var(--c-card-thumb)] sm:h-14 sm:w-[88px]">
+				<div
+					data-testid="search-result-artwork"
+					className={`relative shrink-0 overflow-hidden rounded-md bg-[var(--c-card-thumb)] ${posterArtwork ? "aspect-[2/3] w-12 sm:w-14" : "aspect-square w-12 sm:w-14"}`}
+				>
 					{image ? (
 						<BlurHashImage
 							image={image}
 							alt=""
-							sizes="88px"
+							sizes="(max-width: 639px) 48px, 56px"
 							className="h-full w-full object-cover"
 						/>
 					) : (
@@ -441,7 +445,13 @@ function findFeaturedItem(items: MediaItem[]) {
 }
 
 function rowImage(item: MediaItem) {
-	return landscapeImage(item) ?? posterImage(item);
+	return posterImage(item);
+}
+
+function isPosterResult(item: MediaItem) {
+	return (
+		item.Type === "Movie" || item.Type === "Series" || item.Type === "BoxSet"
+	);
 }
 
 function rowSecondary(item: MediaItem) {

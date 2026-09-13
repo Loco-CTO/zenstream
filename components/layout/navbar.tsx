@@ -114,7 +114,7 @@ export function Navbar({
 							onSubmit={submitSearch}
 							className="absolute left-0 right-0 top-14 z-10 md:static md:flex md:min-w-0 md:flex-1 md:justify-center"
 						>
-							<div className="flex h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-[#101014]/95 px-4 shadow-2xl shadow-black/25 backdrop-blur-xl focus-within:border-violet-400/40 md:max-w-[38rem]">
+							<div className="flex h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-4 shadow-2xl shadow-black/25 backdrop-blur-xl focus-within:border-violet-400/40 md:max-w-[38rem]">
 								<Search className="h-[17px] w-[17px] shrink-0 text-white/40" />
 								<input
 									name="query"

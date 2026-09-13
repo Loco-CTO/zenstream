@@ -6,6 +6,7 @@ import {
 	emptySearchFacets,
 	getSearchPage,
 	landscapeImage,
+	posterImage,
 	type MediaItem,
 	type SearchPage as SearchPageData,
 } from "@/lib/media-api";
@@ -29,6 +30,7 @@ vi.mock("@/lib/media-api", async () => {
 		...actual,
 		getSearchPage: vi.fn(),
 		landscapeImage: vi.fn(actual.landscapeImage),
+		posterImage: vi.fn(actual.posterImage),
 	};
 });
 
@@ -59,6 +61,7 @@ describe("SearchPage", () => {
 	beforeEach(() => {
 		vi.mocked(getSearchPage).mockReset();
 		vi.mocked(landscapeImage).mockReset();
+		vi.mocked(posterImage).mockReset();
 	});
 
 	afterEach(() => {
@@ -121,6 +124,35 @@ describe("SearchPage", () => {
 		expect(await screen.findByText("A Livid")).toBeInTheDocument();
 		expect(screen.queryByTestId("search-featured")).not.toBeInTheDocument();
 		expect(screen.getByTestId("search-result-row")).toBeInTheDocument();
+	});
+
+	it("uses poster proportions for video results and square cover art for music", async () => {
+		const album: MediaItem = {
+			Id: "album-1",
+			Name: "Livid Album",
+			Type: "MusicAlbum",
+			AlbumArtist: "Livid Artist",
+		};
+		vi.mocked(posterImage).mockImplementation((item) => ({
+			src: `/${item.Id}.jpg`,
+			blurHash: undefined,
+			width: 280,
+			height: 420,
+		}));
+		vi
+			.mocked(getSearchPage)
+			.mockResolvedValue(page([result, album], 2, 1, { movie: 1, release: 1 }));
+
+		render(
+			<ProgressProvider>
+				<SearchPage session={session} query="livid" />
+			</ProgressProvider>,
+		);
+
+		expect(await screen.findByText("Livid Album")).toBeInTheDocument();
+		const artwork = screen.getAllByTestId("search-result-artwork");
+		expect(artwork[0]).toHaveClass("aspect-[2/3]");
+		expect(artwork[1]).toHaveClass("aspect-square");
 	});
 
 	it("uses the highest-ranked backdrop result as the featured panel", async () => {

@@ -938,15 +938,21 @@ function PeopleSection({
 				const people = kind === "cast" ? cast : crew;
 				if (!people.length) return null;
 				const sectionTitle = t(kind);
+				const personKeyCounts = new Map<string, number>();
 				return (
 					<div key={kind} className="mb-6 last:mb-0">
 						<h3 className="mb-3 text-sm font-medium text-white/70">{sectionTitle}</h3>
 						<HorizontalScroller title={sectionTitle} className="gap-4">
 							{people.map((person) => {
 								const image = personImage(person);
+								const baseKey = person.Id
+									? `id:${person.Id}`
+									: `name:${person.Name}|role:${person.Role ?? ""}|type:${person.Type ?? ""}`;
+								const occurrence = personKeyCounts.get(baseKey) ?? 0;
+								personKeyCounts.set(baseKey, occurrence + 1);
 								return (
 									<div
-										key={`${person.Name}-${person.Role}`}
+										key={`${baseKey}:${occurrence}`}
 										className="w-[120px] shrink-0 text-center"
 									>
 										<div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">

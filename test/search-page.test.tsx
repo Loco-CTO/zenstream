@@ -85,6 +85,27 @@ describe("SearchPage", () => {
 		);
 	});
 
+	it("renders the server-provided relevance order without client re-ranking", async () => {
+		const ordered: MediaItem[] = [
+			{ Id: "exact", Name: "Dune Story", Type: "Movie" },
+			{ Id: "prefix", Name: "Dune Storybook", Type: "Movie" },
+			{ Id: "partial", Name: "Undune Story", Type: "Movie" },
+			{ Id: "word-prefix", Name: "Dune in the Story", Type: "Movie" },
+		];
+		vi.mocked(getSearchPage).mockResolvedValue(page(ordered));
+
+		render(
+			<ProgressProvider>
+				<SearchPage session={session} query="dune story" />
+			</ProgressProvider>,
+		);
+
+		const rows = await screen.findAllByTestId("search-result-row");
+		expect(rows.map((row) => row.querySelector("h2")?.textContent)).toEqual(
+			ordered.map((item) => item.Name),
+		);
+	});
+
 	it("shows server facets and requests a filtered page when a pill is selected", async () => {
 		const series: MediaItem = {
 			Id: "series-1",
@@ -251,6 +272,11 @@ describe("SearchPage", () => {
 
 		expect(await screen.findByText("Another Livid")).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: "all 2" })).toBeInTheDocument();
+		expect(
+			screen
+				.getAllByTestId("search-result-row")
+				.map((row) => row.querySelector("h2")?.textContent),
+		).toEqual(["A Livid", "Another Livid"]);
 		expect(vi.mocked(getSearchPage)).toHaveBeenNthCalledWith(
 			1,
 			session,

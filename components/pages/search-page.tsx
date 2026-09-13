@@ -267,7 +267,7 @@ export function SearchPage({
 				) : loading ? (
 					<SearchResultsSkeleton />
 				) : items.length === 0 ? (
-					<div className="border-t border-white/[0.08] px-6 py-20 text-center">
+					<div className="px-6 py-20 text-center">
 						<h2 className="text-lg font-semibold text-white/80">
 							{t("noSearchResults")}
 						</h2>

@@ -11,12 +11,8 @@ import {
 	type MutableRefObject,
 } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
-import {
-	getAudioLyrics,
-	seriesPosterImage,
-	type AudioLyrics,
-	type MediaItem,
-} from "@/lib/media-api";
+import { seriesPosterImage, type AudioLyrics, type MediaItem } from "@/lib/media-api";
+import { loadAudioLyrics } from "@/components/audio/audio-lyrics-cache";
 import { useI18n } from "@/lib/i18n";
 import {
 	BlurHashGlow,
@@ -109,10 +105,11 @@ export function AudioLyricsOverlay({
 
 	useEffect(() => {
 		if (!open || lyricsState.key === requestKey) return;
-		const controller = new AbortController();
+		let active = true;
 		lineRefs.current = [];
-		void getAudioLyrics(player.session, track.Id, controller.signal)
+		void loadAudioLyrics(player.session, track.Id)
 			.then((nextLyrics) => {
+				if (!active) return;
 				setLyricsState({
 					key: requestKey,
 					lyrics: nextLyrics,
@@ -120,14 +117,16 @@ export function AudioLyricsOverlay({
 				});
 			})
 			.catch((error: unknown) => {
-				if (controller.signal.aborted) return;
+				if (!active) return;
 				setLyricsState({
 					key: requestKey,
 					lyrics: null,
 					error: error instanceof Error ? error.message : t("lyricsLoadFailed"),
 				});
 			});
-		return () => controller.abort();
+		return () => {
+			active = false;
+		};
 	}, [lyricsState.key, open, player.session, requestKey, t, track.Id]);
 
 	useEffect(() => {

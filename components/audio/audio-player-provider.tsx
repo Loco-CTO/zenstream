@@ -24,6 +24,11 @@ import {
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
 import {
+	selectNextAudioQueueEntry,
+	selectPreviousAudioQueueEntry,
+} from "@/components/audio/audio-queue-logic";
+import { prefetchAudioLyrics } from "@/components/audio/audio-lyrics-cache";
+import {
 	readStoredAudioPlayerPreferences,
 	writeStoredAudioPlayerPreferences,
 	type AudioLoopMode,
@@ -147,7 +152,14 @@ export function AudioPlayerProvider({
 	const currentIndexRef = useRef(currentIndex);
 	const volumeRef = useRef(volume);
 	const mutedRef = useRef(muted);
+	const shuffleRef = useRef(shuffle);
 	const loopModeRef = useRef(loopMode);
+	const playedEntryIdsRef = useRef(new Set<string>());
+	const shuffleHistoryRef = useRef<string[]>([]);
+	const pendingStartPositionRef = useRef<{
+		entryId: string;
+		positionSeconds: number;
+	} | null>(null);
 	const progressReportedAt = useRef(0);
 	const playStartPromises = useRef(new Map<string, Promise<void>>());
 	const playStartCompleted = useRef(new Set<string>());
@@ -176,9 +188,23 @@ export function AudioPlayerProvider({
 	useEffect(() => {
 		loopModeRef.current = loopMode;
 	}, [loopMode]);
+	useEffect(() => {
+		shuffleRef.current = shuffle;
+	}, [shuffle]);
 
 	const currentEntry = queue[currentIndex] ?? null;
 	const currentTrack = currentEntry?.track ?? null;
+
+	useEffect(() => {
+		if (!currentEntry) return;
+		const candidates = [
+			currentEntry,
+			queue[currentIndex + 1],
+		].filter((entry): entry is AudioQueueEntry => Boolean(entry));
+		for (const entry of candidates) {
+			prefetchAudioLyrics(session, entry.track.Id);
+		}
+	}, [currentEntry, currentIndex, queue, session]);
 
 	const sendPlayStart = useCallback(
 		(entry: AudioQueueEntry) => {
@@ -238,6 +264,7 @@ export function AudioPlayerProvider({
 			void audio
 				.play()
 				.then(() => {
+					playedEntryIdsRef.current.add(entry.id);
 					setIsPlaying(true);
 					setAutoplayBlocked(false);
 					setError(null);
@@ -254,6 +281,42 @@ export function AudioPlayerProvider({
 				});
 		},
 		[sendPlayStart],
+	);
+
+	const transitionToQueueIndex = useCallback(
+		(
+			index: number,
+			options: { resetPlayed?: boolean; recordHistory?: boolean } = {},
+		) => {
+			const target = queueRef.current[index];
+			if (!target) return false;
+			const current = queueRef.current[currentIndexRef.current];
+			if (options.resetPlayed) {
+				playedEntryIdsRef.current.clear();
+				shuffleHistoryRef.current = [];
+			}
+			if (
+				options.recordHistory !== false &&
+				!options.resetPlayed &&
+				shuffleRef.current &&
+				current &&
+				current.id !== target.id
+			) {
+				shuffleHistoryRef.current = [
+					...shuffleHistoryRef.current,
+					current.id,
+				];
+			}
+			pendingStartPositionRef.current = {
+				entryId: target.id,
+				positionSeconds: 0,
+			};
+			shouldPlayRef.current = true;
+			currentIndexRef.current = index;
+			setCurrentIndex(index);
+			return true;
+		},
+		[],
 	);
 
 	useEffect(() => {
@@ -283,30 +346,33 @@ export function AudioPlayerProvider({
 				setIsPlaying(false);
 				return;
 			}
-			if (loopModeRef.current === "single") {
+			const selection = selectNextAudioQueueEntry(
+				queueRef.current,
+				currentIndexRef.current,
+				shuffleRef.current,
+				loopModeRef.current,
+				true,
+				playedEntryIdsRef.current,
+			);
+			if (!selection) {
+				shouldPlayRef.current = false;
+				audio.pause();
+				audio.currentTime = 0;
+				setPositionSeconds(0);
+				setIsPlaying(false);
+				return;
+			}
+			playedEntryIdsRef.current = new Set(selection.playedEntryIds);
+			if (selection.index === currentIndexRef.current) {
 				shouldPlayRef.current = true;
 				audio.currentTime = 0;
 				setPositionSeconds(0);
 				attemptPlay(currentEntryAtEnd);
 				return;
 			}
-			const nextIndex = currentIndexRef.current + 1;
-			if (nextIndex < queueRef.current.length) {
-				setCurrentIndex(nextIndex);
-				shouldPlayRef.current = true;
-			} else if (loopModeRef.current === "queue") {
-				shouldPlayRef.current = true;
-				if (queueRef.current.length === 1) {
-					audio.currentTime = 0;
-					setPositionSeconds(0);
-					attemptPlay(currentEntryAtEnd);
-				} else {
-					setCurrentIndex(0);
-				}
-			} else {
-				shouldPlayRef.current = false;
-				setIsPlaying(false);
-			}
+			transitionToQueueIndex(selection.index, {
+				resetPlayed: selection.resetPlayed,
+			});
 		};
 		const onError = () => {
 			setIsPlaying(false);
@@ -326,7 +392,13 @@ export function AudioPlayerProvider({
 			audio.removeEventListener("ended", onEnded);
 			audio.removeEventListener("error", onError);
 		};
-	}, [attemptPlay, currentEntry, reportPosition, sendPlayStart]);
+	}, [
+		attemptPlay,
+		currentEntry,
+		reportPosition,
+		sendPlayStart,
+		transitionToQueueIndex,
+	]);
 
 	useEffect(() => {
 		const audio = audioRef.current;
@@ -353,7 +425,30 @@ export function AudioPlayerProvider({
 		setDurationSeconds(entry.track.DurationSeconds ?? 0);
 		setError(null);
 		setAutoplayBlocked(false);
-		const startPosition = savedPlaybackPositionSeconds(entry.track);
+		const pendingStart = pendingStartPositionRef.current;
+		const startPosition =
+			pendingStart?.entryId === entry.id
+				? pendingStart.positionSeconds
+				: savedPlaybackPositionSeconds(entry.track);
+		const applyStartPosition = () => {
+			if (!active || generation !== loadGeneration.current || !audioRef.current)
+				return;
+			const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+			const target = Math.max(
+				0,
+				Number.isFinite(startPosition) ? startPosition : 0,
+			);
+			const boundedTarget = duration > 0 ? Math.min(target, duration) : target;
+			try {
+				audio.currentTime = boundedTarget;
+			} catch {
+				// The browser may reject a seek until metadata is available; the next
+				// metadata event will retry it.
+			}
+			if (pendingStartPositionRef.current?.entryId === entry.id)
+				pendingStartPositionRef.current = null;
+		};
+		audio.addEventListener("loadedmetadata", applyStartPosition);
 		void getPlaybackInfo(session, entry.track.Id, {
 			startPositionSeconds: startPosition,
 		})
@@ -367,6 +462,7 @@ export function AudioPlayerProvider({
 					const hls = new Hls({ enableWorker: true });
 					hlsRef.current = hls;
 					hls.on(Hls.Events.MANIFEST_PARSED, () => {
+						applyStartPosition();
 						if (
 							active &&
 							generation === loadGeneration.current &&
@@ -399,6 +495,7 @@ export function AudioPlayerProvider({
 			});
 		return () => {
 			active = false;
+			audio.removeEventListener("loadedmetadata", applyStartPosition);
 			audio.pause();
 			audio.removeAttribute("src");
 			audio.load();
@@ -433,7 +530,15 @@ export function AudioPlayerProvider({
 				? entries.findIndex((entry) => entry.track.Id === selectedTrackId)
 				: 0;
 			const index = requestedIndex >= 0 ? requestedIndex : 0;
+			playedEntryIdsRef.current.clear();
+			shuffleHistoryRef.current = [];
+			pendingStartPositionRef.current = {
+				entryId: entries[index].id,
+				positionSeconds: 0,
+			};
 			shouldPlayRef.current = true;
+			queueRef.current = entries;
+			currentIndexRef.current = index;
 			setQueue(entries);
 			setCurrentIndex(index);
 			setQueueOpen(false);
@@ -468,8 +573,19 @@ export function AudioPlayerProvider({
 			void album;
 			const entries = makeEntries(tracks);
 			if (!entries.length) return;
-			setQueue((current) => (current.length ? [...current, ...entries] : entries));
-			if (currentIndexRef.current < 0) setCurrentIndex(0);
+			const wasEmpty = queueRef.current.length === 0;
+			const nextQueue = wasEmpty ? entries : [...queueRef.current, ...entries];
+			queueRef.current = nextQueue;
+			setQueue(nextQueue);
+			if (wasEmpty) {
+				playedEntryIdsRef.current.clear();
+				shuffleHistoryRef.current = [];
+				pendingStartPositionRef.current = {
+					entryId: entries[0].id,
+					positionSeconds: 0,
+				};
+				setCurrentIndex(0);
+			}
 		},
 		[makeEntries],
 	);
@@ -496,11 +612,27 @@ export function AudioPlayerProvider({
 	}, [attemptPlay]);
 
 	const playNext = useCallback(() => {
-		const nextIndex = currentIndexRef.current + 1;
-		if (nextIndex >= queueRef.current.length) return;
-		shouldPlayRef.current = true;
-		setCurrentIndex(nextIndex);
-	}, []);
+		const selection = selectNextAudioQueueEntry(
+			queueRef.current,
+			currentIndexRef.current,
+			shuffleRef.current,
+			loopModeRef.current,
+			false,
+			playedEntryIdsRef.current,
+		);
+		if (!selection) {
+			shouldPlayRef.current = false;
+			audioRef.current?.pause();
+			if (audioRef.current) audioRef.current.currentTime = 0;
+			setPositionSeconds(0);
+			setIsPlaying(false);
+			return;
+		}
+		playedEntryIdsRef.current = new Set(selection.playedEntryIds);
+		transitionToQueueIndex(selection.index, {
+			resetPlayed: selection.resetPlayed,
+		});
+	}, [transitionToQueueIndex]);
 
 	const playPrevious = useCallback(() => {
 		const audio = audioRef.current;
@@ -509,17 +641,32 @@ export function AudioPlayerProvider({
 			setPositionSeconds(0);
 			return;
 		}
-		const previousIndex = currentIndexRef.current - 1;
-		if (previousIndex < 0) return;
-		shouldPlayRef.current = true;
-		setCurrentIndex(previousIndex);
-	}, []);
+		const selection = selectPreviousAudioQueueEntry(
+			queueRef.current,
+			currentIndexRef.current,
+			shuffleRef.current,
+			shuffleHistoryRef.current,
+		);
+		if (!selection) return;
+		shuffleHistoryRef.current = selection.history;
+		transitionToQueueIndex(selection.index, { recordHistory: false });
+	}, [transitionToQueueIndex]);
 
 	const playQueueItem = useCallback((index: number) => {
 		if (index < 0 || index >= queueRef.current.length) return;
-		shouldPlayRef.current = true;
-		setCurrentIndex(index);
-	}, []);
+		if (index === currentIndexRef.current) {
+			const entry = queueRef.current[index];
+			const audio = audioRef.current;
+			shouldPlayRef.current = true;
+			if (audio?.ended) {
+				audio.currentTime = 0;
+				setPositionSeconds(0);
+			}
+			if (audio?.getAttribute("src")) attemptPlay(entry);
+			return;
+		}
+		transitionToQueueIndex(index);
+	}, [attemptPlay, transitionToQueueIndex]);
 
 	const seek = useCallback((nextPosition: number) => {
 		const audio = audioRef.current;
@@ -545,6 +692,7 @@ export function AudioPlayerProvider({
 	}, [updatePreferences]);
 
 	const toggleShuffle = useCallback(() => {
+		shuffleHistoryRef.current = [];
 		updatePreferences((current) => ({ shuffle: !current.shuffle }));
 	}, [updatePreferences]);
 
@@ -560,42 +708,59 @@ export function AudioPlayerProvider({
 	}, [updatePreferences]);
 
 	const removeQueueItem = useCallback((entryId: string) => {
-		setQueue((current) => {
-			const removedIndex = current.findIndex((entry) => entry.id === entryId);
-			if (removedIndex < 0) return current;
-			const next = current.filter((entry) => entry.id !== entryId);
-			if (removedIndex === currentIndexRef.current) {
-				const nextIndex = Math.min(removedIndex, next.length - 1);
-				setCurrentIndex(nextIndex);
-				shouldPlayRef.current = nextIndex >= 0;
-			} else if (removedIndex < currentIndexRef.current) {
-				setCurrentIndex((index) => index - 1);
-			}
-			return next;
-		});
+		playedEntryIdsRef.current.delete(entryId);
+		shuffleHistoryRef.current = shuffleHistoryRef.current.filter(
+			(historyEntryId) => historyEntryId !== entryId,
+		);
+		const current = queueRef.current;
+		const removedIndex = current.findIndex((entry) => entry.id === entryId);
+		if (removedIndex < 0) return;
+		const next = current.filter((entry) => entry.id !== entryId);
+		const currentIndex = currentIndexRef.current;
+		const nextIndex =
+			removedIndex === currentIndex
+				? Math.min(removedIndex, next.length - 1)
+				: removedIndex < currentIndex
+					? currentIndex - 1
+					: currentIndex;
+		queueRef.current = next;
+		currentIndexRef.current = nextIndex;
+		if (removedIndex === currentIndex) {
+			pendingStartPositionRef.current = next[nextIndex]
+				? { entryId: next[nextIndex].id, positionSeconds: 0 }
+				: null;
+			shouldPlayRef.current = nextIndex >= 0;
+		}
+		setQueue(next);
+		setCurrentIndex(nextIndex);
 	}, []);
 
 	const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
-		setQueue((current) => {
-			if (
-				fromIndex < 0 ||
-				toIndex < 0 ||
-				fromIndex >= current.length ||
-				toIndex >= current.length ||
-				fromIndex === toIndex
-			)
-				return current;
-			const next = [...current];
-			const [entry] = next.splice(fromIndex, 1);
-			next.splice(toIndex, 0, entry);
-			setCurrentIndex((index) => {
-				if (index === fromIndex) return toIndex;
-				if (fromIndex < index && index <= toIndex) return index - 1;
-				if (toIndex <= index && index < fromIndex) return index + 1;
-				return index;
-			});
-			return next;
-		});
+		const current = queueRef.current;
+		if (
+			fromIndex < 0 ||
+			toIndex < 0 ||
+			fromIndex >= current.length ||
+			toIndex >= current.length ||
+			fromIndex === toIndex
+		)
+			return;
+		const next = [...current];
+		const [entry] = next.splice(fromIndex, 1);
+		next.splice(toIndex, 0, entry);
+		const currentIndex = currentIndexRef.current;
+		const nextIndex =
+			currentIndex === fromIndex
+				? toIndex
+				: fromIndex < currentIndex && currentIndex <= toIndex
+					? currentIndex - 1
+					: toIndex <= currentIndex && currentIndex < fromIndex
+						? currentIndex + 1
+						: currentIndex;
+		queueRef.current = next;
+		currentIndexRef.current = nextIndex;
+		setQueue(next);
+		setCurrentIndex(nextIndex);
 	}, []);
 
 	const toggleFavorite = useCallback(async () => {
@@ -637,6 +802,11 @@ export function AudioPlayerProvider({
 
 	const clearAudioPlayer = useCallback(() => {
 		shouldPlayRef.current = false;
+		queueRef.current = [];
+		currentIndexRef.current = -1;
+		playedEntryIdsRef.current.clear();
+		shuffleHistoryRef.current = [];
+		pendingStartPositionRef.current = null;
 		loadGeneration.current += 1;
 		hlsRef.current?.destroy();
 		hlsRef.current = null;

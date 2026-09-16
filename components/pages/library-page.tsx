@@ -40,7 +40,25 @@ const GRID_GAP = 12;
 const CARD_TEXT_HEIGHT = 48;
 const MUSIC_CARD_TEXT_HEIGHT = 64;
 const MUSIC_ROW_GAP = 24;
-const OVERSCAN_ROWS = 3;
+const OVERSCAN_ROWS = 1;
+
+type ArtworkLoadingPolicy = {
+	loading: "eager" | "lazy";
+	fetchPriority: "high" | "auto" | "low";
+};
+
+function artworkLoadingPolicy(
+	row: number,
+	visibleStartRow: number,
+	visibleEndRow: number,
+): ArtworkLoadingPolicy {
+	if (row >= visibleStartRow && row < visibleEndRow) {
+		return row === visibleStartRow
+			? { loading: "eager", fetchPriority: "high" }
+			: { loading: "eager", fetchPriority: "auto" };
+	}
+	return { loading: "lazy", fetchPriority: "low" };
+}
 
 const SORTS = [
 	{ value: "rating", labelKey: "sortRating" },
@@ -600,14 +618,24 @@ function VirtualMediaGrid({
 	const rowHeight = cardWidth * (music ? 1 : 1.5) + cardTextHeight + rowGap;
 	const rowCount = Math.ceil(items.length / columns);
 	const relativeTop = Math.max(0, viewport.scrollY - containerTop);
-	const startRow = Math.max(
+	const measuredVisibleStartRow = Math.max(
 		0,
-		Math.floor(relativeTop / rowHeight) - OVERSCAN_ROWS,
+		Math.floor(relativeTop / rowHeight),
 	);
-	const endRow = Math.min(
-		rowCount,
-		Math.ceil((relativeTop + viewport.height) / rowHeight) + OVERSCAN_ROWS,
-	);
+	const visibleStartRow =
+		rowCount > 0 ? Math.min(rowCount - 1, measuredVisibleStartRow) : 0;
+	const visibleEndRow =
+		rowCount > 0
+			? Math.min(
+					rowCount,
+					Math.max(
+						visibleStartRow + 1,
+						Math.ceil((relativeTop + viewport.height) / rowHeight),
+					),
+				)
+			: 0;
+	const startRow = Math.max(0, visibleStartRow - OVERSCAN_ROWS);
+	const endRow = Math.min(rowCount, visibleEndRow + OVERSCAN_ROWS);
 
 	useEffect(() => {
 		if (hasMore && endRow >= rowCount - 2) onLoadMore();
@@ -616,6 +644,11 @@ function VirtualMediaGrid({
 	const rows = [];
 	for (let row = startRow; row < endRow; row += 1) {
 		const rowItems = items.slice(row * columns, row * columns + columns);
+		const loadingPolicy = artworkLoadingPolicy(
+			row,
+			visibleStartRow,
+			visibleEndRow,
+		);
 		rows.push(
 			<div
 				key={row}
@@ -627,7 +660,13 @@ function VirtualMediaGrid({
 				}}
 			>
 				{rowItems.map((item) => (
-					<LibraryCard key={item.Id} item={item} session={session} music={music} />
+					<LibraryCard
+						key={item.Id}
+						item={item}
+						session={session}
+						music={music}
+						loadingPolicy={loadingPolicy}
+					/>
 				))}
 			</div>,
 		);
@@ -649,10 +688,12 @@ function LibraryCard({
 	item,
 	session,
 	music,
+	loadingPolicy,
 }: {
 	item: MediaItem;
 	session: AuthSession;
 	music: boolean;
+	loadingPolicy: ArtworkLoadingPolicy;
 }) {
 	if (music)
 		return <SquareAudioCard item={item} session={session} className="w-full" />;
@@ -678,8 +719,9 @@ function LibraryCard({
 								alt={item.Name}
 								useArtworkVariants
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
-								loading="lazy"
+								loading={loadingPolicy.loading}
 								decoding="async"
+								fetchPriority={loadingPolicy.fetchPriority}
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}
 							/>
 						)}

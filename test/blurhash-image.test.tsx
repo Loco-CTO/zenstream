@@ -28,6 +28,9 @@ describe("BlurHashImage", () => {
 		expect(container.querySelector("div[aria-hidden='true']")).not.toHaveClass(
 			"hero-backdrop-active",
 		);
+		expect(container.querySelector("div[aria-hidden='true']")).toHaveClass(
+			"duration-150",
+		);
 	});
 
 	it("uses the persistent bounded artwork variants for card images", () => {

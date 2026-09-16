@@ -676,6 +676,7 @@ function LibraryCard({
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
+								useArtworkVariants
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
 								loading="lazy"
 								decoding="async"

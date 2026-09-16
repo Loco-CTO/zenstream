@@ -406,6 +406,13 @@ export interface MediaImage {
 	height?: number;
 }
 
+export function artworkVariantUrl(src: string, width: 160 | 320) {
+	const url = new URL(src, orchestratorBaseUrl());
+	if (!isCatalogArtworkPath(url.pathname)) return src;
+	url.searchParams.set("w", String(width));
+	return url.toString();
+}
+
 export type HeroTrailer =
 	| { kind: "youtube"; url: string; videoId: string }
 	| { kind: "local"; url: string };
@@ -2302,12 +2309,7 @@ function imageData(
 function artworkImageUrl(tag: string) {
 	if (!tag.startsWith("/api/catalog/items/")) return null;
 	const url = new URL(tag, orchestratorBaseUrl());
-	if (
-		!/^\/api\/catalog\/items\/[^/]+\/(?:images\/(?:Primary|Backdrop|Logo|Banner)|people\/[^/]+\/image)$/.test(
-			url.pathname,
-		)
-	)
-		return null;
+	if (!isCatalogArtworkPath(url.pathname)) return null;
 	if (
 		artworkTicket &&
 		artworkTicket.sessionKey === resourceSessionKey(getAuthSession()) &&
@@ -2317,4 +2319,10 @@ function artworkImageUrl(tag: string) {
 		url.searchParams.set("access", artworkTicket.value);
 	}
 	return url.toString();
+}
+
+function isCatalogArtworkPath(pathname: string) {
+	return /^\/api\/catalog\/items\/[^/]+\/(?:images\/(?:Primary|Backdrop|Logo|Banner)|people\/[^/]+\/image)$/.test(
+		pathname,
+	);
 }

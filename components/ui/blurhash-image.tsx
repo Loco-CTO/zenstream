@@ -5,7 +5,7 @@ import { Clapperboard } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { ComponentPropsWithoutRef } from "react";
-import type { MediaImage } from "@/lib/media-api";
+import { artworkVariantUrl, type MediaImage } from "@/lib/media-api";
 
 type BlurHashImageProps = Omit<
 	ComponentPropsWithoutRef<typeof Image>,
@@ -14,6 +14,7 @@ type BlurHashImageProps = Omit<
 	image: MediaImage;
 	alt: string;
 	fill?: boolean;
+	useArtworkVariants?: boolean;
 };
 
 const PLACEHOLDER_SIZE = 16;
@@ -29,6 +30,7 @@ export function BlurHashImage({
 	width,
 	height,
 	sizes,
+	useArtworkVariants = false,
 	...props
 }: BlurHashImageProps) {
 	const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
@@ -58,7 +60,10 @@ export function BlurHashImage({
 			) : (
 				<Image
 					{...props}
-					unoptimized
+					loader={
+						useArtworkVariants ? artworkVariantLoader : undefined
+					}
+					unoptimized={!useArtworkVariants}
 					src={image.src}
 					alt={alt}
 					fill={fill}
@@ -85,6 +90,10 @@ export function BlurHashImage({
 			)}
 		</>
 	);
+}
+
+function artworkVariantLoader({ src, width }: { src: string; width: number }) {
+	return artworkVariantUrl(src, width <= 160 ? 160 : 320);
 }
 
 export function MediaPlaceholder() {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -598,6 +599,46 @@ describe("AudioPlayerBar", () => {
 		);
 		fireEvent.loadedMetadata(audio);
 		expect(audio.currentTime).toBe(0);
+	});
+
+	it("ignores an interrupted play request from a quickly replaced track", async () => {
+		const playMock = vi.mocked(HTMLMediaElement.prototype.play);
+		let rejectFirstPlay: ((reason?: unknown) => void) | undefined;
+		playMock.mockReset();
+		playMock
+			.mockImplementationOnce(
+				() =>
+					new Promise<void>((_resolve, reject) => {
+						rejectFirstPlay = reject;
+					}),
+			)
+			.mockResolvedValue(undefined);
+
+		renderBarWithStateProbe();
+		await screen.findByTestId("audio-player-bar");
+		await waitFor(() => expect(playMock).toHaveBeenCalledTimes(1));
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		fireEvent.click(screen.getByRole("button", { name: "Play Track Two" }));
+		const state = screen.getByTestId("player-state");
+		await waitFor(() =>
+			expect(state).toHaveAttribute("data-track-id", "track-2"),
+		);
+		await waitFor(() => expect(playMock.mock.calls.length).toBeGreaterThan(1));
+		await waitFor(() => expect(state).toHaveAttribute("data-playing", "true"));
+
+		await act(async () => {
+			rejectFirstPlay?.(
+				new DOMException(
+					"The play() request was interrupted by a call to pause().",
+					"AbortError",
+				),
+			);
+			await Promise.resolve();
+		});
+
+		expect(state).toHaveAttribute("data-playing", "true");
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 	});
 
 	it("shows playback errors without removing the bar", async () => {

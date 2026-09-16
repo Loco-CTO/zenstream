@@ -103,6 +103,17 @@ function newPlaybackInstanceId() {
 	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+function isExpectedPlayInterruption(error: unknown) {
+	if (!error || typeof error !== "object") return false;
+	const name = "name" in error ? error.name : undefined;
+	const message = "message" in error ? error.message : undefined;
+	return (
+		name === "AbortError" ||
+		(typeof message === "string" &&
+			/play\(\).*request was interrupted/i.test(message))
+	);
+}
+
 function shuffled<T>(values: T[]) {
 	const result = [...values];
 	for (let index = result.length - 1; index > 0; index -= 1) {
@@ -147,6 +158,7 @@ export function AudioPlayerProvider({
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const hlsRef = useRef<Hls | null>(null);
 	const loadGeneration = useRef(0);
+	const playAttemptGeneration = useRef(0);
 	const shouldPlayRef = useRef(false);
 	const queueRef = useRef(queue);
 	const currentIndexRef = useRef(currentIndex);
@@ -164,6 +176,10 @@ export function AudioPlayerProvider({
 	const playStartPromises = useRef(new Map<string, Promise<void>>());
 	const playStartCompleted = useRef(new Set<string>());
 	const playStartGeneration = useRef(0);
+
+	const invalidatePlayAttempt = useCallback(() => {
+		playAttemptGeneration.current += 1;
+	}, []);
 
 	const updatePreferences = useCallback((update: AudioPreferencesUpdate) => {
 		setPreferences((current) => {
@@ -260,9 +276,15 @@ export function AudioPlayerProvider({
 		(entry: AudioQueueEntry) => {
 			const audio = audioRef.current;
 			if (!audio) return;
+			const generation = ++playAttemptGeneration.current;
 			void audio
 				.play()
 				.then(() => {
+					if (
+						generation !== playAttemptGeneration.current ||
+						queueRef.current[currentIndexRef.current]?.id !== entry.id
+					)
+						return;
 					playedEntryIdsRef.current.add(entry.id);
 					setIsPlaying(true);
 					setAutoplayBlocked(false);
@@ -270,6 +292,16 @@ export function AudioPlayerProvider({
 					sendPlayStart(entry);
 				})
 				.catch((playError) => {
+					if (
+						generation !== playAttemptGeneration.current ||
+						queueRef.current[currentIndexRef.current]?.id !== entry.id
+					)
+						return;
+					if (isExpectedPlayInterruption(playError)) {
+						setIsPlaying(false);
+						setAutoplayBlocked(false);
+						return;
+					}
 					setIsPlaying(false);
 					setAutoplayBlocked(true);
 					setError(
@@ -289,6 +321,7 @@ export function AudioPlayerProvider({
 		) => {
 			const target = queueRef.current[index];
 			if (!target) return false;
+			invalidatePlayAttempt();
 			const current = queueRef.current[currentIndexRef.current];
 			if (options.resetPlayed) {
 				playedEntryIdsRef.current.clear();
@@ -312,7 +345,7 @@ export function AudioPlayerProvider({
 			setCurrentIndex(index);
 			return true;
 		},
-		[],
+		[invalidatePlayAttempt],
 	);
 
 	useEffect(() => {
@@ -351,6 +384,7 @@ export function AudioPlayerProvider({
 				playedEntryIdsRef.current,
 			);
 			if (!selection) {
+				invalidatePlayAttempt();
 				shouldPlayRef.current = false;
 				audio.pause();
 				audio.currentTime = 0;
@@ -394,6 +428,7 @@ export function AudioPlayerProvider({
 		reportPosition,
 		sendPlayStart,
 		transitionToQueueIndex,
+		invalidatePlayAttempt,
 	]);
 
 	useEffect(() => {
@@ -491,12 +526,13 @@ export function AudioPlayerProvider({
 			});
 		return () => {
 			active = false;
+			invalidatePlayAttempt();
 			audio.removeEventListener("loadedmetadata", applyStartPosition);
 			audio.pause();
 			audio.removeAttribute("src");
 			audio.load();
 		};
-	}, [attemptPlay, currentEntry, session]);
+	}, [attemptPlay, currentEntry, invalidatePlayAttempt, session]);
 
 	const makeEntries = useCallback((tracks: MediaItem[]) => {
 		return uniqueTracks(tracks).map((track) => {
@@ -521,6 +557,7 @@ export function AudioPlayerProvider({
 				? shuffled(uniqueTracks(tracks))
 				: uniqueTracks(tracks);
 			if (!ordered.length) return;
+			invalidatePlayAttempt();
 			const entries = makeEntries(ordered);
 			const requestedIndex = selectedTrackId
 				? entries.findIndex((entry) => entry.track.Id === selectedTrackId)
@@ -540,7 +577,7 @@ export function AudioPlayerProvider({
 			setQueueOpen(false);
 			setError(null);
 		},
-		[makeEntries, shuffle],
+		[invalidatePlayAttempt, makeEntries, shuffle],
 	);
 
 	const playTrack = useCallback(
@@ -595,9 +632,10 @@ export function AudioPlayerProvider({
 			attemptPlay(entry);
 		} else {
 			shouldPlayRef.current = false;
+			invalidatePlayAttempt();
 			audio.pause();
 		}
-	}, [attemptPlay]);
+	}, [attemptPlay, invalidatePlayAttempt]);
 
 	const resume = useCallback(() => {
 		const entry = queueRef.current[currentIndexRef.current];
@@ -617,6 +655,7 @@ export function AudioPlayerProvider({
 			playedEntryIdsRef.current,
 		);
 		if (!selection) {
+			invalidatePlayAttempt();
 			shouldPlayRef.current = false;
 			audioRef.current?.pause();
 			if (audioRef.current) audioRef.current.currentTime = 0;
@@ -628,7 +667,7 @@ export function AudioPlayerProvider({
 		transitionToQueueIndex(selection.index, {
 			resetPlayed: selection.resetPlayed,
 		});
-	}, [transitionToQueueIndex]);
+	}, [invalidatePlayAttempt, transitionToQueueIndex]);
 
 	const playPrevious = useCallback(() => {
 		const audio = audioRef.current;
@@ -725,6 +764,7 @@ export function AudioPlayerProvider({
 		queueRef.current = next;
 		currentIndexRef.current = nextIndex;
 		if (removedIndex === currentIndex) {
+			playAttemptGeneration.current += 1;
 			pendingStartPositionRef.current = next[nextIndex]
 				? { entryId: next[nextIndex].id, positionSeconds: 0 }
 				: null;
@@ -801,6 +841,7 @@ export function AudioPlayerProvider({
 
 	const clearAudioPlayer = useCallback(() => {
 		shouldPlayRef.current = false;
+		invalidatePlayAttempt();
 		queueRef.current = [];
 		currentIndexRef.current = -1;
 		playedEntryIdsRef.current.clear();
@@ -828,7 +869,7 @@ export function AudioPlayerProvider({
 		playStartGeneration.current += 1;
 		playStartPromises.current.clear();
 		playStartCompleted.current.clear();
-	}, []);
+	}, [invalidatePlayAttempt]);
 
 	const toggleLyrics = useCallback(() => {
 		setLyricsOpen((current) => !current);

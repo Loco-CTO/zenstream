@@ -30,6 +30,27 @@ describe("BlurHashImage", () => {
 		);
 	});
 
+	it("uses the persistent bounded artwork variants for card images", () => {
+		const { container } = render(
+			<div className="relative">
+				<BlurHashImage
+					image={{
+						src: "https://server.test/api/catalog/items/movie/images/Primary?language=en&v=revision-1",
+					}}
+					alt="Poster"
+					useArtworkVariants
+					sizes="200px"
+					className="h-full w-full object-cover"
+				/>
+			</div>,
+		);
+
+		const image = container.querySelector("img");
+		expect(image?.getAttribute("src")).toContain("w=320");
+		expect(image?.getAttribute("src")).not.toContain("av=");
+		expect(image?.getAttribute("srcset")).toContain("w=160");
+	});
+
 	it("clips the placeholder to the artwork bounds", () => {
 		const { container } = render(
 			<div className="relative">

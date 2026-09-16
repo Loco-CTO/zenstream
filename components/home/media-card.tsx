@@ -55,6 +55,7 @@ export function WideCard({
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
+								useArtworkVariants
 								draggable={false}
 								sizes="(max-width: 639px) 180px, (max-width: 767px) 240px, 320px"
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}
@@ -102,6 +103,7 @@ export function PosterCard({
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
+								useArtworkVariants
 								draggable={false}
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}
@@ -153,6 +155,7 @@ export function StackedPosterCard({
 								<BlurHashImage
 									image={image}
 									alt={stacked || episode ? (item.SeriesName ?? item.Name) : item.Name}
+									useArtworkVariants
 									draggable={false}
 									sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
 									className={`${MEDIA_CARD_IMAGE_CLASS}`}
@@ -234,6 +237,7 @@ export function SquareAudioCard({
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
+								useArtworkVariants
 								draggable={false}
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 220px"
 								className={`${MEDIA_CARD_IMAGE_CLASS}`}

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	artworkVariantUrl,
 	changeAccountPassword,
 	fetchArtistData,
 	getAudioLyrics,
@@ -43,6 +44,22 @@ describe("changeAccountPassword", () => {
 				}),
 			}),
 		);
+	});
+});
+
+describe("artwork variant URLs", () => {
+	it("preserves the source version and access parameters", () => {
+		const url = artworkVariantUrl(
+			"https://server.test/api/catalog/items/movie/images/Primary?language=en&v=revision-1&access=ticket",
+			320,
+		);
+		const parsed = new URL(url);
+
+		expect(parsed.searchParams.get("language")).toBe("en");
+		expect(parsed.searchParams.get("v")).toBe("revision-1");
+		expect(parsed.searchParams.get("access")).toBe("ticket");
+		expect(parsed.searchParams.get("w")).toBe("320");
+		expect(parsed.searchParams.get("av")).toBeNull();
 	});
 });
 

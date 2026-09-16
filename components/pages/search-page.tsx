@@ -22,6 +22,8 @@ import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 
 const SEARCH_PAGE_SIZE = 20;
+const SEARCH_RESULT_ROW_HEIGHT = 112;
+const SEARCH_RESULT_OVERSCAN = 6;
 const FILTER_ORDER: SearchFilter[] = [
 	"all",
 	"series",
@@ -278,11 +280,12 @@ export function SearchPage({
 						{featured && (
 							<SearchFeatured item={featured.item} image={featured.image} t={t} />
 						)}
-						<div className={featured ? "mt-5" : ""}>
-							{visibleItems.map((item) => (
-								<SearchResultRow key={item.Id} item={item} locale={locale} t={t} />
-							))}
-						</div>
+						<VirtualSearchResults
+							items={visibleItems}
+							locale={locale}
+							t={t}
+							className={featured ? "mt-5" : undefined}
+						/>
 						{items.length < total && (
 							<>
 								<div ref={loadMoreSentinelRef} aria-hidden="true" className="h-px" />
@@ -304,6 +307,83 @@ export function SearchPage({
 				)}
 			</div>
 		</main>
+	);
+}
+
+function VirtualSearchResults({
+	items,
+	locale,
+	t,
+	className,
+}: {
+	items: MediaItem[];
+	locale: Locale;
+	t: ReturnType<typeof useI18n>["t"];
+	className?: string;
+}) {
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const [viewport, setViewport] = useState(() => ({
+		scrollY: typeof window === "undefined" ? 0 : window.scrollY,
+		top: 0,
+		height: typeof window === "undefined" ? 768 : window.innerHeight,
+	}));
+
+	useEffect(() => {
+		const update = () => {
+			const element = containerRef.current;
+			const rect = element?.getBoundingClientRect();
+			setViewport({
+				scrollY: window.scrollY,
+				top: rect ? rect.top + window.scrollY : 0,
+				height: window.innerHeight || 768,
+			});
+		};
+		update();
+		window.addEventListener("scroll", update, { passive: true });
+		window.addEventListener("resize", update);
+		return () => {
+			window.removeEventListener("scroll", update);
+			window.removeEventListener("resize", update);
+		};
+	}, [items.length]);
+
+	const scrollTop = Math.max(0, viewport.scrollY - viewport.top);
+	const start = Math.max(
+		0,
+		Math.floor(scrollTop / SEARCH_RESULT_ROW_HEIGHT) - SEARCH_RESULT_OVERSCAN,
+	);
+	const end = Math.min(
+		items.length,
+		Math.ceil((scrollTop + viewport.height) / SEARCH_RESULT_ROW_HEIGHT) +
+			SEARCH_RESULT_OVERSCAN,
+	);
+	const renderedItems = items.slice(start, end);
+
+	return (
+		<div
+			ref={containerRef}
+			data-testid="search-result-list"
+			className={className}
+			style={{
+				position: "relative",
+				height: items.length * SEARCH_RESULT_ROW_HEIGHT,
+			}}
+		>
+			{renderedItems.map((item, offset) => (
+				<div
+					key={item.Id}
+					style={{
+						position: "absolute",
+						top: (start + offset) * SEARCH_RESULT_ROW_HEIGHT,
+						left: 0,
+						right: 0,
+						height: SEARCH_RESULT_ROW_HEIGHT,
+					}}
+				>
+					<SearchResultRow item={item} locale={locale} t={t} />
+				</div>
+			))}
+		</div>
 	);
 }
 

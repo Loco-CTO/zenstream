@@ -106,6 +106,40 @@ describe("SearchPage", () => {
 		);
 	});
 
+	it("keeps a long result list bounded to the viewport and overscan", async () => {
+		const previousHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
+		Object.defineProperty(window, "innerHeight", {
+			configurable: true,
+			value: 240,
+		});
+		const manyResults = Array.from({ length: 100 }, (_, index) => ({
+			Id: `movie-${index}`,
+			Name: `Result ${index}`,
+			Type: "Movie",
+		})) satisfies MediaItem[];
+		vi.mocked(getSearchPage).mockResolvedValue(page(manyResults));
+
+		try {
+			render(
+				<ProgressProvider>
+					<SearchPage session={session} query="results" />
+				</ProgressProvider>,
+			);
+
+			expect(await screen.findByText("Result 0")).toBeInTheDocument();
+			expect(screen.getByTestId("search-result-list")).toHaveStyle({
+				height: "11200px",
+			});
+			expect(screen.getAllByTestId("search-result-row").length).toBeLessThan(
+				manyResults.length,
+			);
+		} finally {
+			if (previousHeight) {
+				Object.defineProperty(window, "innerHeight", previousHeight);
+			}
+		}
+	});
+
 	it("shows server facets and requests a filtered page when a pill is selected", async () => {
 		const series: MediaItem = {
 			Id: "series-1",

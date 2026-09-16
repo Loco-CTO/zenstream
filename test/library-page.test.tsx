@@ -19,6 +19,42 @@ const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
 	"clientWidth",
 );
 
+function installIntersectionObserver(immediate = false) {
+	let latestCallback: IntersectionObserverCallback | null = null;
+	class TestIntersectionObserver {
+		private active = true;
+		private readonly callback: IntersectionObserverCallback;
+
+		constructor(callback: IntersectionObserverCallback) {
+			this.callback = callback;
+			latestCallback = callback;
+		}
+
+		observe() {
+			if (!immediate) return;
+			queueMicrotask(() => {
+				if (this.active) {
+					this.callback(
+						[{ isIntersecting: true } as IntersectionObserverEntry],
+						this as unknown as IntersectionObserver,
+					);
+				}
+			});
+		}
+
+		disconnect() {
+			this.active = false;
+		}
+	}
+	vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
+	return () => {
+		latestCallback?.(
+			[{ isIntersecting: true } as IntersectionObserverEntry],
+			{} as IntersectionObserver,
+		);
+	};
+}
+
 describe("LibraryPage", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
@@ -167,6 +203,7 @@ describe("LibraryPage", () => {
 	});
 
 	it("keeps rendered cards bounded and appends the next page near the end", async () => {
+		const triggerIntersection = installIntersectionObserver();
 		const getLibraryItems = vi
 			.spyOn(jellyfin, "getLibraryItems")
 			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
@@ -178,6 +215,10 @@ describe("LibraryPage", () => {
 
 		await screen.findByText("Title 0");
 		expect(screen.getAllByRole("article").length).toBeLessThan(40);
+		await waitFor(() =>
+			expect(screen.getByTestId("library-load-more-sentinel")).toBeInTheDocument(),
+		);
+		await act(async () => triggerIntersection());
 
 		Object.defineProperty(window, "scrollY", {
 			configurable: true,
@@ -202,6 +243,245 @@ describe("LibraryPage", () => {
 		expect(await screen.findByText("Title 79")).toBeInTheDocument();
 		expect(screen.getAllByRole("article").length).toBeLessThan(40);
 		expect(screen.getByTestId("virtual-media-grid").style.height).not.toBe("");
+	});
+
+	it("loads the next page when the library sentinel intersects", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 80,
+			});
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(screen.getByTestId("library-load-more-sentinel")).toBeInTheDocument(),
+		);
+		await act(async () => triggerIntersection());
+
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ startIndex: 40 }),
+			),
+		);
+	});
+
+	it("continues loading after a forced catalog refresh", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 120 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 120,
+			})
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 120 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 80),
+				totalRecordCount: 120,
+			});
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(screen.getByTestId("library-load-more-sentinel")).toBeInTheDocument(),
+		);
+		await act(async () => triggerIntersection());
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 40,
+				),
+			).toHaveLength(1),
+		);
+
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { libraryId: "shows", reason: "refresh" },
+			}),
+		);
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 0,
+				),
+			).toHaveLength(2),
+		);
+
+		await act(async () => triggerIntersection());
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 80,
+				),
+			).toHaveLength(1),
+		);
+	});
+
+	it("does not race a page-one refresh with a page-two request", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		let firstPageCalls = 0;
+		let resolveRefresh!: (page: jellyfin.LibraryPage) => void;
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockImplementation((_session, options) => {
+				if (options.startIndex === 0) {
+					firstPageCalls += 1;
+					if (firstPageCalls > 1) {
+						return new Promise((resolve) => {
+							resolveRefresh = resolve;
+						});
+					}
+					return Promise.resolve({
+						items: makeItems(40),
+						totalRecordCount: 80,
+					});
+				}
+				return Promise.resolve({
+					items: makeItems(40, 40),
+					totalRecordCount: 80,
+				});
+			});
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(screen.getByTestId("library-load-more-sentinel")).toBeInTheDocument(),
+		);
+		window.dispatchEvent(
+			new CustomEvent("zenstream:catalog-changed", {
+				detail: { libraryId: "shows", reason: "refresh" },
+			}),
+		);
+		await waitFor(() => expect(resolveRefresh).toBeTypeOf("function"));
+		await act(async () => triggerIntersection());
+		expect(
+			getLibraryItems.mock.calls.filter(
+				([, options]) => options.startIndex === 40,
+			),
+		).toHaveLength(0);
+
+		await act(async () =>
+			resolveRefresh({ items: makeItems(40), totalRecordCount: 80 }),
+		);
+		await act(async () => triggerIntersection());
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 40,
+				),
+			).toHaveLength(1),
+		);
+	});
+
+	it("shows a retry when a page reports more items but returns no rows", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({ items: [], totalRecordCount: 80 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 80,
+			});
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(screen.getByTestId("library-load-more-sentinel")).toBeInTheDocument(),
+		);
+		await act(async () => triggerIntersection());
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 40,
+				),
+			).toHaveLength(1),
+		);
+		await screen.findByRole("button", { name: "Retry" });
+
+		fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 40,
+				),
+			).toHaveLength(2),
+		);
+		Object.defineProperty(window, "scrollY", {
+			configurable: true,
+			value: 13_000,
+		});
+		await act(async () => {
+			fireEvent.scroll(window);
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+		});
+		await screen.findByText("Title 79");
+	});
+
+	it("rechecks an intersecting sentinel after each successful append", async () => {
+		installIntersectionObserver(true);
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 120 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 120,
+			})
+			.mockResolvedValueOnce({
+				items: makeItems(40, 80),
+				totalRecordCount: 120,
+			});
+		renderLibrary();
+
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 80,
+				),
+			).toHaveLength(1),
+		);
+		expect(
+			getLibraryItems.mock.calls.filter(
+				([, options]) => options.startIndex === 40,
+			),
+		).toHaveLength(1);
+	});
+
+	it("falls back to document-end checks without IntersectionObserver", async () => {
+		vi.stubGlobal("IntersectionObserver", undefined);
+		Object.defineProperty(document.documentElement, "scrollHeight", {
+			configurable: true,
+			value: 2_000,
+		});
+		Object.defineProperty(window, "scrollY", {
+			configurable: true,
+			value: 700,
+		});
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 80,
+			});
+		renderLibrary();
+
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 40,
+				),
+			).toHaveLength(1),
+		);
+		Object.defineProperty(document.documentElement, "scrollHeight", {
+			configurable: true,
+			value: 0,
+		});
 	});
 
 	it("uses two columns for narrow mobile library grids", async () => {

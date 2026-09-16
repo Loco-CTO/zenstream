@@ -60,9 +60,7 @@ export function BlurHashImage({
 			) : (
 				<Image
 					{...props}
-					loader={
-						useArtworkVariants ? artworkVariantLoader : undefined
-					}
+					loader={useArtworkVariants ? artworkVariantLoader : undefined}
 					unoptimized={!useArtworkVariants}
 					src={image.src}
 					alt={alt}

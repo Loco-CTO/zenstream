@@ -49,7 +49,7 @@ export function BlurHashImage({
 			{placeholder && (
 				<div
 					aria-hidden="true"
-					className={`pointer-events-none absolute inset-0 h-full w-full scale-105 bg-cover bg-center [clip-path:inset(0)] blur-xl transition-opacity duration-300 ${
+					className={`pointer-events-none absolute inset-0 h-full w-full scale-105 bg-cover bg-center [clip-path:inset(0)] blur-xl transition-opacity duration-150 ${
 						loaded ? "opacity-0" : "opacity-100"
 					}`}
 					style={{ backgroundImage: `url("${placeholder}")` }}

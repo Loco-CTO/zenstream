@@ -251,6 +251,28 @@ describe("LibraryPage", () => {
 			items: makeItems(80),
 			totalRecordCount: 80,
 		});
+		renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(screen.getAllByTestId("virtual-grid-row").length).toBeGreaterThan(2),
+		);
+
+		const rows = screen.getAllByTestId("virtual-grid-row");
+		const firstVisibleImage = within(rows[0]).getAllByRole("img")[0];
+		expect(firstVisibleImage).toHaveAttribute("loading", "eager");
+		expect(firstVisibleImage).toHaveAttribute("fetchpriority", "high");
+
+		const secondVisibleImage = within(rows[1]).getAllByRole("img")[0];
+		expect(secondVisibleImage).toHaveAttribute("loading", "eager");
+		expect(secondVisibleImage).toHaveAttribute("fetchpriority", "auto");
+
+		const nearbyImage = within(rows[rows.length - 1]).getAllByRole("img")[0];
+		expect(nearbyImage).toHaveAttribute("loading", "lazy");
+		expect(nearbyImage).toHaveAttribute("fetchpriority", "low");
+		expect(rows.length).toBeLessThanOrEqual(4);
+	});
+
 	it("loads the next page when the library sentinel intersects", async () => {
 		const triggerIntersection = installIntersectionObserver();
 		const getLibraryItems = vi
@@ -398,22 +420,6 @@ describe("LibraryPage", () => {
 
 		await screen.findByText("Title 0");
 		await waitFor(() =>
-			expect(screen.getAllByTestId("virtual-grid-row").length).toBeGreaterThan(2),
-		);
-
-		const rows = screen.getAllByTestId("virtual-grid-row");
-		const firstVisibleImage = within(rows[0]).getAllByRole("img")[0];
-		expect(firstVisibleImage).toHaveAttribute("loading", "eager");
-		expect(firstVisibleImage).toHaveAttribute("fetchpriority", "high");
-
-		const secondVisibleImage = within(rows[1]).getAllByRole("img")[0];
-		expect(secondVisibleImage).toHaveAttribute("loading", "eager");
-		expect(secondVisibleImage).toHaveAttribute("fetchpriority", "auto");
-
-		const nearbyImage = within(rows[rows.length - 1]).getAllByRole("img")[0];
-		expect(nearbyImage).toHaveAttribute("loading", "lazy");
-		expect(nearbyImage).toHaveAttribute("fetchpriority", "low");
-		expect(rows.length).toBeLessThanOrEqual(4);
 			expect(screen.getByTestId("library-load-more-sentinel")).toBeInTheDocument(),
 		);
 		await act(async () => triggerIntersection());

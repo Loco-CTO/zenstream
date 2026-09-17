@@ -90,14 +90,16 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 	const libraryRequestRef = useRef<AbortController | null>(null);
 	const itemRequestRef = useRef<AbortController | null>(null);
 	const itemRequestGenerationRef = useRef(0);
 	const firstPageLoadingRef = useRef(false);
 	const loadingMoreRef = useRef(false);
+	const loadMoreBlockedRef = useRef(false);
 	const loadedQueryRef = useRef("");
 	const applyingQueryPreferenceRef = useRef<string | null>(null);
-	const requestedOffsetsRef = useRef(new Set<number>());
+	const requestedOffsetsRef = useRef(new Map<number, AbortController>());
 	const queryLibraryId = searchParams.get("libraryId") ?? "";
 	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
 	const querySortOrder = searchParams.get("sortOrder");
@@ -264,7 +266,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			itemRequestRef.current = controller;
 			firstPageLoadingRef.current = true;
 			loadingMoreRef.current = false;
-			if (!preserveCurrentItems) requestedOffsetsRef.current = new Set([0]);
+			loadMoreBlockedRef.current = false;
+			setLoadMoreError(null);
+			requestedOffsetsRef.current.clear();
+			requestedOffsetsRef.current.set(0, controller);
 			const finish = start();
 			await Promise.resolve();
 			if (
@@ -274,7 +279,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				if (itemRequestRef.current === controller) {
 					firstPageLoadingRef.current = false;
 					itemRequestRef.current = null;
+					setLoadingMore(false);
 				}
+				if (requestedOffsetsRef.current.get(0) === controller)
+					requestedOffsetsRef.current.delete(0);
 				finish();
 				return;
 			}
@@ -301,6 +309,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					itemRequestGenerationRef.current !== requestGeneration
 				)
 					return;
+				if (page.items.length === 0 && page.totalRecordCount > 0) {
+					setTotal(page.totalRecordCount);
+					setError(t("libraryLoadPageFailed"));
+					return;
+				}
 				if (preserveCurrentItems) {
 					setItems((current) => uniqueItems([...page.items, ...current]));
 					setLoadedCount((current) => Math.max(current, page.items.length));
@@ -309,6 +322,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					setLoadedCount(page.items.length);
 				}
 				setTotal(page.totalRecordCount);
+				loadMoreBlockedRef.current = false;
+				setLoadMoreError(null);
 				loadedQueryRef.current = queryKey;
 			} catch (nextError) {
 				if (
@@ -322,6 +337,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					);
 				}
 			} finally {
+				if (requestedOffsetsRef.current.get(0) === controller)
+					requestedOffsetsRef.current.delete(0);
 				if (
 					itemRequestRef.current === controller &&
 					itemRequestGenerationRef.current === requestGeneration
@@ -333,7 +350,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				finish();
 			}
 		},
-		[activeLibrary, session, sortBy, sortOrder, start],
+		[activeLibrary, session, sortBy, sortOrder, start, t],
 	);
 
 	useEffect(() => {
@@ -343,8 +360,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		itemRequestGenerationRef.current += 1;
 		itemRequestRef.current?.abort();
 		itemRequestRef.current = null;
-		firstPageLoadingRef.current = false;
+		firstPageLoadingRef.current = true;
 		loadingMoreRef.current = false;
+		loadMoreBlockedRef.current = true;
+		requestedOffsetsRef.current.clear();
 	}, [activeLibrary?.Id, sortBy, sortOrder]);
 
 	useEffect(() => {
@@ -378,19 +397,21 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		if (
 			!activeLibrary ||
 			loading ||
+			firstPageLoadingRef.current ||
 			loadingMoreRef.current ||
+			loadMoreBlockedRef.current ||
 			loadedCount >= total
 		)
 			return;
 		const startIndex = loadedCount;
 		if (requestedOffsetsRef.current.has(startIndex)) return;
-		requestedOffsetsRef.current.add(startIndex);
-		loadingMoreRef.current = true;
-		setLoadingMore(true);
 		const controller = new AbortController();
 		const requestGeneration = ++itemRequestGenerationRef.current;
 		itemRequestRef.current?.abort();
 		itemRequestRef.current = controller;
+		requestedOffsetsRef.current.set(startIndex, controller);
+		loadingMoreRef.current = true;
+		setLoadingMore(true);
 		const finish = start();
 		try {
 			const page = await getLibraryItems(session, {
@@ -407,21 +428,40 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				itemRequestGenerationRef.current !== requestGeneration
 			)
 				return;
+			const nextLoadedCount = startIndex + page.items.length;
+			const hasMoreAfterPage = nextLoadedCount < page.totalRecordCount;
+			if (page.items.length === 0) {
+				setTotal(page.totalRecordCount);
+				if (hasMoreAfterPage) {
+					loadMoreBlockedRef.current = true;
+					setLoadMoreError(t("libraryLoadMoreFailed"));
+				} else {
+					loadMoreBlockedRef.current = false;
+					setLoadMoreError(null);
+				}
+				return;
+			}
+			if (page.items.length < PAGE_SIZE && hasMoreAfterPage) {
+				loadMoreBlockedRef.current = true;
+				setLoadMoreError(t("libraryLoadMoreFailed"));
+				return;
+			}
 			setItems((current) => uniqueItems([...current, ...page.items]));
-			setLoadedCount((current) => current + page.items.length);
+			setLoadedCount((current) => Math.max(current, nextLoadedCount));
 			setTotal(page.totalRecordCount);
-			setError(null);
-		} catch (nextError) {
-			requestedOffsetsRef.current.delete(startIndex);
+			loadMoreBlockedRef.current = false;
+			setLoadMoreError(null);
+		} catch {
 			if (
 				!controller.signal.aborted &&
 				itemRequestGenerationRef.current === requestGeneration
 			) {
-				setError(
-					nextError instanceof Error ? nextError.message : "Library request failed.",
-				);
+				loadMoreBlockedRef.current = true;
+				setLoadMoreError(t("libraryLoadMoreFailed"));
 			}
 		} finally {
+			if (requestedOffsetsRef.current.get(startIndex) === controller)
+				requestedOffsetsRef.current.delete(startIndex);
 			if (
 				itemRequestRef.current === controller &&
 				itemRequestGenerationRef.current === requestGeneration
@@ -440,8 +480,15 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		sortBy,
 		sortOrder,
 		start,
+		t,
 		total,
 	]);
+
+	const retryLoadMore = useCallback(() => {
+		loadMoreBlockedRef.current = false;
+		setLoadMoreError(null);
+		void loadMore();
+	}, [loadMore]);
 
 	const sortOptions = useMemo<DropdownOption[]>(
 		() =>
@@ -528,18 +575,25 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					detail={isMusicLibrary ? t("audioEmpty") : t("emptyLibraryHint")}
 				/>
 			) : (
-				<VirtualMediaGrid
-					items={items}
-					hasMore={loadedCount < total}
-					onLoadMore={loadMore}
-					session={session}
-					music={isMusicLibrary}
-				/>
+				<>
+					<VirtualMediaGrid items={items} session={session} music={isMusicLibrary} />
+					<LibraryLoadMoreSentinel
+						hasMore={loadedCount < total}
+						blocked={loadMoreError !== null || error !== null}
+						loading={loading}
+						loadingMore={loadingMore}
+						loadedCount={loadedCount}
+						onLoadMore={loadMore}
+					/>
+				</>
 			)}
 
-			{error && items.length > 0 && (
+			{(loadMoreError || error) && items.length > 0 && (
 				<div className="mt-5">
-					<ErrorPanel message={t("libraryLoadMoreFailed")} onRetry={loadMore} />
+					<ErrorPanel
+						message={loadMoreError ?? t("libraryLoadMoreFailed")}
+						onRetry={loadMoreError ? retryLoadMore : () => loadFirstPage(true)}
+					/>
 				</div>
 			)}
 			{loadingMore && (
@@ -551,16 +605,79 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	);
 }
 
+function LibraryLoadMoreSentinel({
+	hasMore,
+	blocked,
+	loading,
+	loadingMore,
+	loadedCount,
+	onLoadMore,
+}: {
+	hasMore: boolean;
+	blocked: boolean;
+	loading: boolean;
+	loadingMore: boolean;
+	loadedCount: number;
+	onLoadMore: () => void;
+}) {
+	const sentinelRef = useRef<HTMLDivElement>(null);
+	const onLoadMoreRef = useRef(onLoadMore);
+	useEffect(() => {
+		onLoadMoreRef.current = onLoadMore;
+	}, [onLoadMore]);
+
+	useEffect(() => {
+		const sentinel = sentinelRef.current;
+		if (!sentinel || !hasMore || blocked || typeof window === "undefined") return;
+
+		const maybeLoadMore = () => onLoadMoreRef.current();
+		if (typeof IntersectionObserver === "function") {
+			const observer = new IntersectionObserver(
+				([entry]) => {
+					if (entry?.isIntersecting) maybeLoadMore();
+				},
+				{ rootMargin: "0px 0px 640px" },
+			);
+			observer.observe(sentinel);
+			return () => observer.disconnect();
+		}
+
+		let frame = 0;
+		const checkDocumentEnd = () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				const distanceToEnd =
+					document.documentElement.scrollHeight -
+					(window.scrollY + window.innerHeight);
+				if (distanceToEnd <= 640) maybeLoadMore();
+			});
+		};
+		checkDocumentEnd();
+		window.addEventListener("scroll", checkDocumentEnd, { passive: true });
+		window.addEventListener("resize", checkDocumentEnd);
+		return () => {
+			cancelAnimationFrame(frame);
+			window.removeEventListener("scroll", checkDocumentEnd);
+			window.removeEventListener("resize", checkDocumentEnd);
+		};
+	}, [blocked, hasMore, loadedCount, loading, loadingMore]);
+
+	return (
+		<div
+			ref={sentinelRef}
+			data-testid="library-load-more-sentinel"
+			aria-hidden="true"
+			className="h-px w-full"
+		/>
+	);
+}
+
 function VirtualMediaGrid({
 	items,
-	hasMore,
-	onLoadMore,
 	session,
 	music,
 }: {
 	items: MediaItem[];
-	hasMore: boolean;
-	onLoadMore: () => void;
 	session: AuthSession;
 	music: boolean;
 }) {
@@ -636,10 +753,6 @@ function VirtualMediaGrid({
 			: 0;
 	const startRow = Math.max(0, visibleStartRow - OVERSCAN_ROWS);
 	const endRow = Math.min(rowCount, visibleEndRow + OVERSCAN_ROWS);
-
-	useEffect(() => {
-		if (hasMore && endRow >= rowCount - 2) onLoadMore();
-	}, [endRow, hasMore, onLoadMore, rowCount]);
 
 	const rows = [];
 	for (let row = startRow; row < endRow; row += 1) {

@@ -8,6 +8,7 @@ export type SubtitleStyle = {
 	fontFamily: SubtitleFontFamily;
 	bold: boolean;
 	textScale: number;
+	bottomSpacing: number;
 	fontColor: string;
 	borderSize: number;
 	borderColor: string;
@@ -22,6 +23,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	fontFamily: "sans",
 	bold: false,
 	textScale: 100,
+	bottomSpacing: 48,
 	fontColor: "#ffffff",
 	borderSize: 2,
 	borderColor: "#000000",
@@ -168,10 +170,17 @@ function normalizeSubtitleStyle(
 		(allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.renderer : undefined);
 	const bold =
 		style.bold ?? (allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.bold : undefined);
+	const bottomSpacing =
+		style.bottomSpacing ??
+		(allowLegacyFont ? DEFAULT_SUBTITLE_STYLE.bottomSpacing : undefined);
 	if (
 		typeof style.textScale !== "number" ||
 		style.textScale < 50 ||
 		style.textScale > 200 ||
+		typeof bottomSpacing !== "number" ||
+		!Number.isInteger(bottomSpacing) ||
+		bottomSpacing < 0 ||
+		bottomSpacing > 300 ||
 		typeof style.borderSize !== "number" ||
 		style.borderSize < 0 ||
 		style.borderSize > 8 ||
@@ -188,5 +197,11 @@ function normalizeSubtitleStyle(
 		typeof bold !== "boolean"
 	)
 		return null;
-	return { ...style, renderer, fontFamily, bold } as SubtitleStyle;
+	return {
+		...style,
+		renderer,
+		fontFamily,
+		bold,
+		bottomSpacing,
+	} as SubtitleStyle;
 }

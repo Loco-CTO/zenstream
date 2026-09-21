@@ -235,6 +235,7 @@ subtitleBold: 太字字幕
 subtitlePreview: 字幕をプレビュー
 subtitlePreviewText: これは字幕スタイルのプレビューです。
 subtitleTextSize: 字幕の文字サイズ
+subtitleBottomSpacing: 字幕の下部余白
 subtitleFontColor: 字幕の文字色
 subtitleBorderSize: 字幕の縁取りサイズ
 subtitleBorderColor: 字幕の縁取り色

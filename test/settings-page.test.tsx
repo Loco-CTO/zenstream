@@ -298,6 +298,7 @@ describe("SettingsPage", () => {
 			fontFamily: "serif" as const,
 			bold: false,
 			textScale: 100,
+			bottomSpacing: 48,
 			fontColor: "#ffffff",
 			borderSize: 0,
 			borderColor: "#000000",
@@ -343,12 +344,83 @@ describe("SettingsPage", () => {
 		expect(screen.queryByText("Autoplay Next Episode")).not.toBeInTheDocument();
 	});
 
+	it("persists native subtitle bottom spacing across its bounds without a network request", async () => {
+		const style = {
+			renderer: "native" as const,
+			fontFamily: "sans" as const,
+			bold: false,
+			textScale: 100,
+			bottomSpacing: 48,
+			fontColor: "#ffffff",
+			borderSize: 2,
+			borderColor: "#000000",
+			backgroundColor: "#000000",
+			backgroundOpacity: 0,
+		};
+		window.localStorage.setItem(
+			SUBTITLE_STYLE_STORAGE_KEY,
+			JSON.stringify(style),
+		);
+		const fetchMock = vi.spyOn(globalThis, "fetch");
+		render(
+			<SubtitlePreferencesProvider>
+				<SettingsPage
+					displayName="Alex"
+					userId="user-1"
+					locale="en"
+					onLocaleChange={vi.fn()}
+					onLogout={() => undefined}
+				/>
+			</SubtitlePreferencesProvider>,
+		);
+
+		openSection("Subtitles");
+		const spacing = screen.getByRole("spinbutton", {
+			name: "Bottom spacing",
+		});
+		expect(spacing).toHaveValue(48);
+		expect(spacing).toHaveAttribute("min", "0");
+		expect(spacing).toHaveAttribute("max", "300");
+		expect(spacing).toHaveAttribute("step", "1");
+
+		fireEvent.change(spacing, { target: { value: "0" } });
+		fireEvent.blur(spacing);
+		await waitFor(() =>
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
+				...style,
+				bottomSpacing: 0,
+			}),
+		);
+
+		const maxSpacing = screen.getByRole("spinbutton", {
+			name: "Bottom spacing",
+		});
+		fireEvent.change(maxSpacing, { target: { value: "300" } });
+		fireEvent.blur(maxSpacing);
+		await waitFor(() =>
+			expect(
+				JSON.parse(localStorage.getItem(SUBTITLE_STYLE_STORAGE_KEY)!),
+			).toEqual({
+				...style,
+				bottomSpacing: 300,
+			}),
+		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) =>
+				String(url).includes("/api/preferences/subtitles"),
+			),
+		).toHaveLength(0);
+	});
+
 	it("updates from a subtitle style change in another browser tab", async () => {
 		const initialStyle = {
 			renderer: "native" as const,
 			fontFamily: "sans" as const,
 			bold: false,
 			textScale: 100,
+			bottomSpacing: 48,
 			fontColor: "#ffffff",
 			borderSize: 2,
 			borderColor: "#000000",
@@ -478,6 +550,7 @@ describe("SettingsPage", () => {
 			fontFamily: "sans" as const,
 			bold: false,
 			textScale: 100,
+			bottomSpacing: 48,
 			fontColor: "#ffffff",
 			borderSize: 0,
 			borderColor: "#000000",
@@ -525,6 +598,7 @@ describe("SettingsPage", () => {
 			fontFamily: "sans" as const,
 			bold: false,
 			textScale: 100,
+			bottomSpacing: 48,
 			fontColor: "#ffffff",
 			borderSize: 0,
 			borderColor: "#000000",

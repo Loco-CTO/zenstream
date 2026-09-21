@@ -244,6 +244,7 @@ subtitleBold: Bold subtitles
 subtitlePreview: Preview subtitles
 subtitlePreviewText: The quick brown fox jumps over the lazy dog.
 subtitleTextSize: Subtitle text size
+subtitleBottomSpacing: Bottom spacing
 subtitleFontColor: Subtitle font color
 subtitleBorderSize: Subtitle border size
 subtitleBorderColor: Subtitle border color

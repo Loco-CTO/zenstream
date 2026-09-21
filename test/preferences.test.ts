@@ -90,6 +90,7 @@ describe("subtitle preferences", () => {
 			fontFamily: "sans",
 			bold: false,
 			textScale: 100,
+			bottomSpacing: 48,
 			fontColor: "#ffffff",
 			borderSize: 2,
 			borderColor: "#000000",
@@ -103,6 +104,7 @@ describe("subtitle preferences", () => {
 		fontFamily: "serif" as const,
 		bold: true,
 		textScale: 125,
+		bottomSpacing: 137,
 		fontColor: "#abcdef",
 		borderSize: 2,
 		borderColor: "#000000",
@@ -114,6 +116,9 @@ describe("subtitle preferences", () => {
 		localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, JSON.stringify(style));
 		expect(readStoredSubtitleStyle()).toEqual(style);
 		expect(isSubtitleStyle({ ...style, textScale: 201 })).toBe(false);
+		expect(isSubtitleStyle({ ...style, bottomSpacing: 0 })).toBe(true);
+		expect(isSubtitleStyle({ ...style, bottomSpacing: 300 })).toBe(true);
+		expect(isSubtitleStyle({ ...style, bottomSpacing: 301 })).toBe(false);
 	});
 
 	it("defaults legacy and malformed local values safely", () => {
@@ -131,6 +136,7 @@ describe("subtitle preferences", () => {
 			renderer: "native",
 			fontFamily: "sans",
 			bold: false,
+			bottomSpacing: 48,
 		});
 		localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEY, "not-json");
 		expect(readStoredSubtitleStyle()).toEqual(DEFAULT_SUBTITLE_STYLE);

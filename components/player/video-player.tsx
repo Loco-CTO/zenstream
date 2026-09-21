@@ -2114,14 +2114,29 @@ export function VideoPlayer({
 		}
 		const selectedTrack = track.track;
 		if (!selectedTrack) return;
+		const applyCuePosition = () =>
+			applyNativeSubtitleBottomSpacing(video, selectedTrack, style.bottomSpacing);
 		const showSelectedTrack = () => {
 			disableNativeSubtitleTracks(video, selectedTrack);
 			selectedTrack.mode = "showing";
+			applyCuePosition();
 		};
-		showSelectedTrack();
 		track.addEventListener("load", showSelectedTrack);
-		return () => track.removeEventListener("load", showSelectedTrack);
-	}, [nativeSubtitleTrackUrl]);
+		window.addEventListener("resize", applyCuePosition);
+		document.addEventListener("fullscreenchange", applyCuePosition);
+		const resizeObserver =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(applyCuePosition);
+		resizeObserver?.observe(video);
+		showSelectedTrack();
+		return () => {
+			track.removeEventListener("load", showSelectedTrack);
+			window.removeEventListener("resize", applyCuePosition);
+			document.removeEventListener("fullscreenchange", applyCuePosition);
+			resizeObserver?.disconnect();
+		};
+	}, [nativeSubtitleTrackUrl, style.bottomSpacing]);
 
 	useEffect(() => {
 		if (style.renderer !== "overlay" || !subtitle || !info?.source) {
@@ -3526,6 +3541,45 @@ export function nativeSubtitleCueCss(style: SubtitleStyle) {
 	const text = `${cue}(*)`;
 	const textStyle = `color: ${style.fontColor}; font-family: ${SUBTITLE_FONT_STACKS[style.fontFamily]}; font-size: clamp(16px, ${style.textScale / 20}vh, 72px); font-weight: ${style.bold ? 700 : 400}; line-height: 1.15; text-shadow: ${subtitleOuterShadow(style.borderSize, style.borderColor)}; white-space: pre-line;`;
 	return `${cue} { ${textStyle} background-color: ${hexToRgba(style.backgroundColor, style.backgroundOpacity)}; } ${text} { ${textStyle} }`;
+}
+
+export function nativeSubtitleLinePosition(
+	videoHeight: number,
+	bottomSpacing: number,
+): number | null {
+	if (!Number.isFinite(videoHeight) || videoHeight <= 0) return null;
+	const spacing = Number.isFinite(bottomSpacing)
+		? Math.min(300, Math.max(0, bottomSpacing))
+		: 48;
+	return Math.min(100, Math.max(0, 100 - (spacing / videoHeight) * 100));
+}
+
+export function applyNativeSubtitleBottomSpacing(
+	video: HTMLVideoElement,
+	track: TextTrack,
+	bottomSpacing: number,
+) {
+	const videoHeight = video.getBoundingClientRect().height || video.clientHeight;
+	const line = nativeSubtitleLinePosition(videoHeight, bottomSpacing);
+	if (line === null || !track.cues) return;
+
+	for (const cue of Array.from(track.cues)) {
+		const vttCue = cue as VTTCue;
+		if (
+			vttCue.vertical ||
+			!("snapToLines" in vttCue) ||
+			!("lineAlign" in vttCue) ||
+			!("line" in vttCue)
+		)
+			continue;
+		try {
+			vttCue.snapToLines = false;
+			vttCue.lineAlign = "end";
+			vttCue.line = line;
+		} catch {
+			// Retain the browser's normal cue placement when the fields are read-only.
+		}
+	}
 }
 
 export function disableNativeSubtitleTracks(

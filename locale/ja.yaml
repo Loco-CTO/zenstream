@@ -255,6 +255,11 @@ newSeasons: 新しいシーズン
 watchReminders: 視聴リマインダー
 watchRemindersDescription: 視聴の続きをお知らせします
 appUpdates: アプリの更新とニュース
+nativeAppBannerTitle: ZenStream Androidアプリを入手
+nativeAppBannerDescription: より快適なモバイル体験にはネイティブアプリをご利用ください。
+nativeAppOpen: アプリで開く
+nativeAppDownload: アプリをダウンロード
+nativeAppDismiss: Androidアプリのバナーを閉じる
 privacyData: プライバシーとデータ
 watchHistory: 視聴履歴
 watchHistoryDescription: 再生の進捗と視聴済み状態を自動的に保存します

@@ -264,6 +264,11 @@ newSeasons: New Seasons
 watchReminders: Watch Reminders
 watchRemindersDescription: Nudges to continue watching
 appUpdates: App Updates & News
+nativeAppBannerTitle: Get the ZenStream Android app
+nativeAppBannerDescription: Use the native app for a smoother mobile experience.
+nativeAppOpen: Open in app
+nativeAppDownload: Download app
+nativeAppDismiss: Dismiss Android app banner
 privacyData: Privacy & Data
 watchHistory: Watch History
 watchHistoryDescription: Automatically saves playback progress and watched status

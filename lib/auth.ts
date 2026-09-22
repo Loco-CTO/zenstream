@@ -11,7 +11,8 @@ export function sessionFromAuth(response: AuthResponse): AuthSession {
 	}
 
 	const session: AuthSession = { token: token ?? "", userId, username };
-	if (typeof response.expiresAt === "string") session.accessExpiresAt = response.expiresAt;
+	if (typeof response.expiresAt === "string")
+		session.accessExpiresAt = response.expiresAt;
 	if (typeof response.refreshToken === "string")
 		session.refreshToken = response.refreshToken;
 	if (typeof response.refreshExpiresAt === "string")

@@ -73,7 +73,7 @@ export function NativeAppBanner() {
 	);
 
 	return (
-		<div className="relative z-40 pt-4 md:hidden">
+		<div className="relative md:hidden">
 			<aside
 				data-testid="native-app-banner"
 				aria-labelledby="native-app-banner-title"

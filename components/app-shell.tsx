@@ -1208,7 +1208,7 @@ export function AppShell() {
 											onLogout={handleLogout}
 										/>
 									) : (
-										<div className="min-h-screen bg-background text-foreground">
+										<div className="relative min-h-screen bg-background text-foreground">
 											<Navbar
 												displayName={session.username}
 												userId={session.userId}

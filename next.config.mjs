@@ -3,6 +3,11 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
+const allowedDevOrigins = (process.env.NEXT_ALLOWED_DEV_ORIGINS ?? "")
+	.split(",")
+	.map((value) => value.trim())
+	.filter(Boolean);
+
 function artworkRemotePatterns(orchestratorUrl) {
 	if (!orchestratorUrl) return [];
 	try {
@@ -51,6 +56,7 @@ const contentSecurityPolicy = buildContentSecurityPolicy(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	reactStrictMode: true,
+	...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
 	output: "standalone",
 	images: {
 		remotePatterns: artworkRemotePatterns(process.env.NEXT_PUBLIC_ZSO_URL),

@@ -254,6 +254,7 @@ export const TRANSLATION_KEYS = [
 	"subtitlePreview",
 	"subtitlePreviewText",
 	"subtitleTextSize",
+	"subtitleBottomSpacing",
 	"subtitleFontColor",
 	"subtitleBorderSize",
 	"subtitleBorderColor",

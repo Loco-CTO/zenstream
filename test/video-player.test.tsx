@@ -3,11 +3,13 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
 	CustomSubtitleCue,
 	TrickplayBubble,
+	applyNativeSubtitleBottomSpacing,
 	advanceToNextEpisode,
 	advanceToNextEpisodeWithSyncplay,
 	bufferedSecondsAhead,
 	nextEpisodeSyncplayCommand,
 	nativeSubtitleCueCss,
+	nativeSubtitleLinePosition,
 	normalizeBufferedRanges,
 	bufferedRangeForPosition,
 	disableNativeSubtitleTracks,
@@ -2206,6 +2208,7 @@ describe("video player controls", () => {
 			fontFamily: "sans",
 			bold: false,
 			textScale: 100,
+			bottomSpacing: 48,
 			fontColor: "#ffffff",
 			borderSize: 0,
 			borderColor: "#000000",
@@ -2253,6 +2256,7 @@ describe("video player controls", () => {
 					fontFamily: "serif",
 					bold: true,
 					textScale: 160,
+					bottomSpacing: 48,
 					fontColor: "#aabbcc",
 					borderSize: 2,
 					borderColor: "#112233",
@@ -2282,6 +2286,7 @@ describe("video player controls", () => {
 				fontFamily: "serif",
 				bold: true,
 				textScale: 160,
+				bottomSpacing: 48,
 				fontColor: "#aabbcc",
 				borderSize: 2,
 				borderColor: "#112233",
@@ -2338,6 +2343,7 @@ describe("video player controls", () => {
 					fontFamily: "sans",
 					bold: false,
 					textScale: 100,
+					bottomSpacing: 48,
 					fontColor: "#ffffff",
 					borderSize: 0,
 					borderColor: "#000000",
@@ -2383,12 +2389,75 @@ describe("video player controls", () => {
 		expect(selected.mode).toBe("showing");
 	});
 
+	it("converts native subtitle spacing to a bottom-aligned cue position", () => {
+		expect(nativeSubtitleLinePosition(1_000, 0)).toBe(100);
+		expect(nativeSubtitleLinePosition(1_000, 48)).toBeCloseTo(95.2);
+		expect(nativeSubtitleLinePosition(1_000, 300)).toBe(70);
+		expect(nativeSubtitleLinePosition(0, 48)).toBeNull();
+	});
+
+	it("reapplies native cue spacing after a resize and skips unsupported cues", () => {
+		let height = 1_000;
+		const video = {
+			get clientHeight() {
+				return height;
+			},
+			getBoundingClientRect: () => ({ height }),
+		} as unknown as HTMLVideoElement;
+		const supported = {
+			vertical: "",
+			snapToLines: true,
+			lineAlign: "start",
+			line: "auto" as string | number,
+		};
+		const vertical = {
+			vertical: "rl",
+			snapToLines: true,
+			lineAlign: "start",
+			line: "auto" as string | number,
+		};
+		const unsupported = {
+			vertical: "",
+			snapToLines: true,
+			line: "auto" as string | number,
+		};
+		const track = {
+			cues: [supported, vertical, unsupported],
+		} as unknown as TextTrack;
+
+		applyNativeSubtitleBottomSpacing(video, track, 48);
+		expect(supported).toMatchObject({
+			snapToLines: false,
+			lineAlign: "end",
+		});
+		expect(supported.line).toBeCloseTo(95.2);
+		expect(vertical).toMatchObject({
+			snapToLines: true,
+			lineAlign: "start",
+			line: "auto",
+		});
+		expect(unsupported).toEqual({
+			vertical: "",
+			snapToLines: true,
+			line: "auto",
+		});
+
+		height = 500;
+		applyNativeSubtitleBottomSpacing(video, track, 48);
+		expect(supported.line).toBeCloseTo(90.4);
+
+		height = 0;
+		applyNativeSubtitleBottomSpacing(video, track, 48);
+		expect(supported.line).toBeCloseTo(90.4);
+	});
+
 	it("renders every shared subtitle preference through native cue CSS", () => {
 		const css = nativeSubtitleCueCss({
 			...DEFAULT_SUBTITLE_STYLE,
 			fontFamily: "serif",
 			bold: true,
 			textScale: 160,
+			bottomSpacing: 48,
 			fontColor: "#aabbcc",
 			backgroundColor: "#445566",
 			backgroundOpacity: 40,

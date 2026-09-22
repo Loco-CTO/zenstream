@@ -73,29 +73,33 @@ export function NativeAppBanner() {
 	);
 
 	return (
-		<div className="relative z-40 px-3 pt-16 md:hidden">
+		<div className="relative z-40 pt-4 md:hidden">
 			<aside
 				data-testid="native-app-banner"
 				aria-labelledby="native-app-banner-title"
-				className="mx-auto flex max-w-xl items-start gap-3 rounded-2xl border border-white/10 bg-black/35 p-3.5 shadow-2xl shadow-black/25 backdrop-blur-2xl"
+				className="relative isolate flex w-full items-start gap-3 overflow-hidden border-y border-white/10 bg-[#0c0b10]/95 px-3 py-3 shadow-[0_10px_36px_rgba(0,0,0,0.32)] backdrop-blur-2xl"
 			>
-				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-300/20 bg-violet-400/10 text-violet-300">
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_8%_50%,rgba(139,92,246,0.23),transparent_46%),linear-gradient(95deg,rgba(124,58,237,0.08),transparent_62%)]"
+				/>
+				<div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-300/20 bg-violet-400/10 text-violet-300">
 					<Smartphone className="h-5 w-5" aria-hidden="true" />
 				</div>
-				<div className="min-w-0 flex-1">
+				<div className="relative z-10 min-w-0 flex-1">
 					<p
 						id="native-app-banner-title"
 						className="pr-7 text-sm font-semibold text-white"
 					>
 						{t("nativeAppBannerTitle")}
 					</p>
-					<p className="mt-1 text-xs leading-5 text-white/55">
+					<p className="mt-0.5 text-xs leading-4 text-white/55">
 						{t("nativeAppBannerDescription")}
 					</p>
-					<div className="mt-3 flex flex-wrap gap-2">
+					<div className="mt-2 flex flex-wrap gap-2">
 						<a
 							href={openUrl}
-							className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-black transition hover:bg-white/85"
+							className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white px-2.5 text-xs font-semibold text-black transition hover:bg-white/85"
 						>
 							{t("nativeAppOpen")}
 							<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -104,7 +108,7 @@ export function NativeAppBanner() {
 							href={NATIVE_APP_RELEASE_URL}
 							target="_blank"
 							rel="noreferrer"
-							className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-3 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+							className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
 						>
 							<Download className="h-3.5 w-3.5" aria-hidden="true" />
 							{t("nativeAppDownload")}
@@ -115,7 +119,7 @@ export function NativeAppBanner() {
 					type="button"
 					aria-label={t("nativeAppDismiss")}
 					onClick={dismiss}
-					className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full text-white/35 transition hover:bg-white/10 hover:text-white"
+					className="absolute right-1.5 top-1.5 z-20 flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white"
 				>
 					<X className="h-4 w-4" aria-hidden="true" />
 				</button>

@@ -32,23 +32,19 @@ function isAuthBootstrapPath(path: string) {
 
 async function refreshBrowserSession(): Promise<RefreshResult> {
 	try {
-		const response = await fetch(
-			`${orchestratorBaseUrl()}/api/auth/refresh`,
-			{
-				method: "POST",
-				credentials: "include",
-				cache: "no-store",
-				headers: {
-					Accept: "application/json",
-					"Content-Type": "application/json",
-					[AUTH_FLOW_HEADER]: AUTH_FLOW_VERSION,
-				},
-				body: "{}",
+		const response = await fetch(`${orchestratorBaseUrl()}/api/auth/refresh`, {
+			method: "POST",
+			credentials: "include",
+			cache: "no-store",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+				[AUTH_FLOW_HEADER]: AUTH_FLOW_VERSION,
 			},
-		);
+			body: "{}",
+		});
 		if (response.ok) return "refreshed";
-		if (response.status === 401 || response.status === 403)
-			return "unauthorized";
+		if (response.status === 401 || response.status === 403) return "unauthorized";
 		return "unavailable";
 	} catch {
 		return "unavailable";
@@ -110,10 +106,7 @@ export async function authenticatedFetch(
 	const refreshResult = await refreshBrowserSessionOnce();
 	if (refreshResult === "refreshed")
 		return sendAuthenticatedRequest(session, path, init);
-	if (
-		refreshResult === "unauthorized" &&
-		options.notifyOnUnauthorized !== false
-	)
+	if (refreshResult === "unauthorized" && options.notifyOnUnauthorized !== false)
 		dispatchAuthExpired(session);
 	if (refreshResult === "unavailable") return markRefreshUnavailable(response);
 	return response;

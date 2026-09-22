@@ -50,19 +50,21 @@ describe("browser authentication transport", () => {
 	it("single-flights browser refresh and retries concurrent 401s once", async () => {
 		let protectedRequests = 0;
 		let refreshRequests = 0;
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-			const url = String(input);
-			if (url.includes("/api/auth/refresh")) {
-				refreshRequests += 1;
-				return new Response(JSON.stringify({ user: { id: "user-1" } }), {
-					status: 200,
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = String(input);
+				if (url.includes("/api/auth/refresh")) {
+					refreshRequests += 1;
+					return new Response(JSON.stringify({ user: { id: "user-1" } }), {
+						status: 200,
+					});
+				}
+				protectedRequests += 1;
+				return new Response(null, {
+					status: protectedRequests <= 2 ? 401 : 200,
 				});
-			}
-			protectedRequests += 1;
-			return new Response(null, {
-				status: protectedRequests <= 2 ? 401 : 200,
 			});
-		});
 
 		const responses = await Promise.all([
 			authenticatedFetch(session, "/api/catalog/home"),
@@ -83,11 +85,13 @@ describe("browser authentication transport", () => {
 	});
 
 	it("does not clear the session when refresh is unavailable", async () => {
-		const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
-			String(input).includes("/api/auth/refresh")
-				? new Response(null, { status: 503 })
-				: new Response(null, { status: 401 }),
-		);
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) =>
+				String(input).includes("/api/auth/refresh")
+					? new Response(null, { status: 503 })
+					: new Response(null, { status: 401 }),
+			);
 		const expired = vi.fn();
 		window.addEventListener("zenstream:auth-expired", expired);
 
@@ -100,11 +104,13 @@ describe("browser authentication transport", () => {
 	});
 
 	it("keeps startup validation retryable when refresh is unavailable", async () => {
-		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
-			String(input).includes("/api/auth/refresh")
-				? new Response(null, { status: 503 })
-				: new Response(null, { status: 401 }),
-		);
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) =>
+				String(input).includes("/api/auth/refresh")
+					? new Response(null, { status: 503 })
+					: new Response(null, { status: 401 }),
+			);
 
 		await expect(validateBrowserSession(session)).rejects.toThrow(
 			"Could not refresh the browser session.",

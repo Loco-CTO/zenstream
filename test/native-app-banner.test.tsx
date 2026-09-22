@@ -46,15 +46,18 @@ describe("native app promotion", () => {
 		vi.stubEnv("NEXT_PUBLIC_ZSO_URL", "https://server.example");
 	});
 
-	it("shows the banner on Android and builds a package-pinned intent URL", async () => {
+	it("shows the banner on Android and targets the stable app in production", async () => {
+		vi.stubEnv("NODE_ENV", "production");
 		render(<NativeAppBanner />);
 
 		const banner = await screen.findByTestId("native-app-banner");
 		expect(banner).toBeInTheDocument();
 		const open = screen.getByRole("link", { name: /open in app/i });
-		expect(open.getAttribute("href")).toContain("intent://open?");
-		expect(open.getAttribute("href")).toContain(
-			"package=com.zenstream.zenstreammobile",
+		const href = open.getAttribute("href");
+		expect(href).toContain("intent://open?");
+		expect(href).toContain("package=com.zenstream.zenstreammobile;");
+		expect(href).toContain(
+			"S.browser_fallback_url=https%3A%2F%2Fgithub.com%2FLoco-CTO%2Fzenstream-mobile%2Freleases%2Flatest",
 		);
 		expect(open.getAttribute("href")).toContain(
 			"server=https%3A%2F%2Fserver.example",
@@ -62,6 +65,20 @@ describe("native app promotion", () => {
 		expect(open.getAttribute("href")).toContain(
 			"target=%2Falbum%2Falbum-1%3FtrackId%3Dtrack-1",
 		);
+	});
+
+	it("targets the debug app in development web builds", () => {
+		vi.stubEnv("NODE_ENV", "development");
+		const url = buildNativeAppOpenUrl(
+			"https://server.example",
+			"/favorites",
+			"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/128.0.0.0 Mobile Safari/537.36",
+		);
+
+		expect(url).toContain("package=com.zenstream.zenstreammobile.debug;");
+		expect(url).not.toContain("package=com.zenstream.zenstreammobile;S");
+		expect(url).toContain("server=https%3A%2F%2Fserver.example");
+		expect(url).toContain("target=%2Ffavorites");
 	});
 
 	it("stores a seven-day dismissal timestamp and reappears after the cooldown", async () => {

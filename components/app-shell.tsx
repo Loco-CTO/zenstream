@@ -123,6 +123,7 @@ import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 import { AudioPlayerProvider } from "@/components/audio/audio-player-provider";
 import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
+import { NativeAppBanner } from "@/components/native-app-banner";
 
 type AppStatus =
 	"checking" | "login" | "loading" | "ready" | "error" | "bootstrap-error";
@@ -1156,6 +1157,7 @@ export function AppShell() {
 
 	return (
 		<I18nProvider locale={effectiveLocale}>
+			<NativeAppBanner />
 			<ToastProvider>
 				<SubtitlePreferencesProvider>
 					{renderStatus === "checking" ? (

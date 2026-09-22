@@ -1157,6 +1157,7 @@ export function AppShell() {
 
 	return (
 		<I18nProvider locale={effectiveLocale}>
+			<NativeAppBanner />
 			<ToastProvider>
 				<SubtitlePreferencesProvider>
 					{renderStatus === "checking" ? (
@@ -1185,7 +1186,6 @@ export function AppShell() {
 							>
 								<SyncplayProvider session={session}>
 									<SyncplayPlaybackFollower />
-									<NativeAppBanner />
 									{pathname === "/settings" ? (
 										<SettingsPage
 											displayName={session.username}

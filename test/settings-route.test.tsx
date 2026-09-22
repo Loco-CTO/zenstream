@@ -288,6 +288,8 @@ describe("settings route", () => {
 	it("returns Settings to login when a locale mutation receives 401", async () => {
 		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
 			const url = String(input);
+			if (url.includes("/api/auth/refresh"))
+				return new Response(null, { status: 401 });
 			if (url.includes("/api/preferences/locale") && init?.method === "PATCH")
 				return new Response(null, { status: 401 });
 			if (url.includes("/api/auth/socket-ticket"))

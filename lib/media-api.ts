@@ -4,6 +4,9 @@ import {
 	browserDeviceProfile,
 } from "@/lib/browser-device-profile";
 import {
+	AUTH_FLOW_HEADER,
+	AUTH_REFRESH_RESULT_HEADER,
+	AUTH_FLOW_VERSION,
 	authenticatedFetch,
 	orchestratorBaseUrl as sharedOrchestratorBaseUrl,
 } from "@/lib/authenticated-request";
@@ -18,6 +21,12 @@ import { selectRandomHeroItems } from "@/lib/media";
 export interface AuthResponse {
 	token?: string;
 	expiresAt?: string;
+	expiresIn?: number;
+	sessionId?: string;
+	refreshToken?: string;
+	refreshExpiresAt?: string;
+	refreshExpiresIn?: number;
+	sessionExpiresAt?: string;
 	user?: {
 		id?: string;
 		username?: string;
@@ -151,6 +160,7 @@ export interface MediaSource {
 	viewerSessionId?: string;
 	startPositionSeconds?: number;
 	actualStartPositionSeconds?: number;
+	accessExpiresIn?: number;
 	MediaStreams?: MediaStream[];
 	Trickplay?: Record<string, TrickplayInfo>;
 }
@@ -254,6 +264,7 @@ export interface PlaybackInfo {
 	sessionId?: string;
 	viewerSessionId?: string;
 	startPositionSeconds?: number;
+	accessExpiresIn?: number;
 }
 
 export type ViewerCommand = {
@@ -782,11 +793,16 @@ export async function authenticateByName(
 		`${orchestratorBaseUrl()}/api/auth/browser-login`,
 		{
 			method: "POST",
-			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+				[AUTH_FLOW_HEADER]: AUTH_FLOW_VERSION,
+			},
 			body: JSON.stringify({
 				username: username.trim(),
 				password,
 				device: browserDeviceMetadata(),
+				authFlow: AUTH_FLOW_VERSION,
 			}),
 			credentials: "include",
 		},
@@ -848,6 +864,8 @@ export async function validateBrowserSession(
 			{ notifyOnUnauthorized: false },
 		);
 	}
+	if (response.headers.get(AUTH_REFRESH_RESULT_HEADER) === "unavailable")
+		throw new Error("Could not refresh the browser session.");
 	if (response.status === 401) return null;
 	if (!response.ok)
 		throw new Error(`Session validation failed with ${response.status}.`);
@@ -1418,7 +1436,7 @@ export async function getPlaybackInfo(
 		directPlayOnly?: boolean;
 		requestedMode?: "video-transcode";
 	} = {},
-) {
+): Promise<PlaybackInfo> {
 	const profile = browserDeviceProfile();
 	const response = await catalogRequest<{
 		mode: "direct" | "remux" | "audio-transcode" | "video-transcode";
@@ -1429,6 +1447,7 @@ export async function getPlaybackInfo(
 		sessionId?: string;
 		viewerSessionId?: string;
 		startPositionSeconds?: number;
+		accessExpiresIn?: number;
 		url: string;
 	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/negotiate`, {
 		method: "POST",
@@ -1461,13 +1480,54 @@ export async function getPlaybackInfo(
 		sessionId: response.sessionId,
 		viewerSessionId: response.viewerSessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
+		accessExpiresIn: response.accessExpiresIn,
 	});
 	return {
 		source,
 		sessionId: response.sessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
 		viewerSessionId: response.viewerSessionId,
+		accessExpiresIn: response.accessExpiresIn,
 	};
+}
+
+export async function refreshPlaybackAccess(
+	session: AuthSession,
+	itemId: string,
+	sourceId: string,
+	playbackSessionId?: string,
+): Promise<{ ticket: string; expiresIn: number }> {
+	const response = await authenticatedFetch(
+		session,
+		`/api/playback/items/${encodeURIComponent(itemId)}/access`,
+		{
+			method: "POST",
+			cache: "no-store",
+			body: JSON.stringify({
+				sourceId,
+				...(playbackSessionId ? { sessionId: playbackSessionId } : {}),
+			}),
+		},
+	);
+	if (!response.ok)
+		throw new Error(`Playback access refresh failed with ${response.status}.`);
+	const payload = (await response.json()) as {
+		ticket?: unknown;
+		access?: unknown;
+		expiresIn?: unknown;
+	};
+	const ticket =
+		typeof payload.ticket === "string"
+			? payload.ticket
+			: typeof payload.access === "string"
+				? payload.access
+				: null;
+	if (!ticket) throw new Error("The server did not return a playback ticket.");
+	const expiresIn =
+		typeof payload.expiresIn === "number" && payload.expiresIn > 0
+			? payload.expiresIn
+			: 15 * 60;
+	return { ticket, expiresIn };
 }
 
 export async function getPlaybackSource(
@@ -1574,6 +1634,7 @@ function mediaSourceFromPayload(
 		| "sessionId"
 		| "startPositionSeconds"
 		| "viewerSessionId"
+		| "accessExpiresIn"
 	> = {},
 ): MediaSource {
 	return {

@@ -3,11 +3,15 @@ export interface AuthSession {
 	userId: string;
 	username: string;
 	avatarVersion?: string | null;
+	refreshToken?: string | null;
+	accessExpiresAt?: string | null;
+	refreshExpiresAt?: string | null;
 }
 
 const COOKIE_TOKEN = "token";
 const COOKIE_USER_ID = "userId";
 const COOKIE_USERNAME = "username";
+const IDENTITY_COOKIE_MAX_AGE = 90 * 24 * 60 * 60;
 
 export function getAuthSession(): AuthSession | null {
 	// Legacy token cookies are intentionally ignored; browser auth now uses the
@@ -55,7 +59,7 @@ function readCookie(name: string) {
 }
 
 function writeCookie(name: string, value: string) {
-	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=604800; samesite=strict`;
+	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${IDENTITY_COOKIE_MAX_AGE}; samesite=strict`;
 }
 
 function deleteCookie(name: string) {

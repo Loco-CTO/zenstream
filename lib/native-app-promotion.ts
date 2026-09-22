@@ -51,7 +51,11 @@ export function buildNativeAppOpenUrl(
 ) {
 	const params = new URLSearchParams({ server: serverUrl, target });
 	if (isChromiumIntentBrowser(userAgent)) {
-		return `intent://open?${params.toString()}#Intent;scheme=zenstream;package=${NATIVE_APP_PACKAGE_NAME};S.browser_fallback_url=${encodeURIComponent(NATIVE_APP_RELEASE_URL)};end`;
+		const appPackageName =
+			process.env.NODE_ENV === "development"
+				? `${NATIVE_APP_PACKAGE_NAME}.debug`
+				: NATIVE_APP_PACKAGE_NAME;
+		return `intent://open?${params.toString()}#Intent;scheme=zenstream;package=${appPackageName};S.browser_fallback_url=${encodeURIComponent(NATIVE_APP_RELEASE_URL)};end`;
 	}
 	return `zenstream://open?${params.toString()}`;
 }

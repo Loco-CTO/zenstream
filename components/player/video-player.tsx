@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import {
 	getPlaybackInfo,
+	refreshPlaybackAccess,
 	heartbeatPlaybackViewer,
 	isPlaybackViewerTerminalError,
 	endPlaybackViewer,
@@ -43,6 +44,7 @@ import {
 	getTrickplayInfo,
 	playbackStreams,
 	playbackUrl,
+	playbackUrlWithAccess,
 	preserveTrickplay,
 	reportPlayback,
 	savedPlaybackPositionSeconds,
@@ -1826,6 +1828,59 @@ export function VideoPlayer({
 		acknowledgeMediaReady,
 		startSyncedPlayback,
 	]);
+
+	useEffect(() => {
+		const source = info?.source;
+		const sourceId = source?.Id;
+		if (!sourceId) return;
+		let active = true;
+		let timer: number | undefined;
+		const expiresIn = Math.max(30, source.accessExpiresIn ?? 15 * 60);
+		const schedule = (delay: number) => {
+			timer = window.setTimeout(renew, delay);
+		};
+		const renew = async () => {
+			if (!active || sourceRef.current?.Id !== sourceId) return;
+			try {
+				const video = videoRef.current;
+				if (video && Number.isFinite(video.currentTime)) {
+					resumeTimeRef.current = video.currentTime;
+					resumePlayingRef.current = !video.paused;
+				}
+				const refreshed = await refreshPlaybackAccess(
+					session,
+					item.Id,
+					sourceId,
+					source.sessionId,
+				);
+				if (!active || sourceRef.current?.Id !== sourceId) return;
+				const nextSource = {
+					...source,
+					url: playbackUrlWithAccess(source, refreshed.ticket),
+					accessExpiresIn: refreshed.expiresIn,
+				};
+				sourceRef.current = nextSource;
+				setInfo((previous) => {
+					if (!previous || previous.source?.Id !== sourceId) return previous;
+					return {
+						source: nextSource,
+						audio: previous.audio,
+						subtitles: previous.subtitles,
+						lyrics: previous.lyrics,
+						qualities: previous.qualities,
+					};
+				});
+				setUrl(nextSource.url);
+			} catch {
+				if (active) schedule(30_000);
+			}
+		};
+		schedule(Math.max(15_000, (expiresIn - 60) * 1000));
+		return () => {
+			active = false;
+			if (timer !== undefined) window.clearTimeout(timer);
+		};
+	}, [info?.source, item.Id, session]);
 
 	useEffect(() => {
 		const video = videoRef.current;

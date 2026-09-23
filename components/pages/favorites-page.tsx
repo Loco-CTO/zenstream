@@ -103,9 +103,16 @@ export function FavoritesPage({
 
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8">
-			{activeTab === "favorites" && (
-				<div className="mb-8 flex justify-end sm:mb-10">
-					<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+			<div className="relative mb-7 border-b border-white/10">
+				<div role="tablist" aria-label={t("myLists")} className="flex">
+					{(["watchlist", "favorites", "playlists"] as const).map((tab) => (
+						<button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)} className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === tab ? "border-white text-white" : "border-transparent text-white/40 hover:text-white/75"}`}>
+							{t(tab === "watchlist" ? "watchlist" : tab === "favorites" ? "favorites" : "playlists")}
+						</button>
+					))}
+				</div>
+				{activeTab === "favorites" && (
+					<div className="flex w-full shrink-0 items-center gap-2 pb-2 sm:absolute sm:right-0 sm:top-1/2 sm:w-auto sm:-translate-y-1/2 sm:pb-0">
 						<button
 							type="button"
 							aria-label={
@@ -138,14 +145,7 @@ export function FavoritesPage({
 							className="w-full min-w-0 rounded-full py-1.5 uppercase tracking-wider sm:w-auto sm:min-w-32"
 						/>
 					</div>
-				</div>
-			)}
-			<div role="tablist" aria-label={t("myLists")} className="mb-7 flex border-b border-white/10">
-				{(["watchlist", "favorites", "playlists"] as const).map((tab) => (
-					<button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)} className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === tab ? "border-white text-white" : "border-transparent text-white/40 hover:text-white/75"}`}>
-						{t(tab === "watchlist" ? "watchlist" : tab === "favorites" ? "favorites" : "playlists")}
-					</button>
-				))}
+				)}
 			</div>
 			{activeTab === "watchlist" ? <WatchlistSection session={session} /> : activeTab === "playlists" ? <PlaylistsSection session={session} /> : error ? (
 				<ErrorPanel

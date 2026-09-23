@@ -103,44 +103,43 @@ export function FavoritesPage({
 
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8">
-			<div className="mb-8 flex flex-col items-start gap-3 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
-				<h1 className="text-3xl font-black tracking-tight text-white">
-					{t("myLists")}
-				</h1>
-				{activeTab === "favorites" && <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
-					<button
-						type="button"
-						aria-label={
-							sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")
-						}
-						onClick={() =>
-							setSort((value) => ({
-								...value,
-								sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending",
-							}))
-						}
-						className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white"
-					>
-						{sortOrder === "Ascending" ? (
-							<ArrowUp className="h-3.5 w-3.5" />
-						) : (
-							<ArrowDown className="h-3.5 w-3.5" />
-						)}
-					</button>
-					<Dropdown
-						aria-label={t("sortBy")}
-						value={sortBy}
-						options={options}
-						onChange={(value) =>
-							setSort((current) => ({
-								...current,
-								sortBy: value as typeof current.sortBy,
-							}))
-						}
-						className="w-full min-w-0 rounded-full py-1.5 uppercase tracking-wider sm:w-auto sm:min-w-32"
-					/>
-				</div>}
-			</div>
+			{activeTab === "favorites" && (
+				<div className="mb-8 flex justify-end sm:mb-10">
+					<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+						<button
+							type="button"
+							aria-label={
+								sortOrder === "Ascending" ? t("sortAscending") : t("sortDescending")
+							}
+							onClick={() =>
+								setSort((value) => ({
+									...value,
+									sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending",
+								}))
+							}
+							className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white"
+						>
+							{sortOrder === "Ascending" ? (
+								<ArrowUp className="h-3.5 w-3.5" />
+							) : (
+								<ArrowDown className="h-3.5 w-3.5" />
+							)}
+						</button>
+						<Dropdown
+							aria-label={t("sortBy")}
+							value={sortBy}
+							options={options}
+							onChange={(value) =>
+								setSort((current) => ({
+									...current,
+									sortBy: value as typeof current.sortBy,
+								}))
+							}
+							className="w-full min-w-0 rounded-full py-1.5 uppercase tracking-wider sm:w-auto sm:min-w-32"
+						/>
+					</div>
+				</div>
+			)}
 			<div role="tablist" aria-label={t("myLists")} className="mb-7 flex border-b border-white/10">
 				{(["watchlist", "favorites", "playlists"] as const).map((tab) => (
 					<button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)} className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === tab ? "border-white text-white" : "border-transparent text-white/40 hover:text-white/75"}`}>

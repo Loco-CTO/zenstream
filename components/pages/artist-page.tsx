@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, ChevronLeft, ListPlus, Play } from "lucide-react";
+import { Bookmark, ChevronLeft, CirclePlus, Heart, ListPlus, MoreHorizontal, Play, Shuffle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
+import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -17,6 +18,8 @@ import {
 	fetchArtistTracks,
 	seriesPosterImage,
 	setFollowing,
+	setFavorite,
+	withPrimaryArtworkFallback,
 	type MediaItem,
 } from "@/lib/media-api";
 import type { ArtistData } from "@/lib/media-api";
@@ -59,6 +62,8 @@ export function ArtistPage({
 		value: boolean;
 	} | null>(null);
 	const [followBusy, setFollowBusy] = useState(false);
+	const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(null);
+	const [moreOpen, setMoreOpen] = useState(false);
 	const [playBusy, setPlayBusy] = useState(false);
 	const [playError, setPlayError] = useState(false);
 	const [queueBusy, setQueueBusy] = useState(false);
@@ -70,6 +75,7 @@ export function ArtistPage({
 		followOverride?.artistId === data.artist.Id
 			? followOverride.value
 			: Boolean(data.artist.UserData?.IsFollowing);
+	const favorite = favoriteOverride ?? Boolean(data.artist.UserData?.IsFavorite);
 	const followError = followErrorArtistId === data.artist.Id;
 	const tags = uniqueStrings([
 		...(data.artist.Tags ?? []),
@@ -85,7 +91,21 @@ export function ArtistPage({
 			const queue = tracks.length
 				? tracks
 				: await fetchArtistTracks(session, data.artist.Id);
-			if (queue.length > 0) playAlbum(data.artist, queue);
+			if (queue.length > 0) playAlbum(data.artist, withArtistArtwork(queue));
+		} catch {
+			setPlayError(true);
+		} finally {
+			setPlayBusy(false);
+		}
+	}
+
+	async function shuffleAll() {
+		if (playBusy || trackCount === 0) return;
+		setPlayBusy(true);
+		setPlayError(false);
+		try {
+			const queue = tracks.length ? tracks : await fetchArtistTracks(session, data.artist.Id);
+			if (queue.length > 0) playAlbum(data.artist, withArtistArtwork(queue), undefined, true);
 		} catch {
 			setPlayError(true);
 		} finally {
@@ -101,7 +121,7 @@ export function ArtistPage({
 			const queue = tracks.length
 				? tracks
 				: await fetchArtistTracks(session, data.artist.Id);
-			if (queue.length > 0) addAlbumToQueue(data.artist, queue);
+			if (queue.length > 0) addAlbumToQueue(data.artist, withArtistArtwork(queue));
 		} catch {
 			setQueueError(true);
 		} finally {
@@ -122,6 +142,29 @@ export function ArtistPage({
 			setFollowErrorArtistId(data.artist.Id);
 		} finally {
 			setFollowBusy(false);
+		}
+	}
+
+	function withArtistArtwork(items: MediaItem[]) {
+		const releases = new Map<string, MediaItem>(
+			[...albums, ...appearsIn].map((release) => [release.Id, release] as const),
+		);
+		return items.map((track) =>
+			withPrimaryArtworkFallback(
+				track,
+				releases.get(track.AlbumId ?? "") ?? data.artist,
+			),
+		);
+	}
+
+	async function toggleFavorite() {
+		const previous = favorite;
+		setFavoriteOverride(!previous);
+		try {
+			await setFavorite(session, data.artist.Id, !previous);
+		} catch {
+			setFavoriteOverride(previous);
+			setFollowErrorArtistId(data.artist.Id);
 		}
 	}
 
@@ -202,45 +245,37 @@ export function ArtistPage({
 					</div>
 				</header>
 
-				<div className="mt-8 flex items-center gap-3">
-					<button
-						type="button"
-						disabled={trackCount === 0 || playBusy}
-						onClick={() => void playAll()}
-						aria-busy={playBusy}
-						className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black transition hover:scale-[1.03] hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
-					>
-						<Play className="h-4 w-4 fill-current" />
-						{t("playAll")}
-					</button>
+				<div className="mt-8 flex items-center gap-2">
 					<button
 						type="button"
 						disabled={followBusy}
 						onClick={() => void toggleFollowing()}
 						aria-label={t(following ? "unfollow" : "follow")}
 						title={t(following ? "unfollow" : "follow")}
-						className={`inline-flex h-12 items-center gap-2 rounded-full border px-5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-wait disabled:opacity-50 ${following ? "border-violet-400/40 bg-violet-500/15 text-violet-200" : "border-white/15 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
+						className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-wait disabled:opacity-50 ${following ? "text-violet-200" : "text-white/35 hover:text-white/75"}`}
 					>
-						<Bookmark className={`h-4 w-4 ${following ? "fill-violet-300" : ""}`} />
-						{t(following ? "unfollow" : "follow")}
+						<Bookmark className={`h-5 w-5 ${following ? "fill-current" : ""}`} />
 					</button>
-					<PlaylistPicker
-						session={session}
-						entityId={data.artist.Id}
-						entityName={data.artist.Name}
-						artistSource
-						trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined}
-					/>
 					<button
 						type="button"
-						disabled={trackCount === 0 || queueBusy}
-						onClick={() => void addAllToQueue()}
-						aria-label={t("addToQueue")}
-						aria-busy={queueBusy}
-						title={t("addToQueue")}
-						className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+						onClick={() => void toggleFavorite()}
+						aria-label={favorite ? t("removeFavorite") : t("addFavorite")}
+						title={favorite ? t("removeFavorite") : t("addFavorite")}
+						className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/35 hover:text-white/75"}`}
 					>
-						<ListPlus className="h-5 w-5" />
+						<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
+					</button>
+					<div className="hidden items-center gap-3 md:flex">
+						<button type="button" disabled={trackCount === 0 || playBusy} onClick={() => void playAll()} aria-busy={playBusy} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
+							<Play className="h-4 w-4 fill-current" />{t("playAll")}
+						</button>
+						<PlaylistPicker session={session} entityId={data.artist.Id} entityName={data.artist.Name} artistSource trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined} />
+						<button type="button" disabled={trackCount === 0 || queueBusy} onClick={() => void addAllToQueue()} aria-label={t("addToQueue")} aria-busy={queueBusy} title={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40">
+							<ListPlus className="h-5 w-5" />
+						</button>
+					</div>
+					<button type="button" onClick={() => setMoreOpen(true)} aria-label={t("showMore")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden">
+						<MoreHorizontal className="h-5 w-5" />
 					</button>
 					{playError && (
 						<p role="alert" className="text-xs text-red-200/80">
@@ -258,6 +293,14 @@ export function ArtistPage({
 						</p>
 					)}
 				</div>
+				{moreOpen && (
+					<AudioDetailActionSheet item={data.artist} subtitle={t("artist")} onClose={() => setMoreOpen(false)}>
+						<AudioDetailSheetAction icon={<Play className="h-5 w-5 fill-current" />} onClick={() => { setMoreOpen(false); void playAll(); }}>{t("playAll")}</AudioDetailSheetAction>
+						<AudioDetailSheetAction icon={<Shuffle className="h-5 w-5" />} onClick={() => { setMoreOpen(false); void shuffleAll(); }}>{t("shuffle")}</AudioDetailSheetAction>
+						<PlaylistPicker session={session} entityId={data.artist.Id} entityName={data.artist.Name} artistSource trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined} containerClassName="w-full" triggerClassName="flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07]" triggerContent={<><span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75"><CirclePlus className="h-5 w-5" /></span><span>{t("addToPlaylist")}</span></>} />
+						<AudioDetailSheetAction icon={<ListPlus className="h-5 w-5" />} onClick={() => { setMoreOpen(false); void addAllToQueue(); }}>{t("addToQueue")}</AudioDetailSheetAction>
+					</AudioDetailActionSheet>
+				)}
 
 				{trackCount === 0 ? (
 					<div className="mt-16 rounded-xl border border-white/10 bg-black/20 px-6 py-16 text-center text-sm text-white/45">

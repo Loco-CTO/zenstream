@@ -20,6 +20,7 @@ import {
 	savedPlaybackPositionSeconds,
 	setFavorite,
 	type MediaItem,
+	withPrimaryArtworkFallback,
 } from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
@@ -546,8 +547,9 @@ export function AudioPlayerProvider({
 			useShuffle = shuffle,
 			preserveSelectedFirst = false,
 		) => {
-			void album;
-			const unique = uniqueTracks(tracks);
+			const unique = uniqueTracks(tracks).map((track) =>
+				withPrimaryArtworkFallback(track, album),
+			);
 			const selectedIndex = selectedTrackId
 				? unique.findIndex((track) => track.Id === selectedTrackId)
 				: 0;
@@ -584,10 +586,12 @@ export function AudioPlayerProvider({
 	const playTrack = useCallback(
 		async (track: MediaItem, albumTracks?: MediaItem[]) => {
 			let tracks = albumTracks;
+			let album = track;
 			if (!tracks?.length && track.AlbumId) {
 				try {
-					const album = await fetchAudioAlbumData(session, track.AlbumId);
-					tracks = album.tracks;
+					const data = await fetchAudioAlbumData(session, track.AlbumId);
+					album = data.album;
+					tracks = data.tracks;
 				} catch (loadError) {
 					setError(
 						loadError instanceof Error
@@ -597,15 +601,18 @@ export function AudioPlayerProvider({
 				}
 			}
 			const available = tracks?.length ? tracks : [track];
-			playAlbum(track, available, track.Id, false);
+			playAlbum(album, available, track.Id, false);
 		},
 		[playAlbum, session],
 	);
 
 	const addAlbumToQueue = useCallback(
 		(album: MediaItem, tracks: MediaItem[]) => {
-			void album;
-			const entries = makeEntries(tracks);
+			const entries = makeEntries(
+				uniqueTracks(tracks).map((track) =>
+					withPrimaryArtworkFallback(track, album),
+				),
+			);
 			if (!entries.length) return;
 			const wasEmpty = queueRef.current.length === 0;
 			const nextQueue = wasEmpty ? entries : [...queueRef.current, ...entries];

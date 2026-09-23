@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
 	ChevronLeft,
+	CirclePlus,
 	Clock,
 	Heart,
 	ListPlus,
+	MoreHorizontal,
 	Play,
 	Shuffle,
 } from "lucide-react";
@@ -17,6 +19,7 @@ import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import {
 	setFavorite,
 	seriesPosterImage,
+	withPrimaryArtworkFallback,
 	type AudioAlbumData as AlbumData,
 	type ArtistCredit,
 	type MediaItem,
@@ -37,6 +40,7 @@ import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
+import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
 
 const albumTypeTranslationKeys: Record<string, TranslationKey> = {
 	album: "albumTypeAlbum",
@@ -97,8 +101,10 @@ export function AudioAlbumPage({
 			),
 	);
 	const [mutationError, setMutationError] = useState<string | null>(null);
+	const [moreOpen, setMoreOpen] = useState(false);
 	const image = seriesPosterImage(data.album);
 	const tracks = data.tracks.filter((track) => track.Type === "Audio");
+	const playableTracks = tracks.map((track) => withPrimaryArtworkFallback(track, data.album));
 	const discNumbers = trackDiscNumbers(tracks);
 	const showDiscHeaders =
 		new Set(
@@ -294,24 +300,6 @@ export function AudioAlbumPage({
 			<section className="flex items-center gap-2 px-6 py-4 md:px-10">
 				<button
 					type="button"
-					onClick={() => playAlbum(data.album, tracks)}
-					disabled={tracks.length === 0}
-					aria-label={t("play")}
-					className="flex h-12 w-12 items-center justify-center rounded-full bg-white transition hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-				>
-					<Play className="ml-0.5 h-5 w-5 fill-black text-black" />
-				</button>
-				<button
-					type="button"
-					onClick={() => playAlbum(data.album, tracks, undefined, true)}
-					disabled={tracks.length === 0}
-					aria-label={t("shuffle")}
-					className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
-				>
-					<Shuffle className="h-5 w-5" />
-				</button>
-				<button
-					type="button"
 					onClick={toggleFavorite}
 					aria-pressed={favorite}
 					aria-label={favorite ? t("removeFavorite") : t("addFavorite")}
@@ -319,22 +307,31 @@ export function AudioAlbumPage({
 				>
 					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 				</button>
-				<PlaylistPicker
-					session={session}
-					entityId={data.album.Id}
-					entityName={data.album.Name}
-					trackIds={tracks.map((track) => track.Id)}
-				/>
-				<button
-					type="button"
-					onClick={() => addAlbumToQueue(data.album, tracks)}
-					disabled={tracks.length === 0}
-					aria-label={t("addToQueue")}
-					className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
-				>
-					<ListPlus className="h-5 w-5" />
+				<div className="hidden items-center gap-2 md:flex">
+					<button type="button" onClick={() => playAlbum(data.album, playableTracks, undefined, true)} disabled={tracks.length === 0} aria-label={t("shuffle")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition hover:text-white/75 disabled:opacity-40">
+						<Shuffle className="h-5 w-5" />
+					</button>
+					<button type="button" onClick={() => playAlbum(data.album, playableTracks)} disabled={tracks.length === 0} aria-label={t("play")} className="flex h-12 w-12 items-center justify-center rounded-full bg-white transition hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40">
+						<Play className="ml-0.5 h-5 w-5 fill-black text-black" />
+					</button>
+					<PlaylistPicker session={session} entityId={data.album.Id} entityName={data.album.Name} trackIds={tracks.map((track) => track.Id)} />
+					<button type="button" onClick={() => addAlbumToQueue(data.album, playableTracks)} disabled={tracks.length === 0} aria-label={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40">
+						<ListPlus className="h-5 w-5" />
+					</button>
+				</div>
+				<button type="button" onClick={() => setMoreOpen(true)} aria-label={t("showMore")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden">
+					<MoreHorizontal className="h-5 w-5" />
 				</button>
 			</section>
+			{moreOpen && (
+				<AudioDetailActionSheet item={data.album} subtitle={data.album.AlbumArtist ?? data.artist?.Name} onClose={() => setMoreOpen(false)}>
+					<AudioDetailSheetAction icon={<Play className="h-5 w-5 fill-current" />} onClick={() => { setMoreOpen(false); playAlbum(data.album, playableTracks); }}>{t("playAll")}</AudioDetailSheetAction>
+					<AudioDetailSheetAction icon={<Shuffle className="h-5 w-5" />} onClick={() => { setMoreOpen(false); playAlbum(data.album, playableTracks, undefined, true); }}>{t("shuffle")}</AudioDetailSheetAction>
+					<PlaylistPicker session={session} entityId={data.album.Id} entityName={data.album.Name} trackIds={tracks.map((track) => track.Id)} containerClassName="w-full" triggerClassName="flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07]" triggerContent={<><span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75"><CirclePlus className="h-5 w-5" /></span><span>{t("addToPlaylist")}</span></>} />
+					<AudioDetailSheetAction icon={<ListPlus className="h-5 w-5" />} onClick={() => { setMoreOpen(false); addAlbumToQueue(data.album, playableTracks); }}>{t("addToQueue")}</AudioDetailSheetAction>
+					{data.artist?.Id && <AudioDetailSheetAction icon={<Play className="h-5 w-5" />} onClick={() => { setMoreOpen(false); router.push(`/artist/${encodeURIComponent(data.artist!.Id)}`); }}>{t("artist")}</AudioDetailSheetAction>}
+				</AudioDetailActionSheet>
+			)}
 			{mutationError && (
 				<p role="alert" className="-mt-2 mb-3 text-xs text-red-200/80">
 					{mutationError}
@@ -388,7 +385,7 @@ export function AudioAlbumPage({
 										playLabel={t("play")}
 										addFavoriteLabel={t("addFavorite")}
 										removeFavoriteLabel={t("removeFavorite")}
-										onPlay={() => void playTrack(track, tracks)}
+										onPlay={() => void playTrack(track, playableTracks)}
 										onToggleFavorite={() => void toggleTrackFavorite(track)}
 									/>
 								</Fragment>

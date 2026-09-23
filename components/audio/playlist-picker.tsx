@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CirclePlus, Plus, X } from "lucide-react";
 import {
@@ -26,6 +26,9 @@ export function PlaylistPicker({
 	artistSource = false,
 	compact = false,
 	className = "",
+	containerClassName = "",
+	triggerContent,
+	triggerClassName,
 }: {
 	session: AuthSession;
 	entityId: string;
@@ -34,6 +37,9 @@ export function PlaylistPicker({
 	artistSource?: boolean;
 	compact?: boolean;
 	className?: string;
+	containerClassName?: string;
+	triggerContent?: ReactNode;
+	triggerClassName?: string;
 }) {
 	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
@@ -230,7 +236,7 @@ export function PlaylistPicker({
 	}
 
 	return (
-		<div className="relative inline-flex">
+		<div className={`relative inline-flex ${containerClassName}`}>
 			<button
 				ref={triggerRef}
 				type="button"
@@ -245,9 +251,9 @@ export function PlaylistPicker({
 						void openPicker();
 					}
 				}}
-				className={`inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
+				className={triggerClassName ?? `inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
 			>
-				<CirclePlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
+				{triggerContent ?? <CirclePlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />}
 			</button>
 			{open &&
 				typeof document !== "undefined" &&
@@ -264,7 +270,7 @@ export function PlaylistPicker({
 						aria-label={t("addToPlaylist")}
 						aria-busy={loading || busyId !== null}
 						onClick={(event) => event.stopPropagation()}
-						className="fixed z-[90] flex max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-white/15 bg-black/35 p-2 shadow-2xl shadow-black/70 backdrop-blur-xl"
+						className="fixed z-[120] flex max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-white/15 bg-black/35 p-2 shadow-2xl shadow-black/70 backdrop-blur-xl"
 					>
 							<button
 								type="button"
@@ -399,7 +405,7 @@ export function CreatePlaylistDialog({
 
 	return createPortal(
 		<div
-			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-3 backdrop-blur-xl sm:p-6"
+		className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-3 backdrop-blur-xl sm:p-6"
 			onMouseDown={(event) => {
 				if (event.target === event.currentTarget) onClose();
 			}}

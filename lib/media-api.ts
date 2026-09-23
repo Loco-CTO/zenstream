@@ -81,6 +81,8 @@ export interface MediaItem {
 	ImageTags?: Record<string, string | undefined>;
 	BackdropImageTags?: string[];
 	ImageBlurHashes?: ImageBlurHashes;
+	/** Client-only release art used when a track has no primary image of its own. */
+	PrimaryArtworkFallback?: MediaItem;
 	RemoteTrailers?: Array<{ Url?: string }>;
 	LocalTrailerCount?: number;
 	UserData?: {
@@ -2274,6 +2276,9 @@ export function seriesPosterImageUrl(item: MediaItem) {
 
 export function seriesPosterImage(item: MediaItem) {
 	if (item.Type !== "Episode") {
+		if (!item.ImageTags?.Primary && item.PrimaryArtworkFallback) {
+			return seriesPosterImage(item.PrimaryArtworkFallback);
+		}
 		return posterImage(item);
 	}
 	if (!item.SeriesId || !item.SeriesPrimaryImageTag) return null;
@@ -2293,6 +2298,24 @@ export function seriesPosterImage(item: MediaItem) {
 		280,
 		420,
 	);
+}
+
+/** Uses release artwork for tracks that do not have their own primary image. */
+export function withPrimaryArtworkFallback(
+	item: MediaItem,
+	fallback: MediaItem,
+): MediaItem {
+	if (
+		item.ImageTags?.Primary ||
+		item.PrimaryArtworkFallback ||
+		!fallback.ImageTags?.Primary
+	) {
+		return item;
+	}
+	return {
+		...item,
+		PrimaryArtworkFallback: fallback,
+	};
 }
 
 export function titleLogoImageUrl(item: MediaItem) {

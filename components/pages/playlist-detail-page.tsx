@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import {
-	ArrowDown,
 	ArrowLeft,
-	ArrowUp,
 	LockKeyhole,
 	Play,
 	Share2,
@@ -52,6 +50,12 @@ export function PlaylistDetailPage({
 	const [editOpen, setEditOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
+	const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
+	const [rowOffsets, setRowOffsets] = useState<Record<string, number>>({});
+	const itemRefs = useRef(new Map<string, HTMLDivElement>());
+	const firstPositions = useRef<Map<string, number> | null>(null);
+	const dropHandled = useRef(false);
 
 	useEffect(() => {
 		let active = true;
@@ -63,7 +67,10 @@ export function PlaylistDetailPage({
 				? fetchPlaylist(session, playlistId)
 				: Promise.reject(new Error("Playlist not found"));
 		void request.then((value) => {
-			if (active) setPlaylist(value);
+			if (active) {
+				setPlaylist(value);
+				setPreviewOrder(null);
+			}
 		}).catch(() => {
 			if (active) setError(true);
 		}).finally(() => {
@@ -80,25 +87,74 @@ export function PlaylistDetailPage({
 
 	const tracks = playlist?.items.map((entry) => entry.item) ?? [];
 	const album = playlist ? { Id: playlist.id, Name: playlist.name, Type: "MusicAlbum" } : null;
+	const items = playlist
+		? previewOrder
+			? previewOrder.map((id) => playlist.items.find((entry) => entry.entryId === id)).filter((entry): entry is Playlist["items"][number] => Boolean(entry))
+			: playlist.items
+		: [];
+
+	useLayoutEffect(() => {
+		const before = firstPositions.current;
+		if (!before || !previewOrder) return;
+		firstPositions.current = null;
+		const offsets: Record<string, number> = {};
+		for (const [id, node] of itemRefs.current) {
+			const previousTop = before.get(id);
+			if (previousTop == null) continue;
+			const offset = previousTop - node.getBoundingClientRect().top;
+			if (Math.abs(offset) > 1) offsets[id] = offset;
+		}
+		if (!Object.keys(offsets).length) return;
+		setRowOffsets(offsets);
+		const firstFrame = window.requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => setRowOffsets({}));
+		});
+		return () => window.cancelAnimationFrame(firstFrame);
+	}, [previewOrder]);
 
 	async function remove(entryId: string) {
 		if (!playlist || busy) return;
 		setBusy(true);
-		try { setPlaylist(await removePlaylistEntry(session, playlist.id, entryId)); }
+		try {
+			setPlaylist(await removePlaylistEntry(session, playlist.id, entryId));
+			setPreviewOrder(null);
+		}
 		catch { setError(true); }
 		finally { setBusy(false); }
 	}
 
-	async function move(entryIndex: number, direction: -1 | 1) {
+	async function saveOrder(order: string[]) {
 		if (!playlist || busy) return;
-		const next = [...playlist.items];
-		const target = entryIndex + direction;
-		if (target < 0 || target >= next.length) return;
-		[next[entryIndex], next[target]] = [next[target], next[entryIndex]];
+		if (order.length !== playlist.items.length || order.every((id, index) => id === playlist.items[index]?.entryId)) {
+			setPreviewOrder(null);
+			return;
+		}
 		setBusy(true);
-		try { setPlaylist(await reorderPlaylist(session, playlist.id, next.map((entry) => entry.entryId))); }
-		catch { setError(true); }
+		try {
+			setPlaylist(await reorderPlaylist(session, playlist.id, order));
+			setPreviewOrder(null);
+		} catch {
+			setError(true);
+			setPreviewOrder(null);
+		}
 		finally { setBusy(false); }
+	}
+
+	function previewMove(targetId: string, edge: "before" | "after") {
+		if (!playlist || !draggedEntryId || draggedEntryId === targetId || busy) return;
+		const from = items.findIndex((entry) => entry.entryId === draggedEntryId);
+		const target = items.findIndex((entry) => entry.entryId === targetId);
+		if (from < 0 || target < 0) return;
+		let insertAt = target + (edge === "after" ? 1 : 0);
+		if (insertAt > from) insertAt -= 1;
+		if (insertAt === from) return;
+		firstPositions.current = new Map(
+			[...itemRefs.current].map(([id, node]) => [id, node.getBoundingClientRect().top] as const),
+		);
+		const next = [...items];
+		const [moving] = next.splice(from, 1);
+		next.splice(insertAt, 0, moving);
+		setPreviewOrder(next.map((entry) => entry.entryId));
 	}
 
 	async function removePlaylist() {
@@ -148,19 +204,52 @@ export function PlaylistDetailPage({
 				{playlist.isOwner && <button type="button" onClick={() => setDeleteOpen(true)} aria-label={t("deletePlaylist")} className="rounded-full border border-red-300/15 p-2.5 text-red-200/65 hover:bg-red-500/10 hover:text-red-100"><Trash2 className="h-4 w-4" /></button>}
 			</div>
 			{error && <p role="alert" className="mt-4 text-xs text-red-200/80">{t("playlistSaveFailed")}</p>}
-			{playlist.items.length === 0 ? <div className="mt-8 rounded-xl border border-white/10 px-6 py-16 text-center text-sm text-white/45">{t("playlistEmpty")}</div> : <div className="mt-8 divide-y divide-white/[0.08]">
-				{playlist.items.map((entry, index) => {
+			{items.length === 0 ? <div className="mt-8 rounded-xl border border-white/10 px-6 py-16 text-center text-sm text-white/45">{t("playlistEmpty")}</div> : <div className="mt-8 divide-y divide-white/[0.08]">
+				{items.map((entry, index) => {
 					const image = seriesPosterImage(entry.item);
 					const active = currentTrack?.Id === entry.item.Id;
-					return <div key={entry.entryId} className="group flex items-center gap-3 py-3">
+					return <div
+						key={entry.entryId}
+						ref={(node) => {
+							if (node) itemRefs.current.set(entry.entryId, node);
+							else itemRefs.current.delete(entry.entryId);
+						}}
+						draggable={playlist.isOwner && !busy}
+						onDragStart={(event) => {
+							dropHandled.current = false;
+							setDraggedEntryId(entry.entryId);
+							if (event.dataTransfer) {
+								event.dataTransfer.effectAllowed = "move";
+								event.dataTransfer.setData("text/plain", entry.entryId);
+							}
+						}}
+						onDragOver={(event) => {
+							if (!playlist.isOwner || !draggedEntryId || draggedEntryId === entry.entryId) return;
+							event.preventDefault();
+							const bounds = event.currentTarget.getBoundingClientRect();
+							previewMove(entry.entryId, event.clientY > bounds.top + bounds.height / 2 ? "after" : "before");
+						}}
+						onDrop={(event) => {
+							event.preventDefault();
+							dropHandled.current = true;
+							void saveOrder(items.map((item) => item.entryId));
+						}}
+						onDragEnd={() => {
+							setDraggedEntryId(null);
+							if (!dropHandled.current) setPreviewOrder(null);
+						}}
+						style={{
+							transform: `translateY(${rowOffsets[entry.entryId] ?? 0}px)`,
+							transition: rowOffsets[entry.entryId] != null ? "none" : "transform 180ms cubic-bezier(0.2, 0.75, 0.25, 1)",
+						}}
+						className={`group flex items-center gap-3 py-3 ${playlist.isOwner ? "cursor-grab active:cursor-grabbing" : ""} ${draggedEntryId === entry.entryId ? "opacity-45" : ""}`}
+					>
 						<button type="button" aria-label={`${t("play")} ${entry.item.Name}`} onClick={() => playAlbum(album, tracks, entry.item.Id, undefined, true)} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
 							{image ? <BlurHashImage image={image} alt="" sizes="48px" className="h-full w-full object-cover" /> : <MediaPlaceholder />}
 							<span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">{active && isPlaying ? <AudioPlayingIndicator ariaLabel={t("nowPlaying")} /> : <Play className="h-4 w-4 fill-white text-white" />}</span>
 						</button>
 						<button type="button" onClick={() => playAlbum(album, tracks, entry.item.Id, undefined, true)} className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/85 hover:text-white">{entry.item.Name}</button>
 						{playlist.isOwner && <div className="flex shrink-0 items-center gap-1 opacity-65 transition group-hover:opacity-100">
-							<button type="button" disabled={busy || index === 0} aria-label={t("moveUp")} onClick={() => void move(index, -1)} className="rounded p-1 text-white/50 hover:bg-white/[0.08] hover:text-white disabled:opacity-25"><ArrowUp className="h-4 w-4" /></button>
-							<button type="button" disabled={busy || index === playlist.items.length - 1} aria-label={t("moveDown")} onClick={() => void move(index, 1)} className="rounded p-1 text-white/50 hover:bg-white/[0.08] hover:text-white disabled:opacity-25"><ArrowDown className="h-4 w-4" /></button>
 							<button type="button" disabled={busy} aria-label={t("removeFromPlaylist")} onClick={() => void remove(entry.entryId)} className="rounded p-1 text-white/35 hover:bg-white/[0.08] hover:text-white disabled:opacity-25"><X className="h-4 w-4" /></button>
 						</div>}
 					</div>;

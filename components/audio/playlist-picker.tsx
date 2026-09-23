@@ -120,10 +120,9 @@ export function PlaylistPicker({
 				aria-label={t("addToPlaylist")}
 				aria-expanded={open}
 				onClick={() => (open ? setOpen(false) : void openPicker())}
-				className={`inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 rounded-full px-4"} items-center justify-center gap-2 border border-white/10 bg-white/[0.04] text-xs font-semibold text-white/65 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
+				className={`inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
 			>
-				<ListPlus className="h-4 w-4" />
-				{!compact && <span>{t("addToPlaylist")}</span>}
+				<ListPlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
 			</button>
 			{open && (
 				<div className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-xl border border-white/15 bg-[#171719] p-2 shadow-2xl shadow-black/70">

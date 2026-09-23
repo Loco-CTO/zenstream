@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
 	ArrowLeft,
 	LockKeyhole,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
+import { useAudioRowReorder } from "@/components/audio/use-audio-row-reorder";
 import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { Toggle } from "@/components/ui/toggle";
@@ -51,11 +52,6 @@ export function PlaylistDetailPage({
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
 	const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
-	const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
-	const [rowOffsets, setRowOffsets] = useState<Record<string, number>>({});
-	const itemRefs = useRef(new Map<string, HTMLDivElement>());
-	const firstPositions = useRef<Map<string, number> | null>(null);
-	const dropHandled = useRef(false);
 
 	useEffect(() => {
 		let active = true;
@@ -87,42 +83,10 @@ export function PlaylistDetailPage({
 
 	const tracks = playlist?.items.map((entry) => entry.item) ?? [];
 	const album = playlist ? { Id: playlist.id, Name: playlist.name, Type: "MusicAlbum" } : null;
-	const items = playlist
-		? previewOrder
-			? previewOrder.map((id) => playlist.items.find((entry) => entry.entryId === id)).filter((entry): entry is Playlist["items"][number] => Boolean(entry))
-			: playlist.items
-		: [];
-
-	useLayoutEffect(() => {
-		const before = firstPositions.current;
-		if (!before || !previewOrder) return;
-		firstPositions.current = null;
-		const offsets: Record<string, number> = {};
-		for (const [id, node] of itemRefs.current) {
-			const previousTop = before.get(id);
-			if (previousTop == null) continue;
-			const offset = previousTop - node.getBoundingClientRect().top;
-			if (Math.abs(offset) > 1) offsets[id] = offset;
-		}
-		if (!Object.keys(offsets).length) return;
-		setRowOffsets(offsets);
-		const firstFrame = window.requestAnimationFrame(() => {
-			window.requestAnimationFrame(() => setRowOffsets({}));
-		});
-		return () => window.cancelAnimationFrame(firstFrame);
-	}, [previewOrder]);
-
-	async function remove(entryId: string) {
-		if (!playlist || busy) return;
-		setBusy(true);
-		try {
-			setPlaylist(await removePlaylistEntry(session, playlist.id, entryId));
-			setPreviewOrder(null);
-		}
-		catch { setError(true); }
-		finally { setBusy(false); }
-	}
-
+	const items = playlist?.items ?? [];
+	const displayItems = previewOrder
+		? previewOrder.map((id) => items.find((entry) => entry.entryId === id)).filter((entry): entry is Playlist["items"][number] => Boolean(entry))
+		: items;
 	async function saveOrder(order: string[]) {
 		if (!playlist || busy) return;
 		if (order.length !== playlist.items.length || order.every((id, index) => id === playlist.items[index]?.entryId)) {
@@ -139,22 +103,25 @@ export function PlaylistDetailPage({
 		}
 		finally { setBusy(false); }
 	}
-
-	function previewMove(targetId: string, edge: "before" | "after") {
-		if (!playlist || !draggedEntryId || draggedEntryId === targetId || busy) return;
-		const from = items.findIndex((entry) => entry.entryId === draggedEntryId);
-		const target = items.findIndex((entry) => entry.entryId === targetId);
-		if (from < 0 || target < 0) return;
-		let insertAt = target + (edge === "after" ? 1 : 0);
-		if (insertAt > from) insertAt -= 1;
-		if (insertAt === from) return;
-		firstPositions.current = new Map(
-			[...itemRefs.current].map(([id, node]) => [id, node.getBoundingClientRect().top] as const),
-		);
-		const next = [...items];
+	const reorder = useAudioRowReorder(items.length, (from, to) => {
+		if (!playlist || busy || !playlist.isOwner) return;
+		const next = [...playlist.items];
 		const [moving] = next.splice(from, 1);
-		next.splice(insertAt, 0, moving);
-		setPreviewOrder(next.map((entry) => entry.entryId));
+		next.splice(to, 0, moving);
+		const order = next.map((entry) => entry.entryId);
+		setPreviewOrder(order);
+		void saveOrder(order);
+	}, "playlist");
+
+	async function remove(entryId: string) {
+		if (!playlist || busy) return;
+		setBusy(true);
+		try {
+			setPlaylist(await removePlaylistEntry(session, playlist.id, entryId));
+			setPreviewOrder(null);
+		}
+		catch { setError(true); }
+		finally { setBusy(false); }
 	}
 
 	async function removePlaylist() {
@@ -205,44 +172,22 @@ export function PlaylistDetailPage({
 			</div>
 			{error && <p role="alert" className="mt-4 text-xs text-red-200/80">{t("playlistSaveFailed")}</p>}
 			{items.length === 0 ? <div className="mt-8 rounded-xl border border-white/10 px-6 py-16 text-center text-sm text-white/45">{t("playlistEmpty")}</div> : <div className="mt-8 divide-y divide-white/[0.08]">
-				{items.map((entry, index) => {
+				{displayItems.map((entry) => {
+					const baseIndex = items.findIndex((item) => item.entryId === entry.entryId);
+					const isDragged = reorder.draggedIndex === baseIndex;
 					const image = seriesPosterImage(entry.item);
 					const active = currentTrack?.Id === entry.item.Id;
 					return <div
 						key={entry.entryId}
-						ref={(node) => {
-							if (node) itemRefs.current.set(entry.entryId, node);
-							else itemRefs.current.delete(entry.entryId);
-						}}
-						draggable={playlist.isOwner && !busy}
-						onDragStart={(event) => {
-							dropHandled.current = false;
-							setDraggedEntryId(entry.entryId);
-							if (event.dataTransfer) {
-								event.dataTransfer.effectAllowed = "move";
-								event.dataTransfer.setData("text/plain", entry.entryId);
-							}
-						}}
-						onDragOver={(event) => {
-							if (!playlist.isOwner || !draggedEntryId || draggedEntryId === entry.entryId) return;
-							event.preventDefault();
-							const bounds = event.currentTarget.getBoundingClientRect();
-							previewMove(entry.entryId, event.clientY > bounds.top + bounds.height / 2 ? "after" : "before");
-						}}
-						onDrop={(event) => {
-							event.preventDefault();
-							dropHandled.current = true;
-							void saveOrder(items.map((item) => item.entryId));
-						}}
-						onDragEnd={() => {
-							setDraggedEntryId(null);
-							if (!dropHandled.current) setPreviewOrder(null);
-						}}
+						data-audio-reorder-scope={playlist.isOwner ? "playlist" : undefined}
+						data-audio-reorder-index={baseIndex}
+						onPointerDown={playlist.isOwner && !busy ? reorder.onPointerDown(baseIndex) : undefined}
+						onClickCapture={reorder.onClickCapture}
 						style={{
-							transform: `translateY(${rowOffsets[entry.entryId] ?? 0}px)`,
-							transition: rowOffsets[entry.entryId] != null ? "none" : "transform 180ms cubic-bezier(0.2, 0.75, 0.25, 1)",
+							transform: isDragged ? "translateY(var(--audio-reorder-delta-y, 0px))" : `translateY(${reorder.rowOffset(baseIndex)}px)`,
+							transition: isDragged ? "none" : "transform 145ms cubic-bezier(0.2, 0.75, 0.25, 1)",
 						}}
-						className={`group flex items-center gap-3 py-3 ${playlist.isOwner ? "cursor-grab active:cursor-grabbing" : ""} ${draggedEntryId === entry.entryId ? "opacity-45" : ""}`}
+						className={`group flex items-center gap-3 py-3 ${playlist.isOwner ? "cursor-grab active:cursor-grabbing" : ""} ${isDragged ? "pointer-events-none opacity-45" : ""}`}
 					>
 						<button type="button" aria-label={`${t("play")} ${entry.item.Name}`} onClick={() => playAlbum(album, tracks, entry.item.Id, undefined, true)} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
 							{image ? <BlurHashImage image={image} alt="" sizes="48px" className="h-full w-full object-cover" /> : <MediaPlaceholder />}

@@ -24,6 +24,7 @@ import {
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
+import { useAudioRowReorder } from "@/components/audio/use-audio-row-reorder";
 import { formatTrackArtists } from "@/lib/music";
 
 type OverlayTab = "nextUp" | "lyrics";
@@ -33,11 +34,6 @@ type LyricsLoadState = {
 	lyrics: AudioLyrics | null;
 	error: string | null;
 };
-type QueueDropTarget = {
-	index: number;
-	edge: "before" | "after";
-};
-
 export function AudioLyricsOverlay({
 	track,
 	open,
@@ -365,20 +361,11 @@ function TabButton({
 
 function NextUpPanel({ player }: { player: AudioPlayer }) {
 	const { t } = useI18n();
-	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-	const [dropTarget, setDropTarget] = useState<QueueDropTarget | null>(null);
+	const reorder = useAudioRowReorder(player.queue.length, player.reorderQueue, "queue");
 
-	function clearDragState() {
-		setDraggedIndex(null);
-		setDropTarget(null);
-	}
-
-	function renderEntry(entry: AudioPlayer["queue"][number], index: number) {
+	function renderEntry(entry: AudioPlayer["queue"][number], index: number, reorderable = false) {
 		const selected = index === player.currentIndex;
-		const dragging = draggedIndex === index;
-		const dropBefore =
-			dropTarget?.index === index && dropTarget.edge === "before";
-		const dropAfter = dropTarget?.index === index && dropTarget.edge === "after";
+		const dragging = reorderable && reorder.draggedIndex === index;
 		const entryImage = seriesPosterImage(entry.track);
 		const duration =
 			entry.track.DurationSeconds ?? entry.track.UserData?.DurationSeconds ?? 0;
@@ -386,51 +373,20 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 		return (
 			<div
 				key={entry.id}
-				draggable
 				data-testid={`audio-queue-item-${entry.id}`}
 				data-track-id={entry.track.Id}
 				data-queue-index={index}
+				data-audio-reorder-scope={reorderable ? "queue" : undefined}
+				data-audio-reorder-index={reorderable ? index : undefined}
 				aria-current={selected ? "true" : undefined}
-				onDragStart={(event) => {
-					setDraggedIndex(index);
-					setDropTarget(null);
-					if (event.dataTransfer) {
-						event.dataTransfer.effectAllowed = "move";
-						event.dataTransfer.setData("text/plain", entry.id);
-					}
-				}}
-				onDragOver={(event) => {
-					event.preventDefault();
-					if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-					if (draggedIndex !== index) {
-						const bounds = event.currentTarget.getBoundingClientRect();
-						const edge =
-							event.clientY - bounds.top < bounds.height / 2 ? "before" : "after";
-						setDropTarget({ index, edge });
-					}
-				}}
-				onDrop={(event) => {
-					event.preventDefault();
-					if (draggedIndex != null) {
-						const edge = dropTarget?.index === index ? dropTarget.edge : "before";
-						const insertionIndex = index + (edge === "after" ? 1 : 0);
-						const targetIndex =
-							insertionIndex > draggedIndex ? insertionIndex - 1 : insertionIndex;
-						if (targetIndex !== draggedIndex) {
-							player.reorderQueue(draggedIndex, targetIndex);
-						}
-					}
-					clearDragState();
-				}}
-				onDragEnd={clearDragState}
-				className={`group relative flex cursor-grab items-center gap-3 rounded-md px-2 py-2.5 active:cursor-grabbing ${dragging ? "opacity-45" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+				onPointerDown={reorderable ? reorder.onPointerDown(index) : undefined}
+				onClickCapture={reorderable ? reorder.onClickCapture : undefined}
+				style={reorderable ? {
+					transform: dragging ? "translateY(var(--audio-reorder-delta-y, 0px))" : `translateY(${reorder.rowOffset(index)}px)`,
+					transition: dragging ? "none" : "transform 145ms cubic-bezier(0.2, 0.75, 0.25, 1)",
+				} : undefined}
+				className={`group relative flex items-center gap-3 rounded-md px-2 py-2.5 ${reorderable ? "cursor-grab active:cursor-grabbing" : ""} ${dragging ? "pointer-events-none opacity-45" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
 			>
-				{(dropBefore || dropAfter) && (
-					<span
-						aria-hidden="true"
-						className={`pointer-events-none absolute inset-x-2 z-10 h-0.5 rounded-full bg-white/85 ${dropBefore ? "-top-px" : "-bottom-px"}`}
-					/>
-				)}
 				<span
 					aria-hidden="true"
 					className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
@@ -499,7 +455,7 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 			data-testid="audio-next-up-panel"
 			className="flex h-full min-h-0 flex-col"
 		>
-			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent]">
+			<div data-audio-reorder-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent]">
 				{player.queue.length === 0 ? (
 					<p className="py-10 text-center text-sm text-white/45">
 						{t("queueEmpty")}
@@ -525,7 +481,7 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 								{t("queue")}
 							</p>
 							<div data-testid="audio-queue-list" className="space-y-1">
-								{player.queue.map((entry, index) => renderEntry(entry, index))}
+								{player.queue.map((entry, index) => renderEntry(entry, index, true))}
 							</div>
 						</section>
 					</div>

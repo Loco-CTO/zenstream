@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Heart, Plus, Trash2 } from "lucide-react";
 import {
@@ -38,6 +38,8 @@ export function FavoritesPage({
 	const { t } = useI18n();
 	const { start } = useProgress();
 	const [activeTab, setActiveTab] = useState<ListsTab>(initialTab);
+	const tabListRef = useRef<HTMLDivElement>(null);
+	const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
 	const [items, setItems] = useState<MediaItem[]>([]);
 	const [sort, setSort] = useSortPreference(
 		"zenstream:sort:favorites",
@@ -90,6 +92,38 @@ export function FavoritesPage({
 		{ value: "CommunityRating", label: t("sortRating") },
 	];
 	useEffect(() => setActiveTab(initialTab), [initialTab]);
+	useEffect(() => {
+		const tabList = tabListRef.current;
+		if (!tabList) return;
+
+		const updateUnderline = () => {
+			const activeButton = tabList.querySelector<HTMLButtonElement>(
+				`[data-list-tab="${activeTab}"]`,
+			);
+			if (!activeButton) return;
+
+			setTabUnderline({
+				left: activeButton.offsetLeft,
+				width: activeButton.offsetWidth,
+			});
+		};
+
+		updateUnderline();
+		const resizeObserver =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(updateUnderline);
+		resizeObserver?.observe(tabList);
+		tabList
+			.querySelectorAll<HTMLButtonElement>("[data-list-tab]")
+			.forEach((button) => resizeObserver?.observe(button));
+		window.addEventListener("resize", updateUnderline);
+
+		return () => {
+			resizeObserver?.disconnect();
+			window.removeEventListener("resize", updateUnderline);
+		};
+	}, [activeTab]);
 	const episodes = items.filter((item) => item.Type === "Episode");
 	const movies = items.filter((item) => item.Type === "Movie");
 	const series = items.filter((item) => item.Type === "Series");
@@ -104,12 +138,39 @@ export function FavoritesPage({
 	return (
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8">
 			<div className="relative mb-7 border-b border-white/10">
-				<div role="tablist" aria-label={t("myLists")} className="flex">
+				<div
+					ref={tabListRef}
+					role="tablist"
+					aria-label={t("myLists")}
+					className="relative -mb-px flex"
+				>
 					{(["watchlist", "favorites", "playlists"] as const).map((tab) => (
-						<button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)} className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === tab ? "border-white text-white" : "border-transparent text-white/40 hover:text-white/75"}`}>
-							{t(tab === "watchlist" ? "watchlist" : tab === "favorites" ? "favorites" : "playlists")}
+						<button
+							key={tab}
+							type="button"
+							role="tab"
+							data-list-tab={tab}
+							aria-selected={activeTab === tab}
+							onClick={() => setActiveTab(tab)}
+							className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "text-white" : "text-white/40 hover:text-white/75"}`}
+						>
+							{t(
+								tab === "watchlist"
+									? "watchlist"
+									: tab === "favorites"
+										? "favorites"
+										: "playlists",
+							)}
 						</button>
 					))}
+					<span
+						aria-hidden="true"
+						className="pointer-events-none absolute bottom-[-1px] left-0 h-0.5 bg-white transition-[transform,width] duration-300 ease-out motion-reduce:transition-none"
+						style={{
+							width: `${tabUnderline.width}px`,
+							transform: `translateX(${tabUnderline.left}px)`,
+						}}
+					/>
 				</div>
 				{activeTab === "favorites" && (
 					<div className="flex w-full shrink-0 items-center gap-2 pb-2 sm:absolute sm:right-0 sm:top-1/2 sm:w-auto sm:-translate-y-1/2 sm:pb-0">

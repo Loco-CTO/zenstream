@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, ChevronLeft, Play } from "lucide-react";
+import { Bookmark, ChevronLeft, ListPlus, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
@@ -46,7 +46,7 @@ export function ArtistPage({
 }) {
 	const { t } = useI18n();
 	const router = useRouter();
-	const { playAlbum } = useAudioPlayer();
+	const { addAlbumToQueue, playAlbum } = useAudioPlayer();
 	const albums = uniqueItems(data.albums);
 	const tracks = uniqueItems(data.tracks);
 	const trackCount = data.trackCount ?? tracks.length;
@@ -61,6 +61,8 @@ export function ArtistPage({
 	const [followBusy, setFollowBusy] = useState(false);
 	const [playBusy, setPlayBusy] = useState(false);
 	const [playError, setPlayError] = useState(false);
+	const [queueBusy, setQueueBusy] = useState(false);
+	const [queueError, setQueueError] = useState(false);
 	const [followErrorArtistId, setFollowErrorArtistId] = useState<string | null>(
 		null,
 	);
@@ -88,6 +90,22 @@ export function ArtistPage({
 			setPlayError(true);
 		} finally {
 			setPlayBusy(false);
+		}
+	}
+
+	async function addAllToQueue() {
+		if (queueBusy || trackCount === 0) return;
+		setQueueBusy(true);
+		setQueueError(false);
+		try {
+			const queue = tracks.length
+				? tracks
+				: await fetchArtistTracks(session, data.artist.Id);
+			if (queue.length > 0) addAlbumToQueue(data.artist, queue);
+		} catch {
+			setQueueError(true);
+		} finally {
+			setQueueBusy(false);
 		}
 	}
 
@@ -213,7 +231,23 @@ export function ArtistPage({
 						artistSource
 						trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined}
 					/>
+					<button
+						type="button"
+						disabled={trackCount === 0 || queueBusy}
+						onClick={() => void addAllToQueue()}
+						aria-label={t("addToQueue")}
+						aria-busy={queueBusy}
+						title={t("addToQueue")}
+						className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+					>
+						<ListPlus className="h-5 w-5" />
+					</button>
 					{playError && (
+						<p role="alert" className="text-xs text-red-200/80">
+							{t("detailLoadFailed")}
+						</p>
+					)}
+					{queueError && (
 						<p role="alert" className="text-xs text-red-200/80">
 							{t("detailLoadFailed")}
 						</p>

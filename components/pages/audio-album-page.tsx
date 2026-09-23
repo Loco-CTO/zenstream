@@ -6,7 +6,7 @@ import {
 	ChevronLeft,
 	Clock,
 	Heart,
-	MoreHorizontal,
+	ListPlus,
 	Play,
 	Shuffle,
 } from "lucide-react";
@@ -330,9 +330,9 @@ export function AudioAlbumPage({
 					onClick={() => addAlbumToQueue(data.album, tracks)}
 					disabled={tracks.length === 0}
 					aria-label={t("addToQueue")}
-					className="ml-auto text-white/20 transition hover:text-white/45 disabled:cursor-not-allowed disabled:opacity-40"
+					className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
 				>
-					<MoreHorizontal className="h-5 w-5" />
+					<ListPlus className="h-5 w-5" />
 				</button>
 			</section>
 			{mutationError && (

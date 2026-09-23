@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Circle, CircleDot, ListPlus, Plus, X } from "lucide-react";
+import { Circle, CircleDot, CirclePlus, Plus, X } from "lucide-react";
 import {
 	addPlaylistItems,
 	createPlaylist,
@@ -209,7 +209,7 @@ export function PlaylistPicker({
 				}}
 				className={`inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
 			>
-				<ListPlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
+				<CirclePlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
 			</button>
 			{open &&
 				typeof document !== "undefined" &&

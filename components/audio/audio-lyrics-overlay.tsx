@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronDown, LoaderCircle, LocateFixed, X } from "lucide-react";
 import {
+	memo,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -359,13 +360,12 @@ function TabButton({
 	);
 }
 
-function NextUpPanel({ player }: { player: AudioPlayer }) {
+const NextUpPanel = memo(function NextUpPanel({ player }: { player: AudioPlayer }) {
 	const { t } = useI18n();
 	const reorder = useAudioRowReorder(player.queue.length, player.reorderQueue, "queue");
 
 	function renderEntry(entry: AudioPlayer["queue"][number], index: number, reorderable = false) {
 		const selected = index === player.currentIndex;
-		const dragging = reorderable && reorder.draggedIndex === index;
 		const entryImage = seriesPosterImage(entry.track);
 		const duration =
 			entry.track.DurationSeconds ?? entry.track.UserData?.DurationSeconds ?? 0;
@@ -379,13 +379,7 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 				data-audio-reorder-scope={reorderable ? "queue" : undefined}
 				data-audio-reorder-index={reorderable ? index : undefined}
 				aria-current={selected ? "true" : undefined}
-				onPointerDown={reorderable ? reorder.onPointerDown(index) : undefined}
-				onClickCapture={reorderable ? reorder.onClickCapture : undefined}
-				style={reorderable ? {
-					transform: dragging ? "translateY(var(--audio-reorder-delta-y, 0px))" : `translateY(${reorder.rowOffset(index)}px)`,
-					transition: dragging ? "none" : "transform 145ms cubic-bezier(0.2, 0.75, 0.25, 1)",
-				} : undefined}
-				className={`group relative flex items-center gap-3 rounded-md px-2 py-2.5 ${reorderable ? "cursor-grab active:cursor-grabbing" : ""} ${dragging ? "pointer-events-none opacity-45" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+				className={`group relative flex items-center gap-3 rounded-md px-2 py-2.5 transition-transform duration-100 ease-out ${reorderable ? "cursor-grab active:cursor-grabbing" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
 			>
 				<span
 					aria-hidden="true"
@@ -480,7 +474,13 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 							<p className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
 								{t("queue")}
 							</p>
-							<div data-testid="audio-queue-list" className="space-y-1">
+							<div
+								data-testid="audio-queue-list"
+								data-audio-reorder-list
+								onPointerDown={reorder.onPointerDown}
+								onClickCapture={reorder.onClickCapture}
+								className="space-y-1"
+							>
 								{player.queue.map((entry, index) => renderEntry(entry, index, true))}
 							</div>
 						</section>
@@ -489,7 +489,15 @@ function NextUpPanel({ player }: { player: AudioPlayer }) {
 			</div>
 		</div>
 	);
-}
+}, (previous, next) => {
+	const previousPlayer = previous.player;
+	const nextPlayer = next.player;
+	return previousPlayer.queue === nextPlayer.queue &&
+		previousPlayer.currentIndex === nextPlayer.currentIndex &&
+		previousPlayer.playQueueItem === nextPlayer.playQueueItem &&
+		previousPlayer.removeQueueItem === nextPlayer.removeQueueItem &&
+		previousPlayer.reorderQueue === nextPlayer.reorderQueue;
+});
 
 function LyricsPanel({
 	activeIndex,

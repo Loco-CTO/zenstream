@@ -39,7 +39,9 @@ export function FavoritesPage({
 	const { start } = useProgress();
 	const [activeTab, setActiveTab] = useState<ListsTab>(initialTab);
 	const tabListRef = useRef<HTMLDivElement>(null);
+	const hasMeasuredTabUnderline = useRef(false);
 	const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
+	const [tabUnderlineReady, setTabUnderlineReady] = useState(false);
 	const [items, setItems] = useState<MediaItem[]>([]);
 	const [sort, setSort] = useSortPreference(
 		"zenstream:sort:favorites",
@@ -95,17 +97,28 @@ export function FavoritesPage({
 	useEffect(() => {
 		const tabList = tabListRef.current;
 		if (!tabList) return;
+		let initialAnimationFrame: number | null = null;
 
 		const updateUnderline = () => {
 			const activeButton = tabList.querySelector<HTMLButtonElement>(
 				`[data-list-tab="${activeTab}"]`,
 			);
 			if (!activeButton) return;
+			const tabListBounds = tabList.getBoundingClientRect();
+			const activeButtonBounds = activeButton.getBoundingClientRect();
 
 			setTabUnderline({
-				left: activeButton.offsetLeft,
-				width: activeButton.offsetWidth,
+				left: activeButtonBounds.left - tabListBounds.left,
+				width: activeButtonBounds.width,
 			});
+
+			if (!hasMeasuredTabUnderline.current && initialAnimationFrame === null) {
+				initialAnimationFrame = window.requestAnimationFrame(() => {
+					initialAnimationFrame = null;
+					hasMeasuredTabUnderline.current = true;
+					setTabUnderlineReady(true);
+				});
+			}
 		};
 
 		updateUnderline();
@@ -120,6 +133,9 @@ export function FavoritesPage({
 		window.addEventListener("resize", updateUnderline);
 
 		return () => {
+			if (initialAnimationFrame !== null) {
+				window.cancelAnimationFrame(initialAnimationFrame);
+			}
 			resizeObserver?.disconnect();
 			window.removeEventListener("resize", updateUnderline);
 		};
@@ -165,10 +181,13 @@ export function FavoritesPage({
 					))}
 					<span
 						aria-hidden="true"
-						className="pointer-events-none absolute bottom-[-1px] left-0 h-0.5 bg-white transition-[transform,width] duration-300 ease-out motion-reduce:transition-none"
+						className="pointer-events-none absolute bottom-[-1px] left-0 h-0.5 bg-white"
 						style={{
 							width: `${tabUnderline.width}px`,
 							transform: `translateX(${tabUnderline.left}px)`,
+							transition: tabUnderlineReady
+								? "transform 300ms ease-out, width 300ms ease-out"
+								: "none",
 						}}
 					/>
 				</div>

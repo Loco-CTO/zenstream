@@ -27,6 +27,7 @@ export const TRANSLATION_KEYS = [
 	"privatePlaylist",
 	"privatePlaylistHint",
 	"publicPlaylist",
+	"publicPlaylistHint",
 	"playlistTrackCount",
 	"inPlaylist",
 	"notInPlaylist",

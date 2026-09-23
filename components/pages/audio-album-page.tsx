@@ -291,7 +291,7 @@ export function AudioAlbumPage({
 				</div>
 			</section>
 
-			<section className="flex items-center gap-5 px-6 py-4 md:px-10">
+			<section className="flex items-center gap-2 px-6 py-4 md:px-10">
 				<button
 					type="button"
 					onClick={() => playAlbum(data.album, tracks)}
@@ -306,7 +306,7 @@ export function AudioAlbumPage({
 					onClick={() => playAlbum(data.album, tracks, undefined, true)}
 					disabled={tracks.length === 0}
 					aria-label={t("shuffle")}
-					className="text-white/25 transition hover:text-white/55 disabled:cursor-not-allowed disabled:opacity-40"
+					className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
 				>
 					<Shuffle className="h-5 w-5" />
 				</button>
@@ -315,7 +315,7 @@ export function AudioAlbumPage({
 					onClick={toggleFavorite}
 					aria-pressed={favorite}
 					aria-label={favorite ? t("removeFavorite") : t("addFavorite")}
-					className={`transition-colors focus:outline-none focus:ring-2 focus:ring-violet-300 ${favorite ? "text-white" : "text-white/25 hover:text-white/55"}`}
+					className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/25 hover:text-white/55"}`}
 				>
 					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 				</button>
@@ -330,7 +330,7 @@ export function AudioAlbumPage({
 					onClick={() => addAlbumToQueue(data.album, tracks)}
 					disabled={tracks.length === 0}
 					aria-label={t("addToQueue")}
-					className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+					className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
 				>
 					<ListPlus className="h-5 w-5" />
 				</button>

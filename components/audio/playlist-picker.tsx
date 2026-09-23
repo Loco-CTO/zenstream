@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Check, Circle, ListPlus, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { Circle, CircleDot, ListPlus, Plus, X } from "lucide-react";
 import {
 	addPlaylistItems,
 	createPlaylist,
@@ -43,16 +44,67 @@ export function PlaylistPicker({
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [creating, setCreating] = useState(false);
 	const [error, setError] = useState(false);
+	const [pickerPosition, setPickerPosition] = useState<{
+		top: number;
+		left: number;
+	} | null>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const pickerRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (trackIds?.length) setItemIds(trackIds);
 		else if (!artistSource) setItemIds([entityId]);
 	}, [artistSource, entityId, trackIds]);
 
-	const selectedIds = useMemo(() => new Set(itemIds), [itemIds]);
+	useEffect(() => {
+		if (!open) return;
+
+		const updatePosition = () => {
+			const trigger = triggerRef.current;
+			const picker = pickerRef.current;
+			if (!trigger || !picker) return;
+
+			const bounds = trigger.getBoundingClientRect();
+			const margin = 8;
+			const gap = 8;
+			const viewportWidth = document.documentElement.clientWidth;
+			const viewportHeight = window.innerHeight;
+			const pickerWidth = picker.offsetWidth;
+			const pickerHeight = picker.offsetHeight;
+			const maxLeft = Math.max(margin, viewportWidth - pickerWidth - margin);
+			const left = Math.round(Math.min(maxLeft, Math.max(margin, bounds.right - pickerWidth)));
+			const belowTop = bounds.bottom + gap;
+			const spaceBelow = viewportHeight - belowTop - margin;
+			const spaceAbove = bounds.top - gap - margin;
+			const top =
+				pickerHeight > spaceBelow && spaceAbove > spaceBelow
+					? bounds.top - pickerHeight - gap
+					: belowTop;
+			const maxTop = Math.max(margin, viewportHeight - pickerHeight - margin);
+			setPickerPosition({
+				top: Math.round(Math.min(maxTop, Math.max(margin, top))),
+				left,
+			});
+		};
+
+		updatePosition();
+		window.addEventListener("resize", updatePosition);
+		window.addEventListener("scroll", updatePosition, true);
+		const resizeObserver =
+			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePosition);
+		if (triggerRef.current) resizeObserver?.observe(triggerRef.current);
+		if (pickerRef.current) resizeObserver?.observe(pickerRef.current);
+
+		return () => {
+			window.removeEventListener("resize", updatePosition);
+			window.removeEventListener("scroll", updatePosition, true);
+			resizeObserver?.disconnect();
+		};
+	}, [error, itemIds.length, loading, open, playlists.length]);
 
 	async function openPicker() {
 		setOpen(true);
+		setPickerPosition(null);
 		setError(false);
 		setLoading(true);
 		try {
@@ -81,27 +133,53 @@ export function PlaylistPicker({
 	async function togglePlaylist(playlistId: string) {
 		const current = details[playlistId];
 		if (!current || busyId) return;
+		const requestedIds = [...new Set(itemIds)];
+		const requestedIdSet = new Set(requestedIds);
+		const selectedEntries = current.items.filter((entry) => requestedIdSet.has(entry.item.Id));
+		const isMember =
+			requestedIds.length > 0 &&
+			requestedIds.every((id) => selectedEntries.some((entry) => entry.item.Id === id));
+		const shouldBeMember = !isMember;
 		setBusyId(playlistId);
 		setError(false);
-		try {
-			const currentIds = new Set(current.items.map((entry) => entry.item.Id));
-			const selected = itemIds.filter((id) => currentIds.has(id));
-			let updated = current;
-			if (selected.length > 0 && selected.length === itemIds.length) {
-				for (const entry of current.items.filter((value) => selectedIds.has(value.item.Id))) {
-					updated = await removePlaylistEntry(session, playlistId, entry.entryId);
-				}
-			} else {
-				updated = await addPlaylistItems(session, playlistId, [entityId]);
-			}
+
+		function updatePlaylist(updated: Playlist) {
 			setDetails((value) => ({ ...value, [playlistId]: updated }));
 			setPlaylists((value) =>
 				value.map((playlist) =>
 					playlist.id === playlistId ? { ...playlist, ...updated } : playlist,
 				),
 			);
+		}
+
+		function hasRequestedMembership(playlist: Playlist) {
+			const currentIds = new Set(playlist.items.map((entry) => entry.item.Id));
+			const matchedCount = requestedIds.filter((id) => currentIds.has(id)).length;
+			return shouldBeMember
+				? requestedIds.length > 0 && matchedCount === requestedIds.length
+				: matchedCount === 0;
+		}
+
+		try {
+			let updated: Playlist;
+			if (isMember) {
+				updated = current;
+				for (const entry of selectedEntries) {
+					updated = await removePlaylistEntry(session, playlistId, entry.entryId);
+				}
+			} else {
+				updated = await addPlaylistItems(session, playlistId, [entityId]);
+			}
+			updatePlaylist(updated);
+			if (!hasRequestedMembership(updated)) setError(true);
 		} catch {
-			setError(true);
+			try {
+				const updated = await fetchPlaylist(session, playlistId);
+				updatePlaylist(updated);
+				setError(!hasRequestedMembership(updated));
+			} catch {
+				setError(true);
+			}
 		} finally {
 			setBusyId(null);
 		}
@@ -116,59 +194,110 @@ export function PlaylistPicker({
 	return (
 		<div className="relative inline-flex">
 			<button
+				ref={triggerRef}
 				type="button"
 				aria-label={t("addToPlaylist")}
 				aria-expanded={open}
-				onClick={() => (open ? setOpen(false) : void openPicker())}
+				onClick={(event) => {
+					event.stopPropagation();
+					if (open) {
+						setOpen(false);
+						setPickerPosition(null);
+					} else {
+						void openPicker();
+					}
+				}}
 				className={`inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
 			>
 				<ListPlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
 			</button>
-			{open && (
-				<div className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-xl border border-white/15 bg-[#171719] p-2 shadow-2xl shadow-black/70">
-					<button
-						type="button"
-						onClick={() => setCreating(true)}
-						className="flex w-full items-center gap-3 rounded-lg border-b border-white/10 px-2 py-3 text-left text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
+			{open &&
+				typeof document !== "undefined" &&
+				createPortal(
+					<div
+						ref={pickerRef}
+						style={{
+							top: pickerPosition?.top ?? 0,
+							left: pickerPosition?.left ?? 0,
+							visibility: pickerPosition ? "visible" : "hidden",
+						}}
+						onClick={(event) => event.stopPropagation()}
+						className="fixed z-[90] flex max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-white/15 bg-[#171719] p-2 shadow-2xl shadow-black/70"
 					>
-						<span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.08]"><Plus className="h-4 w-4" /></span>
-						{t("createPlaylist")}
-					</button>
-					<div className="max-h-72 overflow-y-auto py-1">
-						{loading ? (
-							<p className="px-3 py-5 text-center text-xs text-white/40">{t("loading")}</p>
-						) : playlists.length === 0 ? (
-							<p className="px-3 py-5 text-center text-xs text-white/40">{t("noPlaylists")}</p>
-						) : (
-							playlists.map((playlist) => {
-								const entries = details[playlist.id]?.items ?? [];
-								const membership = itemIds.length > 0 && itemIds.every((id) => entries.some((entry) => entry.item.Id === id));
-								const artwork = playlist.artworkItems[0];
-								return (
-									<button
-										key={playlist.id}
-										type="button"
-										disabled={busyId !== null || loading || itemIds.length === 0}
-										onClick={() => void togglePlaylist(playlist.id)}
-										className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-white/70 transition hover:bg-white/[0.06] disabled:opacity-50"
-									>
-										<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
-											{artwork && seriesPosterImage(artwork) ? (
-												<BlurHashImage image={seriesPosterImage(artwork)!} alt="" sizes="36px" className="h-full w-full object-cover" />
-											) : <MediaPlaceholder />}
-										</div>
-										<span className="min-w-0 flex-1 truncate">{playlist.name}</span>
-										<span aria-label={membership ? t("inPlaylist") : t("notInPlaylist")} className="flex h-5 w-5 items-center justify-center text-white/45">
-											{membership ? <Check className="h-4 w-4 text-violet-300" /> : <Circle className="h-4 w-4" />}
-										</span>
-									</button>
-								);
-							})
+						<button
+							type="button"
+							onClick={() => setCreating(true)}
+							className="flex w-full shrink-0 items-center gap-3 rounded-lg border-b border-white/10 px-2 py-3 text-left text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
+						>
+							<span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.08]">
+								<Plus className="h-4 w-4" />
+							</span>
+							{t("createPlaylist")}
+						</button>
+						<div className="min-h-0 max-h-[min(18rem,calc(100dvh-8rem))] flex-1 overflow-y-auto py-1">
+							{loading ? (
+								<p className="px-3 py-5 text-center text-xs text-white/40">
+									{t("loading")}
+								</p>
+							) : playlists.length === 0 ? (
+								<p className="px-3 py-5 text-center text-xs text-white/40">
+									{t("noPlaylists")}
+								</p>
+							) : (
+								playlists.map((playlist) => {
+									const entries = details[playlist.id]?.items ?? [];
+									const membership =
+										itemIds.length > 0 &&
+										itemIds.every((id) =>
+											entries.some((entry) => entry.item.Id === id),
+										);
+									const artwork = playlist.artworkItems[0];
+									return (
+										<button
+							key={playlist.id}
+							type="button"
+							aria-label={`${playlist.name}: ${membership ? t("inPlaylist") : t("notInPlaylist")}`}
+											aria-pressed={membership}
+											disabled={busyId !== null || loading || itemIds.length === 0}
+											onClick={() => void togglePlaylist(playlist.id)}
+											className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-white/70 transition hover:bg-white/[0.06] disabled:opacity-50"
+										>
+											<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
+												{artwork && seriesPosterImage(artwork) ? (
+													<BlurHashImage
+														image={seriesPosterImage(artwork)!}
+														alt=""
+														sizes="36px"
+														className="h-full w-full object-cover"
+													/>
+												) : (
+													<MediaPlaceholder />
+												)}
+											</div>
+											<span className="min-w-0 flex-1 truncate">{playlist.name}</span>
+											<span
+												aria-hidden="true"
+												className="flex h-5 w-5 items-center justify-center text-white/45"
+											>
+												{membership ? (
+													<CircleDot className="h-4 w-4 text-violet-300" />
+												) : (
+													<Circle className="h-4 w-4" />
+												)}
+											</span>
+										</button>
+									);
+								})
+							)}
+						</div>
+						{error && (
+							<p role="alert" className="px-3 py-2 text-xs text-red-200/80">
+								{t("playlistSaveFailed")}
+							</p>
 						)}
-					</div>
-					{error && <p role="alert" className="px-3 py-2 text-xs text-red-200/80">{t("playlistSaveFailed")}</p>}
-				</div>
-			)}
+					</div>,
+					document.body,
+				)}
 			{creating && (
 				<CreatePlaylistDialog
 					session={session}
@@ -224,7 +353,9 @@ export function CreatePlaylistDialog({
 
 	const privacyLabel = t(isPrivate ? "privatePlaylist" : "publicPlaylist");
 
-	return (
+	if (typeof document === "undefined") return null;
+
+	return createPortal(
 		<div
 			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-3 backdrop-blur-xl sm:p-6"
 			onMouseDown={(event) => {
@@ -329,6 +460,7 @@ export function CreatePlaylistDialog({
 					</div>
 				</div>
 			</form>
-		</div>
+		</div>,
+		document.body,
 	);
 }

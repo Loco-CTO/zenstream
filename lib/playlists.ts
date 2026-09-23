@@ -136,12 +136,12 @@ export async function removePlaylistEntry(
 	playlistId: string,
 	entryId: string,
 ) {
-	const response = await catalogRequest<PlaylistPayload>(
+	const response = await catalogRequest<PlaylistPayload | null>(
 		session,
 		`/api/account/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(entryId)}`,
 		{ method: "DELETE" },
 	);
-	return mapPlaylist(response);
+	return response ? mapPlaylist(response) : fetchPlaylist(session, playlistId);
 }
 
 export async function reorderPlaylist(

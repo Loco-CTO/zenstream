@@ -200,7 +200,6 @@ series: Series
 collection: Collection
 close: Close
 localeSaveFailed: Could not save your language setting.
-continueWatching: Continue Watching
 newlyAddedOn: "Newly Added on {library}"
 nextUp: Next Up
 playNext: Play next

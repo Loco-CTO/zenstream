@@ -24,6 +24,7 @@ import {
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
 import type { AuthSession } from "@/lib/session";
 import {
+	orderAudioPlaylistStart,
 	selectNextAudioQueueEntry,
 	selectPreviousAudioQueueEntry,
 } from "@/components/audio/audio-queue-logic";
@@ -68,6 +69,7 @@ type AudioPlayerContextValue = AudioPlayerState & {
 		tracks: MediaItem[],
 		selectedTrackId?: string,
 		shuffle?: boolean,
+		preserveSelectedFirst?: boolean,
 	) => void;
 	playTrack: (track: MediaItem, albumTracks?: MediaItem[]) => Promise<void>;
 	addAlbumToQueue: (album: MediaItem, tracks: MediaItem[]) => void;
@@ -112,15 +114,6 @@ function isExpectedPlayInterruption(error: unknown) {
 		(typeof message === "string" &&
 			/play\(\).*request was interrupted/i.test(message))
 	);
-}
-
-function shuffled<T>(values: T[]) {
-	const result = [...values];
-	for (let index = result.length - 1; index > 0; index -= 1) {
-		const target = Math.floor(Math.random() * (index + 1));
-		[result[index], result[target]] = [result[target], result[index]];
-	}
-	return result;
 }
 
 function uniqueTracks(tracks: MediaItem[]) {
@@ -551,11 +544,19 @@ export function AudioPlayerProvider({
 			tracks: MediaItem[],
 			selectedTrackId?: string,
 			useShuffle = shuffle,
+			preserveSelectedFirst = false,
 		) => {
 			void album;
-			const ordered = useShuffle
-				? shuffled(uniqueTracks(tracks))
-				: uniqueTracks(tracks);
+			const unique = uniqueTracks(tracks);
+			const selectedIndex = selectedTrackId
+				? unique.findIndex((track) => track.Id === selectedTrackId)
+				: 0;
+			const ordered = orderAudioPlaylistStart(
+				unique,
+				selectedIndex >= 0 ? selectedIndex : 0,
+				useShuffle,
+				preserveSelectedFirst && selectedIndex >= 0,
+			);
 			if (!ordered.length) return;
 			invalidatePlayAttempt();
 			const entries = makeEntries(ordered);

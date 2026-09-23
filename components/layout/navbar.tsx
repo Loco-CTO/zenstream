@@ -96,10 +96,10 @@ export function Navbar({
 							{t("library")}
 						</Link>
 						<Link
-							href="/favorites"
-							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/favorites" ? "text-white" : "text-white/35 hover:text-white/70"}`}
+							href="/my-lists"
+							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/my-lists" || pathname === "/favorites" || pathname.startsWith("/playlist/") || pathname.startsWith("/shared/playlist/") ? "text-white" : "text-white/35 hover:text-white/70"}`}
 						>
-							{t("favorites")}
+							{t("myLists")}
 						</Link>
 						<Link
 							href="/calendar"

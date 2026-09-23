@@ -1,6 +1,44 @@
 home: Home
 library: Library
 favorites: Favorites
+myLists: My Lists
+watchlist: Watchlist
+playlists: Playlists
+addToPlaylist: Add to playlist
+createPlaylist: Create playlist
+newPlaylist: New playlist
+playlist: Playlist
+loading: Loading…
+saving: Saving…
+create: Create
+delete: Delete
+playlistName: Playlist name
+playlistDescription: Description (optional)
+privatePlaylist: Private
+privatePlaylistHint: Only visible to you
+publicPlaylist: Public link
+playlistTrackCount: "{count} tracks"
+inPlaylist: In playlist
+notInPlaylist: Not in playlist
+noPlaylists: You haven't created any playlists yet
+playlistSaveFailed: Could not save the playlist
+addToPlaylistFor: "Add {name} to a playlist"
+watchlistLoadFailed: Could not load your Watchlist
+watchlistEmpty: Your Watchlist is empty
+watchlistEmptyHint: Follow a movie, series, or artist to add it here.
+continueWatching: Continue watching
+upNextEpisode: "Up next · S{season} E{episode}"
+removeFromWatchlist: Remove from Watchlist
+playlistsLoadFailed: Could not load your playlists
+backToMyLists: Back to My Lists
+playlistLoadFailed: Could not load this playlist
+playlistEmpty: This playlist has no tracks yet
+linkCopied: Link copied
+copyShareLink: Copy share link
+editPlaylist: Edit playlist
+deletePlaylist: Delete playlist
+deletePlaylistConfirm: "Delete {name}? Its tracks will remain in your library."
+removeFromPlaylist: Remove from playlist
 calendar: Calendar
 calendarWeek: Week
 calendarMonth: Month

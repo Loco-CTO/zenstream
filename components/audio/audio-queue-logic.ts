@@ -15,6 +15,27 @@ export type AudioQueuePreviousSelection = {
 	history: string[];
 };
 
+export function orderAudioPlaylistStart<T>(
+	entries: readonly T[],
+	selectedIndex: number,
+	shuffle: boolean,
+	preserveSelectedFirst = false,
+	random: () => number = Math.random,
+): T[] {
+	const ordered = [...entries];
+	if (!shuffle || ordered.length < 2) return ordered;
+	const firstIndex = Math.min(ordered.length - 1, Math.max(0, selectedIndex));
+	let first: T | undefined;
+	if (preserveSelectedFirst) first = ordered.splice(firstIndex, 1)[0];
+	for (let index = ordered.length - 1; index > 0; index -= 1) {
+		const sampled = random();
+		const value = Number.isFinite(sampled) ? sampled : 0;
+		const target = Math.min(index, Math.max(0, Math.floor(value * (index + 1))));
+		[ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+	}
+	return preserveSelectedFirst ? [first as T, ...ordered] : ordered;
+}
+
 function randomIndex(values: number[], random: () => number) {
 	if (values.length === 0) return -1;
 	const sampled = random();

@@ -36,6 +36,7 @@ import { ExpandableDescription } from "@/components/ui/expandable-description";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
+import { PlaylistPicker } from "@/components/audio/playlist-picker";
 
 const albumTypeTranslationKeys: Record<string, TranslationKey> = {
 	album: "albumTypeAlbum",
@@ -318,6 +319,12 @@ export function AudioAlbumPage({
 				>
 					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 				</button>
+				<PlaylistPicker
+					session={session}
+					entityId={data.album.Id}
+					entityName={data.album.Name}
+					trackIds={tracks.map((track) => track.Id)}
+				/>
 				<button
 					type="button"
 					onClick={() => addAlbumToQueue(data.album, tracks)}
@@ -335,7 +342,7 @@ export function AudioAlbumPage({
 			)}
 
 			<section className="mt-2 px-6 md:px-10">
-				<div className="mb-1 grid items-center px-2 pb-2 text-[11px] font-semibold uppercase tracking-widest text-white/22 [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_32px]">
+				<div className="mb-1 grid items-center px-2 pb-2 text-[11px] font-semibold uppercase tracking-widest text-white/22 [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_64px]">
 					<span className="text-center">#</span>
 					<span>{t("track")}</span>
 					<span>{t("artist")}</span>
@@ -372,6 +379,7 @@ export function AudioAlbumPage({
 									)}
 									<TrackRow
 										track={track}
+										session={session}
 										index={index}
 										selected={selectedTrackId === track.Id}
 										current={currentTrack?.Id === track.Id}
@@ -413,6 +421,7 @@ export function AudioAlbumPage({
 
 function TrackRow({
 	track,
+	session,
 	index,
 	selected,
 	current,
@@ -425,6 +434,7 @@ function TrackRow({
 	onToggleFavorite,
 }: {
 	track: MediaItem;
+	session: AuthSession;
 	index: number;
 	selected: boolean;
 	current: boolean;
@@ -451,7 +461,7 @@ function TrackRow({
 					onPlay();
 				}
 			}}
-			className={`group/track grid cursor-pointer items-center rounded-md px-2 py-2.5 transition-colors [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_32px] ${selected || current ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+			className={`group/track grid cursor-pointer items-center rounded-md px-2 py-2.5 transition-colors [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_64px] ${selected || current ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`}
 		>
 			<div role="cell" className="flex items-center justify-center">
 				{playing ? (
@@ -517,7 +527,14 @@ function TrackRow({
 			<div role="cell" className="text-right text-xs tabular-nums text-white/28">
 				{formatDuration(durationSeconds(track))}
 			</div>
-			<div role="cell" className="flex justify-end">
+			<div role="cell" className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+				<PlaylistPicker
+					session={session}
+					entityId={track.Id}
+					entityName={track.Name}
+					trackIds={[track.Id]}
+					compact
+				/>
 				<button
 					type="button"
 					aria-label={liked ? removeFavoriteLabel : addFavoriteLabel}

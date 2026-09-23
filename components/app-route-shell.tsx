@@ -14,6 +14,7 @@ function isAppRoute(pathname: string) {
 		pathname === "/" ||
 		pathname === "/calendar" ||
 		pathname === "/favorites" ||
+		pathname === "/my-lists" ||
 		pathname === "/library" ||
 		pathname === "/notifications" ||
 		pathname === "/search" ||
@@ -23,6 +24,8 @@ function isAppRoute(pathname: string) {
 		pathname.startsWith("/collection/") ||
 		pathname.startsWith("/library/") ||
 		pathname.startsWith("/play/") ||
+		pathname.startsWith("/playlist/") ||
+		pathname.startsWith("/shared/playlist/") ||
 		pathname.startsWith("/show/")
 	);
 }

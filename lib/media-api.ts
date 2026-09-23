@@ -103,6 +103,11 @@ export interface MediaItem {
 	LibraryId?: string;
 	CatalogParentId?: string;
 	ChildIds?: string[];
+	WatchlistStatus?: {
+		kind?: "continue" | "upNext";
+		seasonNumber?: number | null;
+		episodeNumber?: number | null;
+	};
 }
 
 export function savedPlaybackPositionSeconds(

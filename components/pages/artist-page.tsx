@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
+import { PlaylistPicker } from "@/components/audio/playlist-picker";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -205,6 +206,13 @@ export function ArtistPage({
 						<Bookmark className={`h-4 w-4 ${following ? "fill-violet-300" : ""}`} />
 						{t(following ? "unfollow" : "follow")}
 					</button>
+					<PlaylistPicker
+						session={session}
+						entityId={data.artist.Id}
+						entityName={data.artist.Name}
+						artistSource
+						trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined}
+					/>
 					{playError && (
 						<p role="alert" className="text-xs text-red-200/80">
 							{t("detailLoadFailed")}

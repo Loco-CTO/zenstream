@@ -94,6 +94,13 @@ const ArtistPage = dynamic(
 	() => import("@/components/pages/artist-page").then((m) => m.ArtistPage),
 	{ ssr: false },
 );
+const PlaylistDetailPage = dynamic(
+	() =>
+		import("@/components/pages/playlist-detail-page").then(
+			(m) => m.PlaylistDetailPage,
+		),
+	{ ssr: false },
+);
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { I18nProvider, type Locale } from "@/lib/i18n";
@@ -444,6 +451,15 @@ export function AppShell() {
 	const playId = playIdFromPath(pathname);
 	const audioAlbumId = audioAlbumIdFromPath(pathname);
 	const artistId = artistIdFromPath(pathname);
+	const playlistId = playlistIdFromPath(pathname);
+	const sharedPlaylistToken = sharedPlaylistTokenFromPath(pathname);
+	const requestedListsTab = searchParams.get("tab");
+	const listsTab: "watchlist" | "favorites" | "playlists" =
+		pathname === "/favorites"
+			? "favorites"
+			: requestedListsTab === "favorites" || requestedListsTab === "playlists"
+				? requestedListsTab
+				: "watchlist";
 	const searchQuery = searchParams.get("q") ?? "";
 	const serializedSearch = searchParams.toString();
 	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
@@ -764,7 +780,10 @@ export function AppShell() {
 			} else if (
 				pathname === "/library" ||
 				pathname === "/favorites" ||
-				pathname === "/calendar"
+				pathname === "/my-lists" ||
+				pathname === "/calendar" ||
+				playlistId ||
+				sharedPlaylistToken
 			) {
 				void primeArtworkTicket(session);
 				void primeResourceTicket(session);
@@ -787,6 +806,8 @@ export function AppShell() {
 		loadHome,
 		loadPreferences,
 		pathname,
+		playlistId,
+		sharedPlaylistToken,
 		searchQuery,
 		session,
 		start,
@@ -816,7 +837,10 @@ export function AppShell() {
 		} else if (
 			pathname === "/library" ||
 			pathname === "/favorites" ||
-			pathname === "/calendar"
+			pathname === "/my-lists" ||
+			pathname === "/calendar" ||
+			playlistId ||
+			sharedPlaylistToken
 		) {
 			if (generation === routeLoadGeneration.current) setStatus("ready");
 		} else await loadHome(nextSession, generation);
@@ -1261,9 +1285,18 @@ export function AppShell() {
 											{renderStatus === "ready" && pathname === "/library" && (
 												<LibraryPage session={session} />
 											)}
-											{renderStatus === "ready" && pathname === "/favorites" && (
-												<FavoritesPage session={session} />
-											)}
+							{renderStatus === "ready" && pathname === "/favorites" && (
+								<FavoritesPage session={session} initialTab={listsTab} />
+							)}
+							{renderStatus === "ready" && pathname === "/my-lists" && (
+								<FavoritesPage session={session} initialTab={listsTab} />
+							)}
+							{renderStatus === "ready" && playlistId && (
+								<PlaylistDetailPage session={session} playlistId={playlistId} />
+							)}
+							{renderStatus === "ready" && sharedPlaylistToken && (
+								<PlaylistDetailPage session={session} shareToken={sharedPlaylistToken} />
+							)}
 											{renderStatus === "ready" && pathname === "/calendar" && (
 												<CalendarPage session={session} />
 											)}
@@ -1282,7 +1315,10 @@ export function AppShell() {
 												!audioAlbumId &&
 												!artistId &&
 												pathname !== "/library" &&
-												pathname !== "/favorites" &&
+								pathname !== "/favorites" &&
+								pathname !== "/my-lists" &&
+								!playlistId &&
+								!sharedPlaylistToken &&
 												pathname !== "/calendar" &&
 												pathname !== "/notifications" &&
 												pathname !== "/search" && (
@@ -1343,5 +1379,15 @@ function audioAlbumIdFromPath(pathname: string) {
 
 function artistIdFromPath(pathname: string) {
 	const match = pathname.match(/^\/artist\/([^/]+)\/?$/);
+	return match ? decodeURIComponent(match[1]) : null;
+}
+
+function playlistIdFromPath(pathname: string) {
+	const match = pathname.match(/^\/playlist\/([^/]+)\/?$/);
+	return match ? decodeURIComponent(match[1]) : null;
+}
+
+function sharedPlaylistTokenFromPath(pathname: string) {
+	const match = pathname.match(/^\/shared\/playlist\/([^/]+)\/?$/);
 	return match ? decodeURIComponent(match[1]) : null;
 }

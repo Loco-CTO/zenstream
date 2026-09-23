@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, Heart, Plus, Trash2 } from "lucide-react";
 import {
 	SquareAudioCard,
 	WideCard,
 	PosterCard,
 } from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
+import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
@@ -15,10 +17,27 @@ import { getFavoriteItems, type MediaItem } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useSortPreference } from "@/lib/sort-preferences";
+import {
+	fetchPlaylists,
+	fetchWatchlist,
+	type Playlist,
+	type PlaylistSummary,
+} from "@/lib/playlists";
+import { CreatePlaylistDialog } from "@/components/audio/playlist-picker";
+import { setFavorite, setFollowing, savedPlaybackPositionSeconds, seriesPosterImage } from "@/lib/media-api";
 
-export function FavoritesPage({ session }: { session: AuthSession }) {
+type ListsTab = "watchlist" | "favorites" | "playlists";
+
+export function FavoritesPage({
+	session,
+	initialTab = "watchlist",
+}: {
+	session: AuthSession;
+	initialTab?: ListsTab;
+}) {
 	const { t } = useI18n();
 	const { start } = useProgress();
+	const [activeTab, setActiveTab] = useState<ListsTab>(initialTab);
 	const [items, setItems] = useState<MediaItem[]>([]);
 	const [sort, setSort] = useSortPreference(
 		"zenstream:sort:favorites",
@@ -70,6 +89,7 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		{ value: "PremiereDate", label: t("sortReleaseDate") },
 		{ value: "CommunityRating", label: t("sortRating") },
 	];
+	useEffect(() => setActiveTab(initialTab), [initialTab]);
 	const episodes = items.filter((item) => item.Type === "Episode");
 	const movies = items.filter((item) => item.Type === "Movie");
 	const series = items.filter((item) => item.Type === "Series");
@@ -85,9 +105,9 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 		<main className="min-h-screen px-4 pb-24 pt-24 sm:px-6 md:px-10 md:pb-8">
 			<div className="mb-8 flex flex-col items-start gap-3 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
 				<h1 className="text-3xl font-black tracking-tight text-white">
-					{t("favorites")}
+					{t("myLists")}
 				</h1>
-				<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+				{activeTab === "favorites" && <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
 					<button
 						type="button"
 						aria-label={
@@ -119,9 +139,16 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 						}
 						className="w-full min-w-0 rounded-full py-1.5 uppercase tracking-wider sm:w-auto sm:min-w-32"
 					/>
-				</div>
+				</div>}
 			</div>
-			{error ? (
+			<div role="tablist" aria-label={t("myLists")} className="mb-7 flex border-b border-white/10">
+				{(["watchlist", "favorites", "playlists"] as const).map((tab) => (
+					<button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)} className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === tab ? "border-white text-white" : "border-transparent text-white/40 hover:text-white/75"}`}>
+						{t(tab === "watchlist" ? "watchlist" : tab === "favorites" ? "favorites" : "playlists")}
+					</button>
+				))}
+			</div>
+			{activeTab === "watchlist" ? <WatchlistSection session={session} /> : activeTab === "playlists" ? <PlaylistsSection session={session} /> : error ? (
 				<ErrorPanel
 					message={t("favoritesLoadFailed")}
 					onRetry={() => setRetryKey((value) => value + 1)}
@@ -199,6 +226,167 @@ export function FavoritesPage({ session }: { session: AuthSession }) {
 				</>
 			)}
 		</main>
+	);
+}
+
+function WatchlistSection({ session }: { session: AuthSession }) {
+	const { t } = useI18n();
+	const [items, setItems] = useState<MediaItem[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(false);
+	const [retry, setRetry] = useState(0);
+	const [busy, setBusy] = useState<string | null>(null);
+
+	useEffect(() => {
+		let active = true;
+		setLoading(true);
+		setError(false);
+		void fetchWatchlist(session).then((value) => {
+			if (active) setItems(value);
+		}).catch(() => {
+			if (active) setError(true);
+		}).finally(() => {
+			if (active) setLoading(false);
+		});
+		return () => { active = false; };
+	}, [retry, session]);
+
+	useEffect(() => {
+		const refresh = (rawEvent?: Event) => {
+			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }> | undefined;
+			if (event?.detail?.reason === "scan") return;
+			setRetry((value) => value + 1);
+		};
+		window.addEventListener("focus", refresh);
+		window.addEventListener("zenstream:catalog-changed", refresh);
+		return () => {
+			window.removeEventListener("focus", refresh);
+			window.removeEventListener("zenstream:catalog-changed", refresh);
+		};
+	}, []);
+
+	async function toggleFavorite(item: MediaItem) {
+		if (busy) return;
+		const previous = Boolean(item.UserData?.IsFavorite);
+		setBusy(item.Id);
+		setItems((current) => current.map((value) => value.Id === item.Id ? { ...value, UserData: { ...value.UserData, IsFavorite: !previous } } : value));
+		try {
+			await setFavorite(session, item.Id, !previous);
+		} catch {
+			setItems((current) => current.map((value) => value.Id === item.Id ? { ...value, UserData: { ...value.UserData, IsFavorite: previous } } : value));
+			setError(true);
+		} finally { setBusy(null); }
+	}
+
+	async function unfollow(item: MediaItem) {
+		if (busy) return;
+		setBusy(item.Id);
+		setItems((current) => current.filter((value) => value.Id !== item.Id));
+		try {
+			await setFollowing(session, item.Id, false);
+		} catch {
+			setError(true);
+			setRetry((value) => value + 1);
+		} finally { setBusy(null); }
+	}
+
+	if (loading) return null;
+	if (error && items.length === 0) return <ErrorPanel message={t("watchlistLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />;
+	if (items.length === 0) return <div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center"><h2 className="text-lg font-semibold text-white/80">{t("watchlistEmpty")}</h2><p className="mt-2 text-sm text-white/40">{t("watchlistEmptyHint")}</p></div>;
+	return (
+		<div className="divide-y divide-white/[0.08]">
+			{items.map((item) => {
+				const image = seriesPosterImage(item);
+				const position = savedPlaybackPositionSeconds(item);
+				const duration = item.UserData?.DurationSeconds ?? item.DurationSeconds ?? 0;
+				const progress = duration > 0 ? Math.min(100, Math.max(0, position / duration * 100)) : 0;
+				const status = item.WatchlistStatus;
+				const href =
+					item.Type === "MusicArtist"
+						? `/artist/${encodeURIComponent(item.Id)}`
+						: item.Type === "Series"
+							? `/show/${encodeURIComponent(item.Id)}`
+							: `/play/${encodeURIComponent(item.Id)}`;
+				return <div key={item.Id} className="flex min-h-28 items-center gap-4 py-4">
+					<Link href={href} className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-white/[0.04]">
+						{image ? <BlurHashImage image={image} alt={item.Name} sizes="128px" className="h-full w-full object-cover" /> : <MediaPlaceholder />}
+						{progress > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/20"><span className="block h-full bg-violet-300" style={{ width: `${progress}%` }} /></span>}
+					</Link>
+					<div className="min-w-0 flex-1">
+						<Link href={href} className="block truncate text-sm font-semibold text-white hover:underline">{item.Name}</Link>
+						<p className="mt-1 text-xs text-white/40">{status?.kind === "continue" ? t("continueWatching") : status?.kind === "upNext" ? t("upNextEpisode", { season: status.seasonNumber ?? 0, episode: status.episodeNumber ?? 0 }) : item.Type === "MusicArtist" ? t("artist") : item.Type === "Series" ? t("series") : t("movie")}</p>
+					</div>
+					<button type="button" disabled={busy !== null} aria-label={item.UserData?.IsFavorite ? t("removeFavorite") : t("addFavorite")} onClick={() => void toggleFavorite(item)} className={`rounded p-2 transition hover:bg-white/[0.06] ${item.UserData?.IsFavorite ? "text-violet-300" : "text-white/40 hover:text-white"}`}><Heart className="h-4 w-4" fill={item.UserData?.IsFavorite ? "currentColor" : "none"} /></button>
+					<button type="button" disabled={busy !== null} aria-label={t("removeFromWatchlist")} onClick={() => void unfollow(item)} className="rounded p-2 text-white/35 transition hover:bg-white/[0.06] hover:text-white"><Trash2 className="h-4 w-4" /></button>
+				</div>;
+			})}
+		</div>
+	);
+}
+
+function PlaylistsSection({ session }: { session: AuthSession }) {
+	const { t } = useI18n();
+	const { start } = useProgress();
+	const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(false);
+	const [retry, setRetry] = useState(0);
+	const [creating, setCreating] = useState(false);
+
+	useEffect(() => {
+		let active = true;
+		let progressFinished = false;
+		const finish = start();
+		const finishProgress = () => {
+			if (progressFinished) return;
+			progressFinished = true;
+			finish();
+		};
+		void fetchPlaylists(session).then((value) => {
+			if (active) setPlaylists(value);
+		}).catch(() => {
+			if (active) setError(true);
+		}).finally(() => {
+			if (active) setLoading(false);
+			finishProgress();
+		});
+		return () => { active = false; finishProgress(); };
+	}, [retry, session, start]);
+
+	useEffect(() => {
+		const refresh = () => setRetry((value) => value + 1);
+		window.addEventListener("focus", refresh);
+		return () => window.removeEventListener("focus", refresh);
+	}, []);
+
+	if (loading) return null;
+	return (
+		<>
+			{error && <ErrorPanel message={t("playlistsLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />}
+			<div className="flex flex-wrap gap-5">
+				<button type="button" onClick={() => setCreating(true)} className="flex h-[148px] w-[148px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/20 bg-white/[0.02] text-white/45 transition hover:border-white/40 hover:bg-white/[0.05] hover:text-white"><Plus className="h-6 w-6" /><span className="text-[10px] font-semibold uppercase tracking-wider">{t("newPlaylist")}</span></button>
+				{playlists.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} />)}
+			</div>
+			{creating && <CreatePlaylistDialog session={session} onClose={() => setCreating(false)} onCreated={(playlist: Playlist) => { setPlaylists((value) => [playlist, ...value]); setCreating(false); }} />}
+		</>
+	);
+}
+
+function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
+	const { t } = useI18n();
+	const artwork = playlist.artworkItems.slice(0, 4);
+	return (
+		<Link href={`/playlist/${encodeURIComponent(playlist.id)}`} className="group w-[148px] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
+			<div className="grid aspect-square grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-white/[0.04]">
+				{[0, 1, 2, 3].map((index) => {
+					const item = artwork[index];
+					const image = item ? seriesPosterImage(item) : null;
+					return <div key={index} className="relative min-h-0 min-w-0 border border-black/25">{image ? <BlurHashImage image={image} alt="" sizes="74px" className="h-full w-full object-cover transition group-hover:scale-[1.04]" /> : <MediaPlaceholder />}</div>;
+				})}
+			</div>
+			<p className="mt-2 truncate text-xs font-semibold text-white group-hover:underline">{playlist.name}</p>
+			<p className="mt-1 truncate text-[11px] text-white/40">{t("playlistTrackCount", { count: playlist.itemCount })} · {playlist.isPrivate ? t("privatePlaylist") : t("publicPlaylist")}</p>
+		</Link>
 	);
 }
 

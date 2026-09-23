@@ -88,6 +88,11 @@ export type CatalogItem = {
 		playedPercentage?: number;
 		positionSeconds?: number;
 	};
+	watchlistStatus?: {
+		kind?: "continue" | "upNext";
+		seasonNumber?: number | null;
+		episodeNumber?: number | null;
+	};
 };
 
 export async function catalogRequest<T>(
@@ -323,6 +328,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		LibraryId: item.libraryId,
 		CatalogParentId: item.parentId ?? undefined,
 		ChildIds: item.childIds ?? [],
+		WatchlistStatus: item.watchlistStatus,
 	};
 }
 

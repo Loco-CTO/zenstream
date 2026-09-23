@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	orderAudioPlaylistStart,
 	selectNextAudioQueueEntry,
 	selectPreviousAudioQueueEntry,
 } from "@/components/audio/audio-queue-logic";
@@ -7,6 +8,21 @@ import {
 const entries = [{ id: "a" }, { id: "b" }, { id: "c" }];
 
 describe("audio queue selection", () => {
+	it("keeps a playlist track selected by the user first while shuffling the rest", () => {
+		const ordered = orderAudioPlaylistStart(
+			entries,
+			1,
+			true,
+			true,
+			() => 0,
+		);
+
+		expect(ordered[0]).toEqual({ id: "b" });
+		expect(new Set(ordered.map((entry) => entry.id))).toEqual(
+			new Set(["a", "b", "c"]),
+		);
+	});
+
 	it("chooses a random unplayed entry and stops after an off pass", () => {
 		const random = vi.fn(() => 0.99);
 		expect(

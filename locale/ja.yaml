@@ -36,6 +36,7 @@ playlistDescription: 説明（任意）
 privatePlaylist: 非公開
 privatePlaylistHint: 自分だけに表示
 publicPlaylist: 限定公開リンク
+publicPlaylistHint: リンクを知っているサインイン済みユーザーに表示
 playlistTrackCount: "{count} 曲"
 inPlaylist: プレイリストに追加済み
 notInPlaylist: プレイリストに未追加

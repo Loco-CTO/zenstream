@@ -17,6 +17,7 @@ playlistDescription: Description (optional)
 privatePlaylist: Private
 privatePlaylistHint: Only visible to you
 publicPlaylist: Public link
+publicPlaylistHint: Visible to signed-in users with the link
 playlistTrackCount: "{count} tracks"
 inPlaylist: In playlist
 notInPlaylist: Not in playlist

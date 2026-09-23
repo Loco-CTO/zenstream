@@ -18,6 +18,7 @@ import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
 import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
 import { ErrorPanel } from "@/components/status/error-panel";
+import { Toggle } from "@/components/ui/toggle";
 import { useI18n } from "@/lib/i18n";
 import {
 	deletePlaylist,
@@ -198,12 +199,106 @@ function EditPlaylistDialog({
 		catch { setError(true); setBusy(false); }
 	}
 
-	return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form onSubmit={(event) => void submit(event)} className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#171719] p-5">
-		<div className="mb-5 flex items-center justify-between"><h2 className="text-base font-bold text-white">{t("editPlaylist")}</h2><button type="button" aria-label={t("close")} onClick={onClose} className="rounded-full bg-white/[0.07] p-2 text-white/50"><X className="h-4 w-4" /></button></div>
-		<input required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder={t("playlistName")} className="mb-4 w-full border-b border-white/15 bg-transparent py-2 text-sm text-white outline-none focus:border-violet-300" />
-		<input maxLength={500} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("playlistDescription")} className="mb-5 w-full border-b border-white/15 bg-transparent py-2 text-sm text-white outline-none focus:border-violet-300" />
-		<label className="mb-5 flex items-center justify-between text-xs text-white/65">{t("privatePlaylist")}<input type="checkbox" checked={isPrivate} onChange={(event) => setIsPrivate(event.target.checked)} className="h-5 w-5 accent-violet-400" /></label>
-		{error && <p role="alert" className="mb-3 text-xs text-red-200/80">{t("playlistSaveFailed")}</p>}
-		<div className="grid grid-cols-2 gap-2"><button type="button" onClick={onClose} className="rounded-lg border border-white/10 px-4 py-2.5 text-sm text-white/55">{t("cancel")}</button><button type="submit" disabled={!name.trim() || busy} className="rounded-lg bg-white/[0.08] px-4 py-2.5 text-sm font-semibold text-white/80 disabled:opacity-35">{busy ? t("saving") : t("save")}</button></div>
-	</form></div>;
+	const privacyLabel = t(isPrivate ? "privatePlaylist" : "publicPlaylist");
+
+	return (
+		<div
+			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-3 backdrop-blur-xl sm:p-6"
+			onMouseDown={(event) => {
+				if (event.target === event.currentTarget) onClose();
+			}}
+		>
+			<form
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="edit-playlist-title"
+				aria-busy={busy}
+				onSubmit={(event) => void submit(event)}
+				className="w-full max-w-md rounded-2xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-6"
+			>
+				<div className="mb-5 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+					<h2
+						id="edit-playlist-title"
+						className="text-base font-semibold tracking-tight text-white"
+					>
+						{t("editPlaylist")}
+					</h2>
+					<button
+						type="button"
+						aria-label={t("close")}
+						onClick={onClose}
+						className="shrink-0 rounded-lg p-2 text-white/45 transition hover:bg-white/10 hover:text-white"
+					>
+						<X className="h-5 w-5" />
+					</button>
+				</div>
+
+				<div className="space-y-4">
+					<label className="block">
+						<span className="mb-1.5 block text-xs font-semibold text-white/65">
+							{t("playlistName")}
+						</span>
+						<input
+							autoFocus
+							required
+							maxLength={100}
+							value={name}
+							onChange={(event) => setName(event.target.value)}
+							placeholder={t("playlistName")}
+							className="w-full rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 transition focus:border-violet-300/50 focus:ring-2 focus:ring-violet-300/10"
+						/>
+					</label>
+					<label className="block">
+						<span className="mb-1.5 block text-xs font-semibold text-white/65">
+							{t("playlistDescription")}
+						</span>
+						<input
+							maxLength={500}
+							value={description}
+							onChange={(event) => setDescription(event.target.value)}
+							placeholder={t("playlistDescription")}
+							className="w-full rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30 transition focus:border-violet-300/50 focus:ring-2 focus:ring-violet-300/10"
+						/>
+					</label>
+
+					<div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-3.5">
+						<div className="min-w-0">
+							<p className="text-xs font-semibold text-white/75">{privacyLabel}</p>
+							<p className="mt-1 text-[11px] text-white/40">
+								{t(isPrivate ? "privatePlaylistHint" : "publicPlaylistHint")}
+							</p>
+						</div>
+						<Toggle
+							label={t("privatePlaylist")}
+							checked={isPrivate}
+							onChange={setIsPrivate}
+						/>
+					</div>
+
+					{error && (
+						<p role="alert" className="text-xs text-red-200/80">
+							{t("playlistSaveFailed")}
+						</p>
+					)}
+
+					<div className="grid grid-cols-2 gap-2 pt-1">
+						<button
+							type="button"
+							onClick={onClose}
+							className="rounded-lg border border-white/10 bg-white/[0.025] px-4 py-2.5 text-sm font-semibold text-white/60 transition hover:bg-white/[0.07] hover:text-white"
+						>
+							{t("cancel")}
+						</button>
+						<button
+							type="submit"
+							disabled={!name.trim() || busy}
+							className="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+						>
+							{busy ? t("saving") : t("save")}
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	);
 }

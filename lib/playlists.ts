@@ -20,9 +20,10 @@ export type PlaylistSummary = {
 	createdAt: string;
 	updatedAt: string;
 	isOwner: boolean;
+	isMember?: boolean;
 };
 
-export type Playlist = PlaylistSummary & { items: PlaylistEntry[] };
+export type Playlist = PlaylistSummary & { items: PlaylistEntry[]; page?: number; pageSize?: number; hasMore?: boolean };
 
 type PlaylistPayload = Omit<Playlist, "artworkItems" | "items"> & {
 	artworkItems?: CatalogItem[];
@@ -53,26 +54,26 @@ export async function fetchWatchlist(session: AuthSession) {
 	return response.items.map(toMediaItem);
 }
 
-export async function fetchPlaylists(session: AuthSession) {
+export async function fetchPlaylists(session: AuthSession, membershipSourceId?: string) {
 	const response = await catalogRequest<{ items: PlaylistPayload[] }>(
 		session,
-		"/api/account/playlists",
+		`/api/account/playlists${membershipSourceId ? `?membershipSourceId=${encodeURIComponent(membershipSourceId)}` : ""}`,
 	);
 	return response.items.map(mapPlaylist);
 }
 
-export async function fetchPlaylist(session: AuthSession, playlistId: string) {
+export async function fetchPlaylist(session: AuthSession, playlistId: string, page?: number) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
-		`/api/account/playlists/${encodeURIComponent(playlistId)}`,
+		`/api/account/playlists/${encodeURIComponent(playlistId)}${page ? `?page=${page}&pageSize=20` : ""}`,
 	);
 	return mapPlaylist(response);
 }
 
-export async function fetchSharedPlaylist(session: AuthSession, token: string) {
+export async function fetchSharedPlaylist(session: AuthSession, token: string, page?: number) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
-		`/api/shared/playlists/${encodeURIComponent(token)}`,
+		`/api/shared/playlists/${encodeURIComponent(token)}${page ? `?page=${page}&pageSize=20` : ""}`,
 	);
 	return mapPlaylist(response);
 }
@@ -88,7 +89,7 @@ export async function createPlaylist(
 ) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
-		"/api/account/playlists",
+		"/api/account/playlists?view=summary",
 		{
 			method: "POST",
 			body: JSON.stringify({ isPrivate: true, ...input }),
@@ -104,7 +105,7 @@ export async function updatePlaylist(
 ) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
-		`/api/account/playlists/${encodeURIComponent(playlistId)}`,
+		`/api/account/playlists/${encodeURIComponent(playlistId)}?view=summary`,
 		{ method: "PATCH", body: JSON.stringify(input) },
 	);
 	return mapPlaylist(response);
@@ -125,7 +126,7 @@ export async function addPlaylistItems(
 ) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
-		`/api/account/playlists/${encodeURIComponent(playlistId)}/items`,
+		`/api/account/playlists/${encodeURIComponent(playlistId)}/items?view=summary`,
 		{ method: "POST", body: JSON.stringify({ entityIds }) },
 	);
 	return mapPlaylist(response);
@@ -138,10 +139,33 @@ export async function removePlaylistEntry(
 ) {
 	const response = await catalogRequest<PlaylistPayload | null>(
 		session,
-		`/api/account/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(entryId)}`,
+		`/api/account/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(entryId)}?view=summary`,
 		{ method: "DELETE" },
 	);
 	return response ? mapPlaylist(response) : fetchPlaylist(session, playlistId);
+}
+
+export async function removePlaylistSource(session: AuthSession, playlistId: string, sourceId: string) {
+	const response = await catalogRequest<PlaylistPayload>(
+		session,
+		`/api/account/playlists/${encodeURIComponent(playlistId)}/items/by-source/${encodeURIComponent(sourceId)}`,
+		{ method: "DELETE" },
+	);
+	return mapPlaylist(response);
+}
+
+export async function movePlaylistEntry(
+	session: AuthSession,
+	playlistId: string,
+	entryId: string,
+	anchor: { beforeEntryId: string } | { afterEntryId: string },
+) {
+	const response = await catalogRequest<PlaylistPayload>(
+		session,
+		`/api/account/playlists/${encodeURIComponent(playlistId)}/items/${encodeURIComponent(entryId)}/move`,
+		{ method: "PATCH", body: JSON.stringify(anchor) },
+	);
+	return mapPlaylist(response);
 }
 
 export async function reorderPlaylist(

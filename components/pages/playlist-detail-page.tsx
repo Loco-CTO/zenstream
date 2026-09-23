@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
 	ArrowLeft,
 	LockKeyhole,
@@ -23,8 +23,8 @@ import {
 	deletePlaylist,
 	fetchPlaylist,
 	fetchSharedPlaylist,
+	movePlaylistEntry,
 	removePlaylistEntry,
-	reorderPlaylist,
 	updatePlaylist,
 	type Playlist,
 } from "@/lib/playlists";
@@ -52,19 +52,35 @@ export function PlaylistDetailPage({
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
 	const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
+	const [nextPage, setNextPage] = useState<number | null>(null);
+	const [pageLoading, setPageLoading] = useState(false);
+	const [pageError, setPageError] = useState(false);
+	const [playLoading, setPlayLoading] = useState(false);
+	const sentinelRef = useRef<HTMLDivElement>(null);
+	const pageRequestRef = useRef(false);
+	const generationRef = useRef(0);
 
 	useEffect(() => {
 		let active = true;
-		setLoading(true);
-		setError(false);
+		generationRef.current += 1;
+		pageRequestRef.current = false;
+		queueMicrotask(() => {
+			if (!active) return;
+			setLoading(true);
+			setError(false);
+			setPageError(false);
+			setPageLoading(false);
+			setNextPage(null);
+		});
 		const request = shareToken
-			? fetchSharedPlaylist(session, shareToken)
+			? fetchSharedPlaylist(session, shareToken, 1)
 			: playlistId
-				? fetchPlaylist(session, playlistId)
+				? fetchPlaylist(session, playlistId, 1)
 				: Promise.reject(new Error("Playlist not found"));
 		void request.then((value) => {
 			if (active) {
 				setPlaylist(value);
+				setNextPage(value.hasMore ? 2 : null);
 				setPreviewOrder(null);
 			}
 		}).catch(() => {
@@ -82,30 +98,101 @@ export function PlaylistDetailPage({
 	}, []);
 
 	const items = useMemo(() => playlist?.items ?? [], [playlist?.items]);
-	const tracks = useMemo(() => items.map((entry) => entry.item), [items]);
 	const album = useMemo(() => playlist ? { Id: playlist.id, Name: playlist.name, Type: "MusicAlbum" } : null, [playlist]);
 	const displayItems = useMemo(() => previewOrder
 		? previewOrder.map((id) => items.find((entry) => entry.entryId === id)).filter((entry): entry is Playlist["items"][number] => Boolean(entry))
 		: items, [items, previewOrder]);
+	const loadNextPage = useCallback(async () => {
+		if (!nextPage || pageRequestRef.current || !playlist) return;
+		pageRequestRef.current = true;
+		setPageLoading(true);
+		setPageError(false);
+		const generation = generationRef.current;
+		try {
+			const result = shareToken
+				? await fetchSharedPlaylist(session, shareToken, nextPage)
+				: await fetchPlaylist(session, playlist.id, nextPage);
+			if (generation !== generationRef.current) return;
+			if (result.updatedAt !== playlist.updatedAt) {
+				setRetry((value) => value + 1);
+				return;
+			}
+			setPlaylist((value) => {
+				if (!value) return result;
+				const ids = new Set(value.items.map((entry) => entry.entryId));
+				return { ...result, items: [...value.items, ...result.items.filter((entry) => !ids.has(entry.entryId))] };
+			});
+			setNextPage(result.hasMore ? nextPage + 1 : null);
+		} catch {
+			if (generation === generationRef.current) setPageError(true);
+		} finally {
+			pageRequestRef.current = false;
+			if (generation === generationRef.current) setPageLoading(false);
+		}
+	}, [nextPage, playlist, session, shareToken]);
+
+	useEffect(() => {
+		const sentinel = sentinelRef.current;
+		if (!sentinel || !nextPage || pageError) return;
+		const observer = new IntersectionObserver((entries) => {
+			if (entries[0]?.isIntersecting) void loadNextPage();
+		}, { rootMargin: "600px 0px" });
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	}, [loadNextPage, nextPage, pageError]);
+
+	const playFullPlaylist = useCallback(async (trackId?: string, shuffle = false) => {
+		if (!album || !playlist || playLoading) return;
+		setPlayLoading(true);
+		setError(false);
+		try {
+			const full = shareToken
+				? await fetchSharedPlaylist(session, shareToken)
+				: await fetchPlaylist(session, playlist.id);
+			playAlbum(album, full.items.map((entry) => entry.item), trackId, shuffle || undefined, Boolean(trackId));
+		} catch { setError(true); }
+		finally { setPlayLoading(false); }
+	}, [album, playAlbum, playLoading, playlist, session, shareToken]);
 	const playPlaylistTrack = useCallback((trackId: string) => {
-		if (album) playAlbum(album, tracks, trackId, undefined, true);
-	}, [album, playAlbum, tracks]);
-	const saveOrder = useCallback(async (order: string[]) => {
+		void playFullPlaylist(trackId);
+	}, [playFullPlaylist]);
+	const refreshLoaded = useCallback(async (count: number) => {
+		if (!playlistId) return;
+		const generation = generationRef.current;
+		const pages = await Promise.all(Array.from({ length: Math.max(1, Math.ceil(count / 20)) }, (_, index) => fetchPlaylist(session, playlistId, index + 1)));
+		if (generation !== generationRef.current || pages.some((page) => page.updatedAt !== pages[0].updatedAt)) return;
+		const ids = new Set<string>();
+		const reconciled = pages.flatMap((page) => page.items).filter((entry) => !ids.has(entry.entryId) && Boolean(ids.add(entry.entryId)));
+		setPlaylist({ ...pages[0], items: reconciled });
+		setNextPage(pages.at(-1)?.hasMore ? pages.length + 1 : null);
+	}, [playlistId, session]);
+	const saveOrder = useCallback(async (order: string[], moved: string, originalIndex: number, destination: number) => {
 		if (!playlist || busy) return;
 		if (order.length !== playlist.items.length || order.every((id, index) => id === playlist.items[index]?.entryId)) {
 			setPreviewOrder(null);
 			return;
 		}
 		setBusy(true);
+		generationRef.current += 1;
+		pageRequestRef.current = false;
+		setNextPage(null);
 		try {
-			setPlaylist(await reorderPlaylist(session, playlist.id, order));
+			const anchor = destination < originalIndex
+				? { beforeEntryId: order[destination + 1] }
+				: { afterEntryId: order[destination - 1] };
+			const orderedItems = order.map((id) => playlist.items.find((entry) => entry.entryId === id)!).filter(Boolean);
+			setPlaylist((value) => value ? { ...value, items: orderedItems } : value);
+			const summary = await movePlaylistEntry(session, playlist.id, moved, anchor);
+			setPlaylist((value) => value ? { ...value, ...summary, items: value.items } : value);
 			setPreviewOrder(null);
+			await refreshLoaded(orderedItems.length);
 		} catch {
 			setError(true);
 			setPreviewOrder(null);
+			void refreshLoaded(playlist.items.length).catch(() => setRetry((value) => value + 1));
 		}
 		finally { setBusy(false); }
-	}, [busy, playlist, session]);
+	}, [busy, playlist, refreshLoaded, session]);
 	const onReorder = useCallback((from: number, to: number) => {
 		if (!playlist || busy || !playlist.isOwner) return;
 		const next = [...playlist.items];
@@ -113,20 +200,25 @@ export function PlaylistDetailPage({
 		next.splice(to, 0, moving);
 		const order = next.map((entry) => entry.entryId);
 		setPreviewOrder(order);
-		void saveOrder(order);
+		void saveOrder(order, moving.entryId, from, to);
 	}, [busy, playlist, saveOrder]);
 	const reorder = useAudioRowReorder(items.length, onReorder, "playlist", playlist?.isOwner === true && !busy);
 
 	const remove = useCallback(async (entryId: string) => {
 		if (!playlist || busy) return;
 		setBusy(true);
+		generationRef.current += 1;
+		pageRequestRef.current = false;
+		setNextPage(null);
 		try {
-			setPlaylist(await removePlaylistEntry(session, playlist.id, entryId));
+			const summary = await removePlaylistEntry(session, playlist.id, entryId);
+			setPlaylist((value) => value ? { ...value, ...summary, items: value.items.filter((entry) => entry.entryId !== entryId) } : value);
 			setPreviewOrder(null);
+			await refreshLoaded(playlist.items.length);
 		}
 		catch { setError(true); }
 		finally { setBusy(false); }
-	}, [busy, playlist, session]);
+	}, [busy, playlist, refreshLoaded, session]);
 
 	async function removePlaylist() {
 		if (!playlist || busy) return;
@@ -168,8 +260,8 @@ export function PlaylistDetailPage({
 				</div>
 			</header>
 			<div className="mt-7 flex flex-wrap items-center gap-3">
-				<button type="button" disabled={tracks.length === 0} onClick={() => playAlbum(album, tracks)} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black disabled:opacity-40"><Play className="h-4 w-4 fill-current" />{t("playAll")}</button>
-				<button type="button" disabled={tracks.length === 0} onClick={() => playAlbum(album, tracks, undefined, true)} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-semibold text-white/65 hover:text-white disabled:opacity-40"><Shuffle className="h-4 w-4" />{t("shuffle")}</button>
+				<button type="button" disabled={playlist.itemCount === 0 || playLoading} onClick={() => void playFullPlaylist()} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black disabled:opacity-40"><Play className="h-4 w-4 fill-current" />{playLoading ? t("loading") : t("playAll")}</button>
+				<button type="button" disabled={playlist.itemCount === 0 || playLoading} onClick={() => void playFullPlaylist(undefined, true)} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-semibold text-white/65 hover:text-white disabled:opacity-40"><Shuffle className="h-4 w-4" />{t("shuffle")}</button>
 				{playlist.isOwner && !playlist.isPrivate && <button type="button" onClick={() => void sharePlaylist()} className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/60 hover:text-white">{copied ? t("linkCopied") : t("copyShareLink")}</button>}
 				{playlist.isOwner && <button type="button" onClick={() => setEditOpen(true)} className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/60 hover:text-white">{t("editPlaylist")}</button>}
 				{playlist.isOwner && <button type="button" onClick={() => setDeleteOpen(true)} aria-label={t("deletePlaylist")} className="rounded-full border border-red-300/15 p-2.5 text-red-200/65 hover:bg-red-500/10 hover:text-red-100"><Trash2 className="h-4 w-4" /></button>}
@@ -190,7 +282,8 @@ export function PlaylistDetailPage({
 				removeLabel={t("removeFromPlaylist")}
 				nowPlayingLabel={t("nowPlaying")}
 			/>}
-			{editOpen && <EditPlaylistDialog session={session} playlist={playlist} onClose={() => setEditOpen(false)} onSaved={(value) => { setPlaylist(value); setEditOpen(false); }} />}
+			{nextPage && <div ref={sentinelRef} className="py-5 text-center text-xs text-white/40">{pageError ? <button type="button" onClick={() => void loadNextPage()}>{t("retry")}</button> : pageLoading ? t("loading") : null}</div>}
+			{editOpen && <EditPlaylistDialog session={session} playlist={playlist} onClose={() => setEditOpen(false)} onSaved={(value) => { setPlaylist((current) => current ? { ...current, ...value, items: current.items } : value); setEditOpen(false); }} />}
 			{deleteOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#171719] p-5"><h2 className="text-base font-bold text-white">{t("deletePlaylist")}</h2><p className="mt-2 text-sm text-white/55">{t("deletePlaylistConfirm", { name: playlist.name })}</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setDeleteOpen(false)} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/55">{t("cancel")}</button><button type="button" disabled={busy} onClick={() => void removePlaylist()} className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-100">{t("delete")}</button></div></div></div>}
 		</main>
 	);

@@ -8,7 +8,6 @@ const api = vi.hoisted(() => ({
 	add: vi.fn(),
 	create: vi.fn(),
 	fetch: vi.fn(),
-	get: vi.fn(),
 	remove: vi.fn(),
 }));
 
@@ -16,8 +15,7 @@ vi.mock("@/lib/playlists", () => ({
 	addPlaylistItems: api.add,
 	createPlaylist: api.create,
 	fetchPlaylists: api.fetch,
-	fetchPlaylist: api.get,
-	removePlaylistEntry: api.remove,
+	removePlaylistSource: api.remove,
 }));
 
 vi.mock("@/lib/i18n", () => ({
@@ -55,8 +53,8 @@ function playlist(items: Playlist["items"] = []): Playlist {
 describe("audio playlist picker", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		api.fetch.mockResolvedValue([summary()]);
-		api.get.mockResolvedValue(playlist());
+		api.fetch.mockReset();
+		api.fetch.mockResolvedValueOnce([summary()]).mockResolvedValue([{ ...summary(), isMember: true }]);
 		api.add.mockResolvedValue(playlist([
 			{
 				entryId: "entry-1",
@@ -65,7 +63,7 @@ describe("audio playlist picker", () => {
 				item: { Id: "track-1", Name: "Track One", Type: "Audio" },
 			},
 		]));
-		api.create.mockResolvedValue(playlist());
+		api.create.mockResolvedValue({ ...playlist(), id: "created-playlist" });
 		api.remove.mockResolvedValue(playlist());
 	});
 
@@ -83,7 +81,8 @@ describe("audio playlist picker", () => {
 		fireEvent.click(await screen.findByRole("button", { name: /Road Mix/ }));
 
 		expect(api.add).toHaveBeenCalledWith(session, "playlist-1", ["track-1"]);
-		await waitFor(() => expect(screen.getByLabelText("inPlaylist")).toBeInTheDocument());
+		await waitFor(() => expect(screen.getByRole("button", { name: "Road Mix: inPlaylist" })).toBeInTheDocument());
+		expect(api.fetch).toHaveBeenCalledWith(session, "track-1");
 	});
 
 	it("sends an album source for server-side track expansion", async () => {
@@ -100,6 +99,19 @@ describe("audio playlist picker", () => {
 		fireEvent.click(await screen.findByRole("button", { name: /Road Mix/ }));
 
 		expect(api.add).toHaveBeenCalledWith(session, "playlist-1", ["album-1"]);
+		expect(api.fetch).toHaveBeenCalledWith(session, "album-1");
+		await waitFor(() => expect(screen.getByRole("button", { name: "Road Mix: inPlaylist" })).toBeInTheDocument());
+	});
+
+	it("removes a checked source in one operation without loading playlist detail", async () => {
+		api.fetch.mockReset();
+		api.fetch.mockResolvedValueOnce([{ ...summary(), isMember: true }])
+			.mockResolvedValue([{ ...summary(), isMember: false }]);
+		render(<PlaylistPicker session={session} entityId="album-1" entityName="Album One" />);
+		fireEvent.click(screen.getByRole("button", { name: "addToPlaylist" }));
+		fireEvent.click(await screen.findByRole("button", { name: /Road Mix/ }));
+		await waitFor(() => expect(api.remove).toHaveBeenCalledWith(session, "playlist-1", "album-1"));
+		await waitFor(() => expect(screen.getByRole("button", { name: "Road Mix: notInPlaylist" })).toBeInTheDocument());
 	});
 
 	it("creates a playlist from the picker with the selected source attached", async () => {

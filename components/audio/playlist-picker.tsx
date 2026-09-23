@@ -6,13 +6,12 @@ import { CirclePlus, Plus, X } from "lucide-react";
 import {
 	addPlaylistItems,
 	createPlaylist,
-	fetchPlaylist,
 	fetchPlaylists,
-	removePlaylistEntry,
+	removePlaylistSource,
 	type Playlist,
 	type PlaylistSummary,
 } from "@/lib/playlists";
-import { fetchArtistTracks, seriesPosterImage } from "@/lib/media-api";
+import { seriesPosterImage } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
@@ -23,7 +22,6 @@ export function PlaylistPicker({
 	entityId,
 	entityName,
 	trackIds,
-	artistSource = false,
 	compact = false,
 	className = "",
 	containerClassName = "",
@@ -44,9 +42,8 @@ export function PlaylistPicker({
 	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
 	const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
-	const [details, setDetails] = useState<Record<string, Playlist>>({});
 	const [pendingMembership, setPendingMembership] = useState<Record<string, boolean>>({});
-	const [itemIds, setItemIds] = useState<string[]>(trackIds ?? [entityId]);
+	const itemIds = trackIds?.length ? trackIds : [entityId];
 	const [loading, setLoading] = useState(false);
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [creating, setCreating] = useState(false);
@@ -57,11 +54,6 @@ export function PlaylistPicker({
 	} | null>(null);
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const pickerRef = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		if (trackIds?.length) setItemIds(trackIds);
-		else if (!artistSource) setItemIds([entityId]);
-	}, [artistSource, entityId, trackIds]);
 
 	useEffect(() => {
 		if (!open) return;
@@ -147,21 +139,8 @@ export function PlaylistPicker({
 		setError(false);
 		setLoading(true);
 		try {
-			const ids =
-				trackIds?.length
-					? trackIds
-					: artistSource
-						? (await fetchArtistTracks(session, entityId)).map((item) => item.Id)
-						: [entityId];
-			setItemIds(ids);
-			const summaries = await fetchPlaylists(session);
-			const playlistDetails = await Promise.all(
-				summaries.map((playlist) => fetchPlaylist(session, playlist.id)),
-			);
+			const summaries = await fetchPlaylists(session, entityId);
 			setPlaylists(summaries);
-			setDetails(
-				Object.fromEntries(playlistDetails.map((playlist) => [playlist.id, playlist])),
-			);
 		} catch {
 			setError(true);
 		} finally {
@@ -170,52 +149,25 @@ export function PlaylistPicker({
 	}
 
 	async function togglePlaylist(playlistId: string) {
-		const current = details[playlistId];
+		const current = playlists.find((playlist) => playlist.id === playlistId);
 		if (!current || busyId) return;
-		const requestedIds = [...new Set(itemIds)];
-		const requestedIdSet = new Set(requestedIds);
-		const selectedEntries = current.items.filter((entry) => requestedIdSet.has(entry.item.Id));
-		const isMember =
-			requestedIds.length > 0 &&
-			requestedIds.every((id) => selectedEntries.some((entry) => entry.item.Id === id));
+		const isMember = current.isMember === true;
 		const shouldBeMember = !isMember;
 		setBusyId(playlistId);
 		setError(false);
 		setPendingMembership((value) => ({ ...value, [playlistId]: shouldBeMember }));
 
-		function updatePlaylist(updated: Playlist) {
-			setDetails((value) => ({ ...value, [playlistId]: updated }));
-			setPlaylists((value) =>
-				value.map((playlist) =>
-					playlist.id === playlistId ? { ...playlist, ...updated } : playlist,
-				),
-			);
-		}
-
-		function hasRequestedMembership(playlist: Playlist) {
-			const currentIds = new Set(playlist.items.map((entry) => entry.item.Id));
-			const matchedCount = requestedIds.filter((id) => currentIds.has(id)).length;
-			return shouldBeMember
-				? requestedIds.length > 0 && matchedCount === requestedIds.length
-				: matchedCount === 0;
-		}
-
 		try {
 			if (isMember) {
-				for (const entry of selectedEntries) {
-					await removePlaylistEntry(session, playlistId, entry.entryId);
-				}
+				await removePlaylistSource(session, playlistId, entityId);
 			} else {
 				await addPlaylistItems(session, playlistId, [entityId]);
 			}
-			const updated = await fetchPlaylist(session, playlistId);
-			updatePlaylist(updated);
-			if (!hasRequestedMembership(updated)) setError(true);
+			setPlaylists(await fetchPlaylists(session, entityId));
 		} catch {
 			try {
-				const updated = await fetchPlaylist(session, playlistId);
-				updatePlaylist(updated);
-				setError(!hasRequestedMembership(updated));
+				setPlaylists(await fetchPlaylists(session, entityId));
+				setError(true);
 			} catch {
 				setError(true);
 			}
@@ -230,8 +182,7 @@ export function PlaylistPicker({
 	}
 
 	function onCreated(playlist: Playlist) {
-		setPlaylists((value) => [playlist, ...value]);
-		setDetails((value) => ({ ...value, [playlist.id]: playlist }));
+		setPlaylists((value) => [{ ...playlist, isMember: true }, ...value]);
 		setCreating(false);
 	}
 
@@ -293,12 +244,7 @@ export function PlaylistPicker({
 									</p>
 								) : (
 									playlists.map((playlist) => {
-										const entries = details[playlist.id]?.items ?? [];
-										const savedMembership =
-											itemIds.length > 0 &&
-											itemIds.every((id) =>
-												entries.some((entry) => entry.item.Id === id),
-											);
+										const savedMembership = playlist.isMember === true;
 										const membership =
 											pendingMembership[playlist.id] ?? savedMembership;
 										const artwork = playlist.artworkItems[0];

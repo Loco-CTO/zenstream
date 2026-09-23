@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Circle, CircleDot, CirclePlus, Plus, X } from "lucide-react";
+import { Check, CirclePlus, Plus, X } from "lucide-react";
 import {
 	addPlaylistItems,
 	createPlaylist,
@@ -39,6 +39,7 @@ export function PlaylistPicker({
 	const [open, setOpen] = useState(false);
 	const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
 	const [details, setDetails] = useState<Record<string, Playlist>>({});
+	const [pendingMembership, setPendingMembership] = useState<Record<string, boolean>>({});
 	const [itemIds, setItemIds] = useState<string[]>(trackIds ?? [entityId]);
 	const [loading, setLoading] = useState(false);
 	const [busyId, setBusyId] = useState<string | null>(null);
@@ -142,6 +143,7 @@ export function PlaylistPicker({
 		const shouldBeMember = !isMember;
 		setBusyId(playlistId);
 		setError(false);
+		setPendingMembership((value) => ({ ...value, [playlistId]: shouldBeMember }));
 
 		function updatePlaylist(updated: Playlist) {
 			setDetails((value) => ({ ...value, [playlistId]: updated }));
@@ -161,15 +163,14 @@ export function PlaylistPicker({
 		}
 
 		try {
-			let updated: Playlist;
 			if (isMember) {
-				updated = current;
 				for (const entry of selectedEntries) {
-					updated = await removePlaylistEntry(session, playlistId, entry.entryId);
+					await removePlaylistEntry(session, playlistId, entry.entryId);
 				}
 			} else {
-				updated = await addPlaylistItems(session, playlistId, [entityId]);
+				await addPlaylistItems(session, playlistId, [entityId]);
 			}
+			const updated = await fetchPlaylist(session, playlistId);
 			updatePlaylist(updated);
 			if (!hasRequestedMembership(updated)) setError(true);
 		} catch {
@@ -181,6 +182,11 @@ export function PlaylistPicker({
 				setError(true);
 			}
 		} finally {
+			setPendingMembership((value) => {
+				const next = { ...value };
+				delete next[playlistId];
+				return next;
+			});
 			setBusyId(null);
 		}
 	}
@@ -246,17 +252,21 @@ export function PlaylistPicker({
 							) : (
 								playlists.map((playlist) => {
 									const entries = details[playlist.id]?.items ?? [];
-									const membership =
+									const savedMembership =
 										itemIds.length > 0 &&
 										itemIds.every((id) =>
 											entries.some((entry) => entry.item.Id === id),
 										);
+									const membership =
+										pendingMembership[playlist.id] ?? savedMembership;
 									const artwork = playlist.artworkItems[0];
 									return (
-										<button
+						<button
 							key={playlist.id}
 							type="button"
-							aria-label={`${playlist.name}: ${membership ? t("inPlaylist") : t("notInPlaylist")}`}
+							aria-label={`${playlist.name}: ${
+								membership ? t("inPlaylist") : t("notInPlaylist")
+							}`}
 											aria-pressed={membership}
 											disabled={busyId !== null || loading || itemIds.length === 0}
 											onClick={() => void togglePlaylist(playlist.id)}
@@ -277,13 +287,12 @@ export function PlaylistPicker({
 											<span className="min-w-0 flex-1 truncate">{playlist.name}</span>
 											<span
 												aria-hidden="true"
-												className="flex h-5 w-5 items-center justify-center text-white/45"
+												className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-[background-color,border-color] duration-200 ease-out ${membership ? "border-white/60 bg-white/[0.14]" : "border-white/35 bg-transparent"}`}
 											>
-												{membership ? (
-													<CircleDot className="h-4 w-4 text-violet-300" />
-												) : (
-													<Circle className="h-4 w-4" />
-												)}
+												<Check
+													className={`h-3 w-3 text-white/90 transition-[opacity,transform] duration-200 ease-out ${membership ? "scale-100 opacity-100" : "scale-75 opacity-0"}`}
+													strokeWidth={2.5}
+												/>
 											</span>
 										</button>
 									);

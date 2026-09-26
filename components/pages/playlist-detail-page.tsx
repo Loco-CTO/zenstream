@@ -8,6 +8,7 @@ import {
 	LockKeyhole,
 	Play,
 	Share2,
+	SquarePen,
 	Trash2,
 	X,
 } from "lucide-react";
@@ -363,10 +364,10 @@ export function PlaylistDetailPage({
 					<p className="mt-3 flex items-center gap-2 text-xs text-white/40">{playlist.isPrivate ? <LockKeyhole className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}{t("playlistTrackCount", { count: playlist.itemCount })} · {playlist.isPrivate ? t("privatePlaylist") : t("publicPlaylist")}</p>
 				</div>
 			</header>
-			<div className="mt-7 flex flex-wrap items-center gap-3">
-				{playlist.isOwner && !playlist.isPrivate && <button type="button" onClick={() => void sharePlaylist()} className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/60 hover:text-white">{copied ? t("linkCopied") : t("copyShareLink")}</button>}
-				{playlist.isOwner && <button type="button" onClick={() => setEditOpen(true)} className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/60 hover:text-white">{t("editPlaylist")}</button>}
-				{playlist.isOwner && <button type="button" onClick={() => setDeleteOpen(true)} aria-label={t("deletePlaylist")} className="rounded-full border border-red-300/15 p-2.5 text-red-200/65 hover:bg-red-500/10 hover:text-red-100"><Trash2 className="h-4 w-4" /></button>}
+			<div className="mt-7 flex flex-wrap items-center gap-2">
+				{playlist.isOwner && !playlist.isPrivate && <button type="button" onClick={() => void sharePlaylist()} aria-label={copied ? t("linkCopied") : t("copyShareLink")} title={copied ? t("linkCopied") : t("copyShareLink")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"><Share2 className="h-5 w-5" /></button>}
+				{playlist.isOwner && <button type="button" onClick={() => setEditOpen(true)} aria-label={t("editPlaylist")} title={t("editPlaylist")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"><SquarePen className="h-5 w-5" /></button>}
+				{playlist.isOwner && <button type="button" onClick={() => setDeleteOpen(true)} aria-label={t("deletePlaylist")} title={t("deletePlaylist")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-red-200/65 transition-colors hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"><Trash2 className="h-5 w-5" /></button>}
 				<AudioDetailPlaybackActions
 					className="ml-auto"
 					playLabel={t("playAll")}

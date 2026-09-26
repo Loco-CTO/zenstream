@@ -44,6 +44,8 @@ export function PlaylistDetailPage({
 	const router = useRouter();
 	const { currentTrack, isPlaying, playAlbum } = useAudioPlayer();
 	const [playlist, setPlaylist] = useState<Playlist | null>(null);
+	const [loadedPlaylistRoute, setLoadedPlaylistRoute] = useState<string | null>(null);
+	const [failedPlaylistRoute, setFailedPlaylistRoute] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(false);
 	const [retry, setRetry] = useState(0);
@@ -59,40 +61,136 @@ export function PlaylistDetailPage({
 	const sentinelRef = useRef<HTMLDivElement>(null);
 	const pageRequestRef = useRef(false);
 	const generationRef = useRef(0);
+	const refreshInFlightRef = useRef(false);
+	const loadedPlaylistRouteRef = useRef<string | null>(null);
+	const playlistRef = useRef<Playlist | null>(playlist);
+	const playlistRouteKey = shareToken ? `shared:${shareToken}` : `owned:${playlistId ?? ""}`;
+	const playlistRouteKeyRef = useRef(playlistRouteKey);
+	useEffect(() => {
+		playlistRef.current = playlist;
+	}, [playlist]);
 
 	useEffect(() => {
 		let active = true;
-		generationRef.current += 1;
-		pageRequestRef.current = false;
-		queueMicrotask(() => {
-			if (!active) return;
-			setLoading(true);
-			setError(false);
-			setPageError(false);
-			setPageLoading(false);
-			setNextPage(null);
-		});
-		const request = shareToken
-			? fetchSharedPlaylist(session, shareToken, 1)
-			: playlistId
-				? fetchPlaylist(session, playlistId, 1)
-				: Promise.reject(new Error("Playlist not found"));
-		void request.then((value) => {
-			if (active) {
-				setPlaylist(value);
-				setNextPage(value.hasMore ? 2 : null);
+		playlistRouteKeyRef.current = playlistRouteKey;
+		const existingPlaylist = loadedPlaylistRouteRef.current === playlistRouteKey
+			? playlistRef.current
+			: null;
+		if (!existingPlaylist) {
+			generationRef.current += 1;
+			pageRequestRef.current = false;
+			loadedPlaylistRouteRef.current = null;
+			playlistRef.current = null;
+			queueMicrotask(() => {
+				if (!active) return;
+				setPlaylist(null);
+				setLoadedPlaylistRoute(null);
+				setFailedPlaylistRoute(null);
+				setLoading(true);
+				setError(false);
+				setPageError(false);
+				setPageLoading(false);
+				setNextPage(null);
 				setPreviewOrder(null);
+			});
+		}
+		// For an already-loaded route, revalidate in the background without
+		// changing the visible rows or scroll position.
+		const requestGeneration = generationRef.current;
+		refreshInFlightRef.current = true;
+		const fetchPage = (page: number) => shareToken
+			? fetchSharedPlaylist(session, shareToken, page)
+			: playlistId
+				? fetchPlaylist(session, playlistId, page)
+				: Promise.reject(new Error("Playlist not found"));
+		void (async () => {
+			try {
+				const firstPage = await fetchPage(1);
+				if (!active || requestGeneration !== generationRef.current) return;
+				const currentPlaylist = loadedPlaylistRouteRef.current === playlistRouteKey
+					? playlistRef.current
+					: null;
+				if (currentPlaylist?.id === firstPage.id && currentPlaylist.updatedAt === firstPage.updatedAt) {
+					// The playlist did not change; keep every already-loaded page and
+					// its scroll position instead of resetting to page one.
+					setLoadedPlaylistRoute(playlistRouteKey);
+					setFailedPlaylistRoute(null);
+					setError(false);
+					setPageError(false);
+					return;
+				}
+
+				if (currentPlaylist?.id === firstPage.id && currentPlaylist.items.length > firstPage.items.length) {
+					const loadedPageCount = Math.max(
+						1,
+						Math.min(
+							Math.ceil(currentPlaylist.items.length / 20),
+							Math.max(1, Math.ceil(firstPage.itemCount / 20)),
+						),
+					);
+					generationRef.current += 1;
+					const generation = generationRef.current;
+					pageRequestRef.current = false;
+					setPageLoading(false);
+					const remainingPages = await Promise.all(
+						Array.from({ length: loadedPageCount - 1 }, (_, index) => fetchPage(index + 2)),
+					);
+					const pages = [firstPage, ...remainingPages];
+					if (
+						!active ||
+						generation !== generationRef.current ||
+						pages.some((page) => page.updatedAt !== firstPage.updatedAt)
+					) return;
+					const seen = new Set<string>();
+					const refreshedItems = pages
+						.flatMap((page) => page.items)
+						.filter((entry) => !seen.has(entry.entryId) && Boolean(seen.add(entry.entryId)));
+					const lastPage = pages.at(-1)!;
+					const refreshedPlaylist = { ...firstPage, items: refreshedItems, hasMore: lastPage.hasMore };
+					playlistRef.current = refreshedPlaylist;
+					setPlaylist(refreshedPlaylist);
+					setNextPage(lastPage.hasMore ? pages.length + 1 : null);
+					setPreviewOrder(null);
+				} else {
+					playlistRef.current = firstPage;
+					setPlaylist(firstPage);
+					setNextPage(firstPage.hasMore ? 2 : null);
+					setPreviewOrder(null);
+				}
+				loadedPlaylistRouteRef.current = playlistRouteKey;
+				setLoadedPlaylistRoute(playlistRouteKey);
+				setFailedPlaylistRoute(null);
+				setError(false);
+				setPageError(false);
+			} catch {
+				// A failed background revalidation should not replace a usable page
+				// with an error state.
+				if (active && !existingPlaylist) {
+					setFailedPlaylistRoute(playlistRouteKey);
+					setError(true);
+				}
+			} finally {
+				if (active) {
+					refreshInFlightRef.current = false;
+					setLoading(false);
+				}
 			}
-		}).catch(() => {
-			if (active) setError(true);
-		}).finally(() => {
-			if (active) setLoading(false);
-		});
+		})();
 		return () => { active = false; };
-	}, [playlistId, retry, session, shareToken]);
+	}, [playlistId, playlistRouteKey, retry, session, shareToken]);
 
 	useEffect(() => {
-		const refresh = () => setRetry((value) => value + 1);
+		let lastRefreshAt = 0;
+		const refresh = () => {
+			if (
+				loadedPlaylistRouteRef.current !== playlistRouteKeyRef.current ||
+				refreshInFlightRef.current
+			) return;
+			const now = Date.now();
+			if (now - lastRefreshAt < 10_000) return;
+			lastRefreshAt = now;
+			setRetry((value) => value + 1);
+		};
 		window.addEventListener("focus", refresh);
 		return () => window.removeEventListener("focus", refresh);
 	}, []);
@@ -103,7 +201,7 @@ export function PlaylistDetailPage({
 		? previewOrder.map((id) => items.find((entry) => entry.entryId === id)).filter((entry): entry is Playlist["items"][number] => Boolean(entry))
 		: items, [items, previewOrder]);
 	const loadNextPage = useCallback(async () => {
-		if (!nextPage || pageRequestRef.current || !playlist) return;
+		if (!nextPage || pageRequestRef.current || refreshInFlightRef.current || !playlist) return;
 		pageRequestRef.current = true;
 		setPageLoading(true);
 		setPageError(false);
@@ -114,7 +212,7 @@ export function PlaylistDetailPage({
 				: await fetchPlaylist(session, playlist.id, nextPage);
 			if (generation !== generationRef.current) return;
 			if (result.updatedAt !== playlist.updatedAt) {
-				setRetry((value) => value + 1);
+				if (!refreshInFlightRef.current) setRetry((value) => value + 1);
 				return;
 			}
 			setPlaylist((value) => {
@@ -240,7 +338,13 @@ export function PlaylistDetailPage({
 		} catch { setError(true); }
 	}
 
-	if (loading) return <main className="min-h-screen px-6 pb-28 pt-28" />;
+	if (loadedPlaylistRoute !== playlistRouteKey) {
+		if (failedPlaylistRoute === playlistRouteKey && error && !loading) {
+			return <main className="min-h-screen px-6 pb-28 pt-28"><ErrorPanel message={t("playlistLoadFailed")} onRetry={() => setRetry((value) => value + 1)} /></main>;
+		}
+		return <main className="min-h-screen px-6 pb-28 pt-28" />;
+	}
+	if (loading && !playlist) return <main className="min-h-screen px-6 pb-28 pt-28" />;
 	if (error && !playlist) return <main className="min-h-screen px-6 pb-28 pt-28"><ErrorPanel message={t("playlistLoadFailed")} onRetry={() => setRetry((value) => value + 1)} /></main>;
 	if (!playlist || !album) return null;
 	const artwork = playlist.artworkItems[0] ? seriesPosterImage(playlist.artworkItems[0]) : null;
@@ -290,7 +394,14 @@ export function PlaylistDetailPage({
 				nowPlayingLabel={t("nowPlaying")}
 			/>}
 			{nextPage && <div ref={sentinelRef} className="py-5 text-center text-xs text-white/40">{pageError ? <button type="button" onClick={() => void loadNextPage()}>{t("retry")}</button> : pageLoading ? t("loading") : null}</div>}
-			{editOpen && <EditPlaylistDialog session={session} playlist={playlist} onClose={() => setEditOpen(false)} onSaved={(value) => { setPlaylist((current) => current ? { ...current, ...value, items: current.items } : value); setEditOpen(false); }} />}
+			{editOpen && <EditPlaylistDialog session={session} playlist={playlist} onClose={() => setEditOpen(false)} onSaved={(value) => {
+				generationRef.current += 1;
+				const current = playlistRef.current ?? playlist;
+				const updated = { ...current, ...value, items: current.items };
+				playlistRef.current = updated;
+				setPlaylist(updated);
+				setEditOpen(false);
+			}} />}
 			{deleteOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#171719] p-5"><h2 className="text-base font-bold text-white">{t("deletePlaylist")}</h2><p className="mt-2 text-sm text-white/55">{t("deletePlaylistConfirm", { name: playlist.name })}</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setDeleteOpen(false)} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/55">{t("cancel")}</button><button type="button" disabled={busy} onClick={() => void removePlaylist()} className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-100">{t("delete")}</button></div></div></div>}
 		</main>
 	);

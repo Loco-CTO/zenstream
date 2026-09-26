@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Heart, Plus, Trash2 } from "lucide-react";
 import {
+	MEDIA_CARD_IMAGE_CLASS,
 	SquareAudioCard,
 	WideCard,
 	PosterCard,
@@ -514,6 +515,11 @@ function PlaylistsSection({ session }: { session: AuthSession }) {
 
 function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
 	const { t } = useI18n();
+	const useArtworkMosaic = playlist.itemCount >= 4;
+	const mosaicItems = Array.from(
+		{ length: 4 },
+		(_, index) => playlist.artworkItems[index] ?? null,
+	);
 	const artwork = playlist.artworkItems.find((item) => seriesPosterImage(item));
 	const image = artwork ? seriesPosterImage(artwork) : null;
 	return (
@@ -521,7 +527,44 @@ function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
 			<div className="relative">
 				<Link href={`/playlist/${encodeURIComponent(playlist.id)}`} aria-label={playlist.name} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
 					<div className="relative aspect-square overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
-						{image ? <BlurHashImage image={image} alt={artwork?.Name ?? playlist.name} sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px" className="h-full w-full object-cover transition duration-300 group-hover/card:scale-[1.03]" /> : <MediaPlaceholder />}
+						{useArtworkMosaic ? (
+							<div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-black">
+								{mosaicItems.map((item, index) => {
+									const tileImage = item ? seriesPosterImage(item) : null;
+									return (
+										<div key={item?.Id ?? `empty-${index}`} className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--c-card-thumb)]">
+											{tileImage ? (
+												<BlurHashImage
+													image={tileImage}
+													alt={item?.Name ?? playlist.name}
+													useArtworkVariants
+													draggable={false}
+													sizes="(max-width: 639px) 74px, (max-width: 767px) 90px, 100px"
+													className={MEDIA_CARD_IMAGE_CLASS}
+												/>
+											) : (
+												<MediaPlaceholder />
+											)}
+										</div>
+									);
+								})}
+							</div>
+						) : image ? (
+							<BlurHashImage
+								image={image}
+								alt={artwork?.Name ?? playlist.name}
+								useArtworkVariants
+								draggable={false}
+								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px"
+								className={MEDIA_CARD_IMAGE_CLASS}
+							/>
+						) : (
+							<MediaPlaceholder />
+						)}
+						<div
+							aria-hidden="true"
+							className="pointer-events-none absolute inset-0 z-10 bg-black/0 transition-colors duration-200 group-hover/card:bg-black/15"
+						/>
 					</div>
 				</Link>
 			</div>

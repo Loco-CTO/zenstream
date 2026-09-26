@@ -41,6 +41,7 @@ import type { AuthSession } from "@/lib/session";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
 import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
+import { AudioDetailPlaybackActions } from "@/components/audio/audio-detail-playback-actions";
 
 const albumTypeTranslationKeys: Record<string, TranslationKey> = {
 	album: "albumTypeAlbum",
@@ -308,12 +309,6 @@ export function AudioAlbumPage({
 					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 				</button>
 				<div className="hidden items-center gap-2 md:flex">
-					<button type="button" onClick={() => playAlbum(data.album, playableTracks, undefined, true)} disabled={tracks.length === 0} aria-label={t("shuffle")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition hover:text-white/75 disabled:opacity-40">
-						<Shuffle className="h-5 w-5" />
-					</button>
-					<button type="button" onClick={() => playAlbum(data.album, playableTracks)} disabled={tracks.length === 0} aria-label={t("play")} className="flex h-12 w-12 items-center justify-center rounded-full bg-white transition hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40">
-						<Play className="ml-0.5 h-5 w-5 fill-black text-black" />
-					</button>
 					<PlaylistPicker session={session} entityId={data.album.Id} entityName={data.album.Name} trackIds={tracks.map((track) => track.Id)} />
 					<button type="button" onClick={() => addAlbumToQueue(data.album, playableTracks)} disabled={tracks.length === 0} aria-label={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40">
 						<ListPlus className="h-5 w-5" />
@@ -322,6 +317,14 @@ export function AudioAlbumPage({
 				<button type="button" onClick={() => setMoreOpen(true)} aria-label={t("showMore")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden">
 					<MoreHorizontal className="h-5 w-5" />
 				</button>
+				<AudioDetailPlaybackActions
+					className="ml-auto"
+					playLabel={t("playAll")}
+					shuffleLabel={t("shuffle")}
+					onPlay={() => playAlbum(data.album, playableTracks)}
+					onShuffle={() => playAlbum(data.album, playableTracks, undefined, true)}
+					disabled={tracks.length === 0}
+				/>
 			</section>
 			{moreOpen && (
 				<AudioDetailActionSheet item={data.album} subtitle={data.album.AlbumArtist ?? data.artist?.Name} onClose={() => setMoreOpen(false)}>

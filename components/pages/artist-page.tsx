@@ -8,6 +8,7 @@ import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
 import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
+import { AudioDetailPlaybackActions } from "@/components/audio/audio-detail-playback-actions";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -266,9 +267,6 @@ export function ArtistPage({
 						<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 					</button>
 					<div className="hidden items-center gap-3 md:flex">
-						<button type="button" disabled={trackCount === 0 || playBusy} onClick={() => void playAll()} aria-busy={playBusy} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
-							<Play className="h-4 w-4 fill-current" />{t("playAll")}
-						</button>
 						<PlaylistPicker session={session} entityId={data.artist.Id} entityName={data.artist.Name} artistSource trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined} />
 						<button type="button" disabled={trackCount === 0 || queueBusy} onClick={() => void addAllToQueue()} aria-label={t("addToQueue")} aria-busy={queueBusy} title={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40">
 							<ListPlus className="h-5 w-5" />
@@ -277,6 +275,15 @@ export function ArtistPage({
 					<button type="button" onClick={() => setMoreOpen(true)} aria-label={t("showMore")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden">
 						<MoreHorizontal className="h-5 w-5" />
 					</button>
+					<AudioDetailPlaybackActions
+						className="ml-auto"
+						playLabel={t("playAll")}
+						shuffleLabel={t("shuffle")}
+						onPlay={() => void playAll()}
+						onShuffle={() => void shuffleAll()}
+						disabled={trackCount === 0 || playBusy}
+						busy={playBusy}
+					/>
 					{playError && (
 						<p role="alert" className="text-xs text-red-200/80">
 							{t("detailLoadFailed")}

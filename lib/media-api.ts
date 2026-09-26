@@ -109,6 +109,7 @@ export interface MediaItem {
 		kind?: "continue" | "upNext";
 		seasonNumber?: number | null;
 		episodeNumber?: number | null;
+		nextEpisode?: MediaItem;
 	};
 }
 

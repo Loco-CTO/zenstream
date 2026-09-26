@@ -26,9 +26,11 @@ import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 export function WideCard({
 	item,
 	session,
+	widthClassName,
 }: {
 	item: MediaItem;
 	session?: AuthSession;
+	widthClassName?: string;
 }) {
 	const image = landscapeImage(item);
 	const progress = progressPercent(item);
@@ -38,7 +40,10 @@ export function WideCard({
 		<article
 			onPointerEnter={preview.start}
 			onPointerLeave={preview.stop}
-			className="group/card w-[min(calc((100vw-2.75rem)/2),180px)] shrink-0 cursor-pointer select-none sm:w-[240px] md:w-[320px]"
+			className={`group/card ${
+				widthClassName ??
+				"w-[min(calc((100vw-2.75rem)/2),180px)] shrink-0 sm:w-[240px] md:w-[320px]"
+			} cursor-pointer select-none`}
 		>
 			<div className="relative">
 				<Link
@@ -82,15 +87,21 @@ export function WideCard({
 export function PosterCard({
 	item,
 	session,
+	widthClassName,
 }: {
 	item: MediaItem;
 	session?: AuthSession;
+	widthClassName?: string;
 }) {
 	const image = seriesPosterImage(item);
 	const progress = progressPercent(item);
 
 	return (
-		<article className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
+		<article
+			className={`group/card ${
+				widthClassName ?? "w-[148px] shrink-0 sm:w-[180px] md:w-[200px]"
+			} cursor-pointer select-none`}
+		>
 			<div className="relative">
 				<Link
 					href={detailHref(item)}

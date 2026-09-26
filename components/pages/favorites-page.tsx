@@ -13,7 +13,12 @@ import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image"
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
-import { getFavoriteItems, type MediaItem } from "@/lib/media-api";
+import {
+	getFavoriteItems,
+	landscapeImage,
+	type MediaItem,
+	seriesPosterImage,
+} from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { useSortPreference } from "@/lib/sort-preferences";
@@ -24,9 +29,12 @@ import {
 	type PlaylistSummary,
 } from "@/lib/playlists";
 import { CreatePlaylistDialog } from "@/components/audio/playlist-picker";
-import { setFavorite, setFollowing, savedPlaybackPositionSeconds, seriesPosterImage } from "@/lib/media-api";
+import { setFavorite, setFollowing, savedPlaybackPositionSeconds } from "@/lib/media-api";
 
 type ListsTab = "watchlist" | "favorites" | "playlists";
+
+const FAVORITES_CARD_WIDTH_CLASS =
+	"w-[148px] shrink-0 sm:w-[180px] md:w-[200px]";
 
 export function FavoritesPage({
 	session,
@@ -240,9 +248,14 @@ export function FavoritesPage({
 				<>
 					{audioArtists.length > 0 && (
 						<HorizontalScroller title={t("favoriteAudioArtists")} className="mb-8">
-							<div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
+							<div className="flex gap-4">
 								{audioArtists.map((item) => (
-									<SquareAudioCard key={item.Id} item={item} session={session} />
+									<SquareAudioCard
+										key={item.Id}
+										item={item}
+										session={session}
+										className={FAVORITES_CARD_WIDTH_CLASS}
+									/>
 								))}
 							</div>
 						</HorizontalScroller>
@@ -255,7 +268,7 @@ export function FavoritesPage({
 										key={item.Id}
 										item={item}
 										session={session}
-										className="w-[136px] shrink-0 sm:w-[168px] md:w-[188px]"
+										className={FAVORITES_CARD_WIDTH_CLASS}
 									/>
 								))}
 							</div>
@@ -269,7 +282,7 @@ export function FavoritesPage({
 										key={item.Id}
 										item={item}
 										session={session}
-										className="w-[136px] shrink-0 sm:w-[168px] md:w-[188px]"
+										className={FAVORITES_CARD_WIDTH_CLASS}
 									/>
 								))}
 							</div>
@@ -279,7 +292,12 @@ export function FavoritesPage({
 						<HorizontalScroller title={t("favoriteEpisodes")} className="mb-8">
 							<div className="flex gap-4">
 								{episodes.map((item) => (
-									<WideCard key={item.Id} item={item} session={session} />
+									<WideCard
+										key={item.Id}
+										item={item}
+										session={session}
+										widthClassName={FAVORITES_CARD_WIDTH_CLASS}
+									/>
 								))}
 							</div>
 						</HorizontalScroller>
@@ -288,7 +306,12 @@ export function FavoritesPage({
 						<HorizontalScroller title={t("favoriteMovies")} className="mb-8">
 							<div className="flex gap-4">
 								{movies.map((item) => (
-									<PosterCard key={item.Id} item={item} session={session} />
+									<PosterCard
+										key={item.Id}
+										item={item}
+										session={session}
+										widthClassName={FAVORITES_CARD_WIDTH_CLASS}
+									/>
 								))}
 							</div>
 						</HorizontalScroller>
@@ -297,7 +320,11 @@ export function FavoritesPage({
 						<HorizontalScroller title={t("favoriteSeries")}>
 							<div className="flex gap-4">
 								{series.map((item) => (
-									<PosterCard key={item.Id} item={item} />
+									<PosterCard
+										key={item.Id}
+										item={item}
+										widthClassName={FAVORITES_CARD_WIDTH_CLASS}
+									/>
 								))}
 							</div>
 						</HorizontalScroller>
@@ -375,11 +402,17 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 	return (
 		<div className="divide-y divide-white/[0.08]">
 			{items.map((item) => {
-				const image = seriesPosterImage(item);
+				const status = item.WatchlistStatus;
+				const nextEpisode =
+					status?.kind === "upNext" ? status.nextEpisode : undefined;
+				const episodeImage = nextEpisode
+					? landscapeImage(nextEpisode)
+					: null;
+				const image = episodeImage ?? seriesPosterImage(item);
+				const portraitSeries = item.Type === "Series" && !episodeImage;
 				const position = savedPlaybackPositionSeconds(item);
 				const duration = item.UserData?.DurationSeconds ?? item.DurationSeconds ?? 0;
 				const progress = duration > 0 ? Math.min(100, Math.max(0, position / duration * 100)) : 0;
-				const status = item.WatchlistStatus;
 				const href =
 					item.Type === "MusicArtist"
 						? `/artist/${encodeURIComponent(item.Id)}`
@@ -387,13 +420,41 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 							? `/show/${encodeURIComponent(item.Id)}`
 							: `/play/${encodeURIComponent(item.Id)}`;
 				return <div key={item.Id} className="flex min-h-28 items-center gap-4 py-4">
-					<Link href={href} className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-white/[0.04]">
-						{image ? <BlurHashImage image={image} alt={item.Name} sizes="128px" className="h-full w-full object-cover" /> : <MediaPlaceholder />}
+					<Link
+						href={href}
+						className={`relative ${portraitSeries ? "aspect-[2/3] w-14" : "h-20 w-32"} shrink-0 overflow-hidden rounded-lg bg-white/[0.04]`}
+					>
+						{image ? (
+							<BlurHashImage
+								image={image}
+								alt={episodeImage ? nextEpisode?.Name ?? item.Name : item.Name}
+								sizes={portraitSeries ? "56px" : "128px"}
+								className="h-full w-full object-cover"
+							/>
+						) : (
+							<MediaPlaceholder />
+						)}
 						{progress > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/20"><span className="block h-full bg-violet-300" style={{ width: `${progress}%` }} /></span>}
 					</Link>
 					<div className="min-w-0 flex-1">
 						<Link href={href} className="block truncate text-sm font-semibold text-white hover:underline">{item.Name}</Link>
-						<p className="mt-1 text-xs text-white/40">{status?.kind === "continue" ? t("continueWatching") : status?.kind === "upNext" ? t("upNextEpisode", { season: status.seasonNumber ?? 0, episode: status.episodeNumber ?? 0 }) : item.Type === "MusicArtist" ? t("artist") : item.Type === "Series" ? t("series") : t("movie")}</p>
+						<p className="mt-1 truncate text-xs text-white/40">
+							{status?.kind === "continue"
+								? t("continueWatching")
+								: status?.kind === "upNext" ? (
+									<>
+										{t("upNextEpisode", {
+											season: status.seasonNumber ?? 0,
+											episode: status.episodeNumber ?? 0,
+										})}
+										{nextEpisode?.Name ? ` · ${nextEpisode.Name}` : ""}
+									</>
+								) : item.Type === "MusicArtist"
+									? t("artist")
+									: item.Type === "Series"
+										? t("series")
+										: t("movie")}
+						</p>
 					</div>
 					<button type="button" disabled={busy !== null} aria-label={item.UserData?.IsFavorite ? t("removeFavorite") : t("addFavorite")} onClick={() => void toggleFavorite(item)} className={`rounded p-2 transition hover:bg-white/[0.06] ${item.UserData?.IsFavorite ? "text-violet-300" : "text-white/40 hover:text-white"}`}><Heart className="h-4 w-4" fill={item.UserData?.IsFavorite ? "currentColor" : "none"} /></button>
 					<button type="button" disabled={busy !== null} aria-label={t("removeFromWatchlist")} onClick={() => void unfollow(item)} className="rounded p-2 text-white/35 transition hover:bg-white/[0.06] hover:text-white"><Trash2 className="h-4 w-4" /></button>
@@ -443,7 +504,7 @@ function PlaylistsSection({ session }: { session: AuthSession }) {
 		<>
 			{error && <ErrorPanel message={t("playlistsLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />}
 			<div className="flex flex-wrap gap-5">
-				<button type="button" onClick={() => setCreating(true)} className="flex h-[148px] w-[148px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/20 bg-white/[0.02] text-white/45 transition hover:border-white/40 hover:bg-white/[0.05] hover:text-white"><Plus className="h-6 w-6" /><span className="text-[10px] font-semibold uppercase tracking-wider">{t("newPlaylist")}</span></button>
+				<button type="button" onClick={() => setCreating(true)} className="flex h-[148px] w-[148px] shrink-0 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/20 bg-white/[0.02] text-white/45 transition hover:border-white/40 hover:bg-white/[0.05] hover:text-white sm:h-[180px] sm:w-[180px] md:h-[200px] md:w-[200px]"><Plus className="h-6 w-6" /><span className="text-[10px] font-semibold uppercase tracking-wider">{t("newPlaylist")}</span></button>
 				{playlists.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} />)}
 			</div>
 			{creating && <CreatePlaylistDialog session={session} onClose={() => setCreating(false)} onCreated={(playlist: Playlist) => { setPlaylists((value) => [playlist, ...value]); setCreating(false); }} />}
@@ -453,19 +514,22 @@ function PlaylistsSection({ session }: { session: AuthSession }) {
 
 function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
 	const { t } = useI18n();
-	const artwork = playlist.artworkItems.slice(0, 4);
+	const artwork = playlist.artworkItems.find((item) => seriesPosterImage(item));
+	const image = artwork ? seriesPosterImage(artwork) : null;
 	return (
-		<Link href={`/playlist/${encodeURIComponent(playlist.id)}`} className="group w-[148px] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
-			<div className="grid aspect-square grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-white/[0.04]">
-				{[0, 1, 2, 3].map((index) => {
-					const item = artwork[index];
-					const image = item ? seriesPosterImage(item) : null;
-					return <div key={index} className="relative min-h-0 min-w-0 border border-black/25">{image ? <BlurHashImage image={image} alt="" sizes="74px" className="h-full w-full object-cover transition group-hover:scale-[1.04]" /> : <MediaPlaceholder />}</div>;
-				})}
+		<article className={`group/card ${FAVORITES_CARD_WIDTH_CLASS} min-w-0 cursor-pointer select-none`}>
+			<div className="relative">
+				<Link href={`/playlist/${encodeURIComponent(playlist.id)}`} aria-label={playlist.name} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
+					<div className="relative aspect-square overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+						{image ? <BlurHashImage image={image} alt={artwork?.Name ?? playlist.name} sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 200px" className="h-full w-full object-cover transition duration-300 group-hover/card:scale-[1.03]" /> : <MediaPlaceholder />}
+					</div>
+				</Link>
 			</div>
-			<p className="mt-2 truncate text-xs font-semibold text-white group-hover:underline">{playlist.name}</p>
-			<p className="mt-1 truncate text-[11px] text-white/40">{t("playlistTrackCount", { count: playlist.itemCount })} · {playlist.isPrivate ? t("privatePlaylist") : t("publicPlaylist")}</p>
-		</Link>
+			<div className="mt-2 min-w-0">
+				<p className="truncate text-xs font-medium text-white/85">{playlist.name}</p>
+				<p className="mt-0.5 truncate text-xs text-white/40">{t("playlistTrackCount", { count: playlist.itemCount })} · {playlist.isPrivate ? t("privatePlaylist") : t("publicPlaylist")}</p>
+			</div>
+		</article>
 	);
 }
 

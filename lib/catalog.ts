@@ -92,6 +92,7 @@ export type CatalogItem = {
 		kind?: "continue" | "upNext";
 		seasonNumber?: number | null;
 		episodeNumber?: number | null;
+		nextEpisode?: CatalogItem;
 	};
 };
 
@@ -328,7 +329,14 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		LibraryId: item.libraryId,
 		CatalogParentId: item.parentId ?? undefined,
 		ChildIds: item.childIds ?? [],
-		WatchlistStatus: item.watchlistStatus,
+		WatchlistStatus: item.watchlistStatus
+			? {
+					...item.watchlistStatus,
+					nextEpisode: item.watchlistStatus.nextEpisode
+						? toMediaItem(item.watchlistStatus.nextEpisode)
+						: undefined,
+				}
+			: undefined,
 	};
 }
 

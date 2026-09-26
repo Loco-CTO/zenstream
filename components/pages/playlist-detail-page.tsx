@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
 	ArrowLeft,
+	Clock,
 	LockKeyhole,
 	Play,
 	Share2,
@@ -20,6 +21,11 @@ import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image"
 import { ErrorPanel } from "@/components/status/error-panel";
 import { Toggle } from "@/components/ui/toggle";
 import { useI18n } from "@/lib/i18n";
+import {
+	artistCreditSeparator,
+	artistCreditsForTrack,
+	formatArtistCredits,
+} from "@/lib/music";
 import {
 	deletePlaylist,
 	fetchPlaylist,
@@ -439,37 +445,125 @@ const PlaylistTrackList = memo(function PlaylistTrackList({
 	removeLabel,
 	nowPlayingLabel,
 }: PlaylistTrackListProps) {
+	const { t } = useI18n();
 	const baseIndexByEntryId = new Map(items.map((entry, index) => [entry.entryId, index]));
 	return (
 		<div
 			data-audio-reorder-list
 			onPointerDown={onPointerDown}
 			onClickCapture={onClickCapture}
-			className="mt-8 divide-y divide-white/[0.08]"
+			className="mt-8"
 		>
-			{displayItems.map((entry, index) => {
-				const baseIndex = baseIndexByEntryId.get(entry.entryId) ?? index;
-				const image = seriesPosterImage(entry.item);
-				const active = currentTrackId === entry.item.Id;
-				return <div
-					key={entry.entryId}
-					data-audio-reorder-scope={isOwner ? "playlist" : undefined}
-					data-audio-reorder-index={baseIndex}
-					className={`group relative flex items-center gap-3 py-3 transition-transform duration-100 ease-out ${isOwner ? "cursor-grab active:cursor-grabbing" : ""}`}
-				>
-					<button type="button" aria-label={`${playLabel} ${entry.item.Name}`} onClick={() => onPlayTrack(entry.item.Id)} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
-						{image ? <BlurHashImage image={image} alt="" sizes="48px" className="h-full w-full object-cover" /> : <MediaPlaceholder />}
-						<span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition group-hover:opacity-100">{active && isPlaying ? <AudioPlayingIndicator ariaLabel={nowPlayingLabel} /> : <Play className="h-4 w-4 fill-white text-white" />}</span>
-					</button>
-					<button type="button" onClick={() => onPlayTrack(entry.item.Id)} className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/85 hover:text-white">{entry.item.Name}</button>
-					{isOwner && <div className="flex shrink-0 items-center gap-1 opacity-65 transition group-hover:opacity-100">
-						<button type="button" disabled={busy} aria-label={removeLabel} onClick={() => void onRemove(entry.entryId)} className="rounded p-1 text-white/35 hover:bg-white/[0.08] hover:text-white disabled:opacity-25"><X className="h-4 w-4" /></button>
-					</div>}
-				</div>;
-			})}
+			<div className="mb-1 grid items-center px-2 pb-2 text-[11px] font-semibold uppercase tracking-widest text-white/22 [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_64px]">
+				<span className="text-center">#</span>
+				<span>{t("track")}</span>
+				<span>{t("artist")}</span>
+				<span className="text-right">{t("playCount")}</span>
+				<span className="flex justify-end" aria-label={t("duration")}>
+					<Clock className="h-3.5 w-3.5" />
+				</span>
+				<span aria-hidden="true" />
+			</div>
+			<div className="overflow-hidden">
+				{displayItems.map((entry, index) => {
+					const baseIndex = baseIndexByEntryId.get(entry.entryId) ?? index;
+					const active = currentTrackId === entry.item.Id;
+					const artistCredits = artistCreditsForTrack(entry.item);
+					const artistLabel = formatArtistCredits(artistCredits);
+					return (
+						<div
+							key={entry.entryId}
+							role="row"
+							tabIndex={0}
+							aria-current={active ? "true" : undefined}
+							onClick={() => onPlayTrack(entry.item.Id)}
+							onKeyDown={(event) => {
+								if (event.target !== event.currentTarget) return;
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									onPlayTrack(entry.item.Id);
+								}
+							}}
+							data-audio-reorder-scope={isOwner ? "playlist" : undefined}
+							data-audio-reorder-index={baseIndex}
+							className={`group/track grid items-center rounded-md px-2 py-2.5 transition-colors [grid-template-columns:36px_minmax(0,1.5fr)_minmax(0,1fr)_72px_56px_64px] ${isOwner ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${active ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+						>
+							<div role="cell" className="flex items-center justify-center">
+								{active && isPlaying ? (
+									<AudioPlayingIndicator ariaLabel={nowPlayingLabel} />
+								) : (
+									<>
+										<span className={`text-sm font-medium tabular-nums group-hover/track:hidden ${active ? "text-white" : "text-white/30"}`}>
+											{index + 1}
+										</span>
+										<Play className="hidden h-4 w-4 fill-white text-white group-hover/track:block" aria-hidden="true" />
+									</>
+								)}
+							</div>
+							<div role="cell" className="min-w-0 pr-4">
+								<button
+									type="button"
+									onClick={(event) => {
+										event.stopPropagation();
+										onPlayTrack(entry.item.Id);
+									}}
+									aria-label={`${playLabel} ${entry.item.Name}`}
+									className={`min-w-0 truncate text-left text-sm font-medium focus:outline-none focus-visible:underline ${active ? "text-white" : "text-white/85"}`}
+								>
+									{entry.item.Name}
+								</button>
+							</div>
+							<div role="cell" className="min-w-0 truncate px-2 text-sm text-white/45" title={artistLabel || undefined}>
+								{artistCredits.length > 0
+									? artistCredits.map((artist, artistIndex) => (
+											<Fragment key={`${artist.Id ?? artist.Name}-${artistIndex}`}>
+												{artist.Id ? (
+													<Link
+														href={`/artist/${encodeURIComponent(artist.Id)}`}
+														onClick={(event) => event.stopPropagation()}
+														onKeyDown={(event) => event.stopPropagation()}
+														className="transition hover:text-white hover:underline focus:outline-none focus-visible:underline"
+													>
+														{artist.Name}
+													</Link>
+												) : (
+													<span>{artist.Name}</span>
+												)}
+												{artistCreditSeparator(artistCredits, artistIndex)}
+											</Fragment>
+										))
+									: "—"}
+							</div>
+							<div role="cell" className="px-2 text-right text-xs tabular-nums text-white/28">
+								{entry.item.UserData?.PlayCount ?? 0}
+							</div>
+							<div role="cell" className="text-right text-xs tabular-nums text-white/28">
+								{formatPlaylistTrackDuration(playlistTrackDurationSeconds(entry.item))}
+							</div>
+							<div role="cell" className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+								{isOwner && <button type="button" disabled={busy} aria-label={removeLabel} title={removeLabel} onClick={() => void onRemove(entry.entryId)} className="rounded p-1 text-white/35 transition hover:bg-white/[0.08] hover:text-white disabled:opacity-25"><X className="h-4 w-4" /></button>}
+							</div>
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 });
+
+function playlistTrackDurationSeconds(track: Playlist["items"][number]["item"]) {
+	return (
+		track.DurationSeconds ??
+		track.UserData?.DurationSeconds ??
+		(track.RunTimeTicks ? track.RunTimeTicks / 10_000_000 : 0)
+	);
+}
+
+function formatPlaylistTrackDuration(value: number) {
+	if (!Number.isFinite(value) || value <= 0) return "—";
+	const seconds = Math.round(value);
+	return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 
 function EditPlaylistDialog({
 	session,

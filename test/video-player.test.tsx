@@ -2243,7 +2243,7 @@ describe("video player controls", () => {
 	});
 
 	it("stacks active cues and applies the saved custom appearance", () => {
-		const { getAllByTestId } = render(
+		const { getAllByTestId, getByTestId } = render(
 			<CustomSubtitleCue
 				cues={[
 					{ start: 1, end: 3, text: "First line" },
@@ -2277,6 +2277,7 @@ describe("video player controls", () => {
 		expect(cues[0].getAttribute("style")).toContain(
 			"background-color: rgba(68, 85, 102, 0.4)",
 		);
+		expect(getByTestId("subtitle-overlay")).toHaveStyle({ bottom: "48px" });
 		expect(cues[0].getAttribute("style")).toContain(
 			'font-family: Georgia, "Times New Roman", serif',
 		);
@@ -2392,9 +2393,27 @@ describe("video player controls", () => {
 	it("converts native subtitle spacing to a bottom-aligned cue position", () => {
 		expect(nativeSubtitleLinePosition(1_000, 0)).toBe(100);
 		expect(nativeSubtitleLinePosition(1_000, 48)).toBeCloseTo(95.2);
+		expect(nativeSubtitleLinePosition(1_000, 150)).toBe(85);
 		expect(nativeSubtitleLinePosition(1_000, 300)).toBe(70);
 		expect(nativeSubtitleLinePosition(0, 48)).toBeNull();
 	});
+
+	it.each([0, 48, 150, 300])(
+		"positions overlay subtitles %i pixels from the bottom",
+		(bottomSpacing) => {
+			const { getByTestId } = render(
+				<CustomSubtitleCue
+					cues={[{ start: 0, end: 2, text: "Visible subtitle" }]}
+					time={1}
+					style={{ ...DEFAULT_SUBTITLE_STYLE, bottomSpacing }}
+				/>,
+			);
+
+			expect(getByTestId("subtitle-overlay")).toHaveStyle({
+				bottom: `${bottomSpacing}px`,
+			});
+		},
+	);
 
 	it("reapplies native cue spacing after a resize and skips unsupported cues", () => {
 		let height = 1_000;
@@ -2425,12 +2444,21 @@ describe("video player controls", () => {
 			cues: [supported, vertical, unsupported],
 		} as unknown as TextTrack;
 
+		applyNativeSubtitleBottomSpacing(video, track, 0);
+		expect(supported.line).toBe(100);
+
 		applyNativeSubtitleBottomSpacing(video, track, 48);
 		expect(supported).toMatchObject({
 			snapToLines: false,
 			lineAlign: "end",
 		});
 		expect(supported.line).toBeCloseTo(95.2);
+
+		applyNativeSubtitleBottomSpacing(video, track, 150);
+		expect(supported.line).toBe(85);
+
+		applyNativeSubtitleBottomSpacing(video, track, 300);
+		expect(supported.line).toBe(70);
 		expect(vertical).toMatchObject({
 			snapToLines: true,
 			lineAlign: "start",

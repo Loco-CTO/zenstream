@@ -3679,7 +3679,8 @@ export function CustomSubtitleCue({
 	return (
 		<div
 			data-testid="subtitle-overlay"
-			className="pointer-events-none absolute inset-x-4 bottom-[12%] z-10 flex flex-col items-center gap-1 text-center"
+			className="pointer-events-none absolute inset-x-4 z-10 flex flex-col items-center gap-1 text-center"
+			style={{ bottom: `${style.bottomSpacing}px` }}
 			aria-live="off"
 		>
 			{activeCues.map((cue, index) => (

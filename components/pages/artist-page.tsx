@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, ChevronLeft, CirclePlus, Heart, ListPlus, MoreHorizontal, Play, Shuffle } from "lucide-react";
+import {
+	Bookmark,
+	ChevronLeft,
+	CirclePlus,
+	Heart,
+	ListPlus,
+	MoreHorizontal,
+	Play,
+	Shuffle,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { SquareAudioCard } from "@/components/home/media-card";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
-import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
+import {
+	AudioDetailActionSheet,
+	AudioDetailSheetAction,
+} from "@/components/audio/audio-detail-action-sheet";
 import { AudioDetailPlaybackActions } from "@/components/audio/audio-detail-playback-actions";
 import { CopyShareLinkButton } from "@/components/ui/copy-share-link-button";
 import {
@@ -106,8 +118,11 @@ export function ArtistPage({
 		setPlayBusy(true);
 		setPlayError(false);
 		try {
-			const queue = tracks.length ? tracks : await fetchArtistTracks(session, data.artist.Id);
-			if (queue.length > 0) playAlbum(data.artist, withArtistArtwork(queue), undefined, true);
+			const queue = tracks.length
+				? tracks
+				: await fetchArtistTracks(session, data.artist.Id);
+			if (queue.length > 0)
+				playAlbum(data.artist, withArtistArtwork(queue), undefined, true);
 		} catch {
 			setPlayError(true);
 		} finally {
@@ -269,12 +284,31 @@ export function ArtistPage({
 					</button>
 					<CopyShareLinkButton />
 					<div className="hidden items-center gap-3 md:flex">
-						<PlaylistPicker session={session} entityId={data.artist.Id} entityName={data.artist.Name} artistSource trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined} />
-						<button type="button" disabled={trackCount === 0 || queueBusy} onClick={() => void addAllToQueue()} aria-label={t("addToQueue")} aria-busy={queueBusy} title={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40">
+						<PlaylistPicker
+							session={session}
+							entityId={data.artist.Id}
+							entityName={data.artist.Name}
+							artistSource
+							trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined}
+						/>
+						<button
+							type="button"
+							disabled={trackCount === 0 || queueBusy}
+							onClick={() => void addAllToQueue()}
+							aria-label={t("addToQueue")}
+							aria-busy={queueBusy}
+							title={t("addToQueue")}
+							className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
+						>
 							<ListPlus className="h-5 w-5" />
 						</button>
 					</div>
-					<button type="button" onClick={() => setMoreOpen(true)} aria-label={t("showMore")} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden">
+					<button
+						type="button"
+						onClick={() => setMoreOpen(true)}
+						aria-label={t("showMore")}
+						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden"
+					>
 						<MoreHorizontal className="h-5 w-5" />
 					</button>
 					<AudioDetailPlaybackActions
@@ -303,11 +337,55 @@ export function ArtistPage({
 					)}
 				</div>
 				{moreOpen && (
-					<AudioDetailActionSheet item={data.artist} subtitle={t("artist")} onClose={() => setMoreOpen(false)}>
-						<AudioDetailSheetAction icon={<Play className="h-5 w-5 fill-current" />} onClick={() => { setMoreOpen(false); void playAll(); }}>{t("playAll")}</AudioDetailSheetAction>
-						<AudioDetailSheetAction icon={<Shuffle className="h-5 w-5" />} onClick={() => { setMoreOpen(false); void shuffleAll(); }}>{t("shuffle")}</AudioDetailSheetAction>
-						<PlaylistPicker session={session} entityId={data.artist.Id} entityName={data.artist.Name} artistSource trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined} containerClassName="w-full" triggerClassName="flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07]" triggerContent={<><span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75"><CirclePlus className="h-5 w-5" /></span><span>{t("addToPlaylist")}</span></>} />
-						<AudioDetailSheetAction icon={<ListPlus className="h-5 w-5" />} onClick={() => { setMoreOpen(false); void addAllToQueue(); }}>{t("addToQueue")}</AudioDetailSheetAction>
+					<AudioDetailActionSheet
+						item={data.artist}
+						subtitle={t("artist")}
+						onClose={() => setMoreOpen(false)}
+					>
+						<AudioDetailSheetAction
+							icon={<Play className="h-5 w-5 fill-current" />}
+							onClick={() => {
+								setMoreOpen(false);
+								void playAll();
+							}}
+						>
+							{t("playAll")}
+						</AudioDetailSheetAction>
+						<AudioDetailSheetAction
+							icon={<Shuffle className="h-5 w-5" />}
+							onClick={() => {
+								setMoreOpen(false);
+								void shuffleAll();
+							}}
+						>
+							{t("shuffle")}
+						</AudioDetailSheetAction>
+						<PlaylistPicker
+							session={session}
+							entityId={data.artist.Id}
+							entityName={data.artist.Name}
+							artistSource
+							trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined}
+							containerClassName="w-full"
+							triggerClassName="flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07]"
+							triggerContent={
+								<>
+									<span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75">
+										<CirclePlus className="h-5 w-5" />
+									</span>
+									<span>{t("addToPlaylist")}</span>
+								</>
+							}
+						/>
+						<AudioDetailSheetAction
+							icon={<ListPlus className="h-5 w-5" />}
+							onClick={() => {
+								setMoreOpen(false);
+								void addAllToQueue();
+							}}
+						>
+							{t("addToQueue")}
+						</AudioDetailSheetAction>
 					</AudioDetailActionSheet>
 				)}
 

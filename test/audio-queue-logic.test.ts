@@ -9,13 +9,7 @@ const entries = [{ id: "a" }, { id: "b" }, { id: "c" }];
 
 describe("audio queue selection", () => {
 	it("keeps a playlist track selected by the user first while shuffling the rest", () => {
-		const ordered = orderAudioPlaylistStart(
-			entries,
-			1,
-			true,
-			true,
-			() => 0,
-		);
+		const ordered = orderAudioPlaylistStart(entries, 1, true, true, () => 0);
 
 		expect(ordered[0]).toEqual({ id: "b" });
 		expect(new Set(ordered.map((entry) => entry.id))).toEqual(

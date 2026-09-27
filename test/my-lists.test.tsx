@@ -14,13 +14,24 @@ const actions = vi.hoisted(() => ({
 }));
 
 vi.mock("next/link", () => ({
-	default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
-		<a href={href} {...props}>{children}</a>
+	default: ({
+		href,
+		children,
+		...props
+	}: {
+		href: string;
+		children: ReactNode;
+	}) => (
+		<a href={href} {...props}>
+			{children}
+		</a>
 	),
 }));
 
 vi.mock("@/lib/media-api", async () => ({
-	...(await vi.importActual<typeof import("@/lib/media-api")>("@/lib/media-api")),
+	...(await vi.importActual<typeof import("@/lib/media-api")>(
+		"@/lib/media-api",
+	)),
 	getFavoriteItems: actions.favorites,
 	seriesPosterImage: () => null,
 	savedPlaybackPositionSeconds: () => 0,
@@ -59,7 +70,9 @@ vi.mock("@/components/home/media-card", () => ({
 }));
 
 vi.mock("@/components/ui/horizontal-scroller", () => ({
-	HorizontalScroller: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+	HorizontalScroller: ({ children }: { children: ReactNode }) => (
+		<div>{children}</div>
+	),
 }));
 
 vi.mock("@/components/ui/blurhash-image", () => ({
@@ -74,7 +87,11 @@ vi.mock("@/lib/i18n", () => ({
 	}),
 }));
 
-const session: AuthSession = { token: "token", userId: "user-1", username: "Alex" };
+const session: AuthSession = {
+	token: "token",
+	userId: "user-1",
+	username: "Alex",
+};
 
 function mediaItem(id: string, type: string, name = id): MediaItem {
 	return { Id: id, Type: type, Name: name };
@@ -110,7 +127,11 @@ describe("My Lists", () => {
 		]);
 		render(<FavoritesPage session={session} />);
 
-		await waitFor(() => expect(screen.getByRole("link", { name: "Followed Series" })).toHaveAttribute("href", "/show/series-1"));
+		await waitFor(() =>
+			expect(
+				screen.getByRole("link", { name: "Followed Series" }),
+			).toHaveAttribute("href", "/show/series-1"),
+		);
 	});
 
 	it("renders playlist cards with track count and privacy state", async () => {
@@ -126,10 +147,11 @@ describe("My Lists", () => {
 		]);
 		render(<FavoritesPage session={session} initialTab="playlists" />);
 
-		expect(await screen.findByRole("link", { name: /Road Trip/ })).toHaveAttribute(
-			"href",
-			"/playlist/playlist-1",
-		);
-		expect(screen.getByText("playlistTrackCount:4 · privatePlaylist")).toBeInTheDocument();
+		expect(
+			await screen.findByRole("link", { name: /Road Trip/ }),
+		).toHaveAttribute("href", "/playlist/playlist-1");
+		expect(
+			screen.getByText("playlistTrackCount:4 · privatePlaylist"),
+		).toBeInTheDocument();
 	});
 });

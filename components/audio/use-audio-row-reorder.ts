@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	type MouseEvent as ReactMouseEvent,
+	type PointerEvent as ReactPointerEvent,
+} from "react";
 
 type DragGesture = {
 	pointerId: number;
@@ -63,7 +70,11 @@ export function useAudioRowReorder(
 
 		const getRowAtIndex = (gesture: DragGesture, index: number) => {
 			const row = gesture.list.children.item(index);
-			if (!(row instanceof HTMLElement) || Number(row.dataset.audioReorderIndex) !== index) return null;
+			if (
+				!(row instanceof HTMLElement) ||
+				Number(row.dataset.audioReorderIndex) !== index
+			)
+				return null;
 			return row;
 		};
 
@@ -71,7 +82,10 @@ export function useAudioRowReorder(
 			const row = getRowAtIndex(gesture, index);
 			if (!row) return;
 			if (!gesture.offsetRows.has(index)) {
-				gesture.offsetRows.set(index, { row, previousTransform: row.style.transform });
+				gesture.offsetRows.set(index, {
+					row,
+					previousTransform: row.style.transform,
+				});
 			}
 			row.style.transform = `translateY(${offset}px)`;
 		};
@@ -92,27 +106,35 @@ export function useAudioRowReorder(
 			if (previousDirection === nextDirection) {
 				if (nextDirection > 0) {
 					if (target > previous) {
-						for (let index = previous + 1; index <= target; index += 1) setOffset(gesture, index, -gesture.rowStep);
+						for (let index = previous + 1; index <= target; index += 1)
+							setOffset(gesture, index, -gesture.rowStep);
 					} else {
-						for (let index = target + 1; index <= previous; index += 1) clearOffset(gesture, index);
+						for (let index = target + 1; index <= previous; index += 1)
+							clearOffset(gesture, index);
 					}
 				} else if (nextDirection < 0) {
 					if (target < previous) {
-						for (let index = target; index < previous; index += 1) setOffset(gesture, index, gesture.rowStep);
+						for (let index = target; index < previous; index += 1)
+							setOffset(gesture, index, gesture.rowStep);
 					} else {
-						for (let index = previous; index < target; index += 1) clearOffset(gesture, index);
+						for (let index = previous; index < target; index += 1)
+							clearOffset(gesture, index);
 					}
 				}
 			} else {
 				if (previousDirection > 0) {
-					for (let index = gesture.from + 1; index <= previous; index += 1) clearOffset(gesture, index);
+					for (let index = gesture.from + 1; index <= previous; index += 1)
+						clearOffset(gesture, index);
 				} else if (previousDirection < 0) {
-					for (let index = previous; index < gesture.from; index += 1) clearOffset(gesture, index);
+					for (let index = previous; index < gesture.from; index += 1)
+						clearOffset(gesture, index);
 				}
 				if (nextDirection > 0) {
-					for (let index = gesture.from + 1; index <= target; index += 1) setOffset(gesture, index, -gesture.rowStep);
+					for (let index = gesture.from + 1; index <= target; index += 1)
+						setOffset(gesture, index, -gesture.rowStep);
 				} else if (nextDirection < 0) {
-					for (let index = target; index < gesture.from; index += 1) setOffset(gesture, index, gesture.rowStep);
+					for (let index = target; index < gesture.from; index += 1)
+						setOffset(gesture, index, gesture.rowStep);
 				}
 			}
 			gesture.previewTarget = target;
@@ -122,33 +144,50 @@ export function useAudioRowReorder(
 			const selector = `[data-audio-reorder-scope="${scope}"][data-audio-reorder-index]`;
 			const element = document.elementFromPoint(gesture.clientX, gesture.clientY);
 			const row = element?.closest(selector) as HTMLElement | null;
-			if (!row || row.closest("[data-audio-reorder-list]") !== gesture.list) return;
+			if (!row || row.closest("[data-audio-reorder-list]") !== gesture.list)
+				return;
 			const hitIndex = Number(row.dataset.audioReorderIndex);
 			const count = itemCountRef.current;
 			if (!Number.isInteger(hitIndex) || hitIndex < 0 || hitIndex >= count) return;
 			const bounds = row.getBoundingClientRect();
-			let insertionIndex = hitIndex + (gesture.clientY > bounds.top + bounds.height / 2 ? 1 : 0);
+			let insertionIndex =
+				hitIndex + (gesture.clientY > bounds.top + bounds.height / 2 ? 1 : 0);
 			if (insertionIndex > gesture.from) insertionIndex -= 1;
 			applyTarget(gesture, Math.max(0, Math.min(count - 1, insertionIndex)));
 		};
 
 		const autoScrollAtPointer = (gesture: DragGesture) => {
-			const scrollContainer = gesture.row.closest<HTMLElement>("[data-audio-reorder-scroll]");
+			const scrollContainer = gesture.row.closest<HTMLElement>(
+				"[data-audio-reorder-scroll]",
+			);
 			if (scrollContainer) {
 				const bounds = scrollContainer.getBoundingClientRect();
 				const edgeSize = Math.min(64, bounds.height * 0.2);
 				const maxStep = 14;
-				if (gesture.clientY < bounds.top + edgeSize && scrollContainer.scrollTop > 0) {
+				if (
+					gesture.clientY < bounds.top + edgeSize &&
+					scrollContainer.scrollTop > 0
+				) {
 					const strength = (bounds.top + edgeSize - gesture.clientY) / edgeSize;
 					const previous = scrollContainer.scrollTop;
-					scrollContainer.scrollTop -= Math.max(2, Math.round(maxStep * Math.min(1, strength)));
+					scrollContainer.scrollTop -= Math.max(
+						2,
+						Math.round(maxStep * Math.min(1, strength)),
+					);
 					return scrollContainer.scrollTop - previous;
 				}
-				const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-				if (gesture.clientY > bounds.bottom - edgeSize && scrollContainer.scrollTop < maxScroll) {
+				const maxScroll =
+					scrollContainer.scrollHeight - scrollContainer.clientHeight;
+				if (
+					gesture.clientY > bounds.bottom - edgeSize &&
+					scrollContainer.scrollTop < maxScroll
+				) {
 					const strength = (gesture.clientY - (bounds.bottom - edgeSize)) / edgeSize;
 					const previous = scrollContainer.scrollTop;
-					scrollContainer.scrollTop += Math.max(2, Math.round(maxStep * Math.min(1, strength)));
+					scrollContainer.scrollTop += Math.max(
+						2,
+						Math.round(maxStep * Math.min(1, strength)),
+					);
 					return scrollContainer.scrollTop - previous;
 				}
 				return 0;
@@ -161,14 +200,24 @@ export function useAudioRowReorder(
 			if (gesture.clientY < edgeSize && scrollRoot.scrollTop > 0) {
 				const strength = (edgeSize - gesture.clientY) / edgeSize;
 				const previous = scrollRoot.scrollTop;
-				scrollRoot.scrollTop -= Math.max(2, Math.round(maxStep * Math.min(1, strength)));
+				scrollRoot.scrollTop -= Math.max(
+					2,
+					Math.round(maxStep * Math.min(1, strength)),
+				);
 				return scrollRoot.scrollTop - previous;
 			}
 			const maxScroll = scrollRoot.scrollHeight - window.innerHeight;
-			if (gesture.clientY > window.innerHeight - edgeSize && scrollRoot.scrollTop < maxScroll) {
-				const strength = (gesture.clientY - (window.innerHeight - edgeSize)) / edgeSize;
+			if (
+				gesture.clientY > window.innerHeight - edgeSize &&
+				scrollRoot.scrollTop < maxScroll
+			) {
+				const strength =
+					(gesture.clientY - (window.innerHeight - edgeSize)) / edgeSize;
 				const previous = scrollRoot.scrollTop;
-				scrollRoot.scrollTop += Math.max(2, Math.round(maxStep * Math.min(1, strength)));
+				scrollRoot.scrollTop += Math.max(
+					2,
+					Math.round(maxStep * Math.min(1, strength)),
+				);
 				return scrollRoot.scrollTop - previous;
 			}
 			return 0;
@@ -239,7 +288,13 @@ export function useAudioRowReorder(
 			gesture.clientX = event.clientX;
 			gesture.clientY = event.clientY;
 			if (!gesture.active) {
-				if (Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 5) return;
+				if (
+					Math.hypot(
+						event.clientX - gesture.startX,
+						event.clientY - gesture.startY,
+					) < 5
+				)
+					return;
 				gesture.active = true;
 				gesture.row.style.pointerEvents = "none";
 				gesture.row.style.opacity = "0.45";
@@ -267,65 +322,85 @@ export function useAudioRowReorder(
 			window.removeEventListener("blur", handleWindowBlur);
 			if (previewFrame != null) window.cancelAnimationFrame(previewFrame);
 			if (cleanupFrame != null) window.cancelAnimationFrame(cleanupFrame);
-			if (pendingCleanupFrameRef.current != null) window.cancelAnimationFrame(pendingCleanupFrameRef.current);
+			if (pendingCleanupFrameRef.current != null)
+				window.cancelAnimationFrame(pendingCleanupFrameRef.current);
 			if (gestureRef.current?.active) restoreGestureVisuals(gestureRef.current);
-			if (pendingCleanupRef.current) restoreGestureVisuals(pendingCleanupRef.current);
+			if (pendingCleanupRef.current)
+				restoreGestureVisuals(pendingCleanupRef.current);
 			gestureRef.current = null;
 			pendingCleanupRef.current = null;
 			pendingCleanupFrameRef.current = null;
 		};
 	}, [scope]);
 
-	const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-		if (!enabledRef.current || !event.isPrimary || event.button !== 0 || event.pointerType === "touch" || itemCountRef.current < 2) return;
-		const target = event.target as Element;
-		const row = target.closest<HTMLElement>(`[data-audio-reorder-scope="${scope}"][data-audio-reorder-index]`);
-		const list = event.currentTarget;
-		if (!row || row.closest("[data-audio-reorder-list]") !== list) return;
-		const from = Number(row.dataset.audioReorderIndex);
-		if (!Number.isInteger(from) || from < 0 || from >= itemCountRef.current) return;
+	const onPointerDown = useCallback(
+		(event: ReactPointerEvent<HTMLDivElement>) => {
+			if (
+				!enabledRef.current ||
+				!event.isPrimary ||
+				event.button !== 0 ||
+				event.pointerType === "touch" ||
+				itemCountRef.current < 2
+			)
+				return;
+			const target = event.target as Element;
+			const row = target.closest<HTMLElement>(
+				`[data-audio-reorder-scope="${scope}"][data-audio-reorder-index]`,
+			);
+			const list = event.currentTarget;
+			if (!row || row.closest("[data-audio-reorder-list]") !== list) return;
+			const from = Number(row.dataset.audioReorderIndex);
+			if (!Number.isInteger(from) || from < 0 || from >= itemCountRef.current)
+				return;
 
-		if (pendingCleanupFrameRef.current != null) window.cancelAnimationFrame(pendingCleanupFrameRef.current);
-		if (pendingCleanupRef.current) restoreGestureVisuals(pendingCleanupRef.current);
-		pendingCleanupFrameRef.current = null;
-		pendingCleanupRef.current = null;
+			if (pendingCleanupFrameRef.current != null)
+				window.cancelAnimationFrame(pendingCleanupFrameRef.current);
+			if (pendingCleanupRef.current)
+				restoreGestureVisuals(pendingCleanupRef.current);
+			pendingCleanupFrameRef.current = null;
+			pendingCleanupRef.current = null;
 
-		const next = list.children.item(from + 1) as HTMLElement | null;
-		const previous = list.children.item(from - 1) as HTMLElement | null;
-		const bounds = row.getBoundingClientRect();
-		const neighbor = next ?? previous;
-		const rowStep = neighbor
-			? Math.abs(neighbor.getBoundingClientRect().top - bounds.top)
-			: bounds.height;
-		gestureRef.current = {
-			pointerId: event.pointerId,
-			from,
-			startX: event.clientX,
-			startY: event.clientY,
-			clientX: event.clientX,
-			clientY: event.clientY,
-			scrollAdjustmentY: 0,
-			row,
-			list,
-			active: false,
-			rowStep,
-			previewTarget: from,
-			offsetRows: new Map(),
-			previousPointerEvents: row.style.pointerEvents,
-			previousOpacity: row.style.opacity,
-			previousTransform: row.style.transform,
-			previousTransition: row.style.transition,
-			previousZIndex: row.style.zIndex,
-			previousUserSelect: document.documentElement.style.userSelect,
-		};
-	}, [scope]);
+			const next = list.children.item(from + 1) as HTMLElement | null;
+			const previous = list.children.item(from - 1) as HTMLElement | null;
+			const bounds = row.getBoundingClientRect();
+			const neighbor = next ?? previous;
+			const rowStep = neighbor
+				? Math.abs(neighbor.getBoundingClientRect().top - bounds.top)
+				: bounds.height;
+			gestureRef.current = {
+				pointerId: event.pointerId,
+				from,
+				startX: event.clientX,
+				startY: event.clientY,
+				clientX: event.clientX,
+				clientY: event.clientY,
+				scrollAdjustmentY: 0,
+				row,
+				list,
+				active: false,
+				rowStep,
+				previewTarget: from,
+				offsetRows: new Map(),
+				previousPointerEvents: row.style.pointerEvents,
+				previousOpacity: row.style.opacity,
+				previousTransform: row.style.transform,
+				previousTransition: row.style.transition,
+				previousZIndex: row.style.zIndex,
+				previousUserSelect: document.documentElement.style.userSelect,
+			};
+		},
+		[scope],
+	);
 
-	const onClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-		if (performance.now() >= suppressClickUntilRef.current) return;
-		event.preventDefault();
-		event.stopPropagation();
-		suppressClickUntilRef.current = 0;
-	}, []);
+	const onClickCapture = useCallback(
+		(event: ReactMouseEvent<HTMLDivElement>) => {
+			if (performance.now() >= suppressClickUntilRef.current) return;
+			event.preventDefault();
+			event.stopPropagation();
+			suppressClickUntilRef.current = 0;
+		},
+		[],
+	);
 
 	return { onPointerDown, onClickCapture };
 }

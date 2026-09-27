@@ -30,7 +30,11 @@ vi.mock("@/components/ui/blurhash-image", () => ({
 	MediaPlaceholder: () => <div />,
 }));
 
-const session: AuthSession = { token: "token", userId: "user-1", username: "Alex" };
+const session: AuthSession = {
+	token: "token",
+	userId: "user-1",
+	username: "Alex",
+};
 
 function summary(id = "playlist-1"): PlaylistSummary {
 	return {
@@ -54,15 +58,19 @@ describe("audio playlist picker", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		api.fetch.mockReset();
-		api.fetch.mockResolvedValueOnce([summary()]).mockResolvedValue([{ ...summary(), isMember: true }]);
-		api.add.mockResolvedValue(playlist([
-			{
-				entryId: "entry-1",
-				position: 0,
-				addedAt: "2026-09-01T12:00:00Z",
-				item: { Id: "track-1", Name: "Track One", Type: "Audio" },
-			},
-		]));
+		api.fetch
+			.mockResolvedValueOnce([summary()])
+			.mockResolvedValue([{ ...summary(), isMember: true }]);
+		api.add.mockResolvedValue(
+			playlist([
+				{
+					entryId: "entry-1",
+					position: 0,
+					addedAt: "2026-09-01T12:00:00Z",
+					item: { Id: "track-1", Name: "Track One", Type: "Audio" },
+				},
+			]),
+		);
 		api.create.mockResolvedValue({ ...playlist(), id: "created-playlist" });
 		api.remove.mockResolvedValue(playlist());
 	});
@@ -81,7 +89,11 @@ describe("audio playlist picker", () => {
 		fireEvent.click(await screen.findByRole("button", { name: /Road Mix/ }));
 
 		expect(api.add).toHaveBeenCalledWith(session, "playlist-1", ["track-1"]);
-		await waitFor(() => expect(screen.getByRole("button", { name: "Road Mix: inPlaylist" })).toBeInTheDocument());
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Road Mix: inPlaylist" }),
+			).toBeInTheDocument(),
+		);
 		expect(api.fetch).toHaveBeenCalledWith(session, "track-1");
 	});
 
@@ -100,18 +112,35 @@ describe("audio playlist picker", () => {
 
 		expect(api.add).toHaveBeenCalledWith(session, "playlist-1", ["album-1"]);
 		expect(api.fetch).toHaveBeenCalledWith(session, "album-1");
-		await waitFor(() => expect(screen.getByRole("button", { name: "Road Mix: inPlaylist" })).toBeInTheDocument());
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Road Mix: inPlaylist" }),
+			).toBeInTheDocument(),
+		);
 	});
 
 	it("removes a checked source in one operation without loading playlist detail", async () => {
 		api.fetch.mockReset();
-		api.fetch.mockResolvedValueOnce([{ ...summary(), isMember: true }])
+		api.fetch
+			.mockResolvedValueOnce([{ ...summary(), isMember: true }])
 			.mockResolvedValue([{ ...summary(), isMember: false }]);
-		render(<PlaylistPicker session={session} entityId="album-1" entityName="Album One" />);
+		render(
+			<PlaylistPicker
+				session={session}
+				entityId="album-1"
+				entityName="Album One"
+			/>,
+		);
 		fireEvent.click(screen.getByRole("button", { name: "addToPlaylist" }));
 		fireEvent.click(await screen.findByRole("button", { name: /Road Mix/ }));
-		await waitFor(() => expect(api.remove).toHaveBeenCalledWith(session, "playlist-1", "album-1"));
-		await waitFor(() => expect(screen.getByRole("button", { name: "Road Mix: notInPlaylist" })).toBeInTheDocument());
+		await waitFor(() =>
+			expect(api.remove).toHaveBeenCalledWith(session, "playlist-1", "album-1"),
+		);
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: "Road Mix: notInPlaylist" }),
+			).toBeInTheDocument(),
+		);
 	});
 
 	it("creates a playlist from the picker with the selected source attached", async () => {
@@ -125,19 +154,23 @@ describe("audio playlist picker", () => {
 		);
 
 		fireEvent.click(screen.getByRole("button", { name: "addToPlaylist" }));
-		fireEvent.click(await screen.findByRole("button", { name: "createPlaylist" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "createPlaylist" }),
+		);
 		fireEvent.change(screen.getByPlaceholderText("playlistName"), {
 			target: { value: "Album Favorites" },
 		});
 		fireEvent.click(screen.getByRole("button", { name: "create" }));
 
-		await waitFor(() => expect(api.create).toHaveBeenCalledWith(
-			session,
-			expect.objectContaining({
-				name: "Album Favorites",
-				isPrivate: true,
-				entityId: "album-1",
-			}),
-		));
+		await waitFor(() =>
+			expect(api.create).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({
+					name: "Album Favorites",
+					isPrivate: true,
+					entityId: "album-1",
+				}),
+			),
+		);
 	});
 });

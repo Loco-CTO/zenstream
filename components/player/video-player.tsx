@@ -3723,24 +3723,8 @@ export function nativeSubtitleVttWithBottomSpacing(
 
 export function nativeSubtitleViewportHeight(video: HTMLVideoElement): number {
 	const rect = video.getBoundingClientRect();
-	const boxWidth = rect.width || video.clientWidth;
 	const boxHeight = rect.height || video.clientHeight;
-	if (boxHeight <= 0) return 0;
-	if (
-		!video.videoWidth ||
-		!video.videoHeight ||
-		!(video instanceof HTMLVideoElement)
-	)
-		return boxHeight;
-	const objectFit = window.getComputedStyle(video).objectFit;
-	if (objectFit !== "contain" && objectFit !== "scale-down") return boxHeight;
-	if (boxWidth <= 0) return boxHeight;
-	const fitScale = Math.min(
-		boxWidth / video.videoWidth,
-		boxHeight / video.videoHeight,
-	);
-	const scale = objectFit === "scale-down" ? Math.min(fitScale, 1) : fitScale;
-	return video.videoHeight * scale;
+	return Math.max(0, boxHeight);
 }
 
 export function applyNativeSubtitleBottomSpacing(

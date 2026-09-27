@@ -2400,7 +2400,7 @@ describe("video player controls", () => {
 		expect(nativeSubtitleLinePosition(0, 48)).toBeNull();
 	});
 
-	it("measures the displayed video frame instead of its letterboxed element", () => {
+	it("measures native spacing against the full player viewport", () => {
 		const video = document.createElement("video");
 		Object.defineProperties(video, {
 			videoWidth: { configurable: true, value: 1_920 },
@@ -2419,10 +2419,10 @@ describe("video player controls", () => {
 			toJSON: () => ({}),
 		});
 
-		expect(nativeSubtitleViewportHeight(video)).toBe(450);
+		expect(nativeSubtitleViewportHeight(video)).toBe(900);
 		expect(
 			nativeSubtitleLinePosition(nativeSubtitleViewportHeight(video), 150),
-		).toBeCloseTo(66.67);
+		).toBeCloseTo(83.33);
 	});
 
 	it.each([

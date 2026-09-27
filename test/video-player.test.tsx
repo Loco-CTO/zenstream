@@ -2393,7 +2393,7 @@ describe("video player controls", () => {
 	});
 
 	it("converts native subtitle spacing to a bottom-aligned cue position", () => {
-		expect(nativeSubtitleLinePosition(1_000, 0)).toBe(100);
+		expect(nativeSubtitleLinePosition(1_000, 0)).toBe(99);
 		expect(nativeSubtitleLinePosition(1_000, 48)).toBeCloseTo(95.2);
 		expect(nativeSubtitleLinePosition(1_000, 150)).toBe(85);
 		expect(nativeSubtitleLinePosition(1_000, 300)).toBe(70);
@@ -2426,7 +2426,7 @@ describe("video player controls", () => {
 	});
 
 	it.each([
-		[0, "line:100%,end"],
+		[0, "line:99%,end"],
 		[48, "line:95.2%,end"],
 		[150, "line:85%,end"],
 		[300, "line:70%,end"],
@@ -2504,7 +2504,7 @@ describe("video player controls", () => {
 		} as unknown as TextTrack;
 
 		applyNativeSubtitleBottomSpacing(video, track, 0);
-		expect(supported.line).toBe(100);
+		expect(supported.line).toBe(99);
 
 		applyNativeSubtitleBottomSpacing(video, track, 48);
 		expect(supported).toMatchObject({

@@ -3695,7 +3695,7 @@ export function nativeSubtitleLinePosition(
 	const spacing = Number.isFinite(bottomSpacing)
 		? Math.min(300, Math.max(0, bottomSpacing))
 		: 48;
-	return Math.min(100, Math.max(0, 100 - (spacing / videoHeight) * 100));
+	return Math.min(99, Math.max(0, 100 - (spacing / videoHeight) * 100));
 }
 
 export function nativeSubtitleVttWithBottomSpacing(

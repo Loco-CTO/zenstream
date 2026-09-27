@@ -50,6 +50,15 @@ describe("detail views", () => {
 		);
 	});
 
+	it("shows the copy share link action for video details", () => {
+		window.history.replaceState(null, "", "/show/movie");
+		renderDetail({ item: movie(), seasons: [], episodes: [], similar: [] });
+
+		expect(
+			screen.getByRole("button", { name: "Copy share link" }),
+		).toBeInTheDocument();
+	});
+
 	it("shows the downloader after off without changing the selected track", async () => {
 		const playback = stubEpisodePlayback({
 			status: { state: "matched", hasLocalSubtitle: false },

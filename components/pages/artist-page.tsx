@@ -9,6 +9,7 @@ import { SquareAudioCard } from "@/components/home/media-card";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
 import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
 import { AudioDetailPlaybackActions } from "@/components/audio/audio-detail-playback-actions";
+import { CopyShareLinkButton } from "@/components/ui/copy-share-link-button";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -266,6 +267,7 @@ export function ArtistPage({
 					>
 						<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 					</button>
+					<CopyShareLinkButton />
 					<div className="hidden items-center gap-3 md:flex">
 						<PlaylistPicker session={session} entityId={data.artist.Id} entityName={data.artist.Name} artistSource trackIds={tracks.length ? tracks.map((track) => track.Id) : undefined} />
 						<button type="button" disabled={trackCount === 0 || queueBusy} onClick={() => void addAllToQueue()} aria-label={t("addToQueue")} aria-busy={queueBusy} title={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40">

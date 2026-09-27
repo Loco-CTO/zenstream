@@ -52,6 +52,9 @@ describe("CollectionPage", () => {
 		expect(
 			screen.getByRole("button", { name: "Play Series One" }),
 		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Copy share link" }),
+		).toBeInTheDocument();
 	});
 });
 

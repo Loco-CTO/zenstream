@@ -42,6 +42,7 @@ import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicato
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
 import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
 import { AudioDetailPlaybackActions } from "@/components/audio/audio-detail-playback-actions";
+import { CopyShareLinkButton } from "@/components/ui/copy-share-link-button";
 
 const albumTypeTranslationKeys: Record<string, TranslationKey> = {
 	album: "albumTypeAlbum",
@@ -308,6 +309,7 @@ export function AudioAlbumPage({
 				>
 					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 				</button>
+				<CopyShareLinkButton />
 				<div className="hidden items-center gap-2 md:flex">
 					<PlaylistPicker session={session} entityId={data.album.Id} entityName={data.album.Name} trackIds={tracks.map((track) => track.Id)} />
 					<button type="button" onClick={() => addAlbumToQueue(data.album, playableTracks)} disabled={tracks.length === 0} aria-label={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40">

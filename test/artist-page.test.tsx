@@ -115,6 +115,9 @@ describe("artist page", () => {
 
 	it("renders the redesigned release sections and related artist links", () => {
 		render(<ArtistPage data={artistData()} session={session} />);
+		expect(
+			screen.getByRole("button", { name: "copyShareLink" }),
+		).toBeInTheDocument();
 
 		for (const label of [
 			"artistAppearsIn",

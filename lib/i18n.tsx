@@ -46,6 +46,7 @@ export const TRANSLATION_KEYS = [
 	"playlistEmpty",
 	"linkCopied",
 	"copyShareLink",
+	"copyLinkFailed",
 	"editPlaylist",
 	"deletePlaylist",
 	"deletePlaylistConfirm",

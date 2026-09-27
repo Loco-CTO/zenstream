@@ -46,7 +46,17 @@ export function FavoritesPage({
 }) {
 	const { t } = useI18n();
 	const { start } = useProgress();
-	const [activeTab, setActiveTab] = useState<ListsTab>(initialTab);
+	const [tabSelection, setTabSelection] = useState({
+		initialTab,
+		activeTab: initialTab,
+	});
+	const activeTab =
+		tabSelection.initialTab === initialTab
+			? tabSelection.activeTab
+			: initialTab;
+	const selectTab = (tab: ListsTab) => {
+		setTabSelection({ initialTab, activeTab: tab });
+	};
 	const tabListRef = useRef<HTMLDivElement>(null);
 	const hasMeasuredTabUnderline = useRef(false);
 	const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
@@ -102,7 +112,6 @@ export function FavoritesPage({
 		{ value: "PremiereDate", label: t("sortReleaseDate") },
 		{ value: "CommunityRating", label: t("sortRating") },
 	];
-	useEffect(() => setActiveTab(initialTab), [initialTab]);
 	useEffect(() => {
 		const tabList = tabListRef.current;
 		if (!tabList) return;
@@ -176,7 +185,7 @@ export function FavoritesPage({
 							role="tab"
 							data-list-tab={tab}
 							aria-selected={activeTab === tab}
-							onClick={() => setActiveTab(tab)}
+							onClick={() => selectTab(tab)}
 							className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "text-white" : "text-white/40 hover:text-white/75"}`}
 						>
 							{t(
@@ -339,24 +348,34 @@ export function FavoritesPage({
 function WatchlistSection({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
 	const [items, setItems] = useState<MediaItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(false);
+	const [itemsSessionKey, setItemsSessionKey] = useState<string | null>(null);
+	const [loadedKey, setLoadedKey] = useState<string | null>(null);
+	const [errorKey, setErrorKey] = useState<string | null>(null);
 	const [retry, setRetry] = useState(0);
 	const [busy, setBusy] = useState<string | null>(null);
+	const sessionKey = `${session.userId}:${session.token}`;
+	const requestKey = `${sessionKey}:${retry}`;
+	const visibleItems = itemsSessionKey === sessionKey ? items : [];
+	const loading = loadedKey !== requestKey;
+	const error = errorKey === requestKey;
 
 	useEffect(() => {
 		let active = true;
-		setLoading(true);
-		setError(false);
 		void fetchWatchlist(session).then((value) => {
-			if (active) setItems(value);
+			if (active) {
+				setItems(value);
+				setItemsSessionKey(sessionKey);
+				setErrorKey(null);
+				setLoadedKey(requestKey);
+			}
 		}).catch(() => {
-			if (active) setError(true);
-		}).finally(() => {
-			if (active) setLoading(false);
+			if (active) {
+				setErrorKey(requestKey);
+				setLoadedKey(requestKey);
+			}
 		});
 		return () => { active = false; };
-	}, [retry, session]);
+	}, [requestKey, session, sessionKey]);
 
 	useEffect(() => {
 		const refresh = (rawEvent?: Event) => {
@@ -381,7 +400,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 			await setFavorite(session, item.Id, !previous);
 		} catch {
 			setItems((current) => current.map((value) => value.Id === item.Id ? { ...value, UserData: { ...value.UserData, IsFavorite: previous } } : value));
-			setError(true);
+			setErrorKey(requestKey);
 		} finally { setBusy(null); }
 	}
 
@@ -392,17 +411,17 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 		try {
 			await setFollowing(session, item.Id, false);
 		} catch {
-			setError(true);
+			setErrorKey(requestKey);
 			setRetry((value) => value + 1);
 		} finally { setBusy(null); }
 	}
 
 	if (loading) return null;
-	if (error && items.length === 0) return <ErrorPanel message={t("watchlistLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />;
-	if (items.length === 0) return <div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center"><h2 className="text-lg font-semibold text-white/80">{t("watchlistEmpty")}</h2><p className="mt-2 text-sm text-white/40">{t("watchlistEmptyHint")}</p></div>;
+	if (error && visibleItems.length === 0) return <ErrorPanel message={t("watchlistLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />;
+	if (visibleItems.length === 0) return <div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center"><h2 className="text-lg font-semibold text-white/80">{t("watchlistEmpty")}</h2><p className="mt-2 text-sm text-white/40">{t("watchlistEmptyHint")}</p></div>;
 	return (
 		<div className="divide-y divide-white/[0.08]">
-			{items.map((item) => {
+			{visibleItems.map((item) => {
 				const status = item.WatchlistStatus;
 				const nextEpisode =
 					status?.kind === "upNext" ? status.nextEpisode : undefined;

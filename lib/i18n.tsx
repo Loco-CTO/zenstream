@@ -212,7 +212,6 @@ export const TRANSLATION_KEYS = [
 	"collection",
 	"close",
 	"localeSaveFailed",
-	"continueWatching",
 	"newlyAddedOn",
 	"nextUp",
 	"playNext",

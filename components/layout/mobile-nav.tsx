@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, Home, Library, ListMusic } from "lucide-react";
+import { CalendarDays, Home, LayoutGrid, Library } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 
@@ -32,7 +32,7 @@ export function MobileNav() {
 				href="/my-lists"
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 px-1 py-2 ${pathname === "/my-lists" || pathname === "/favorites" || pathname.startsWith("/playlist/") || pathname.startsWith("/shared/playlist/") ? "text-violet-400" : "text-white/30"}`}
 			>
-				<ListMusic className="h-[22px] w-[22px]" />
+				<LayoutGrid className="h-[22px] w-[22px]" />
 				<span className="text-xs font-medium uppercase tracking-[0.16em]">
 					{t("myLists")}
 				</span>

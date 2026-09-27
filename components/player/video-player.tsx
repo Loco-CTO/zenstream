@@ -653,6 +653,15 @@ export function VideoPlayer({
 		track: string;
 		cues: SubtitleCue[];
 	}>();
+	const [nativeSubtitleVttData, setNativeSubtitleVttData] = useState<{
+		url: string;
+		text: string;
+	} | null>(null);
+	const [nativeSubtitleBlob, setNativeSubtitleBlob] = useState<{
+		url: string;
+		source: string;
+	} | null>(null);
+	const nativeSubtitleObjectUrlRef = useRef<string | null>(null);
 	const [offset, setOffset] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
@@ -741,6 +750,12 @@ export function VideoPlayer({
 		style.renderer === "native" && subtitle && info?.source
 			? subtitleUrl(session, item.Id, info.source, Number(subtitle))
 			: "";
+	const nativeSubtitleTrackSrc =
+		nativeSubtitleTrackUrl &&
+		nativeSubtitleVttData?.url === nativeSubtitleTrackUrl &&
+		nativeSubtitleBlob?.url === nativeSubtitleTrackUrl
+			? nativeSubtitleBlob.source
+			: nativeSubtitleTrackUrl;
 	const cancelPlaybackSource = useCallback(
 		async (source: MediaSource | undefined, reason: string) => {
 			if (!source) return;
@@ -2160,6 +2175,75 @@ export function VideoPlayer({
 	}, [volume]);
 
 	useEffect(() => {
+		if (!nativeSubtitleTrackUrl) return;
+		const controller = new AbortController();
+		void fetch(nativeSubtitleTrackUrl, {
+			cache: "no-store",
+			credentials: "include",
+			signal: controller.signal,
+		})
+			.then(async (response) => {
+				if (!response.ok) throw new Error("Subtitle request failed.");
+				const text = await response.text();
+				if (!controller.signal.aborted)
+					setNativeSubtitleVttData({ url: nativeSubtitleTrackUrl, text });
+			})
+			.catch(() => {
+				if (!controller.signal.aborted) setNativeSubtitleVttData(null);
+			});
+		return () => controller.abort();
+	}, [nativeSubtitleTrackUrl]);
+
+	useEffect(() => {
+		const video = videoRef.current;
+		const vttData = nativeSubtitleVttData;
+		if (
+			!video ||
+			!nativeSubtitleTrackUrl ||
+			vttData?.url !== nativeSubtitleTrackUrl
+		)
+			return;
+		let activeBlobUrl: string | null = null;
+		const updateTrackSource = () => {
+			const videoHeight =
+				video.getBoundingClientRect().height || video.clientHeight;
+			const spacedVtt = nativeSubtitleVttWithBottomSpacing(
+				vttData.text,
+				videoHeight,
+				style.bottomSpacing,
+			);
+			const nextBlobUrl = URL.createObjectURL(
+				new Blob([spacedVtt], { type: "text/vtt" }),
+			);
+			const previousBlobUrl = activeBlobUrl;
+			activeBlobUrl = nextBlobUrl;
+			nativeSubtitleObjectUrlRef.current = nextBlobUrl;
+			setNativeSubtitleBlob({
+				url: nativeSubtitleTrackUrl,
+				source: nextBlobUrl,
+			});
+			if (previousBlobUrl)
+				window.requestAnimationFrame(() => URL.revokeObjectURL(previousBlobUrl));
+		};
+		updateTrackSource();
+		window.addEventListener("resize", updateTrackSource);
+		document.addEventListener("fullscreenchange", updateTrackSource);
+		const resizeObserver =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(updateTrackSource);
+		resizeObserver?.observe(video);
+		return () => {
+			window.removeEventListener("resize", updateTrackSource);
+			document.removeEventListener("fullscreenchange", updateTrackSource);
+			resizeObserver?.disconnect();
+			if (activeBlobUrl) URL.revokeObjectURL(activeBlobUrl);
+			if (nativeSubtitleObjectUrlRef.current === activeBlobUrl)
+				nativeSubtitleObjectUrlRef.current = null;
+		};
+	}, [nativeSubtitleTrackUrl, nativeSubtitleVttData, style.bottomSpacing]);
+
+	useEffect(() => {
 		const video = videoRef.current;
 		const track = nativeSubtitleTrackRef.current;
 		if (!video) return;
@@ -2177,6 +2261,7 @@ export function VideoPlayer({
 			applyCuePosition();
 		};
 		track.addEventListener("load", showSelectedTrack);
+		selectedTrack.addEventListener("cuechange", applyCuePosition);
 		window.addEventListener("resize", applyCuePosition);
 		document.addEventListener("fullscreenchange", applyCuePosition);
 		const resizeObserver =
@@ -2187,11 +2272,12 @@ export function VideoPlayer({
 		showSelectedTrack();
 		return () => {
 			track.removeEventListener("load", showSelectedTrack);
+			selectedTrack.removeEventListener("cuechange", applyCuePosition);
 			window.removeEventListener("resize", applyCuePosition);
 			document.removeEventListener("fullscreenchange", applyCuePosition);
 			resizeObserver?.disconnect();
 		};
-	}, [nativeSubtitleTrackUrl, style.bottomSpacing]);
+	}, [nativeSubtitleTrackSrc, nativeSubtitleTrackUrl, style.bottomSpacing]);
 
 	useEffect(() => {
 		if (style.renderer !== "overlay" || !subtitle || !info?.source) {
@@ -2950,10 +3036,10 @@ export function VideoPlayer({
 			>
 				{nativeSubtitleTrackUrl && (
 					<track
-						key={nativeSubtitleTrackUrl}
+						key={nativeSubtitleTrackSrc}
 						ref={nativeSubtitleTrackRef}
 						kind="subtitles"
-						src={nativeSubtitleTrackUrl}
+						src={nativeSubtitleTrackSrc}
 						srcLang={selectedSubtitleStream?.Language ?? "und"}
 						label={
 							selectedSubtitleStream?.DisplayTitle ??
@@ -3609,6 +3695,29 @@ export function nativeSubtitleLinePosition(
 	return Math.min(100, Math.max(0, 100 - (spacing / videoHeight) * 100));
 }
 
+export function nativeSubtitleVttWithBottomSpacing(
+	input: string,
+	videoHeight: number,
+	bottomSpacing: number,
+): string {
+	const line = nativeSubtitleLinePosition(videoHeight, bottomSpacing);
+	if (line === null) return input;
+	const lineSetting = `line:${Number(line.toFixed(2))}%,end`;
+	return input.replace(
+		/^(\s*\S+\s+-->\s+\S+)(.*)$/gm,
+		(timingLine, timing, settings: string) => {
+			const trailingWhitespace = settings.match(/\s*$/)?.[0] ?? "";
+			const cueSettings = settings.trim().split(/\s+/).filter(Boolean);
+			if (cueSettings.some((setting) => /^vertical:/i.test(setting)))
+				return timingLine;
+			const otherSettings = cueSettings.filter(
+				(setting) => !/^line:/i.test(setting),
+			);
+			return `${timing} ${[lineSetting, ...otherSettings].join(" ")}${trailingWhitespace}`;
+		},
+	);
+}
+
 export function applyNativeSubtitleBottomSpacing(
 	video: HTMLVideoElement,
 	track: TextTrack,
@@ -3620,16 +3729,11 @@ export function applyNativeSubtitleBottomSpacing(
 
 	for (const cue of Array.from(track.cues)) {
 		const vttCue = cue as VTTCue;
-		if (
-			vttCue.vertical ||
-			!("snapToLines" in vttCue) ||
-			!("lineAlign" in vttCue) ||
-			!("line" in vttCue)
-		)
+		if (vttCue.vertical || !("snapToLines" in vttCue) || !("line" in vttCue))
 			continue;
 		try {
 			vttCue.snapToLines = false;
-			vttCue.lineAlign = "end";
+			if ("lineAlign" in vttCue) vttCue.lineAlign = "end";
 			vttCue.line = line;
 		} catch {
 			// Retain the browser's normal cue placement when the fields are read-only.

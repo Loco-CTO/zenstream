@@ -10,6 +10,7 @@ import {
 	nextEpisodeSyncplayCommand,
 	nativeSubtitleCueCss,
 	nativeSubtitleLinePosition,
+	nativeSubtitleVttWithBottomSpacing,
 	normalizeBufferedRanges,
 	bufferedRangeForPosition,
 	disableNativeSubtitleTracks,
@@ -2398,6 +2399,38 @@ describe("video player controls", () => {
 		expect(nativeSubtitleLinePosition(0, 48)).toBeNull();
 	});
 
+	it.each([
+		[0, "line:100%,end"],
+		[48, "line:95.2%,end"],
+		[150, "line:85%,end"],
+		[300, "line:70%,end"],
+	])(
+		"rewrites native WebVTT cues to %i pixels from the bottom",
+		(bottomSpacing, lineSetting) => {
+			const input =
+				"WEBVTT\n\nfirst\n00:00:01.000 --> 00:00:02.000 line:80%,start position:50%\nFirst cue\n\n00:00:03.000 --> 00:00:04.000\nSecond cue\n\n00:00:05.000 --> 00:00:06.000 vertical:rl line:20%\nVertical cue";
+			const result = nativeSubtitleVttWithBottomSpacing(
+				input,
+				1_000,
+				bottomSpacing,
+			);
+
+			expect(result).toContain(
+				`00:00:01.000 --> 00:00:02.000 ${lineSetting} position:50%`,
+			);
+			expect(result).toContain(`00:00:03.000 --> 00:00:04.000 ${lineSetting}`);
+			expect(result).toContain(
+				"00:00:05.000 --> 00:00:06.000 vertical:rl line:20%",
+			);
+			expect(result).toContain("First cue\n\n00:00:03.000");
+		},
+	);
+
+	it("leaves native WebVTT unchanged until video geometry is available", () => {
+		const vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nCue";
+		expect(nativeSubtitleVttWithBottomSpacing(vtt, 0, 48)).toBe(vtt);
+	});
+
 	it.each([0, 48, 150, 300])(
 		"positions overlay subtitles %i pixels from the bottom",
 		(bottomSpacing) => {
@@ -2415,7 +2448,7 @@ describe("video player controls", () => {
 		},
 	);
 
-	it("reapplies native cue spacing after a resize and skips unsupported cues", () => {
+	it("reapplies native cue spacing after a resize and skips vertical cues", () => {
 		let height = 1_000;
 		const video = {
 			get clientHeight() {
@@ -2453,6 +2486,10 @@ describe("video player controls", () => {
 			lineAlign: "end",
 		});
 		expect(supported.line).toBeCloseTo(95.2);
+		expect(unsupported).toMatchObject({
+			snapToLines: false,
+			line: 95.2,
+		});
 
 		applyNativeSubtitleBottomSpacing(video, track, 150);
 		expect(supported.line).toBe(85);
@@ -2466,8 +2503,8 @@ describe("video player controls", () => {
 		});
 		expect(unsupported).toEqual({
 			vertical: "",
-			snapToLines: true,
-			line: "auto",
+			snapToLines: false,
+			line: 70,
 		});
 
 		height = 500;

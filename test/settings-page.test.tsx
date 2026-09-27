@@ -586,6 +586,9 @@ describe("SettingsPage", () => {
 			}),
 		);
 		expect(
+			screen.getByRole("spinbutton", { name: "Bottom spacing" }),
+		).toHaveValue(48);
+		expect(
 			fetchMock.mock.calls.filter(([url]) =>
 				String(url).includes("/api/preferences/subtitles"),
 			),

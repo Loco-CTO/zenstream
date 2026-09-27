@@ -494,25 +494,23 @@ export function SettingsPage({
 									/>
 								}
 							/>
-							{style.renderer === "native" && (
-								<SettingsRow
-									label={t("subtitleBottomSpacing")}
-									right={
-										<RangeControl
-											key={style.bottomSpacing}
-											label={t("subtitleBottomSpacing")}
-											min={0}
-											max={300}
-											step={1}
-											value={style.bottomSpacing}
-											suffix="px"
-											onChange={(value) =>
-												void updateSubtitleStyle({ bottomSpacing: value })
-											}
-										/>
-									}
-								/>
-							)}
+							<SettingsRow
+								label={t("subtitleBottomSpacing")}
+								right={
+									<RangeControl
+										key={style.bottomSpacing}
+										label={t("subtitleBottomSpacing")}
+										min={0}
+										max={300}
+										step={1}
+										value={style.bottomSpacing}
+										suffix="px"
+										onChange={(value) =>
+											void updateSubtitleStyle({ bottomSpacing: value })
+										}
+									/>
+								}
+							/>
 							<SettingsRow
 								label={t("subtitleFontColor")}
 								right={

@@ -2205,8 +2205,7 @@ export function VideoPlayer({
 			return;
 		let activeBlobUrl: string | null = null;
 		const updateTrackSource = () => {
-			const videoHeight =
-				video.getBoundingClientRect().height || video.clientHeight;
+			const videoHeight = nativeSubtitleViewportHeight(video);
 			const spacedVtt = nativeSubtitleVttWithBottomSpacing(
 				vttData.text,
 				videoHeight,
@@ -2226,6 +2225,7 @@ export function VideoPlayer({
 				window.requestAnimationFrame(() => URL.revokeObjectURL(previousBlobUrl));
 		};
 		updateTrackSource();
+		video.addEventListener("loadedmetadata", updateTrackSource);
 		window.addEventListener("resize", updateTrackSource);
 		document.addEventListener("fullscreenchange", updateTrackSource);
 		const resizeObserver =
@@ -2234,6 +2234,7 @@ export function VideoPlayer({
 				: new ResizeObserver(updateTrackSource);
 		resizeObserver?.observe(video);
 		return () => {
+			video.removeEventListener("loadedmetadata", updateTrackSource);
 			window.removeEventListener("resize", updateTrackSource);
 			document.removeEventListener("fullscreenchange", updateTrackSource);
 			resizeObserver?.disconnect();
@@ -2261,6 +2262,7 @@ export function VideoPlayer({
 			applyCuePosition();
 		};
 		track.addEventListener("load", showSelectedTrack);
+		video.addEventListener("loadedmetadata", applyCuePosition);
 		selectedTrack.addEventListener("cuechange", applyCuePosition);
 		window.addEventListener("resize", applyCuePosition);
 		document.addEventListener("fullscreenchange", applyCuePosition);
@@ -2272,6 +2274,7 @@ export function VideoPlayer({
 		showSelectedTrack();
 		return () => {
 			track.removeEventListener("load", showSelectedTrack);
+			video.removeEventListener("loadedmetadata", applyCuePosition);
 			selectedTrack.removeEventListener("cuechange", applyCuePosition);
 			window.removeEventListener("resize", applyCuePosition);
 			document.removeEventListener("fullscreenchange", applyCuePosition);
@@ -3718,12 +3721,34 @@ export function nativeSubtitleVttWithBottomSpacing(
 	);
 }
 
+export function nativeSubtitleViewportHeight(video: HTMLVideoElement): number {
+	const rect = video.getBoundingClientRect();
+	const boxWidth = rect.width || video.clientWidth;
+	const boxHeight = rect.height || video.clientHeight;
+	if (boxHeight <= 0) return 0;
+	if (
+		!video.videoWidth ||
+		!video.videoHeight ||
+		!(video instanceof HTMLVideoElement)
+	)
+		return boxHeight;
+	const objectFit = window.getComputedStyle(video).objectFit;
+	if (objectFit !== "contain" && objectFit !== "scale-down") return boxHeight;
+	if (boxWidth <= 0) return boxHeight;
+	const fitScale = Math.min(
+		boxWidth / video.videoWidth,
+		boxHeight / video.videoHeight,
+	);
+	const scale = objectFit === "scale-down" ? Math.min(fitScale, 1) : fitScale;
+	return video.videoHeight * scale;
+}
+
 export function applyNativeSubtitleBottomSpacing(
 	video: HTMLVideoElement,
 	track: TextTrack,
 	bottomSpacing: number,
 ) {
-	const videoHeight = video.getBoundingClientRect().height || video.clientHeight;
+	const videoHeight = nativeSubtitleViewportHeight(video);
 	const line = nativeSubtitleLinePosition(videoHeight, bottomSpacing);
 	if (line === null || !track.cues) return;
 

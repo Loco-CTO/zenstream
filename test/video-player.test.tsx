@@ -10,6 +10,7 @@ import {
 	nextEpisodeSyncplayCommand,
 	nativeSubtitleCueCss,
 	nativeSubtitleLinePosition,
+	nativeSubtitleViewportHeight,
 	nativeSubtitleVttWithBottomSpacing,
 	normalizeBufferedRanges,
 	bufferedRangeForPosition,
@@ -2397,6 +2398,31 @@ describe("video player controls", () => {
 		expect(nativeSubtitleLinePosition(1_000, 150)).toBe(85);
 		expect(nativeSubtitleLinePosition(1_000, 300)).toBe(70);
 		expect(nativeSubtitleLinePosition(0, 48)).toBeNull();
+	});
+
+	it("measures the displayed video frame instead of its letterboxed element", () => {
+		const video = document.createElement("video");
+		Object.defineProperties(video, {
+			videoWidth: { configurable: true, value: 1_920 },
+			videoHeight: { configurable: true, value: 1_080 },
+		});
+		video.style.objectFit = "contain";
+		vi.spyOn(video, "getBoundingClientRect").mockReturnValue({
+			width: 800,
+			height: 900,
+			top: 0,
+			bottom: 900,
+			left: 0,
+			right: 800,
+			x: 0,
+			y: 0,
+			toJSON: () => ({}),
+		});
+
+		expect(nativeSubtitleViewportHeight(video)).toBe(450);
+		expect(
+			nativeSubtitleLinePosition(nativeSubtitleViewportHeight(video), 150),
+		).toBeCloseTo(66.67);
 	});
 
 	it.each([

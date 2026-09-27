@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Heart, Plus, Trash2 } from "lucide-react";
 import {
@@ -46,7 +46,14 @@ export function FavoritesPage({
 }) {
 	const { t } = useI18n();
 	const { start } = useProgress();
-	const [activeTab, setActiveTab] = useState<ListsTab>(initialTab);
+	const [tabState, setTabState] = useState(() => ({
+		initialTab,
+		activeTab: initialTab,
+	}));
+	if (tabState.initialTab !== initialTab) {
+		setTabState({ initialTab, activeTab: initialTab });
+	}
+	const { activeTab } = tabState;
 	const tabListRef = useRef<HTMLDivElement>(null);
 	const hasMeasuredTabUnderline = useRef(false);
 	const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
@@ -102,7 +109,6 @@ export function FavoritesPage({
 		{ value: "PremiereDate", label: t("sortReleaseDate") },
 		{ value: "CommunityRating", label: t("sortRating") },
 	];
-	useEffect(() => setActiveTab(initialTab), [initialTab]);
 	useEffect(() => {
 		const tabList = tabListRef.current;
 		if (!tabList) return;
@@ -176,7 +182,7 @@ export function FavoritesPage({
 							role="tab"
 							data-list-tab={tab}
 							aria-selected={activeTab === tab}
-							onClick={() => setActiveTab(tab)}
+							onClick={() => setTabState({ initialTab, activeTab: tab })}
 							className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "text-white" : "text-white/40 hover:text-white/75"}`}
 						>
 							{t(
@@ -339,24 +345,32 @@ export function FavoritesPage({
 function WatchlistSection({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
 	const [items, setItems] = useState<MediaItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(false);
 	const [retry, setRetry] = useState(0);
 	const [busy, setBusy] = useState<string | null>(null);
+	const requestKey = useMemo(() => ({ retry, session }), [retry, session]);
+	const [settledRequestKey, setSettledRequestKey] = useState<
+		typeof requestKey | null
+	>(null);
+	const [errorRequestKey, setErrorRequestKey] = useState<typeof requestKey | null>(
+		null,
+	);
+	const loading = settledRequestKey !== requestKey;
+	const error = errorRequestKey === requestKey;
 
 	useEffect(() => {
 		let active = true;
-		setLoading(true);
-		setError(false);
 		void fetchWatchlist(session).then((value) => {
-			if (active) setItems(value);
+			if (active) {
+				setItems(value);
+				setErrorRequestKey(null);
+			}
 		}).catch(() => {
-			if (active) setError(true);
+			if (active) setErrorRequestKey(requestKey);
 		}).finally(() => {
-			if (active) setLoading(false);
+			if (active) setSettledRequestKey(requestKey);
 		});
 		return () => { active = false; };
-	}, [retry, session]);
+	}, [requestKey, session]);
 
 	useEffect(() => {
 		const refresh = (rawEvent?: Event) => {
@@ -381,7 +395,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 			await setFavorite(session, item.Id, !previous);
 		} catch {
 			setItems((current) => current.map((value) => value.Id === item.Id ? { ...value, UserData: { ...value.UserData, IsFavorite: previous } } : value));
-			setError(true);
+			setErrorRequestKey(requestKey);
 		} finally { setBusy(null); }
 	}
 
@@ -392,7 +406,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 		try {
 			await setFollowing(session, item.Id, false);
 		} catch {
-			setError(true);
+			setErrorRequestKey(requestKey);
 			setRetry((value) => value + 1);
 		} finally { setBusy(null); }
 	}

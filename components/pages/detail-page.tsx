@@ -50,6 +50,7 @@ import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { BlurHashImage } from "@/components/ui/blurhash-image";
 import { BazarrSubtitles } from "@/components/ui/bazarr-subtitles";
 import { ExpandableDescription } from "@/components/ui/expandable-description";
+import { CopyShareLinkButton } from "@/components/ui/copy-share-link-button";
 import {
 	HoverPreviewVideo,
 	useHoverPreview,
@@ -411,6 +412,7 @@ export function DetailPage({
 									}
 								/>
 							)}
+							<CopyShareLinkButton />
 						</div>
 						{hasTrackSelection &&
 							currentTrackChoices &&

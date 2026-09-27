@@ -55,6 +55,7 @@ playlistLoadFailed: プレイリストを読み込めませんでした
 playlistEmpty: プレイリストに曲はありません
 linkCopied: リンクをコピーしました
 copyShareLink: 共有リンクをコピー
+copyLinkFailed: リンクをコピーできませんでした
 editPlaylist: プレイリストを編集
 deletePlaylist: プレイリストを削除
 deletePlaylistConfirm: "{name} を削除しますか？曲はライブラリに残ります。"

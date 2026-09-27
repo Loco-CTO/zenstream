@@ -10,7 +10,10 @@ import {
 	PosterCard,
 } from "@/components/home/media-card";
 import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
-import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
+import {
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
 import { ErrorPanel } from "@/components/status/error-panel";
 import { useProgress } from "@/components/status/progress-indicator";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
@@ -30,7 +33,11 @@ import {
 	type PlaylistSummary,
 } from "@/lib/playlists";
 import { CreatePlaylistDialog } from "@/components/audio/playlist-picker";
-import { setFavorite, setFollowing, savedPlaybackPositionSeconds } from "@/lib/media-api";
+import {
+	setFavorite,
+	setFollowing,
+	savedPlaybackPositionSeconds,
+} from "@/lib/media-api";
 
 type ListsTab = "watchlist" | "favorites" | "playlists";
 
@@ -46,7 +53,15 @@ export function FavoritesPage({
 }) {
 	const { t } = useI18n();
 	const { start } = useProgress();
-	const [activeTab, setActiveTab] = useState<ListsTab>(initialTab);
+	const [tabSelection, setTabSelection] = useState({
+		initialTab,
+		activeTab: initialTab,
+	});
+	const activeTab =
+		tabSelection.initialTab === initialTab ? tabSelection.activeTab : initialTab;
+	const selectTab = (tab: ListsTab) => {
+		setTabSelection({ initialTab, activeTab: tab });
+	};
 	const tabListRef = useRef<HTMLDivElement>(null);
 	const hasMeasuredTabUnderline = useRef(false);
 	const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
@@ -102,7 +117,6 @@ export function FavoritesPage({
 		{ value: "PremiereDate", label: t("sortReleaseDate") },
 		{ value: "CommunityRating", label: t("sortRating") },
 	];
-	useEffect(() => setActiveTab(initialTab), [initialTab]);
 	useEffect(() => {
 		const tabList = tabListRef.current;
 		if (!tabList) return;
@@ -176,7 +190,7 @@ export function FavoritesPage({
 							role="tab"
 							data-list-tab={tab}
 							aria-selected={activeTab === tab}
-							onClick={() => setActiveTab(tab)}
+							onClick={() => selectTab(tab)}
 							className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "text-white" : "text-white/40 hover:text-white/75"}`}
 						>
 							{t(
@@ -210,7 +224,8 @@ export function FavoritesPage({
 							onClick={() =>
 								setSort((value) => ({
 									...value,
-									sortOrder: value.sortOrder === "Ascending" ? "Descending" : "Ascending",
+									sortOrder:
+										value.sortOrder === "Ascending" ? "Descending" : "Ascending",
 								}))
 							}
 							className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white"
@@ -236,7 +251,11 @@ export function FavoritesPage({
 					</div>
 				)}
 			</div>
-			{activeTab === "watchlist" ? <WatchlistSection session={session} /> : activeTab === "playlists" ? <PlaylistsSection session={session} /> : error ? (
+			{activeTab === "watchlist" ? (
+				<WatchlistSection session={session} />
+			) : activeTab === "playlists" ? (
+				<PlaylistsSection session={session} />
+			) : error ? (
 				<ErrorPanel
 					message={t("favoritesLoadFailed")}
 					onRetry={() => setRetryKey((value) => value + 1)}
@@ -339,28 +358,43 @@ export function FavoritesPage({
 function WatchlistSection({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
 	const [items, setItems] = useState<MediaItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(false);
+	const [itemsSessionKey, setItemsSessionKey] = useState<string | null>(null);
+	const [loadedKey, setLoadedKey] = useState<string | null>(null);
+	const [errorKey, setErrorKey] = useState<string | null>(null);
 	const [retry, setRetry] = useState(0);
 	const [busy, setBusy] = useState<string | null>(null);
+	const sessionKey = `${session.userId}:${session.token}`;
+	const requestKey = `${sessionKey}:${retry}`;
+	const visibleItems = itemsSessionKey === sessionKey ? items : [];
+	const loading = loadedKey !== requestKey;
+	const error = errorKey === requestKey;
 
 	useEffect(() => {
 		let active = true;
-		setLoading(true);
-		setError(false);
-		void fetchWatchlist(session).then((value) => {
-			if (active) setItems(value);
-		}).catch(() => {
-			if (active) setError(true);
-		}).finally(() => {
-			if (active) setLoading(false);
-		});
-		return () => { active = false; };
-	}, [retry, session]);
+		void fetchWatchlist(session)
+			.then((value) => {
+				if (active) {
+					setItems(value);
+					setItemsSessionKey(sessionKey);
+					setErrorKey(null);
+					setLoadedKey(requestKey);
+				}
+			})
+			.catch(() => {
+				if (active) {
+					setErrorKey(requestKey);
+					setLoadedKey(requestKey);
+				}
+			});
+		return () => {
+			active = false;
+		};
+	}, [requestKey, session, sessionKey]);
 
 	useEffect(() => {
 		const refresh = (rawEvent?: Event) => {
-			const event = rawEvent as CustomEvent<{ reason?: "scan" | "refresh" }> | undefined;
+			const event = rawEvent as
+				CustomEvent<{ reason?: "scan" | "refresh" }> | undefined;
 			if (event?.detail?.reason === "scan") return;
 			setRetry((value) => value + 1);
 		};
@@ -376,13 +410,27 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 		if (busy) return;
 		const previous = Boolean(item.UserData?.IsFavorite);
 		setBusy(item.Id);
-		setItems((current) => current.map((value) => value.Id === item.Id ? { ...value, UserData: { ...value.UserData, IsFavorite: !previous } } : value));
+		setItems((current) =>
+			current.map((value) =>
+				value.Id === item.Id
+					? { ...value, UserData: { ...value.UserData, IsFavorite: !previous } }
+					: value,
+			),
+		);
 		try {
 			await setFavorite(session, item.Id, !previous);
 		} catch {
-			setItems((current) => current.map((value) => value.Id === item.Id ? { ...value, UserData: { ...value.UserData, IsFavorite: previous } } : value));
-			setError(true);
-		} finally { setBusy(null); }
+			setItems((current) =>
+				current.map((value) =>
+					value.Id === item.Id
+						? { ...value, UserData: { ...value.UserData, IsFavorite: previous } }
+						: value,
+				),
+			);
+			setErrorKey(requestKey);
+		} finally {
+			setBusy(null);
+		}
 	}
 
 	async function unfollow(item: MediaItem) {
@@ -392,57 +440,86 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 		try {
 			await setFollowing(session, item.Id, false);
 		} catch {
-			setError(true);
+			setErrorKey(requestKey);
 			setRetry((value) => value + 1);
-		} finally { setBusy(null); }
+		} finally {
+			setBusy(null);
+		}
 	}
 
 	if (loading) return null;
-	if (error && items.length === 0) return <ErrorPanel message={t("watchlistLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />;
-	if (items.length === 0) return <div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center"><h2 className="text-lg font-semibold text-white/80">{t("watchlistEmpty")}</h2><p className="mt-2 text-sm text-white/40">{t("watchlistEmptyHint")}</p></div>;
+	if (error && visibleItems.length === 0)
+		return (
+			<ErrorPanel
+				message={t("watchlistLoadFailed")}
+				onRetry={() => setRetry((value) => value + 1)}
+			/>
+		);
+	if (visibleItems.length === 0)
+		return (
+			<div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center">
+				<h2 className="text-lg font-semibold text-white/80">
+					{t("watchlistEmpty")}
+				</h2>
+				<p className="mt-2 text-sm text-white/40">{t("watchlistEmptyHint")}</p>
+			</div>
+		);
 	return (
 		<div className="divide-y divide-white/[0.08]">
-			{items.map((item) => {
+			{visibleItems.map((item) => {
 				const status = item.WatchlistStatus;
 				const nextEpisode =
 					status?.kind === "upNext" ? status.nextEpisode : undefined;
-				const episodeImage = nextEpisode
-					? landscapeImage(nextEpisode)
-					: null;
+				const episodeImage = nextEpisode ? landscapeImage(nextEpisode) : null;
 				const image = episodeImage ?? seriesPosterImage(item);
 				const portraitSeries = item.Type === "Series" && !episodeImage;
 				const position = savedPlaybackPositionSeconds(item);
-				const duration = item.UserData?.DurationSeconds ?? item.DurationSeconds ?? 0;
-				const progress = duration > 0 ? Math.min(100, Math.max(0, position / duration * 100)) : 0;
+				const duration =
+					item.UserData?.DurationSeconds ?? item.DurationSeconds ?? 0;
+				const progress =
+					duration > 0 ? Math.min(100, Math.max(0, (position / duration) * 100)) : 0;
 				const href =
 					item.Type === "MusicArtist"
 						? `/artist/${encodeURIComponent(item.Id)}`
 						: item.Type === "Series"
 							? `/show/${encodeURIComponent(item.Id)}`
 							: `/play/${encodeURIComponent(item.Id)}`;
-				return <div key={item.Id} className="flex min-h-28 items-center gap-4 py-4">
-					<Link
-						href={href}
-						className={`relative ${portraitSeries ? "aspect-[2/3] w-14" : "h-20 w-32"} shrink-0 overflow-hidden rounded-lg bg-white/[0.04]`}
-					>
-						{image ? (
-							<BlurHashImage
-								image={image}
-								alt={episodeImage ? nextEpisode?.Name ?? item.Name : item.Name}
-								sizes={portraitSeries ? "56px" : "128px"}
-								className="h-full w-full object-cover"
-							/>
-						) : (
-							<MediaPlaceholder />
-						)}
-						{progress > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/20"><span className="block h-full bg-violet-300" style={{ width: `${progress}%` }} /></span>}
-					</Link>
-					<div className="min-w-0 flex-1">
-						<Link href={href} className="block truncate text-sm font-semibold text-white hover:underline">{item.Name}</Link>
-						<p className="mt-1 truncate text-xs text-white/40">
-							{status?.kind === "continue"
-								? t("continueWatching")
-								: status?.kind === "upNext" ? (
+				return (
+					<div key={item.Id} className="flex min-h-28 items-center gap-4 py-4">
+						<Link
+							href={href}
+							className={`relative ${portraitSeries ? "aspect-[2/3] w-14" : "h-20 w-32"} shrink-0 overflow-hidden rounded-lg bg-white/[0.04]`}
+						>
+							{image ? (
+								<BlurHashImage
+									image={image}
+									alt={episodeImage ? (nextEpisode?.Name ?? item.Name) : item.Name}
+									sizes={portraitSeries ? "56px" : "128px"}
+									className="h-full w-full object-cover"
+								/>
+							) : (
+								<MediaPlaceholder />
+							)}
+							{progress > 0 && (
+								<span className="absolute inset-x-0 bottom-0 h-1 bg-white/20">
+									<span
+										className="block h-full bg-violet-300"
+										style={{ width: `${progress}%` }}
+									/>
+								</span>
+							)}
+						</Link>
+						<div className="min-w-0 flex-1">
+							<Link
+								href={href}
+								className="block truncate text-sm font-semibold text-white hover:underline"
+							>
+								{item.Name}
+							</Link>
+							<p className="mt-1 truncate text-xs text-white/40">
+								{status?.kind === "continue" ? (
+									t("continueWatching")
+								) : status?.kind === "upNext" ? (
 									<>
 										{t("upNextEpisode", {
 											season: status.seasonNumber ?? 0,
@@ -450,16 +527,40 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 										})}
 										{nextEpisode?.Name ? ` · ${nextEpisode.Name}` : ""}
 									</>
-								) : item.Type === "MusicArtist"
-									? t("artist")
-									: item.Type === "Series"
-										? t("series")
-										: t("movie")}
-						</p>
+								) : item.Type === "MusicArtist" ? (
+									t("artist")
+								) : item.Type === "Series" ? (
+									t("series")
+								) : (
+									t("movie")
+								)}
+							</p>
+						</div>
+						<button
+							type="button"
+							disabled={busy !== null}
+							aria-label={
+								item.UserData?.IsFavorite ? t("removeFavorite") : t("addFavorite")
+							}
+							onClick={() => void toggleFavorite(item)}
+							className={`rounded p-2 transition hover:bg-white/[0.06] ${item.UserData?.IsFavorite ? "text-violet-300" : "text-white/40 hover:text-white"}`}
+						>
+							<Heart
+								className="h-4 w-4"
+								fill={item.UserData?.IsFavorite ? "currentColor" : "none"}
+							/>
+						</button>
+						<button
+							type="button"
+							disabled={busy !== null}
+							aria-label={t("removeFromWatchlist")}
+							onClick={() => void unfollow(item)}
+							className="rounded p-2 text-white/35 transition hover:bg-white/[0.06] hover:text-white"
+						>
+							<Trash2 className="h-4 w-4" />
+						</button>
 					</div>
-					<button type="button" disabled={busy !== null} aria-label={item.UserData?.IsFavorite ? t("removeFavorite") : t("addFavorite")} onClick={() => void toggleFavorite(item)} className={`rounded p-2 transition hover:bg-white/[0.06] ${item.UserData?.IsFavorite ? "text-violet-300" : "text-white/40 hover:text-white"}`}><Heart className="h-4 w-4" fill={item.UserData?.IsFavorite ? "currentColor" : "none"} /></button>
-					<button type="button" disabled={busy !== null} aria-label={t("removeFromWatchlist")} onClick={() => void unfollow(item)} className="rounded p-2 text-white/35 transition hover:bg-white/[0.06] hover:text-white"><Trash2 className="h-4 w-4" /></button>
-				</div>;
+				);
 			})}
 		</div>
 	);
@@ -483,15 +584,21 @@ function PlaylistsSection({ session }: { session: AuthSession }) {
 			progressFinished = true;
 			finish();
 		};
-		void fetchPlaylists(session).then((value) => {
-			if (active) setPlaylists(value);
-		}).catch(() => {
-			if (active) setError(true);
-		}).finally(() => {
-			if (active) setLoading(false);
+		void fetchPlaylists(session)
+			.then((value) => {
+				if (active) setPlaylists(value);
+			})
+			.catch(() => {
+				if (active) setError(true);
+			})
+			.finally(() => {
+				if (active) setLoading(false);
+				finishProgress();
+			});
+		return () => {
+			active = false;
 			finishProgress();
-		});
-		return () => { active = false; finishProgress(); };
+		};
 	}, [retry, session, start]);
 
 	useEffect(() => {
@@ -503,12 +610,37 @@ function PlaylistsSection({ session }: { session: AuthSession }) {
 	if (loading) return null;
 	return (
 		<>
-			{error && <ErrorPanel message={t("playlistsLoadFailed")} onRetry={() => setRetry((value) => value + 1)} />}
+			{error && (
+				<ErrorPanel
+					message={t("playlistsLoadFailed")}
+					onRetry={() => setRetry((value) => value + 1)}
+				/>
+			)}
 			<div className="flex flex-wrap gap-5">
-				<button type="button" onClick={() => setCreating(true)} className="flex h-[148px] w-[148px] shrink-0 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/20 bg-white/[0.02] text-white/45 transition hover:border-white/40 hover:bg-white/[0.05] hover:text-white sm:h-[180px] sm:w-[180px] md:h-[200px] md:w-[200px]"><Plus className="h-6 w-6" /><span className="text-[10px] font-semibold uppercase tracking-wider">{t("newPlaylist")}</span></button>
-				{playlists.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} />)}
+				<button
+					type="button"
+					onClick={() => setCreating(true)}
+					className="flex h-[148px] w-[148px] shrink-0 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/20 bg-white/[0.02] text-white/45 transition hover:border-white/40 hover:bg-white/[0.05] hover:text-white sm:h-[180px] sm:w-[180px] md:h-[200px] md:w-[200px]"
+				>
+					<Plus className="h-6 w-6" />
+					<span className="text-[10px] font-semibold uppercase tracking-wider">
+						{t("newPlaylist")}
+					</span>
+				</button>
+				{playlists.map((playlist) => (
+					<PlaylistCard key={playlist.id} playlist={playlist} />
+				))}
 			</div>
-			{creating && <CreatePlaylistDialog session={session} onClose={() => setCreating(false)} onCreated={(playlist: Playlist) => { setPlaylists((value) => [playlist, ...value]); setCreating(false); }} />}
+			{creating && (
+				<CreatePlaylistDialog
+					session={session}
+					onClose={() => setCreating(false)}
+					onCreated={(playlist: Playlist) => {
+						setPlaylists((value) => [playlist, ...value]);
+						setCreating(false);
+					}}
+				/>
+			)}
 		</>
 	);
 }
@@ -523,16 +655,25 @@ function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
 	const artwork = playlist.artworkItems.find((item) => seriesPosterImage(item));
 	const image = artwork ? seriesPosterImage(artwork) : null;
 	return (
-		<article className={`group/card ${FAVORITES_CARD_WIDTH_CLASS} min-w-0 cursor-pointer select-none`}>
+		<article
+			className={`group/card ${FAVORITES_CARD_WIDTH_CLASS} min-w-0 cursor-pointer select-none`}
+		>
 			<div className="relative">
-				<Link href={`/playlist/${encodeURIComponent(playlist.id)}`} aria-label={playlist.name} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">
+				<Link
+					href={`/playlist/${encodeURIComponent(playlist.id)}`}
+					aria-label={playlist.name}
+					className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+				>
 					<div className="relative aspect-square overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
 						{useArtworkMosaic ? (
 							<div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px bg-black">
 								{mosaicItems.map((item, index) => {
 									const tileImage = item ? seriesPosterImage(item) : null;
 									return (
-										<div key={item?.Id ?? `empty-${index}`} className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--c-card-thumb)]">
+										<div
+											key={item?.Id ?? `empty-${index}`}
+											className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--c-card-thumb)]"
+										>
 											{tileImage ? (
 												<BlurHashImage
 													image={tileImage}
@@ -569,8 +710,13 @@ function PlaylistCard({ playlist }: { playlist: PlaylistSummary }) {
 				</Link>
 			</div>
 			<div className="mt-2 min-w-0">
-				<p className="truncate text-xs font-medium text-white/85">{playlist.name}</p>
-				<p className="mt-0.5 truncate text-xs text-white/40">{t("playlistTrackCount", { count: playlist.itemCount })} · {playlist.isPrivate ? t("privatePlaylist") : t("publicPlaylist")}</p>
+				<p className="truncate text-xs font-medium text-white/85">
+					{playlist.name}
+				</p>
+				<p className="mt-0.5 truncate text-xs text-white/40">
+					{t("playlistTrackCount", { count: playlist.itemCount })} ·{" "}
+					{playlist.isPrivate ? t("privatePlaylist") : t("publicPlaylist")}
+				</p>
 			</div>
 		</article>
 	);

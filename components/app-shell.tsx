@@ -1285,18 +1285,21 @@ export function AppShell() {
 											{renderStatus === "ready" && pathname === "/library" && (
 												<LibraryPage session={session} />
 											)}
-							{renderStatus === "ready" && pathname === "/favorites" && (
-								<FavoritesPage session={session} initialTab={listsTab} />
-							)}
-							{renderStatus === "ready" && pathname === "/my-lists" && (
-								<FavoritesPage session={session} initialTab={listsTab} />
-							)}
-							{renderStatus === "ready" && playlistId && (
-								<PlaylistDetailPage session={session} playlistId={playlistId} />
-							)}
-							{renderStatus === "ready" && sharedPlaylistToken && (
-								<PlaylistDetailPage session={session} shareToken={sharedPlaylistToken} />
-							)}
+											{renderStatus === "ready" && pathname === "/favorites" && (
+												<FavoritesPage session={session} initialTab={listsTab} />
+											)}
+											{renderStatus === "ready" && pathname === "/my-lists" && (
+												<FavoritesPage session={session} initialTab={listsTab} />
+											)}
+											{renderStatus === "ready" && playlistId && (
+												<PlaylistDetailPage session={session} playlistId={playlistId} />
+											)}
+											{renderStatus === "ready" && sharedPlaylistToken && (
+												<PlaylistDetailPage
+													session={session}
+													shareToken={sharedPlaylistToken}
+												/>
+											)}
 											{renderStatus === "ready" && pathname === "/calendar" && (
 												<CalendarPage session={session} />
 											)}
@@ -1315,10 +1318,10 @@ export function AppShell() {
 												!audioAlbumId &&
 												!artistId &&
 												pathname !== "/library" &&
-								pathname !== "/favorites" &&
-								pathname !== "/my-lists" &&
-								!playlistId &&
-								!sharedPlaylistToken &&
+												pathname !== "/favorites" &&
+												pathname !== "/my-lists" &&
+												!playlistId &&
+												!sharedPlaylistToken &&
 												pathname !== "/calendar" &&
 												pathname !== "/notifications" &&
 												pathname !== "/search" && (

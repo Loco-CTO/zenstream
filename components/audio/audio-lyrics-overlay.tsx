@@ -360,144 +360,160 @@ function TabButton({
 	);
 }
 
-const NextUpPanel = memo(function NextUpPanel({ player }: { player: AudioPlayer }) {
-	const { t } = useI18n();
-	const reorder = useAudioRowReorder(player.queue.length, player.reorderQueue, "queue");
+const NextUpPanel = memo(
+	function NextUpPanel({ player }: { player: AudioPlayer }) {
+		const { t } = useI18n();
+		const reorder = useAudioRowReorder(
+			player.queue.length,
+			player.reorderQueue,
+			"queue",
+		);
 
-	function renderEntry(entry: AudioPlayer["queue"][number], index: number, reorderable = false) {
-		const selected = index === player.currentIndex;
-		const entryImage = seriesPosterImage(entry.track);
-		const duration =
-			entry.track.DurationSeconds ?? entry.track.UserData?.DurationSeconds ?? 0;
+		function renderEntry(
+			entry: AudioPlayer["queue"][number],
+			index: number,
+			reorderable = false,
+		) {
+			const selected = index === player.currentIndex;
+			const entryImage = seriesPosterImage(entry.track);
+			const duration =
+				entry.track.DurationSeconds ?? entry.track.UserData?.DurationSeconds ?? 0;
+
+			return (
+				<div
+					key={entry.id}
+					data-testid={`audio-queue-item-${entry.id}`}
+					data-track-id={entry.track.Id}
+					data-queue-index={index}
+					data-audio-reorder-scope={reorderable ? "queue" : undefined}
+					data-audio-reorder-index={reorderable ? index : undefined}
+					aria-current={selected ? "true" : undefined}
+					className={`group relative flex items-center gap-3 rounded-md px-2 py-2.5 transition-transform duration-100 ease-out ${reorderable ? "cursor-grab active:cursor-grabbing" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+				>
+					<span
+						aria-hidden="true"
+						className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
+					>
+						{selected ? <AudioPlayingIndicator className="h-2 w-4" /> : index + 1}
+					</span>
+					<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
+						{entryImage ? (
+							<BlurHashImage
+								image={entryImage}
+								alt=""
+								sizes="40px"
+								className="h-full w-full object-cover"
+							/>
+						) : (
+							<MediaPlaceholder />
+						)}
+					</div>
+					<div className="min-w-0 flex-1">
+						<button
+							type="button"
+							aria-label={`${t("play")} ${entry.track.Name}`}
+							onClick={() => player.playQueueItem(index)}
+							className="block w-full min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+						>
+							<p
+								className={`truncate text-sm font-semibold ${selected ? "text-white" : "text-white/75"}`}
+							>
+								{entry.track.Name}
+							</p>
+						</button>
+						{trackArtist(entry.track) && entry.track.ArtistId ? (
+							<Link
+								href={`/artist/${encodeURIComponent(entry.track.ArtistId)}`}
+								onClick={(event) => event.stopPropagation()}
+								className="mt-0.5 block truncate text-xs text-white/45 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+							>
+								{trackArtist(entry.track)}
+							</Link>
+						) : (
+							<p className="mt-0.5 truncate text-xs text-white/45">
+								{trackArtist(entry.track) || entry.track.Album || ""}
+							</p>
+						)}
+					</div>
+					<span className="shrink-0 text-xs tabular-nums text-white/35">
+						{formatTime(duration)}
+					</span>
+					<button
+						type="button"
+						aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
+						onClick={(event) => {
+							event.stopPropagation();
+							player.removeQueueItem(entry.id);
+						}}
+						className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+					>
+						<X className="h-3.5 w-3.5" />
+					</button>
+				</div>
+			);
+		}
 
 		return (
 			<div
-				key={entry.id}
-				data-testid={`audio-queue-item-${entry.id}`}
-				data-track-id={entry.track.Id}
-				data-queue-index={index}
-				data-audio-reorder-scope={reorderable ? "queue" : undefined}
-				data-audio-reorder-index={reorderable ? index : undefined}
-				aria-current={selected ? "true" : undefined}
-				className={`group relative flex items-center gap-3 rounded-md px-2 py-2.5 transition-transform duration-100 ease-out ${reorderable ? "cursor-grab active:cursor-grabbing" : ""} ${selected ? "bg-white/[0.08] ring-1 ring-inset ring-white/[0.08]" : "hover:bg-white/[0.04]"}`}
+				data-testid="audio-next-up-panel"
+				className="flex h-full min-h-0 flex-col"
 			>
-				<span
-					aria-hidden="true"
-					className={`flex h-4 w-6 shrink-0 items-center justify-end text-xs tabular-nums ${selected ? "text-white" : "text-white/25"}`}
+				<div
+					data-audio-reorder-scroll
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent]"
 				>
-					{selected ? <AudioPlayingIndicator className="h-2 w-4" /> : index + 1}
-				</span>
-				<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-white/[0.06]">
-					{entryImage ? (
-						<BlurHashImage
-							image={entryImage}
-							alt=""
-							sizes="40px"
-							className="h-full w-full object-cover"
-						/>
+					{player.queue.length === 0 ? (
+						<p className="py-10 text-center text-sm text-white/45">
+							{t("queueEmpty")}
+						</p>
 					) : (
-						<MediaPlaceholder />
+						<div className="space-y-6 pb-8">
+							{player.currentIndex >= 0 && (
+								<section>
+									<div className="mb-2 flex items-center justify-between gap-4 px-2">
+										<p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
+											{t("nowPlaying")}
+										</p>
+										<span className="text-xs text-white/40">
+											{player.queue.length} {t("tracks").toLocaleLowerCase()}
+										</span>
+									</div>
+									{player.queue[player.currentIndex] &&
+										renderEntry(player.queue[player.currentIndex], player.currentIndex)}
+								</section>
+							)}
+							<section>
+								<p className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
+									{t("queue")}
+								</p>
+								<div
+									data-testid="audio-queue-list"
+									data-audio-reorder-list
+									onPointerDown={reorder.onPointerDown}
+									onClickCapture={reorder.onClickCapture}
+									className="space-y-1"
+								>
+									{player.queue.map((entry, index) => renderEntry(entry, index, true))}
+								</div>
+							</section>
+						</div>
 					)}
 				</div>
-				<div className="min-w-0 flex-1">
-					<button
-						type="button"
-						aria-label={`${t("play")} ${entry.track.Name}`}
-						onClick={() => player.playQueueItem(index)}
-						className="block w-full min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-					>
-						<p
-							className={`truncate text-sm font-semibold ${selected ? "text-white" : "text-white/75"}`}
-						>
-							{entry.track.Name}
-						</p>
-					</button>
-					{trackArtist(entry.track) && entry.track.ArtistId ? (
-						<Link
-							href={`/artist/${encodeURIComponent(entry.track.ArtistId)}`}
-							onClick={(event) => event.stopPropagation()}
-							className="mt-0.5 block truncate text-xs text-white/45 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-						>
-							{trackArtist(entry.track)}
-						</Link>
-					) : (
-						<p className="mt-0.5 truncate text-xs text-white/45">
-							{trackArtist(entry.track) || entry.track.Album || ""}
-						</p>
-					)}
-				</div>
-				<span className="shrink-0 text-xs tabular-nums text-white/35">
-					{formatTime(duration)}
-				</span>
-				<button
-					type="button"
-					aria-label={`${t("removeFromQueue")} ${entry.track.Name}`}
-					onClick={(event) => {
-						event.stopPropagation();
-						player.removeQueueItem(entry.id);
-					}}
-					className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-				>
-					<X className="h-3.5 w-3.5" />
-				</button>
 			</div>
 		);
-	}
-
-	return (
-		<div
-			data-testid="audio-next-up-panel"
-			className="flex h-full min-h-0 flex-col"
-		>
-			<div data-audio-reorder-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent]">
-				{player.queue.length === 0 ? (
-					<p className="py-10 text-center text-sm text-white/45">
-						{t("queueEmpty")}
-					</p>
-				) : (
-					<div className="space-y-6 pb-8">
-						{player.currentIndex >= 0 && (
-							<section>
-								<div className="mb-2 flex items-center justify-between gap-4 px-2">
-									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
-										{t("nowPlaying")}
-									</p>
-									<span className="text-xs text-white/40">
-										{player.queue.length} {t("tracks").toLocaleLowerCase()}
-									</span>
-								</div>
-								{player.queue[player.currentIndex] &&
-									renderEntry(player.queue[player.currentIndex], player.currentIndex)}
-							</section>
-						)}
-						<section>
-							<p className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40">
-								{t("queue")}
-							</p>
-							<div
-								data-testid="audio-queue-list"
-								data-audio-reorder-list
-								onPointerDown={reorder.onPointerDown}
-								onClickCapture={reorder.onClickCapture}
-								className="space-y-1"
-							>
-								{player.queue.map((entry, index) => renderEntry(entry, index, true))}
-							</div>
-						</section>
-					</div>
-				)}
-			</div>
-		</div>
-	);
-}, (previous, next) => {
-	const previousPlayer = previous.player;
-	const nextPlayer = next.player;
-	return previousPlayer.queue === nextPlayer.queue &&
-		previousPlayer.currentIndex === nextPlayer.currentIndex &&
-		previousPlayer.playQueueItem === nextPlayer.playQueueItem &&
-		previousPlayer.removeQueueItem === nextPlayer.removeQueueItem &&
-		previousPlayer.reorderQueue === nextPlayer.reorderQueue;
-});
+	},
+	(previous, next) => {
+		const previousPlayer = previous.player;
+		const nextPlayer = next.player;
+		return (
+			previousPlayer.queue === nextPlayer.queue &&
+			previousPlayer.currentIndex === nextPlayer.currentIndex &&
+			previousPlayer.playQueueItem === nextPlayer.playQueueItem &&
+			previousPlayer.removeQueueItem === nextPlayer.removeQueueItem &&
+			previousPlayer.reorderQueue === nextPlayer.reorderQueue
+		);
+	},
+);
 
 function LyricsPanel({
 	activeIndex,

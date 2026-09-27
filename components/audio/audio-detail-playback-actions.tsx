@@ -40,7 +40,11 @@ export function AudioDetailPlaybackActions({
 				title={playLabel}
 				className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:bg-white/90 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
 			>
-				{busy ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+				{busy ? (
+					<LoaderCircle className="h-5 w-5 animate-spin" />
+				) : (
+					<Play className="ml-0.5 h-5 w-5 fill-current" />
+				)}
 			</button>
 		</div>
 	);

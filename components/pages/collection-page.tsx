@@ -5,6 +5,7 @@ import { PosterCard } from "@/components/home/media-card";
 import type { DetailData } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 import { ExpandableDescription } from "@/components/ui/expandable-description";
+import { CopyShareLinkButton } from "@/components/ui/copy-share-link-button";
 import { useI18n } from "@/lib/i18n";
 
 export function CollectionPage({
@@ -38,19 +39,22 @@ export function CollectionPage({
 					<ChevronLeft className="h-4 w-4" />
 					{t("back")}
 				</button>
-				<div className="mt-3 min-w-0">
-					<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
-						{initialData.item.Name}
-					</h1>
-					<p className="mt-1 text-xs uppercase tracking-widest text-white/25">
-						{t("collectionItems", { count: items.length })}
-					</p>
-					{initialData.item.Overview && (
-						<ExpandableDescription
-							description={initialData.item.Overview}
-							className="mt-4 max-w-2xl text-sm leading-6 text-white/55"
-						/>
-					)}
+				<div className="mt-3 flex items-start justify-between gap-3">
+					<div className="min-w-0">
+						<h1 className="max-w-full break-words text-3xl font-black leading-none tracking-tight text-white md:text-4xl">
+							{initialData.item.Name}
+						</h1>
+						<p className="mt-1 text-xs uppercase tracking-widest text-white/25">
+							{t("collectionItems", { count: items.length })}
+						</p>
+						{initialData.item.Overview && (
+							<ExpandableDescription
+								description={initialData.item.Overview}
+								className="mt-4 max-w-2xl text-sm leading-6 text-white/55"
+							/>
+						)}
+					</div>
+					<CopyShareLinkButton />
 				</div>
 			</header>
 			{items.length === 0 ? (

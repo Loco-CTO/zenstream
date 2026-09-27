@@ -23,7 +23,12 @@ export type PlaylistSummary = {
 	isMember?: boolean;
 };
 
-export type Playlist = PlaylistSummary & { items: PlaylistEntry[]; page?: number; pageSize?: number; hasMore?: boolean };
+export type Playlist = PlaylistSummary & {
+	items: PlaylistEntry[];
+	page?: number;
+	pageSize?: number;
+	hasMore?: boolean;
+};
 
 type PlaylistPayload = Omit<Playlist, "artworkItems" | "items"> & {
 	artworkItems?: CatalogItem[];
@@ -54,7 +59,10 @@ export async function fetchWatchlist(session: AuthSession) {
 	return response.items.map(toMediaItem);
 }
 
-export async function fetchPlaylists(session: AuthSession, membershipSourceId?: string) {
+export async function fetchPlaylists(
+	session: AuthSession,
+	membershipSourceId?: string,
+) {
 	const response = await catalogRequest<{ items: PlaylistPayload[] }>(
 		session,
 		`/api/account/playlists${membershipSourceId ? `?membershipSourceId=${encodeURIComponent(membershipSourceId)}` : ""}`,
@@ -62,7 +70,11 @@ export async function fetchPlaylists(session: AuthSession, membershipSourceId?: 
 	return response.items.map(mapPlaylist);
 }
 
-export async function fetchPlaylist(session: AuthSession, playlistId: string, page?: number) {
+export async function fetchPlaylist(
+	session: AuthSession,
+	playlistId: string,
+	page?: number,
+) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
 		`/api/account/playlists/${encodeURIComponent(playlistId)}${page ? `?page=${page}&pageSize=20` : ""}`,
@@ -70,7 +82,11 @@ export async function fetchPlaylist(session: AuthSession, playlistId: string, pa
 	return mapPlaylist(response);
 }
 
-export async function fetchSharedPlaylist(session: AuthSession, token: string, page?: number) {
+export async function fetchSharedPlaylist(
+	session: AuthSession,
+	token: string,
+	page?: number,
+) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
 		`/api/shared/playlists/${encodeURIComponent(token)}${page ? `?page=${page}&pageSize=20` : ""}`,
@@ -145,7 +161,11 @@ export async function removePlaylistEntry(
 	return response ? mapPlaylist(response) : fetchPlaylist(session, playlistId);
 }
 
-export async function removePlaylistSource(session: AuthSession, playlistId: string, sourceId: string) {
+export async function removePlaylistSource(
+	session: AuthSession,
+	playlistId: string,
+	sourceId: string,
+) {
 	const response = await catalogRequest<PlaylistPayload>(
 		session,
 		`/api/account/playlists/${encodeURIComponent(playlistId)}/items/by-source/${encodeURIComponent(sourceId)}`,

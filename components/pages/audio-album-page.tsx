@@ -40,8 +40,12 @@ import { useI18n, type TranslationKey } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
 import { AudioPlayingIndicator } from "@/components/audio/audio-playing-indicator";
 import { PlaylistPicker } from "@/components/audio/playlist-picker";
-import { AudioDetailActionSheet, AudioDetailSheetAction } from "@/components/audio/audio-detail-action-sheet";
+import {
+	AudioDetailActionSheet,
+	AudioDetailSheetAction,
+} from "@/components/audio/audio-detail-action-sheet";
 import { AudioDetailPlaybackActions } from "@/components/audio/audio-detail-playback-actions";
+import { CopyShareLinkButton } from "@/components/ui/copy-share-link-button";
 
 const albumTypeTranslationKeys: Record<string, TranslationKey> = {
 	album: "albumTypeAlbum",
@@ -105,7 +109,9 @@ export function AudioAlbumPage({
 	const [moreOpen, setMoreOpen] = useState(false);
 	const image = seriesPosterImage(data.album);
 	const tracks = data.tracks.filter((track) => track.Type === "Audio");
-	const playableTracks = tracks.map((track) => withPrimaryArtworkFallback(track, data.album));
+	const playableTracks = tracks.map((track) =>
+		withPrimaryArtworkFallback(track, data.album),
+	);
 	const discNumbers = trackDiscNumbers(tracks);
 	const showDiscHeaders =
 		new Set(
@@ -308,13 +314,30 @@ export function AudioAlbumPage({
 				>
 					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
 				</button>
+				<CopyShareLinkButton />
 				<div className="hidden items-center gap-2 md:flex">
-					<PlaylistPicker session={session} entityId={data.album.Id} entityName={data.album.Name} trackIds={tracks.map((track) => track.Id)} />
-					<button type="button" onClick={() => addAlbumToQueue(data.album, playableTracks)} disabled={tracks.length === 0} aria-label={t("addToQueue")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40">
+					<PlaylistPicker
+						session={session}
+						entityId={data.album.Id}
+						entityName={data.album.Name}
+						trackIds={tracks.map((track) => track.Id)}
+					/>
+					<button
+						type="button"
+						onClick={() => addAlbumToQueue(data.album, playableTracks)}
+						disabled={tracks.length === 0}
+						aria-label={t("addToQueue")}
+						className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40"
+					>
 						<ListPlus className="h-5 w-5" />
 					</button>
 				</div>
-				<button type="button" onClick={() => setMoreOpen(true)} aria-label={t("showMore")} className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden">
+				<button
+					type="button"
+					onClick={() => setMoreOpen(true)}
+					aria-label={t("showMore")}
+					className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden"
+				>
 					<MoreHorizontal className="h-5 w-5" />
 				</button>
 				<AudioDetailPlaybackActions
@@ -327,12 +350,65 @@ export function AudioAlbumPage({
 				/>
 			</section>
 			{moreOpen && (
-				<AudioDetailActionSheet item={data.album} subtitle={data.album.AlbumArtist ?? data.artist?.Name} onClose={() => setMoreOpen(false)}>
-					<AudioDetailSheetAction icon={<Play className="h-5 w-5 fill-current" />} onClick={() => { setMoreOpen(false); playAlbum(data.album, playableTracks); }}>{t("playAll")}</AudioDetailSheetAction>
-					<AudioDetailSheetAction icon={<Shuffle className="h-5 w-5" />} onClick={() => { setMoreOpen(false); playAlbum(data.album, playableTracks, undefined, true); }}>{t("shuffle")}</AudioDetailSheetAction>
-					<PlaylistPicker session={session} entityId={data.album.Id} entityName={data.album.Name} trackIds={tracks.map((track) => track.Id)} containerClassName="w-full" triggerClassName="flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07]" triggerContent={<><span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75"><CirclePlus className="h-5 w-5" /></span><span>{t("addToPlaylist")}</span></>} />
-					<AudioDetailSheetAction icon={<ListPlus className="h-5 w-5" />} onClick={() => { setMoreOpen(false); addAlbumToQueue(data.album, playableTracks); }}>{t("addToQueue")}</AudioDetailSheetAction>
-					{data.artist?.Id && <AudioDetailSheetAction icon={<Play className="h-5 w-5" />} onClick={() => { setMoreOpen(false); router.push(`/artist/${encodeURIComponent(data.artist!.Id)}`); }}>{t("artist")}</AudioDetailSheetAction>}
+				<AudioDetailActionSheet
+					item={data.album}
+					subtitle={data.album.AlbumArtist ?? data.artist?.Name}
+					onClose={() => setMoreOpen(false)}
+				>
+					<AudioDetailSheetAction
+						icon={<Play className="h-5 w-5 fill-current" />}
+						onClick={() => {
+							setMoreOpen(false);
+							playAlbum(data.album, playableTracks);
+						}}
+					>
+						{t("playAll")}
+					</AudioDetailSheetAction>
+					<AudioDetailSheetAction
+						icon={<Shuffle className="h-5 w-5" />}
+						onClick={() => {
+							setMoreOpen(false);
+							playAlbum(data.album, playableTracks, undefined, true);
+						}}
+					>
+						{t("shuffle")}
+					</AudioDetailSheetAction>
+					<PlaylistPicker
+						session={session}
+						entityId={data.album.Id}
+						entityName={data.album.Name}
+						trackIds={tracks.map((track) => track.Id)}
+						containerClassName="w-full"
+						triggerClassName="flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07]"
+						triggerContent={
+							<>
+								<span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75">
+									<CirclePlus className="h-5 w-5" />
+								</span>
+								<span>{t("addToPlaylist")}</span>
+							</>
+						}
+					/>
+					<AudioDetailSheetAction
+						icon={<ListPlus className="h-5 w-5" />}
+						onClick={() => {
+							setMoreOpen(false);
+							addAlbumToQueue(data.album, playableTracks);
+						}}
+					>
+						{t("addToQueue")}
+					</AudioDetailSheetAction>
+					{data.artist?.Id && (
+						<AudioDetailSheetAction
+							icon={<Play className="h-5 w-5" />}
+							onClick={() => {
+								setMoreOpen(false);
+								router.push(`/artist/${encodeURIComponent(data.artist!.Id)}`);
+							}}
+						>
+							{t("artist")}
+						</AudioDetailSheetAction>
+					)}
 				</AudioDetailActionSheet>
 			)}
 			{mutationError && (
@@ -527,7 +603,11 @@ function TrackRow({
 			<div role="cell" className="text-right text-xs tabular-nums text-white/28">
 				{formatDuration(durationSeconds(track))}
 			</div>
-			<div role="cell" className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+			<div
+				role="cell"
+				className="flex items-center justify-end gap-1"
+				onClick={(event) => event.stopPropagation()}
+			>
 				<PlaylistPicker
 					session={session}
 					entityId={track.Id}

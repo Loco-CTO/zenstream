@@ -107,6 +107,9 @@ function albumData(): AudioAlbumData {
 describe("audio album track artist links", () => {
 	it("links resolvable artists and keeps unresolved credits as text", () => {
 		render(<AudioAlbumPage data={albumData()} session={session} />);
+		expect(
+			screen.getByRole("button", { name: "copyShareLink" }),
+		).toBeInTheDocument();
 
 		const row = screen
 			.getAllByRole("row")

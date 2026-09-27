@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type FormEvent,
+	type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { CirclePlus, Plus, X } from "lucide-react";
 import {
@@ -14,7 +20,10 @@ import {
 import { seriesPosterImage } from "@/lib/media-api";
 import { useI18n } from "@/lib/i18n";
 import type { AuthSession } from "@/lib/session";
-import { BlurHashImage, MediaPlaceholder } from "@/components/ui/blurhash-image";
+import {
+	BlurHashImage,
+	MediaPlaceholder,
+} from "@/components/ui/blurhash-image";
 import { Toggle } from "@/components/ui/toggle";
 
 export function PlaylistPicker({
@@ -42,7 +51,9 @@ export function PlaylistPicker({
 	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
 	const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
-	const [pendingMembership, setPendingMembership] = useState<Record<string, boolean>>({});
+	const [pendingMembership, setPendingMembership] = useState<
+		Record<string, boolean>
+	>({});
 	const itemIds = trackIds?.length ? trackIds : [entityId];
 	const [loading, setLoading] = useState(false);
 	const [busyId, setBusyId] = useState<string | null>(null);
@@ -70,7 +81,9 @@ export function PlaylistPicker({
 			const pickerWidth = picker.offsetWidth;
 			const pickerHeight = picker.offsetHeight;
 			const maxLeft = Math.max(margin, viewportWidth - pickerWidth - margin);
-			const left = Math.round(Math.min(maxLeft, Math.max(margin, bounds.right - pickerWidth)));
+			const left = Math.round(
+				Math.min(maxLeft, Math.max(margin, bounds.right - pickerWidth)),
+			);
 			const belowTop = bounds.bottom + gap;
 			const spaceBelow = viewportHeight - belowTop - margin;
 			const spaceAbove = bounds.top - gap - margin;
@@ -89,7 +102,9 @@ export function PlaylistPicker({
 		window.addEventListener("resize", updatePosition);
 		window.addEventListener("scroll", updatePosition, true);
 		const resizeObserver =
-			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePosition);
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(updatePosition);
 		if (triggerRef.current) resizeObserver?.observe(triggerRef.current);
 		if (pickerRef.current) resizeObserver?.observe(pickerRef.current);
 
@@ -202,9 +217,14 @@ export function PlaylistPicker({
 						void openPicker();
 					}
 				}}
-				className={triggerClassName ?? `inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
+				className={
+					triggerClassName ??
+					`inline-flex ${compact ? "h-7 w-7 rounded p-1" : "h-10 w-10 rounded-full"} items-center justify-center text-white/25 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`
+				}
 			>
-				{triggerContent ?? <CirclePlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />}
+				{triggerContent ?? (
+					<CirclePlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
+				)}
 			</button>
 			{open &&
 				typeof document !== "undefined" &&
@@ -223,72 +243,69 @@ export function PlaylistPicker({
 						onClick={(event) => event.stopPropagation()}
 						className="fixed z-[120] flex max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-white/15 bg-black/35 p-2 shadow-2xl shadow-black/70 backdrop-blur-xl"
 					>
-							<button
-								type="button"
-								onClick={() => setCreating(true)}
-								className="flex w-full shrink-0 items-center gap-3 rounded-lg border-b border-white/10 px-2 py-3 text-left text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
-							>
-								<span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.08]">
-									<Plus className="h-4 w-4" />
-								</span>
-								{t("createPlaylist")}
-							</button>
-							<div className="min-h-0 max-h-[min(18rem,calc(100dvh-8rem))] flex-1 overflow-y-auto py-1">
-								{loading ? (
-									<p className="px-3 py-5 text-center text-xs text-white/40">
-										{t("loading")}
-									</p>
-								) : playlists.length === 0 ? (
-									<p className="px-3 py-5 text-center text-xs text-white/40">
-										{t("noPlaylists")}
-									</p>
-								) : (
-									playlists.map((playlist) => {
-										const savedMembership = playlist.isMember === true;
-										const membership =
-											pendingMembership[playlist.id] ?? savedMembership;
-										const artwork = playlist.artworkItems[0];
-										return (
-											<button
-												key={playlist.id}
-												type="button"
-												aria-label={`${playlist.name}: ${
-													membership ? t("inPlaylist") : t("notInPlaylist")
-												}`}
-												aria-pressed={membership}
-												disabled={busyId !== null || loading || itemIds.length === 0}
-												onClick={() => void togglePlaylist(playlist.id)}
-												className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-white/70 transition hover:bg-white/[0.06] disabled:opacity-50"
-											>
-												<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
-													{artwork && seriesPosterImage(artwork) ? (
-														<BlurHashImage
-															image={seriesPosterImage(artwork)!}
-															alt=""
-															sizes="36px"
-															className="h-full w-full object-cover"
-														/>
-													) : (
-														<MediaPlaceholder />
-													)}
-												</div>
-												<span className="min-w-0 flex-1 truncate">
-													{playlist.name}
-												</span>
-												<span
-													aria-hidden="true"
-													className={`h-4 w-4 shrink-0 rounded-[3px] border transition-[background-color,border-color,transform] duration-200 ease-out ${membership ? "scale-100 border-white bg-white" : "scale-95 border-white/45 bg-transparent"}`}
-												/>
-											</button>
-										);
-									})
-								)}
-							</div>
-							{error && (
-								<p role="alert" className="px-3 py-2 text-xs text-red-200/80">
-									{t("playlistSaveFailed")}
+						<button
+							type="button"
+							onClick={() => setCreating(true)}
+							className="flex w-full shrink-0 items-center gap-3 rounded-lg border-b border-white/10 px-2 py-3 text-left text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
+						>
+							<span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.08]">
+								<Plus className="h-4 w-4" />
+							</span>
+							{t("createPlaylist")}
+						</button>
+						<div className="min-h-0 max-h-[min(18rem,calc(100dvh-8rem))] flex-1 overflow-y-auto py-1">
+							{loading ? (
+								<p className="px-3 py-5 text-center text-xs text-white/40">
+									{t("loading")}
 								</p>
+							) : playlists.length === 0 ? (
+								<p className="px-3 py-5 text-center text-xs text-white/40">
+									{t("noPlaylists")}
+								</p>
+							) : (
+								playlists.map((playlist) => {
+									const savedMembership = playlist.isMember === true;
+									const membership = pendingMembership[playlist.id] ?? savedMembership;
+									const artwork = playlist.artworkItems[0];
+									return (
+										<button
+											key={playlist.id}
+											type="button"
+											aria-label={`${playlist.name}: ${
+												membership ? t("inPlaylist") : t("notInPlaylist")
+											}`}
+											aria-pressed={membership}
+											disabled={busyId !== null || loading || itemIds.length === 0}
+											onClick={() => void togglePlaylist(playlist.id)}
+											className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm text-white/70 transition hover:bg-white/[0.06] disabled:opacity-50"
+										>
+											<div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-white/[0.04]">
+												{artwork && seriesPosterImage(artwork) ? (
+													<BlurHashImage
+														image={seriesPosterImage(artwork)!}
+														alt=""
+														sizes="36px"
+														className="h-full w-full object-cover"
+													/>
+												) : (
+													<MediaPlaceholder />
+												)}
+											</div>
+											<span className="min-w-0 flex-1 truncate">{playlist.name}</span>
+											<span
+												aria-hidden="true"
+												className={`h-4 w-4 shrink-0 rounded-[3px] border transition-[background-color,border-color,transform] duration-200 ease-out ${membership ? "scale-100 border-white bg-white" : "scale-95 border-white/45 bg-transparent"}`}
+											/>
+										</button>
+									);
+								})
 							)}
+						</div>
+						{error && (
+							<p role="alert" className="px-3 py-2 text-xs text-red-200/80">
+								{t("playlistSaveFailed")}
+							</p>
+						)}
 					</div>,
 					document.body,
 				)}
@@ -351,7 +368,7 @@ export function CreatePlaylistDialog({
 
 	return createPortal(
 		<div
-		className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-3 backdrop-blur-xl sm:p-6"
+			className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-3 backdrop-blur-xl sm:p-6"
 			onMouseDown={(event) => {
 				if (event.target === event.currentTarget) onClose();
 			}}

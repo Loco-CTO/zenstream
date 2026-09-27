@@ -36,6 +36,7 @@ playlistLoadFailed: Could not load this playlist
 playlistEmpty: This playlist has no tracks yet
 linkCopied: Link copied
 copyShareLink: Copy share link
+copyLinkFailed: Could not copy the link
 editPlaylist: Edit playlist
 deletePlaylist: Delete playlist
 deletePlaylistConfirm: "Delete {name}? Its tracks will remain in your library."

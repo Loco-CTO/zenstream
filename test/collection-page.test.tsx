@@ -39,8 +39,9 @@ describe("CollectionPage", () => {
 			.closest("header");
 		expect(header).not.toHaveClass("border-b");
 		expect(
-			screen.getByRole("heading", { name: "Collection" }).parentElement,
-		).toHaveClass("mt-3");
+			screen.getByRole("heading", { name: "Collection" }).parentElement
+				?.parentElement,
+		).toHaveClass("mt-3", "flex", "items-start", "justify-between");
 
 		const grid = container.querySelector(".grid");
 		expect(grid).toHaveClass(

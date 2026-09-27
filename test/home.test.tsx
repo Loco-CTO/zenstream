@@ -188,7 +188,7 @@ describe("home screen", () => {
 				screen.getByText("Newly Added on Anime").closest("section")!,
 			).queryByRole("link", { name: /all/i }),
 		).not.toBeInTheDocument();
-		expect(screen.getByText("Continue Watching")).toBeInTheDocument();
+		expect(screen.getByText("Continue watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
 		expect(screen.getByText("Favorite Music")).toBeInTheDocument();
 		expect(screen.getByText("Favorite Artist")).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe("home screen", () => {
 		const sectionHeadings = screen
 			.getAllByRole("heading")
 			.map((heading) => heading.textContent);
-		expect(sectionHeadings.indexOf("Continue Watching")).toBeLessThan(
+		expect(sectionHeadings.indexOf("Continue watching")).toBeLessThan(
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Next Up")).toBeLessThan(
@@ -242,7 +242,7 @@ describe("home screen", () => {
 		);
 
 		const resumeCard = screen.getByText("Resume Show").closest("article");
-		expect(screen.getByText("Continue Watching").closest("section")).toHaveClass(
+		expect(screen.getByText("Continue watching").closest("section")).toHaveClass(
 			"select-none",
 		);
 		expect(resumeCard).toHaveClass("select-none");

@@ -473,28 +473,79 @@ describe("AudioPlayerBar", () => {
 		expect(queue).not.toHaveTextContent("Next Up");
 		const list = queue.querySelector('[data-testid="audio-queue-list"]');
 		if (!list) throw new Error("queue list was not rendered");
-		const items = list.querySelectorAll("[data-track-id]");
+		const items = Array.from(list.querySelectorAll("[data-track-id]"));
 		expect(items).toHaveLength(2);
 
-		fireEvent.dragStart(items[0]);
-		fireEvent.dragOver(items[1]);
-		expect(items[1].querySelector("span.pointer-events-none")).toHaveClass(
-			"bg-white/85",
-		);
-		expect(items[1]).not.toHaveClass("bg-white/[0.1]");
-		fireEvent.drop(items[1]);
+		const [first, second] = items;
+		if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement)) {
+			throw new Error("queue items were not rendered as elements");
+		}
+		vi
+			.spyOn(first, "getBoundingClientRect")
+			.mockReturnValue(new DOMRect(0, 0, 320, 48));
+		vi
+			.spyOn(second, "getBoundingClientRect")
+			.mockReturnValue(new DOMRect(0, 48, 320, 48));
 
-		await waitFor(() => {
-			const orderedItems = Array.from(
-				list.querySelectorAll("[data-track-id]"),
-			).sort(
-				(a, b) =>
-					Number(a.getAttribute("data-queue-index")) -
-					Number(b.getAttribute("data-queue-index")),
-			);
-			expect(orderedItems[0]).toHaveAttribute("data-track-id", "track-2");
-			expect(orderedItems[1]).toHaveAttribute("data-track-id", "track-1");
+		const originalElementFromPoint = document.elementFromPoint;
+		Object.defineProperty(document, "elementFromPoint", {
+			configurable: true,
+			value: vi.fn(() => second),
 		});
+		const originalRequestAnimationFrame = window.requestAnimationFrame;
+		const originalCancelAnimationFrame = window.cancelAnimationFrame;
+		window.requestAnimationFrame = ((callback) => {
+			callback(performance.now());
+			return 1;
+		}) as typeof window.requestAnimationFrame;
+		window.cancelAnimationFrame =
+			(() => {}) as typeof window.cancelAnimationFrame;
+
+		try {
+			fireEvent.pointerDown(first, {
+				button: 0,
+				clientX: 10,
+				clientY: 24,
+				isPrimary: true,
+				pointerId: 7,
+				pointerType: "mouse",
+			});
+			fireEvent.pointerMove(window, {
+				clientX: 10,
+				clientY: 90,
+				pointerId: 7,
+				pointerType: "mouse",
+			});
+			fireEvent.pointerUp(window, {
+				clientX: 10,
+				clientY: 90,
+				pointerId: 7,
+				pointerType: "mouse",
+			});
+
+			await waitFor(() => {
+				const orderedItems = Array.from(
+					list.querySelectorAll("[data-track-id]"),
+				).sort(
+					(a, b) =>
+						Number(a.getAttribute("data-queue-index")) -
+						Number(b.getAttribute("data-queue-index")),
+				);
+				expect(orderedItems[0]).toHaveAttribute("data-track-id", "track-2");
+				expect(orderedItems[1]).toHaveAttribute("data-track-id", "track-1");
+			});
+		} finally {
+			if (typeof originalElementFromPoint === "function") {
+				Object.defineProperty(document, "elementFromPoint", {
+					configurable: true,
+					value: originalElementFromPoint,
+				});
+			} else {
+				Reflect.deleteProperty(document, "elementFromPoint");
+			}
+			window.requestAnimationFrame = originalRequestAnimationFrame;
+			window.cancelAnimationFrame = originalCancelAnimationFrame;
+		}
 	});
 
 	it("fully clears the player and allows a fresh queue to start", async () => {

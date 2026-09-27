@@ -8,6 +8,7 @@ import {
 	Volume2,
 	VolumeX,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	heroImage,
@@ -61,6 +62,7 @@ export function Hero({
 	items: MediaItem[];
 	session: AuthSession;
 }) {
+	const router = useRouter();
 	const { locale, t } = useI18n();
 	const { canStartPlayback, startPlayback } = useSyncplayPlayback(session);
 	const { useHeroTrailer, heroPreferenceRevision } =
@@ -587,7 +589,7 @@ export function Hero({
 							{t("play")}
 						</PrimaryActionButton>
 						<button
-							onClick={() => window.location.assign(`/show/${item.Id}`)}
+							onClick={() => router.push(`/show/${item.Id}`)}
 							className="flex h-11 min-w-24 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-5 text-sm font-medium tracking-normal text-white/70 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
 						>
 							<Info className="h-4 w-4" />

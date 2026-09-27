@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Heart, Plus, Trash2 } from "lucide-react";
 import {
@@ -53,14 +53,15 @@ export function FavoritesPage({
 }) {
 	const { t } = useI18n();
 	const { start } = useProgress();
-	const [tabState, setTabState] = useState(() => ({
+	const [tabSelection, setTabSelection] = useState({
 		initialTab,
 		activeTab: initialTab,
-	}));
-	if (tabState.initialTab !== initialTab) {
-		setTabState({ initialTab, activeTab: initialTab });
-	}
-	const { activeTab } = tabState;
+	});
+	const activeTab =
+		tabSelection.initialTab === initialTab ? tabSelection.activeTab : initialTab;
+	const selectTab = (tab: ListsTab) => {
+		setTabSelection({ initialTab, activeTab: tab });
+	};
 	const tabListRef = useRef<HTMLDivElement>(null);
 	const hasMeasuredTabUnderline = useRef(false);
 	const [tabUnderline, setTabUnderline] = useState({ left: 0, width: 0 });
@@ -189,7 +190,7 @@ export function FavoritesPage({
 							role="tab"
 							data-list-tab={tab}
 							aria-selected={activeTab === tab}
-							onClick={() => setTabState({ initialTab, activeTab: tab })}
+							onClick={() => selectTab(tab)}
 							className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "text-white" : "text-white/40 hover:text-white/75"}`}
 						>
 							{t(
@@ -357,17 +358,16 @@ export function FavoritesPage({
 function WatchlistSection({ session }: { session: AuthSession }) {
 	const { t } = useI18n();
 	const [items, setItems] = useState<MediaItem[]>([]);
+	const [itemsSessionKey, setItemsSessionKey] = useState<string | null>(null);
+	const [loadedKey, setLoadedKey] = useState<string | null>(null);
+	const [errorKey, setErrorKey] = useState<string | null>(null);
 	const [retry, setRetry] = useState(0);
 	const [busy, setBusy] = useState<string | null>(null);
-	const requestKey = useMemo(() => ({ retry, session }), [retry, session]);
-	const [settledRequestKey, setSettledRequestKey] = useState<
-		typeof requestKey | null
-	>(null);
-	const [errorRequestKey, setErrorRequestKey] = useState<
-		typeof requestKey | null
-	>(null);
-	const loading = settledRequestKey !== requestKey;
-	const error = errorRequestKey === requestKey;
+	const sessionKey = `${session.userId}:${session.token}`;
+	const requestKey = `${sessionKey}:${retry}`;
+	const visibleItems = itemsSessionKey === sessionKey ? items : [];
+	const loading = loadedKey !== requestKey;
+	const error = errorKey === requestKey;
 
 	useEffect(() => {
 		let active = true;
@@ -375,19 +375,21 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 			.then((value) => {
 				if (active) {
 					setItems(value);
-					setErrorRequestKey(null);
+					setItemsSessionKey(sessionKey);
+					setErrorKey(null);
+					setLoadedKey(requestKey);
 				}
 			})
 			.catch(() => {
-				if (active) setErrorRequestKey(requestKey);
-			})
-			.finally(() => {
-				if (active) setSettledRequestKey(requestKey);
+				if (active) {
+					setErrorKey(requestKey);
+					setLoadedKey(requestKey);
+				}
 			});
 		return () => {
 			active = false;
 		};
-	}, [requestKey, session]);
+	}, [requestKey, session, sessionKey]);
 
 	useEffect(() => {
 		const refresh = (rawEvent?: Event) => {
@@ -425,7 +427,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 						: value,
 				),
 			);
-			setErrorRequestKey(requestKey);
+			setErrorKey(requestKey);
 		} finally {
 			setBusy(null);
 		}
@@ -438,7 +440,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 		try {
 			await setFollowing(session, item.Id, false);
 		} catch {
-			setErrorRequestKey(requestKey);
+			setErrorKey(requestKey);
 			setRetry((value) => value + 1);
 		} finally {
 			setBusy(null);
@@ -446,14 +448,14 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 	}
 
 	if (loading) return null;
-	if (error && items.length === 0)
+	if (error && visibleItems.length === 0)
 		return (
 			<ErrorPanel
 				message={t("watchlistLoadFailed")}
 				onRetry={() => setRetry((value) => value + 1)}
 			/>
 		);
-	if (items.length === 0)
+	if (visibleItems.length === 0)
 		return (
 			<div className="rounded-xl border border-white/10 bg-white/[0.025] px-6 py-16 text-center">
 				<h2 className="text-lg font-semibold text-white/80">
@@ -464,7 +466,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 		);
 	return (
 		<div className="divide-y divide-white/[0.08]">
-			{items.map((item) => {
+			{visibleItems.map((item) => {
 				const status = item.WatchlistStatus;
 				const nextEpisode =
 					status?.kind === "upNext" ? status.nextEpisode : undefined;

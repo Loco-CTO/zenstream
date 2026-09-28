@@ -62,6 +62,22 @@ function refreshBrowserSessionOnce() {
 	return browserRefreshInFlight;
 }
 
+async function refreshAfterUnauthorizedResponse(
+	response: Response,
+	session: AuthSession,
+	path: string,
+	init: RequestInit,
+	options: { notifyOnUnauthorized?: boolean },
+) {
+	const refreshResult = await refreshBrowserSessionOnce();
+	if (refreshResult === "refreshed")
+		return sendAuthenticatedRequest(session, path, init);
+	if (refreshResult === "unauthorized" && options.notifyOnUnauthorized !== false)
+		dispatchAuthExpired(session);
+	if (refreshResult === "unavailable") return markRefreshUnavailable(response);
+	return response;
+}
+
 function markRefreshUnavailable(response: Response) {
 	const headers = new Headers(response.headers);
 	headers.set(AUTH_REFRESH_RESULT_HEADER, "unavailable");
@@ -102,14 +118,30 @@ export async function authenticatedFetch(
 ) {
 	const response = await sendAuthenticatedRequest(session, path, init);
 	if (response.status !== 401 || isAuthBootstrapPath(path)) return response;
-
-	const refreshResult = await refreshBrowserSessionOnce();
-	if (refreshResult === "refreshed")
-		return sendAuthenticatedRequest(session, path, init);
-	if (refreshResult === "unauthorized" && options.notifyOnUnauthorized !== false)
-		dispatchAuthExpired(session);
-	if (refreshResult === "unavailable") return markRefreshUnavailable(response);
-	return response;
+	const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+	if (!locks) {
+		return refreshAfterUnauthorizedResponse(
+			response,
+			session,
+			path,
+			init,
+			options,
+		);
+	}
+	const lockName = `zenstream:auth-refresh:${new URL(orchestratorBaseUrl()).origin}`;
+	return locks.request(lockName, async () => {
+		// The HttpOnly cookie is shared by same-origin tabs. Another tab may have
+		// rotated it while this request waited for the lock, so retry before rotating again.
+		const retried = await sendAuthenticatedRequest(session, path, init);
+		if (retried.status !== 401) return retried;
+		return refreshAfterUnauthorizedResponse(
+			retried,
+			session,
+			path,
+			init,
+			options,
+		);
+	});
 }
 
 export async function authenticatedJson<T>(

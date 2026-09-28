@@ -84,6 +84,70 @@ describe("browser authentication transport", () => {
 		);
 	});
 
+	it("rechecks protected requests under the cross-tab refresh lock", async () => {
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		let lockTail = Promise.resolve();
+		const locks = {
+			request: vi.fn(async (_name: string, callback: () => Promise<Response>) => {
+				const previous = lockTail;
+				let release!: () => void;
+				lockTail = new Promise<void>((resolve) => {
+					release = resolve;
+				});
+				await previous;
+				try {
+					return await callback();
+				} finally {
+					release();
+				}
+			}),
+		};
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: locks,
+		});
+		let refreshed = false;
+		let refreshRequests = 0;
+		const protectedAttempts = new Map<string, number>();
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = String(input);
+				if (url.includes("/api/auth/refresh")) {
+					refreshRequests += 1;
+					refreshed = true;
+					return new Response(null, { status: 200 });
+				}
+				const attempt = (protectedAttempts.get(url) ?? 0) + 1;
+				protectedAttempts.set(url, attempt);
+				return new Response(null, {
+					status: attempt === 1 || !refreshed ? 401 : 200,
+				});
+			});
+
+		try {
+			const responses = await Promise.all([
+				authenticatedFetch(session, "/api/catalog/home"),
+				authenticatedFetch(session, "/api/catalog/libraries"),
+			]);
+
+			expect(responses.every((response) => response.ok)).toBe(true);
+			expect(refreshRequests).toBe(1);
+			expect(
+				[...protectedAttempts.values()].reduce((sum, count) => sum + count, 0),
+			).toBe(5);
+			expect(locks.request).toHaveBeenCalledTimes(2);
+			expect(locks.request).toHaveBeenCalledWith(
+				expect.stringContaining("zenstream:auth-refresh"),
+				expect.any(Function),
+			);
+			expect(fetchMock).toHaveBeenCalled();
+		} finally {
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
 	it("does not clear the session when refresh is unavailable", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")

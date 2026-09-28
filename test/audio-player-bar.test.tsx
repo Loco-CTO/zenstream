@@ -167,6 +167,7 @@ describe("AudioPlayerBar", () => {
 
 	afterEach(() => {
 		cleanup();
+		vi.useRealTimers();
 		vi.restoreAllMocks();
 	});
 
@@ -260,6 +261,74 @@ describe("AudioPlayerBar", () => {
 			screen.getAllByRole("button", { name: "Open lyrics" }).length,
 		).toBeGreaterThan(0);
 		view.unmount();
+	});
+
+	it("keeps the active audio source and playback state stable after lease renewal", async () => {
+		vi.useFakeTimers();
+		vi.mocked(mediaApi.getPlaybackInfo).mockResolvedValue({
+			source: {
+				Id: "source-track-1",
+				url: "/api/playback/items/track-1/stream?sourceId=source-track-1&access=pl1_opaque",
+				mode: "direct",
+				accessExpiresIn: 90,
+				playbackAccessMode: "lease-v1",
+				playbackLeaseToken: "pl1_opaque",
+			},
+			accessExpiresIn: 90,
+			playbackAccessMode: "lease-v1",
+			playbackLeaseToken: "pl1_opaque",
+		});
+		const refresh = vi
+			.spyOn(mediaApi, "refreshPlaybackAccess")
+			.mockResolvedValue({ playbackAccessMode: "lease-v1", expiresIn: 900 });
+		const view = renderBarWithStateProbe();
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		const audio = view.container.querySelector("audio")!;
+		Object.defineProperty(audio, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 37,
+		});
+		Object.defineProperty(audio, "paused", {
+			configurable: true,
+			value: false,
+		});
+		const initialSource = audio.src;
+		const initialLoadCalls = vi.mocked(HTMLMediaElement.prototype.load).mock.calls
+			.length;
+		const initialPauseCalls = vi.mocked(HTMLMediaElement.prototype.pause).mock
+			.calls.length;
+
+		await act(async () => {
+			vi.advanceTimersByTime(30_000);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(refresh).toHaveBeenCalledOnce();
+		expect(refresh).toHaveBeenCalledWith(
+			session,
+			"track-1",
+			"source-track-1",
+			undefined,
+			"lease-v1",
+			"pl1_opaque",
+		);
+		expect(audio.src).toBe(initialSource);
+		expect(audio.currentTime).toBe(37);
+		expect(vi.mocked(HTMLMediaElement.prototype.load).mock.calls.length).toBe(
+			initialLoadCalls,
+		);
+		expect(vi.mocked(HTMLMediaElement.prototype.pause).mock.calls.length).toBe(
+			initialPauseCalls,
+		);
+		expect(view.getByTestId("player-state")).toHaveAttribute(
+			"data-playing",
+			"true",
+		);
 	});
 
 	it("wires transport, seek, volume, shuffle, favorite, and queue actions", async () => {

@@ -169,6 +169,8 @@ export interface MediaSource {
 	startPositionSeconds?: number;
 	actualStartPositionSeconds?: number;
 	accessExpiresIn?: number;
+	playbackAccessMode?: "lease-v1";
+	playbackLeaseToken?: string;
 	MediaStreams?: MediaStream[];
 	Trickplay?: Record<string, TrickplayInfo>;
 }
@@ -273,6 +275,8 @@ export interface PlaybackInfo {
 	viewerSessionId?: string;
 	startPositionSeconds?: number;
 	accessExpiresIn?: number;
+	playbackAccessMode?: "lease-v1";
+	playbackLeaseToken?: string;
 }
 
 export type ViewerCommand = {
@@ -1456,10 +1460,13 @@ export async function getPlaybackInfo(
 		viewerSessionId?: string;
 		startPositionSeconds?: number;
 		accessExpiresIn?: number;
+		playbackAccessMode?: "lease-v1";
+		playbackLeaseToken?: string;
 		url: string;
 	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/negotiate`, {
 		method: "POST",
 		body: JSON.stringify({
+			playbackAccessMode: "lease-v1",
 			engine: "web",
 			device: browserDeviceMetadata(),
 			sourceId: options.sourceId,
@@ -1489,6 +1496,8 @@ export async function getPlaybackInfo(
 		viewerSessionId: response.viewerSessionId,
 		startPositionSeconds: response.startPositionSeconds ?? 0,
 		accessExpiresIn: response.accessExpiresIn,
+		playbackAccessMode: response.playbackAccessMode,
+		playbackLeaseToken: response.playbackLeaseToken,
 	});
 	return {
 		source,
@@ -1496,6 +1505,8 @@ export async function getPlaybackInfo(
 		startPositionSeconds: response.startPositionSeconds ?? 0,
 		viewerSessionId: response.viewerSessionId,
 		accessExpiresIn: response.accessExpiresIn,
+		playbackAccessMode: response.playbackAccessMode,
+		playbackLeaseToken: response.playbackLeaseToken,
 	};
 }
 
@@ -1504,7 +1515,14 @@ export async function refreshPlaybackAccess(
 	itemId: string,
 	sourceId: string,
 	playbackSessionId?: string,
-): Promise<{ ticket: string; expiresIn: number }> {
+	playbackAccessMode?: "lease-v1",
+	playbackLeaseToken?: string,
+): Promise<{
+	ticket?: string;
+	expiresIn: number;
+	expiresAt?: string;
+	playbackAccessMode?: "lease-v1";
+}> {
 	const response = await authenticatedFetch(
 		session,
 		`/api/playback/items/${encodeURIComponent(itemId)}/access`,
@@ -1514,6 +1532,9 @@ export async function refreshPlaybackAccess(
 			body: JSON.stringify({
 				sourceId,
 				...(playbackSessionId ? { sessionId: playbackSessionId } : {}),
+				...(playbackAccessMode === "lease-v1" && playbackLeaseToken
+					? { playbackAccessMode, playbackLeaseToken }
+					: {}),
 			}),
 		},
 	);
@@ -1523,19 +1544,30 @@ export async function refreshPlaybackAccess(
 		ticket?: unknown;
 		access?: unknown;
 		expiresIn?: unknown;
+		expiresAt?: unknown;
+		playbackAccessMode?: unknown;
 	};
+	const responseAccessMode =
+		payload.playbackAccessMode === "lease-v1" ? "lease-v1" : undefined;
 	const ticket =
 		typeof payload.ticket === "string"
 			? payload.ticket
 			: typeof payload.access === "string"
 				? payload.access
 				: null;
-	if (!ticket) throw new Error("The server did not return a playback ticket.");
+	if (!ticket && responseAccessMode !== "lease-v1")
+		throw new Error("The server did not return a playback ticket.");
 	const expiresIn =
 		typeof payload.expiresIn === "number" && payload.expiresIn > 0
 			? payload.expiresIn
 			: 15 * 60;
-	return { ticket, expiresIn };
+	return {
+		ticket: ticket ?? undefined,
+		expiresIn,
+		expiresAt:
+			typeof payload.expiresAt === "string" ? payload.expiresAt : undefined,
+		playbackAccessMode: responseAccessMode,
+	};
 }
 
 export async function getPlaybackSource(
@@ -1643,6 +1675,8 @@ function mediaSourceFromPayload(
 		| "startPositionSeconds"
 		| "viewerSessionId"
 		| "accessExpiresIn"
+		| "playbackAccessMode"
+		| "playbackLeaseToken"
 	> = {},
 ): MediaSource {
 	return {

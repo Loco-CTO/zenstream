@@ -1857,18 +1857,45 @@ export function VideoPlayer({
 		const renew = async () => {
 			if (!active || sourceRef.current?.Id !== sourceId) return;
 			try {
-				const video = videoRef.current;
-				if (video && Number.isFinite(video.currentTime)) {
-					resumeTimeRef.current = video.currentTime;
-					resumePlayingRef.current = !video.paused;
-				}
 				const refreshed = await refreshPlaybackAccess(
 					session,
 					item.Id,
 					sourceId,
 					source.sessionId,
+					source.playbackAccessMode,
+					source.playbackLeaseToken,
 				);
 				if (!active || sourceRef.current?.Id !== sourceId) return;
+				if (
+					source.playbackAccessMode === "lease-v1" &&
+					refreshed.playbackAccessMode === "lease-v1"
+				) {
+					const nextSource = {
+						...source,
+						accessExpiresIn: refreshed.expiresIn,
+					};
+					sourceRef.current = nextSource;
+					setInfo((previous) => {
+						if (!previous || previous.source?.Id !== sourceId) return previous;
+						return {
+							source: nextSource,
+							audio: previous.audio,
+							subtitles: previous.subtitles,
+							lyrics: previous.lyrics,
+							qualities: previous.qualities,
+						};
+					});
+					return;
+				}
+				if (!refreshed.ticket) {
+					schedule(30_000);
+					return;
+				}
+				const video = videoRef.current;
+				if (video && Number.isFinite(video.currentTime)) {
+					resumeTimeRef.current = video.currentTime;
+					resumePlayingRef.current = !video.paused;
+				}
 				const nextSource = {
 					...source,
 					url: playbackUrlWithAccess(source, refreshed.ticket),

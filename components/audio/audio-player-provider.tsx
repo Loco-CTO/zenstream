@@ -15,11 +15,14 @@ import {
 	fetchAudioAlbumData,
 	getPlaybackInfo,
 	playbackUrl,
+	playbackUrlWithAccess,
 	recordAudioPlayStart,
 	reportPlayback,
+	refreshPlaybackAccess,
 	savedPlaybackPositionSeconds,
 	setFavorite,
 	type MediaItem,
+	type PlaybackInfo,
 	withPrimaryArtworkFallback,
 } from "@/lib/media-api";
 import { shouldUseHlsJs } from "@/lib/browser-device-profile";
@@ -430,6 +433,7 @@ export function AudioPlayerProvider({
 		const entry = currentEntry;
 		const generation = ++loadGeneration.current;
 		let active = true;
+		let accessRefreshTimer: number | undefined;
 		hlsRef.current?.destroy();
 		hlsRef.current = null;
 		if (!audio || !entry) {
@@ -474,6 +478,99 @@ export function AudioPlayerProvider({
 				pendingStartPositionRef.current = null;
 		};
 		audio.addEventListener("loadedmetadata", applyStartPosition);
+		const renewAccess = async (
+			playback: PlaybackInfo,
+			expiresInSeconds: number,
+		) => {
+			const source = playback.source;
+			const sourceId = source?.Id;
+			if (!source || !sourceId) return;
+			if (
+				!active ||
+				generation !== loadGeneration.current ||
+				currentEntry?.id !== entry.id
+			)
+				return;
+			try {
+				const refreshed = await refreshPlaybackAccess(
+					session,
+					entry.track.Id,
+					sourceId,
+					playback.sessionId,
+					source.playbackAccessMode,
+					source.playbackLeaseToken,
+				);
+				if (
+					!active ||
+					generation !== loadGeneration.current ||
+					currentEntry?.id !== entry.id
+				)
+					return;
+				if (
+					source.playbackAccessMode === "lease-v1" &&
+					refreshed.playbackAccessMode === "lease-v1"
+				) {
+					scheduleAccessRenewal(playback, refreshed.expiresIn);
+					return;
+				}
+				if (!refreshed.ticket) {
+					scheduleAccessRenewal(playback, expiresInSeconds, 30_000);
+					return;
+				}
+				const nextUrl = playbackUrlWithAccess(source, refreshed.ticket);
+				const position = audio.currentTime;
+				const shouldPlay = !audio.paused;
+				const restorePositionAndPlay = () => {
+					if (!active || generation !== loadGeneration.current) return;
+					try {
+						audio.currentTime = position;
+					} catch {
+						// Metadata may not be ready until a later event.
+					}
+					if (shouldPlay) attemptPlay(entry);
+				};
+				hlsRef.current?.destroy();
+				hlsRef.current = null;
+				if (
+					/\.m3u8(?:\?|$)/i.test(nextUrl) &&
+					shouldUseHlsJs() &&
+					Hls.isSupported()
+				) {
+					const hls = new Hls({ enableWorker: true });
+					hlsRef.current = hls;
+					hls.on(Hls.Events.MANIFEST_PARSED, restorePositionAndPlay);
+					hls.on(Hls.Events.ERROR, (_event, data) => {
+						if (active && data.fatal && generation === loadGeneration.current)
+							setError("Audio stream could not be loaded.");
+					});
+					hls.loadSource(nextUrl);
+					hls.attachMedia(audio);
+				} else {
+					audio.addEventListener("loadedmetadata", restorePositionAndPlay, {
+						once: true,
+					});
+					audio.src = nextUrl;
+					audio.load();
+				}
+				scheduleAccessRenewal(playback, refreshed.expiresIn);
+			} catch {
+				if (active) scheduleAccessRenewal(playback, expiresInSeconds, 30_000);
+			}
+		};
+		const scheduleAccessRenewal = (
+			playback: PlaybackInfo,
+			expiresInSeconds: number,
+			retryDelayMs?: number,
+		) => {
+			if (!playback.source?.Id) return;
+			if (accessRefreshTimer !== undefined)
+				window.clearTimeout(accessRefreshTimer);
+			accessRefreshTimer = window.setTimeout(
+				() => void renewAccess(playback, expiresInSeconds),
+				retryDelayMs ??
+					Math.max(15_000, (Math.max(30, expiresInSeconds) - 60) * 1000),
+			);
+		};
 		void getPlaybackInfo(session, entry.track.Id, {
 			startPositionSeconds: startPosition,
 		})
@@ -481,6 +578,10 @@ export function AudioPlayerProvider({
 				if (!active || generation !== loadGeneration.current || !audioRef.current)
 					return;
 				const url = playbackUrl(playback.source);
+				scheduleAccessRenewal(
+					playback,
+					playback.accessExpiresIn ?? playback.source?.accessExpiresIn ?? 15 * 60,
+				);
 				audio.volume = mutedRef.current ? 0 : volumeRef.current;
 				audio.preload = "metadata";
 				if (/\.m3u8(?:\?|$)/i.test(url) && shouldUseHlsJs() && Hls.isSupported()) {
@@ -520,6 +621,8 @@ export function AudioPlayerProvider({
 			});
 		return () => {
 			active = false;
+			if (accessRefreshTimer !== undefined)
+				window.clearTimeout(accessRefreshTimer);
 			invalidatePlayAttempt();
 			audio.removeEventListener("loadedmetadata", applyStartPosition);
 			audio.pause();

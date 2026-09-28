@@ -1,4 +1,5 @@
 import { act, fireEvent, render } from "@testing-library/react";
+import Hls from "hls.js";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
 	CustomSubtitleCue,
@@ -61,6 +62,7 @@ import {
 	reportPlayback,
 	setPlayed,
 	playbackUrl,
+	refreshPlaybackAccess,
 	type MediaItem,
 } from "@/lib/media-api";
 import type { SyncplayGroup } from "@/lib/syncplay";
@@ -71,6 +73,9 @@ vi.mock("@/lib/media-api", async () => {
 	return {
 		...actual,
 		getPlaybackInfo: vi.fn().mockResolvedValue({}),
+		refreshPlaybackAccess: vi
+			.fn()
+			.mockResolvedValue({ ticket: "legacy-ticket", expiresIn: 900 }),
 		getEpisodes: vi.fn().mockResolvedValue([]),
 		getPlaybackMarkers: vi.fn().mockResolvedValue(null),
 		getSeasons: vi.fn().mockResolvedValue([]),
@@ -159,6 +164,10 @@ describe("video player controls", () => {
 			.mockReset()
 			.mockResolvedValue({} as never);
 		vi.mocked(playbackUrl).mockReset().mockReturnValue("/video.m3u8");
+		vi
+			.mocked(refreshPlaybackAccess)
+			.mockReset()
+			.mockResolvedValue({ ticket: "legacy-ticket", expiresIn: 900 });
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
 		vi
@@ -917,17 +926,24 @@ describe("video player controls", () => {
 		expect(endPlaybackViewer).not.toHaveBeenCalled();
 	});
 
-	it("keeps the active media source stable beyond the ticket lifetime", async () => {
+	it("keeps the active video source stable after a successful lease renewal", async () => {
 		const streams = {
 			source: {
 				Id: "source-1",
 				mode: "direct",
-				url: "/episode-selected.mp4",
+				url: "/episode-selected.mp4?access=pl1_opaque",
+				accessExpiresIn: 90,
+				playbackAccessMode: "lease-v1",
+				playbackLeaseToken: "pl1_opaque",
 			},
 			audio: [],
 			subtitles: [],
 			qualities: [],
 		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(refreshPlaybackAccess).mockResolvedValue({
+			playbackAccessMode: "lease-v1",
+			expiresIn: 900,
+		});
 		vi.mocked(playbackStreams).mockReturnValue(streams);
 		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
 		const { view } = renderEpisodePlayer({ withNext: false });
@@ -948,7 +964,7 @@ describe("video player controls", () => {
 		const initialLoadCalls = vi.spyOn(video, "load").mock.calls.length;
 
 		await act(async () => {
-			vi.advanceTimersByTime(15 * 60 * 1_000 + 1_000);
+			vi.advanceTimersByTime(30_000);
 			await Promise.resolve();
 			await Promise.resolve();
 		});
@@ -956,6 +972,121 @@ describe("video player controls", () => {
 		expect(vi.mocked(video.pause).mock.calls.length).toBe(initialPauseCalls);
 		expect(vi.mocked(video.load).mock.calls.length).toBe(initialLoadCalls);
 		expect(video.currentTime).toBe(37);
+		expect(refreshPlaybackAccess).toHaveBeenCalledOnce();
+	});
+
+	it("keeps the active HLS instance alive during lease renewal", async () => {
+		const previousMediaSource = Object.getOwnPropertyDescriptor(
+			window,
+			"MediaSource",
+		);
+		Object.defineProperty(window, "MediaSource", {
+			configurable: true,
+			value: {},
+		});
+		const supported = vi.spyOn(Hls, "isSupported").mockReturnValue(true);
+		const loadSource = vi
+			.spyOn(Hls.prototype, "loadSource")
+			.mockImplementation(() => undefined);
+		const attachMedia = vi
+			.spyOn(Hls.prototype, "attachMedia")
+			.mockImplementation(() => undefined);
+		const destroy = vi
+			.spyOn(Hls.prototype, "destroy")
+			.mockImplementation(() => undefined);
+		try {
+			const streams = {
+				source: {
+					Id: "source-hls",
+					mode: "video-transcode",
+					url: "/episode-selected.m3u8?access=pl1_opaque",
+					accessExpiresIn: 90,
+					playbackAccessMode: "lease-v1",
+					playbackLeaseToken: "pl1_opaque",
+				},
+				audio: [],
+				subtitles: [],
+				qualities: [],
+			} as ReturnType<typeof playbackStreams>;
+			vi.mocked(playbackStreams).mockReturnValue(streams);
+			vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+			vi.mocked(refreshPlaybackAccess).mockResolvedValue({
+				playbackAccessMode: "lease-v1",
+				expiresIn: 900,
+			});
+			const { view } = renderEpisodePlayer({ withNext: false });
+			const video = view.container.querySelector("video")!;
+			Object.defineProperty(video, "currentTime", {
+				configurable: true,
+				writable: true,
+				value: 37,
+			});
+			Object.defineProperty(video, "paused", {
+				configurable: true,
+				value: false,
+			});
+			await flushPlayerEffects();
+			const initialSource = video.src;
+			const initialHlsLoads = loadSource.mock.calls.length;
+			const initialAttachCalls = attachMedia.mock.calls.length;
+
+			await act(async () => {
+				vi.advanceTimersByTime(30_000);
+				await Promise.resolve();
+				await Promise.resolve();
+			});
+
+			expect(refreshPlaybackAccess).toHaveBeenCalledOnce();
+			expect(video.src).toBe(initialSource);
+			expect(video.currentTime).toBe(37);
+			expect(loadSource).toHaveBeenCalledTimes(initialHlsLoads);
+			expect(attachMedia).toHaveBeenCalledTimes(initialAttachCalls);
+			expect(destroy).not.toHaveBeenCalled();
+			view.unmount();
+		} finally {
+			supported.mockRestore();
+			loadSource.mockRestore();
+			attachMedia.mockRestore();
+			destroy.mockRestore();
+			if (previousMediaSource)
+				Object.defineProperty(window, "MediaSource", previousMediaSource);
+			else Reflect.deleteProperty(window, "MediaSource");
+		}
+	});
+
+	it("replaces a legacy ticket URL when the server does not negotiate leases", async () => {
+		const streams = {
+			source: {
+				Id: "source-legacy",
+				mode: "direct",
+				url: "/episode-selected.mp4?access=old-ticket",
+				accessExpiresIn: 90,
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockReturnValue(streams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		vi.mocked(refreshPlaybackAccess).mockResolvedValue({
+			ticket: "new-ticket",
+			expiresIn: 900,
+		});
+		const { view } = renderEpisodePlayer({ withNext: false });
+		const video = view.container.querySelector("video")!;
+		await flushPlayerEffects();
+		const initialLoadCount = vi.spyOn(video, "load").mock.calls.length;
+
+		await act(async () => {
+			vi.advanceTimersByTime(30_000);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(new URL(video.src).searchParams.get("access")).toBe("new-ticket");
+		expect(vi.mocked(video.load).mock.calls.length).toBeGreaterThan(
+			initialLoadCount,
+		);
 	});
 
 	it("suppresses automatic history writes and replay unwatch when disabled", () => {

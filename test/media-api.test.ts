@@ -6,6 +6,7 @@ import {
 	getAudioLyrics,
 	getSearchItems,
 	getSearchPage,
+	refreshPlaybackAccess,
 } from "@/lib/media-api";
 
 const session = { token: "bearer-token", userId: "user-1", username: "Alex" };
@@ -44,6 +45,68 @@ describe("changeAccountPassword", () => {
 				}),
 			}),
 		);
+	});
+});
+
+describe("playback lease renewal", () => {
+	it("refreshes login credentials and retries lease renewal without rotating its handle", async () => {
+		let accessRequests = 0;
+		let refreshRequests = 0;
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = String(input);
+				if (url.endsWith("/api/auth/refresh")) {
+					refreshRequests += 1;
+					return new Response(null, { status: 200 });
+				}
+				if (url.endsWith("/api/playback/items/episode-1/access")) {
+					accessRequests += 1;
+					if (accessRequests === 1) return new Response(null, { status: 401 });
+					return new Response(
+						JSON.stringify({
+							playbackAccessMode: "lease-v1",
+							expiresIn: 900,
+							expiresAt: "2026-09-28T12:00:00+00:00",
+						}),
+						{ status: 200, headers: { "Content-Type": "application/json" } },
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+		await expect(
+			refreshPlaybackAccess(
+				session,
+				"episode-1",
+				"source-1",
+				"worker-1",
+				"lease-v1",
+				"pl1_opaque",
+			),
+		).resolves.toMatchObject({
+			playbackAccessMode: "lease-v1",
+			expiresIn: 900,
+			expiresAt: "2026-09-28T12:00:00+00:00",
+			ticket: undefined,
+		});
+
+		expect(accessRequests).toBe(2);
+		expect(refreshRequests).toBe(1);
+		const accessBodies = fetchMock.mock.calls
+			.filter(([input]) =>
+				String(input).endsWith("/api/playback/items/episode-1/access"),
+			)
+			.map(([, init]) => JSON.parse(String(init?.body)));
+		expect(accessBodies).toHaveLength(2);
+		for (const body of accessBodies) {
+			expect(body).toMatchObject({
+				sourceId: "source-1",
+				sessionId: "worker-1",
+				playbackAccessMode: "lease-v1",
+				playbackLeaseToken: "pl1_opaque",
+			});
+		}
 	});
 });
 

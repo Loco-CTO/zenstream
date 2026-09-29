@@ -24,6 +24,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Check out Orchestrator contract fixtures
+        uses: actions/checkout@v7
+        with:
+          repository: Loco-CTO/zenstream-orchestrator
+          ref: main
+          path: _contracts/zenstream-orchestrator
+          sparse-checkout: contracts/fixtures
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -48,6 +56,8 @@ jobs:
         run: pnpm lint
 
       - name: Run tests with coverage
+        env:
+          ZENSTREAM_API_FIXTURE_ROOT: ${{ github.workspace }}/_contracts/zenstream-orchestrator/contracts/fixtures
         run: pnpm test:coverage
 
       - name: Install DeepSource CLI

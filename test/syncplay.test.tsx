@@ -5,6 +5,8 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import {
@@ -228,6 +230,19 @@ function PresenceControl({
 }
 
 const session = { token: "token", userId: "user", username: "Alex" };
+const contractFixtureRoot = process.env.ZENSTREAM_API_FIXTURE_ROOT;
+const syncplayWireFixtures = contractFixtureRoot
+	? (JSON.parse(
+			readFileSync(path.join(contractFixtureRoot, "syncplay.json"), "utf8"),
+		) as {
+			messages: Array<{
+				name: string;
+				direction: "client-to-server" | "server-to-client";
+				payload: Record<string, unknown>;
+			}>;
+		})
+	: null;
+
 function SyncplayTestProvider({ children }: { children: ReactNode }) {
 	return (
 		<I18nProvider locale="en">
@@ -332,6 +347,59 @@ describe("SyncplayProvider", () => {
 		});
 		expect(TestSocket.latest).toBeNull();
 	});
+
+	it.skipIf(!syncplayWireFixtures)(
+		"parses the shared Syncplay wire-message fixtures",
+		async () => {
+			vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+				if (String(input).endsWith("/api/syncplay/groups"))
+					return new Response(JSON.stringify({ groups: [] }));
+				throw new Error(`Unexpected request: ${String(input)}`);
+			});
+			render(
+				<SyncplayTestProvider>
+					<Controls />
+					<GroupCount />
+				</SyncplayTestProvider>,
+			);
+			await waitFor(() =>
+				expect(TestSocket.latest?.readyState).toBe(TestSocket.OPEN),
+			);
+
+			const message = (name: string) =>
+				syncplayWireFixtures?.messages.find((fixture) => fixture.name === name)
+					?.payload;
+			act(() =>
+				TestSocket.latest?.receive("syncplay:groups", message("initial-groups")),
+			);
+			await waitFor(() =>
+				expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
+			);
+
+			act(() =>
+				TestSocket.latest?.receive("syncplay:group", message("group-update")),
+			);
+			await waitFor(() =>
+				expect(screen.getByTestId("group-count")).toHaveTextContent("1"),
+			);
+
+			act(() =>
+				TestSocket.latest?.receive("syncplay:group-ended", message("group-ended")),
+			);
+			await waitFor(() =>
+				expect(screen.getByTestId("group-count")).toHaveTextContent("0"),
+			);
+
+			act(() => {
+				TestSocket.latest?.receive(
+					"syncplay:participant-replaced",
+					message("participant-replaced"),
+				);
+				TestSocket.latest?.receive("clock", message("clock-response"));
+			});
+			expect(TestSocket.latest?.readyState).toBe(TestSocket.OPEN);
+		},
+	);
 
 	it("retries a failed socket ticket and reconnects automatically", async () => {
 		let releaseTicket!: (response: Response) => void;

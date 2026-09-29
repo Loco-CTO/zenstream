@@ -1,15 +1,15 @@
 services:
   zenstream:
+    image: ${ZENSTREAM_IMAGE:-ghcr.io/loco-cto/zenstream:latest}
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_ZSO_URL: ${NEXT_PUBLIC_ZSO_URL:?Set NEXT_PUBLIC_ZSO_URL}
+    pull_policy: missing
     ports:
       - "${ZENSTREAM_PORT:-9086}:9086"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_ZSO_URL: ${NEXT_PUBLIC_ZSO_URL:?Set NEXT_PUBLIC_ZSO_URL}
+      ZENSTREAM_ORCHESTRATOR_URL: ${ZENSTREAM_ORCHESTRATOR_URL:?Set ZENSTREAM_ORCHESTRATOR_URL}
     restart: unless-stopped
     logging:
       driver: json-file

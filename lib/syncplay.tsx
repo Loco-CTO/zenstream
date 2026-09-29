@@ -8,6 +8,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
+import { orchestratorBaseUrl } from "@/lib/authenticated-request";
 type Socket = SyncplaySocket;
 type SyncplayEvent = unknown;
 const SYNCPLAY_RECONNECT_INITIAL_MS = 500;
@@ -751,9 +752,7 @@ export function SyncplayProvider({
 		// unavailable (or its first server message is lost). It also lets a user
 		// discover groups created by other people before the socket reconnects.
 		void refreshRef.current().catch(() => undefined);
-		const socketOrigin = (
-			process.env.NEXT_PUBLIC_ZSO_URL ?? window.location.origin
-		).replace(/\/+$/, "");
+		const socketOrigin = orchestratorBaseUrl();
 		const socket = io(socketOrigin, {
 			path: "/api/socket.io",
 			auth: { session, participantId: currentParticipantId },

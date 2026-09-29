@@ -1,5 +1,8 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildContentSecurityPolicy } from "./lib/runtime-config.mjs";
+
+export { buildContentSecurityPolicy };
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 
@@ -8,60 +11,12 @@ const allowedDevOrigins = (process.env.NEXT_ALLOWED_DEV_ORIGINS ?? "")
 	.map((value) => value.trim())
 	.filter(Boolean);
 
-function artworkRemotePatterns(orchestratorUrl) {
-	if (!orchestratorUrl) return [];
-	try {
-		const parsed = new URL(orchestratorUrl);
-		const origin = {
-			protocol: parsed.protocol.replace(/:$/, ""),
-			hostname: parsed.hostname,
-			port: parsed.port,
-		};
-		return [
-			{ ...origin, pathname: "/api/catalog/items/*/images/*" },
-			{ ...origin, pathname: "/api/catalog/items/*/people/*/image" },
-		];
-	} catch {
-		return [];
-	}
-}
-
-export function buildContentSecurityPolicy(
-	orchestratorUrl,
-	isDevelopment = false,
-) {
-	const configuredOrchestrator = orchestratorUrl
-		? new URL(orchestratorUrl)
-		: null;
-	const configuredOrchestratorOrigin = configuredOrchestrator?.origin;
-	const configuredOrchestratorSocketOrigin = configuredOrchestrator
-		? `${configuredOrchestrator.protocol === "https:" ? "wss:" : "ws:"}//${configuredOrchestrator.host}`
-		: null;
-	const orchestratorSources = configuredOrchestratorOrigin
-		? ` ${configuredOrchestratorOrigin}`
-		: "";
-	const orchestratorConnectSources = configuredOrchestratorSocketOrigin
-		? `${orchestratorSources} ${configuredOrchestratorSocketOrigin}`
-		: orchestratorSources;
-	const developmentScriptSources = isDevelopment ? " 'unsafe-eval'" : "";
-
-	return `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:${orchestratorSources}; media-src 'self' blob: https:${orchestratorSources}; connect-src 'self' https: wss:${orchestratorConnectSources}; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'${developmentScriptSources}`;
-}
-
-const contentSecurityPolicy = buildContentSecurityPolicy(
-	process.env.NEXT_PUBLIC_ZSO_URL,
-	process.env.NODE_ENV === "development",
-);
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	reactStrictMode: true,
 	...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
 	output: "standalone",
-	images: {
-		remotePatterns: artworkRemotePatterns(process.env.NEXT_PUBLIC_ZSO_URL),
-		minimumCacheTTL: 300,
-	},
+	images: { minimumCacheTTL: 300, unoptimized: true },
 	turbopack: {
 		root: appRoot,
 		rules: {
@@ -87,10 +42,6 @@ const nextConfig = {
 			{
 				source: "/:path*",
 				headers: [
-					{
-						key: "Content-Security-Policy",
-						value: contentSecurityPolicy,
-					},
 					{ key: "Referrer-Policy", value: "no-referrer" },
 					{ key: "X-Content-Type-Options", value: "nosniff" },
 					{ key: "X-Frame-Options", value: "DENY" },

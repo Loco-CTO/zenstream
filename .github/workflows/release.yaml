@@ -13,20 +13,30 @@ on:
           - minor
           - major
       retry_version:
-        description: Existing release version to retry without bumping
+        description: Candidate or published release version to retry without bumping
         required: false
         type: string
 
 permissions:
   contents: write
+  id-token: write
+  packages: write
 
 concurrency:
   group: version-release
   cancel-in-progress: false
 
 jobs:
-  release:
+  candidate:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
+      tag: ${{ steps.prepare.outputs.tag }}
+      sha: ${{ steps.prepare.outputs.sha }}
+      candidate_ref: ${{ steps.prepare.outputs.candidate_ref }}
+      candidate_ref_present: ${{ steps.prepare.outputs.candidate_ref_present }}
+      base_main: ${{ steps.prepare.outputs.base_main }}
+      base_stable: ${{ steps.prepare.outputs.base_stable }}
     steps:
       - name: Check out main
         uses: actions/checkout@v7
@@ -34,111 +44,388 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Bump frontend version
-        id: version
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Prepare or reuse release candidate
+        id: prepare
         env:
           BUMP: ${{ inputs.bump }}
           RETRY_VERSION: ${{ inputs.retry_version }}
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          version=$(node -p "require('./package.json').version")
-          if [ -n "$RETRY_VERSION" ]; then
-            retry_version="${RETRY_VERSION#v}"
-            if [[ ! "$retry_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "retry_version must be a semantic version such as 1.5.7 or v1.5.7." >&2
-              exit 1
-            fi
-            if [ "$retry_version" != "$version" ]; then
-              echo "retry_version $retry_version does not match package.json version $version." >&2
-              exit 1
-            fi
-            tag="v$retry_version"
-            if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-              echo "Release tag $tag does not exist on origin." >&2
-              exit 1
-            fi
-            if ! gh release view "$tag" --json tagName >/dev/null 2>&1; then
-              echo "GitHub release $tag does not exist." >&2
-              exit 1
-            fi
-            echo "Retrying existing GitHub release $tag."
-            echo "version=$retry_version" >> "$GITHUB_OUTPUT"
-            echo "tag=$tag" >> "$GITHUB_OUTPUT"
-            echo "reuse_existing=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          IFS=. read -r major minor fix <<< "$version"
-          case "$BUMP" in
-            major) major=$((major + 1)); minor=0; fix=0 ;;
-            minor) minor=$((minor + 1)); fix=0 ;;
-            fix) fix=$((fix + 1)) ;;
-            *) echo "Unsupported bump: $BUMP" >&2; exit 1 ;;
-          esac
-          new_version="$major.$minor.$fix"
-          tag="v$new_version"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "Release tag $tag already exists." >&2
-            exit 1
-          fi
-          VERSION="$new_version" node -e "const fs=require('fs'); const p=require('./package.json'); p.version=process.env.VERSION; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\\n')"
-          printf '{\n  "main": 0\n}\n' > .main-version.json
-          echo "version=$new_version" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "reuse_existing=false" >> "$GITHUB_OUTPUT"
+          source scripts/release-candidate.sh
+          git fetch origin main stable
 
-      - name: Commit and push main
-        id: commit
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          REUSE_EXISTING: ${{ steps.version.outputs.reuse_existing }}
-        run: |
-          set -euo pipefail
-          if [ "$REUSE_EXISTING" = 'true' ]; then
-            echo "Reusing the existing release commit for v$VERSION; no version commit needed."
-            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package.json .main-version.json
-          git commit -m "chore: release v$VERSION"
-          git push origin HEAD:main
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Align stable with main
-        run: |
-          git fetch origin stable || true
-          stable_sha=$(git rev-parse refs/remotes/origin/stable 2>/dev/null || printf '%040d' 0)
-          git push origin "HEAD:stable" --force-with-lease="refs/heads/stable:$stable_sha"
-
-      - name: Ensure GitHub release exists
-        uses: actions/github-script@v9
-        env:
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-          TARGET_SHA: ${{ steps.commit.outputs.sha }}
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const tag = process.env.RELEASE_TAG;
-            try {
-              const release = await github.rest.repos.getReleaseByTag({
-                owner,
-                repo,
-                tag,
-              });
-              core.info(`GitHub release ${tag} already exists (id ${release.data.id}); reusing it.`);
-            } catch (error) {
-              if (error.status !== 404) {
-                throw error;
-              }
-              await github.rest.repos.createRelease({
-                owner,
-                repo,
-                tag_name: tag,
-                target_commitish: process.env.TARGET_SHA,
-                generate_release_notes: true,
-                name: tag,
-              });
-              core.info(`Created GitHub release ${tag}.`);
+          if [[ -n "$RETRY_VERSION" ]]; then
+            version="${RETRY_VERSION#v}"
+            [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+              echo "retry_version must be a semantic version such as 1.6.5 or v1.6.5." >&2
+              exit 1
             }
+            tag="v$version"
+            candidate_ref="refs/heads/release-candidate/$tag"
+            tag_ref="refs/tags/$tag"
+            candidate_ref_sha="$(remote_ref_sha "$candidate_ref")"
+            candidate_ref_present=false
+            if [[ -n "$candidate_ref_sha" ]]; then
+              candidate_ref_present=true
+            fi
+            tag_sha="$(remote_tag_commit_sha "$tag_ref")"
+            published=false
+            if gh release view "$tag" --json isDraft --jq '.isDraft' >"$RUNNER_TEMP/release-is-draft" 2>/dev/null; then
+              if [[ "$(cat "$RUNNER_TEMP/release-is-draft")" == "false" ]]; then
+                published=true
+              fi
+            fi
+            sha="$(resolve_retry_candidate "$candidate_ref" "$tag_ref" "$published")"
+            if [[ -n "$candidate_ref_sha" ]]; then
+              git fetch origin "$candidate_ref:refs/remotes/origin/release-candidate/$version"
+            else
+              git fetch origin "$tag_ref:refs/tags/$tag"
+            fi
+            git checkout --detach "$sha"
+            actual_version="$(node -p "require('./package.json').version")"
+            [[ "$actual_version" == "$version" ]] || {
+              echo "Candidate $sha contains version $actual_version, not requested version $version." >&2
+              exit 1
+            }
+            base_main="$(release_trailer "$sha" main)"
+            base_stable="$(release_trailer "$sha" stable)"
+            if [[ -z "$base_main" || -z "$base_stable" ]]; then
+              [[ "$(remote_ref_sha refs/heads/main)" == "$sha" && "$(remote_ref_sha refs/heads/stable)" == "$sha" ]] || {
+                echo "This published tag has no recorded branch bases and is not already promoted on both branches." >&2
+                exit 1
+              }
+              base_main="$sha"
+              base_stable="$sha"
+            else
+              [[ "$(git rev-parse "$sha^")" == "$base_main" ]] || {
+                echo "Candidate $sha does not have its recorded main base $base_main as its parent." >&2
+                exit 1
+              }
+            fi
+            echo "Reusing candidate SHA $sha for $tag."
+          else
+            base_main="$(remote_ref_sha refs/heads/main)"
+            base_stable="$(remote_ref_sha refs/heads/stable)"
+            [[ -n "$base_main" && -n "$base_stable" ]] || {
+              echo "Both main and stable must exist before a web release." >&2
+              exit 1
+            }
+            [[ "$(git rev-parse HEAD)" == "$base_main" ]] || {
+              echo "main moved while the release candidate was being prepared." >&2
+              exit 1
+            }
+            current_version="$(node -p "require('./package.json').version")"
+            IFS=. read -r major minor fix <<< "$current_version"
+            case "$BUMP" in
+              major) major=$((major + 1)); minor=0; fix=0 ;;
+              minor) minor=$((minor + 1)); fix=0 ;;
+              fix) fix=$((fix + 1)) ;;
+              *) echo "Unsupported bump: $BUMP" >&2; exit 1 ;;
+            esac
+            version="$major.$minor.$fix"
+            tag="v$version"
+            candidate_ref="refs/heads/release-candidate/$tag"
+            tag_ref="refs/tags/$tag"
+            [[ -z "$(remote_ref_sha "$candidate_ref")" ]] || {
+              echo "Candidate $candidate_ref already exists; retry it with retry_version=$version." >&2
+              exit 1
+            }
+            [[ -z "$(remote_tag_commit_sha "$tag_ref")" ]] || {
+              echo "Release tag $tag already exists; retry it with retry_version=$version." >&2
+              exit 1
+            }
+            VERSION="$version" node -e "const fs=require('fs'); const p=require('./package.json'); p.version=process.env.VERSION; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\\n')"
+            printf '{\n  "main": 0\n}\n' > .main-version.json
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package.json .main-version.json
+            git commit -m "chore: release $tag" -m "release-base-main: $base_main" -m "release-base-stable: $base_stable"
+            sha="$(git rev-parse HEAD)"
+            git push origin "$sha:$candidate_ref"
+            [[ "$(remote_ref_sha "$candidate_ref")" == "$sha" ]] || {
+              echo "Release candidate ref did not settle at $sha." >&2
+              exit 1
+            }
+            candidate_ref_present=true
+          fi
+
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "Resolved release candidate is not a full Git SHA: $sha" >&2
+            exit 1
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "candidate_ref=$candidate_ref" >> "$GITHUB_OUTPUT"
+          echo "candidate_ref_present=$candidate_ref_present" >> "$GITHUB_OUTPUT"
+          echo "base_main=$base_main" >> "$GITHUB_OUTPUT"
+          echo "base_stable=$base_stable" >> "$GITHUB_OUTPUT"
+
+      - name: Test release candidate and workflow guards
+        run: |
+          bash scripts/release-candidate.test.sh
+          python3 scripts/release-workflow.test.py
+
+  validate:
+    needs: candidate
+    uses: ./.github/workflows/ci.yml
+    with:
+      candidate_sha: ${{ needs.candidate.outputs.sha }}
+      skip_coverage_upload: true
+
+  image-amd64:
+    needs: candidate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build amd64 release image
+        env:
+          ARCH: amd64
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+          VERSION: ${{ needs.candidate.outputs.version }}
+        run: |
+          docker buildx build --platform linux/amd64 --load \
+            --label "org.opencontainers.image.revision=$CANDIDATE_SHA" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --tag "zenstream:$ARCH" .
+
+      - name: Smoke-test amd64 runtime configuration
+        env:
+          ARCH: amd64
+        run: bash scripts/smoke-web-container.sh "zenstream:$ARCH"
+
+      - name: Save tested amd64 image
+        run: docker save zenstream:amd64 --output "$RUNNER_TEMP/zenstream-amd64.tar"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-image-amd64
+          path: ${{ runner.temp }}/zenstream-amd64.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  image-arm64:
+    needs: candidate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+
+      - uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build arm64 release image
+        env:
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+          VERSION: ${{ needs.candidate.outputs.version }}
+        run: |
+          docker buildx build --platform linux/arm64 --load \
+            --label "org.opencontainers.image.revision=$CANDIDATE_SHA" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --tag zenstream:arm64 .
+
+      - name: Smoke-test arm64 runtime configuration
+        env:
+          ARCH: arm64
+        run: bash scripts/smoke-web-container.sh zenstream:arm64
+
+      - name: Save tested arm64 image
+        run: docker save zenstream:arm64 --output "$RUNNER_TEMP/zenstream-arm64.tar"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-image-arm64
+          path: ${{ runner.temp }}/zenstream-arm64.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [candidate, validate, image-amd64, image-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+
+      - name: Verify branch refs before publishing
+        env:
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+          CANDIDATE_REF: ${{ needs.candidate.outputs.candidate_ref }}
+          CANDIDATE_REF_PRESENT: ${{ needs.candidate.outputs.candidate_ref_present }}
+          BASE_MAIN: ${{ needs.candidate.outputs.base_main }}
+          BASE_STABLE: ${{ needs.candidate.outputs.base_stable }}
+        run: |
+          source scripts/release-candidate.sh
+          assert_candidate_ref_state "$CANDIDATE_REF" "$CANDIDATE_SHA" "$CANDIDATE_REF_PRESENT"
+          assert_ref_state refs/heads/main "$BASE_MAIN" "$CANDIDATE_SHA"
+          assert_ref_state refs/heads/stable "$BASE_STABLE" "$CANDIDATE_SHA"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-image-amd64
+          path: image-amd64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-image-arm64
+          path: image-arm64
+
+      - name: Load the exact images that passed smoke checks
+        run: |
+          docker load --input image-amd64/zenstream-amd64.tar
+          docker load --input image-arm64/zenstream-arm64.tar
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish immutable platform images and manifests
+        id: image
+        env:
+          VERSION: ${{ needs.candidate.outputs.version }}
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          image=ghcr.io/loco-cto/zenstream
+          sha_tag="sha-$CANDIDATE_SHA"
+          for arch in amd64 arm64; do
+            docker tag "zenstream:$arch" "$image:$VERSION-$arch"
+            docker tag "zenstream:$arch" "$image:$sha_tag-$arch"
+            docker push "$image:$VERSION-$arch"
+            docker push "$image:$sha_tag-$arch"
+          done
+          docker buildx imagetools create \
+            --tag "$image:v$VERSION" \
+            "$image:$VERSION-amd64" "$image:$VERSION-arm64"
+          docker buildx imagetools create \
+            --tag "$image:$sha_tag" \
+            "$image:$sha_tag-amd64" "$image:$sha_tag-arm64"
+          version_info="$(docker buildx imagetools inspect "$image:v$VERSION")"
+          sha_info="$(docker buildx imagetools inspect "$image:$sha_tag")"
+          version_digest="$(awk '/^Digest:/ { print $2; exit }' <<<"$version_info")"
+          sha_digest="$(awk '/^Digest:/ { print $2; exit }' <<<"$sha_info")"
+          [[ -n "$version_digest" && "$version_digest" == "$sha_digest" ]] || {
+            echo "Version and SHA tags do not resolve to the same multi-platform manifest." >&2
+            exit 1
+          }
+          grep -Fq 'Platform: linux/amd64' <<<"$version_info"
+          grep -Fq 'Platform: linux/arm64' <<<"$version_info"
+          echo "digest=$version_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Make the self-hosted image public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --method PATCH orgs/loco-cto/packages/container/zenstream/visibility --field visibility=public
+
+      - name: Verify the version tag is anonymously pullable
+        env:
+          VERSION: ${{ needs.candidate.outputs.version }}
+        run: |
+          docker logout ghcr.io
+          docker buildx imagetools inspect "ghcr.io/loco-cto/zenstream:v$VERSION"
+
+      - name: Prepare and publish the verified release manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.candidate.outputs.version }}
+          TAG: ${{ needs.candidate.outputs.tag }}
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          source scripts/release-candidate.sh
+          tag_ref="refs/tags/$TAG"
+          cat > release-manifest.json <<EOF
+          {
+            "version": "$VERSION",
+            "candidateSha": "$CANDIDATE_SHA",
+            "image": "ghcr.io/loco-cto/zenstream:v$VERSION",
+            "shaImage": "ghcr.io/loco-cto/zenstream:sha-$CANDIDATE_SHA",
+            "multiPlatformManifestDigest": "$IMAGE_DIGEST",
+            "platforms": ["linux/amd64", "linux/arm64"]
+          }
+          EOF
+          if ! gh release view "$TAG" --json tagName >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$CANDIDATE_SHA" --draft --title "$TAG" --generate-notes
+          fi
+          [[ "$(remote_tag_commit_sha "$tag_ref")" == "$CANDIDATE_SHA" ]] || {
+            echo "Release tag $TAG does not point to candidate $CANDIDATE_SHA." >&2
+            exit 1
+          }
+          gh release upload "$TAG" release-manifest.json --clobber
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          gh release download "$TAG" --pattern release-manifest.json --dir "$RUNNER_TEMP/release-assets"
+          cmp release-manifest.json "$RUNNER_TEMP/release-assets/release-manifest.json"
+          gh release edit "$TAG" --draft=false
+
+  promote:
+    needs: [candidate, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact release candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Promote branches with compare-and-swap
+        env:
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+          CANDIDATE_REF: ${{ needs.candidate.outputs.candidate_ref }}
+          CANDIDATE_REF_PRESENT: ${{ needs.candidate.outputs.candidate_ref_present }}
+          BASE_MAIN: ${{ needs.candidate.outputs.base_main }}
+          BASE_STABLE: ${{ needs.candidate.outputs.base_stable }}
+        run: |
+          source scripts/release-candidate.sh
+          assert_candidate_ref_state "$CANDIDATE_REF" "$CANDIDATE_SHA" "$CANDIDATE_REF_PRESENT"
+          assert_ref_state refs/heads/main "$BASE_MAIN" "$CANDIDATE_SHA"
+          assert_ref_state refs/heads/stable "$BASE_STABLE" "$CANDIDATE_SHA"
+          promote_refs "$CANDIDATE_SHA" refs/heads/main "$BASE_MAIN" refs/heads/stable "$BASE_STABLE"
+
+      - name: Advance mutable GHCR aliases
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag latest and stable after branch promotion
+        env:
+          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          image=ghcr.io/loco-cto/zenstream
+          docker buildx imagetools create --tag "$image:latest" "$image:sha-$CANDIDATE_SHA"
+          docker buildx imagetools create --tag "$image:stable" "$image:sha-$CANDIDATE_SHA"
+          source scripts/release-candidate.sh
+          immutable_digest="$(docker buildx imagetools inspect "$image:sha-$CANDIDATE_SHA" | awk '/^Digest:/ { print $2; exit }')"
+          for alias in latest stable; do
+            alias_digest="$(docker buildx imagetools inspect "$image:$alias" | awk '/^Digest:/ { print $2; exit }')"
+            [[ "$alias_digest" == "$immutable_digest" ]] || {
+              echo "GHCR alias $alias does not resolve to candidate $CANDIDATE_SHA." >&2
+              exit 1
+            }
+          done
+          delete_candidate_ref "$CANDIDATE_REF" "$CANDIDATE_SHA"

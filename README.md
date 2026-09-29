@@ -32,12 +32,13 @@ ZenStream has one Orchestrator backend and two clients:
 
 ## Configuration
 
-For local development, copy `.env.example` to `.env.local`.
+For local development, copy `.env.example` to `.env.local` and set `ZENSTREAM_ORCHESTRATOR_URL` to the Orchestrator address reachable from your browser.
 
-- `NEXT_PUBLIC_ZSO_URL`: URL of the Orchestrator. This value is embedded when the web client is built.
+- `ZENSTREAM_ORCHESTRATOR_URL`: Runtime URL of the Orchestrator. It may include a path prefix and is read when the web server starts.
 - `ZENSTREAM_PORT`: Docker host port. It defaults to `9086`.
+- `ZENSTREAM_IMAGE`: Docker image to run. It defaults to `ghcr.io/loco-cto/zenstream:latest`.
 
-For Docker, copy `.env.example` to `.env` and set `NEXT_PUBLIC_ZSO_URL` before building. Do not commit environment files or secrets.
+The container exposes the runtime Orchestrator URL to the browser before the app initializes and applies a Content Security Policy restricted to that configured origin. Artwork capability URLs remain direct requests to the Orchestrator.
 
 ## Development
 
@@ -50,13 +51,18 @@ pnpm dev
 
 ## Deployment
 
-For Docker Compose deployment, copy `.env.example` to `.env`, set `NEXT_PUBLIC_ZSO_URL`, and run:
+For Docker Compose deployment, copy `.env.example` to `.env`, set `ZENSTREAM_ORCHESTRATOR_URL`, and start the published image:
 
 ```sh
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 The web client is available at `http://localhost:9086` by default. Stop it with `docker compose down`.
+
+To pin a version, set `ZENSTREAM_IMAGE=ghcr.io/loco-cto/zenstream:vX.Y.Z`. Images are also published by full candidate SHA as `ghcr.io/loco-cto/zenstream:sha-<full-commit-sha>`.
+
+The Compose file keeps its local source build. Run `docker compose up -d --build` to build the checked-out source instead of pulling the configured image. Changing the Orchestrator URL does not require rebuilding.
 
 ## Checks
 
@@ -69,7 +75,7 @@ pnpm build
 
 ## Troubleshooting
 
-- If the web client cannot reach the Orchestrator, check `NEXT_PUBLIC_ZSO_URL` and rebuild the Docker image after changing it.
+- If the web client cannot reach the Orchestrator, check that `ZENSTREAM_ORCHESTRATOR_URL` is reachable from the browser and allowed by the Orchestrator's CORS configuration. Restart the container after changing the URL; no image rebuild is needed.
 - For browser or CORS errors, configure the Orchestrator's `ZENSTREAM_PUBLIC_WEB_URL` or `CORS_ORIGINS` for the web origin.
 
 ## Releases

@@ -372,6 +372,9 @@ describe("video player controls", () => {
 		await flushPlayerEffects();
 		const player = view.container.firstElementChild as HTMLElement;
 		player.focus();
+		expect(
+			view.queryByRole("button", { name: "Show keyboard shortcuts" }),
+		).not.toBeInTheDocument();
 
 		fireEvent.keyDown(player, { key: "?", shiftKey: true });
 		const dialog = view.getByRole("dialog", { name: "Keyboard shortcuts" });
@@ -383,12 +386,41 @@ describe("video player controls", () => {
 		expect(view.queryByRole("dialog")).not.toBeInTheDocument();
 		expect(player).toHaveFocus();
 
+		fireEvent.click(view.getByRole("button", { name: "Settings" }));
+		const settingsPanel = view.container.querySelector(".zenstream-player-panel");
+		expect(settingsPanel).not.toBeNull();
+		const menuLabels = Array.from(
+			settingsPanel!.querySelectorAll("button"),
+			(button) => button.textContent?.trim(),
+		);
+		expect(menuLabels.indexOf("Show keyboard shortcuts")).toBe(
+			menuLabels.indexOf("Show diagnostics") - 1,
+		);
 		fireEvent.click(
 			view.getByRole("button", { name: "Show keyboard shortcuts" }),
 		);
 		expect(
 			view.getByRole("dialog", { name: "Keyboard shortcuts" }),
 		).toBeInTheDocument();
+	});
+
+	it("closes keyboard help on backdrop clicks but not dialog clicks", async () => {
+		const { view } = renderEpisodePlayer({ withNext: false });
+		await flushPlayerEffects();
+		const player = view.container.firstElementChild as HTMLElement;
+		player.focus();
+
+		fireEvent.keyDown(player, { key: "?", shiftKey: true });
+		const dialog = view.getByRole("dialog", { name: "Keyboard shortcuts" });
+		const backdrop = dialog.parentElement;
+		expect(backdrop).not.toBeNull();
+
+		fireEvent.click(dialog);
+		expect(dialog).toBeInTheDocument();
+
+		fireEvent.click(backdrop!);
+		expect(view.queryByRole("dialog")).not.toBeInTheDocument();
+		expect(player).toHaveFocus();
 	});
 
 	it("toggles and selects subtitle and audio tracks with shortcuts", async () => {

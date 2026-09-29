@@ -16,7 +16,6 @@ import {
 	Check,
 	ChevronLeft,
 	FastForward,
-	Keyboard,
 	LoaderCircle,
 	Maximize,
 	Minimize,
@@ -3069,7 +3068,12 @@ export function VideoPlayer({
 			tabIndex={0}
 		>
 			{keyboardHelpOpen && (
-				<div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+				<div
+					onClick={(event) => {
+						if (event.target === event.currentTarget) closeKeyboardHelp();
+					}}
+					className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+				>
 					<section
 						role="dialog"
 						aria-modal="true"
@@ -3828,16 +3832,6 @@ export function VideoPlayer({
 					>
 						{isFullscreen ? <Minimize /> : <Maximize />}
 					</button>
-					<button
-						type="button"
-						aria-label={t("openKeyboardShortcuts")}
-						aria-keyshortcuts="Shift+/"
-						title={t("openKeyboardShortcuts")}
-						onClick={openKeyboardHelp}
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-					>
-						<Keyboard />
-					</button>
 					{trackMenu === "audio" && (
 						<ChoicePanel
 							options={info!.audio.map((track) => ({
@@ -3884,6 +3878,11 @@ export function VideoPlayer({
 											onClick={() => setSettingsSection("offset")}
 										/>
 									)}
+									<MenuRow
+										label={t("openKeyboardShortcuts")}
+										ariaKeyShortcuts="Shift+/"
+										onClick={openKeyboardHelp}
+									/>
 									<MenuRow
 										label={debugOpen ? "Hide diagnostics" : "Show diagnostics"}
 										onClick={() => {
@@ -3959,10 +3958,19 @@ export function VideoPlayer({
 	);
 }
 
-function MenuRow({ label, onClick }: { label: string; onClick: () => void }) {
+function MenuRow({
+	label,
+	onClick,
+	ariaKeyShortcuts,
+}: {
+	label: string;
+	onClick: () => void;
+	ariaKeyShortcuts?: string;
+}) {
 	return (
 		<button
 			type="button"
+			aria-keyshortcuts={ariaKeyShortcuts}
 			onClick={onClick}
 			className="rounded-md px-3 py-2 text-left text-xs font-normal leading-5 text-white/75 transition hover:bg-white/10 hover:text-white"
 		>

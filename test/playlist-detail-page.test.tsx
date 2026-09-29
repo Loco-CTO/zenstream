@@ -283,7 +283,7 @@ describe("playlist detail playback", () => {
 			class {
 				constructor(callback: IntersectionObserverCallback) {
 					onIntersect = callback;
-			}
+				}
 				observe(target: Element) {
 					observe(target);
 				}

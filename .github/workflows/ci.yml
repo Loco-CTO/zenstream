@@ -78,5 +78,6 @@ jobs:
       - name: Smoke production Docker Compose image
         env:
           NEXT_PUBLIC_ZSO_URL: http://127.0.0.1:9088
+          ZENSTREAM_ORCHESTRATOR_URL: http://127.0.0.1:9088
           ZENSTREAM_PORT: "19086"
         run: bash ./scripts/smoke-docker.sh

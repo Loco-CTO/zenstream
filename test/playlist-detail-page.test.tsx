@@ -156,14 +156,17 @@ describe("playlist detail playback", () => {
 	});
 
 	it("loads the next 20 rows at the scroll boundary and fetches the full queue for playback", async () => {
-		let onIntersect: IntersectionObserverCallback = () => {};
+		let onIntersect: IntersectionObserverCallback | null = null;
+		const observe = vi.fn();
 		vi.stubGlobal(
 			"IntersectionObserver",
 			class {
 				constructor(callback: IntersectionObserverCallback) {
 					onIntersect = callback;
 				}
-				observe() {}
+				observe(target: Element) {
+					observe(target);
+				}
 				disconnect() {}
 			},
 		);
@@ -194,12 +197,13 @@ describe("playlist detail playback", () => {
 		expect(
 			screen.queryByRole("button", { name: "play Track 20" }),
 		).not.toBeInTheDocument();
-		await act(async () =>
-			onIntersect(
+		await waitFor(() => expect(observe).toHaveBeenCalled());
+		await act(async () => {
+			onIntersect?.(
 				[{ isIntersecting: true } as IntersectionObserverEntry],
 				{} as IntersectionObserver,
-			),
-		);
+			);
+		});
 		await screen.findByRole("button", { name: "play Track 20" });
 		fireEvent.click(screen.getByRole("button", { name: "playAll" }));
 		await waitFor(() =>

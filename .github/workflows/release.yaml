@@ -385,17 +385,15 @@ jobs:
           done
           echo "digest=$version_digest" >> "$GITHUB_OUTPUT"
 
-      - name: Make the self-hosted image public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method PATCH orgs/loco-cto/packages/container/zenstream/visibility --field visibility=public
-
       - name: Verify the version tag is anonymously pullable
         env:
           VERSION: ${{ needs.candidate.outputs.version }}
         run: |
           docker logout ghcr.io
-          docker buildx imagetools inspect "ghcr.io/loco-cto/zenstream:v$VERSION"
+          if ! docker buildx imagetools inspect "ghcr.io/loco-cto/zenstream:v$VERSION"; then
+            echo "::error::GHCR package ghcr.io/loco-cto/zenstream must be public before release. Set its visibility in GitHub package settings, then retry the release." >&2
+            exit 1
+          fi
 
       - name: Prepare and publish the verified release manifest
         env:

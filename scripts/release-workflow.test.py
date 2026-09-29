@@ -53,6 +53,22 @@ class CandidateFirstWorkflowTest(unittest.TestCase):
                 publish.index("gh release upload"),
             )
 
+    def test_anonymous_image_check_replaces_visibility_api(self) -> None:
+        workflow = RELEASE.read_text(encoding="utf-8")
+        publish = job_block(workflow, "publish")
+        anonymous_verify = publish.split(
+            "      - name: Verify the version tag is anonymously pullable", 1
+        )[1].split("      - name:", 1)[0]
+
+        self.assertNotIn("gh api --method PATCH", publish)
+        self.assertIn("docker logout ghcr.io", anonymous_verify)
+        self.assertIn("docker buildx imagetools inspect", anonymous_verify)
+        self.assertIn("must be public before release", anonymous_verify)
+        self.assertLess(
+            publish.index("Verify the version tag is anonymously pullable"),
+            publish.index("Prepare and publish the verified release manifest"),
+        )
+
     def test_reusable_ci_checks_explicit_candidate_sha(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertRegex(ci, r"workflow_call:")

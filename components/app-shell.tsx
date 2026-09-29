@@ -202,6 +202,15 @@ export function AppShell() {
 	const searchParams = useSearchParams();
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
+	const playerFullscreenHostRef = useRef<HTMLDivElement>(null);
+	const lastPlayerFullscreenHostRef = useRef<HTMLDivElement | null>(null);
+	const setPlayerFullscreenHost = useCallback(
+		(node: HTMLDivElement | null) => {
+			playerFullscreenHostRef.current = node;
+			if (node) lastPlayerFullscreenHostRef.current = node;
+		},
+		[],
+	);
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
 	const [searchData, setSearchData] = useState<string | null>(null);
@@ -449,6 +458,7 @@ export function AppShell() {
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
+	const playerFullscreenActive = Boolean(playId && renderStatus !== "error");
 	const audioAlbumId = audioAlbumIdFromPath(pathname);
 	const artistId = artistIdFromPath(pathname);
 	const playlistId = playlistIdFromPath(pathname);
@@ -463,6 +473,19 @@ export function AppShell() {
 	const searchQuery = searchParams.get("q") ?? "";
 	const serializedSearch = searchParams.toString();
 	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
+	useEffect(() => {
+		return () => {
+			const fullscreenHost =
+				playerFullscreenHostRef.current ?? lastPlayerFullscreenHostRef.current;
+			if (
+				fullscreenHost &&
+				document.fullscreenElement === fullscreenHost
+			) {
+				const exitFullscreen = document.exitFullscreen?.();
+				if (exitFullscreen) void exitFullscreen.catch(() => undefined);
+			}
+		};
+	}, [playerFullscreenActive]);
 	const fetchDetailPayload = useCallback(
 		async (
 			nextSession: AuthSession,
@@ -1259,13 +1282,36 @@ export function AppShell() {
 													}}
 												/>
 											)}
-											{renderStatus === "ready" && detailData && playId && (
-												<PlayerPage
-													initialData={detailData}
-													session={session}
-													watchHistoryEnabled={watchHistoryEnabled}
-													watchHistoryLoaded={watchHistoryLoaded}
-												/>
+											{playId && (
+												<div
+													ref={setPlayerFullscreenHost}
+													data-testid="player-fullscreen-host"
+													className={
+														playerFullscreenActive
+															? "fixed inset-0 z-[200] h-[100dvh] overflow-hidden bg-black text-white"
+															: "hidden"
+													}
+												>
+													{playerFullscreenActive &&
+														(renderStatus === "ready" && detailData ? (
+															<PlayerPage
+																initialData={detailData}
+																session={session}
+																fullscreenHostRef={playerFullscreenHostRef}
+																watchHistoryEnabled={watchHistoryEnabled}
+																watchHistoryLoaded={watchHistoryLoaded}
+															/>
+														) : (
+															<div
+																data-testid="player-route-loading"
+																role="status"
+																aria-label="Loading"
+																className="flex h-full items-center justify-center"
+															>
+																<span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+															</div>
+														))}
+												</div>
 											)}
 											{renderStatus === "ready" &&
 												detailData &&

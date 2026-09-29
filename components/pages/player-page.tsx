@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { VideoPlayer } from "@/components/player/video-player";
+import {
+	VideoPlayer,
+	exitFullscreenSafely,
+} from "@/components/player/video-player";
 import {
 	playbackStreams,
 	savedPlaybackPositionSeconds,
@@ -60,16 +63,21 @@ export function playbackTrackChoices(
 export function PlayerPage({
 	initialData,
 	session,
+	fullscreenHostRef: suppliedFullscreenHostRef,
 	watchHistoryEnabled = true,
 	watchHistoryLoaded = false,
 }: {
 	initialData: DetailData;
 	session: AuthSession;
+	fullscreenHostRef?: { current: HTMLDivElement | null };
 	watchHistoryEnabled?: boolean;
 	watchHistoryLoaded?: boolean;
 }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const localFullscreenHostRef = useRef<HTMLDivElement>(null);
+	const fullscreenHostRef =
+		suppliedFullscreenHostRef ?? localFullscreenHostRef;
 	const { active, setWatchingTogether } = useSyncplay();
 	const [item, setItem] = useState(initialData.item);
 	const [streams, setStreams] = useState<ReturnType<typeof playbackStreams>>();
@@ -94,6 +102,15 @@ export function PlayerPage({
 			? "off"
 			: (requestedTracks.subtitle ?? "auto")
 	}`;
+
+	useEffect(() => {
+		if (suppliedFullscreenHostRef) return;
+		const fullscreenHost = localFullscreenHostRef.current;
+		return () => {
+			if (fullscreenHost && document.fullscreenElement === fullscreenHost)
+				exitFullscreenSafely();
+		};
+	}, [suppliedFullscreenHostRef]);
 
 	useEffect(() => {
 		let active = true;
@@ -149,9 +166,10 @@ export function PlayerPage({
 		startPositionSeconds,
 	]);
 
-	return (
+	const player = (
 		<VideoPlayer
 			key={item.Id}
+			fullscreenHostRef={fullscreenHostRef}
 			item={playerItem}
 			session={session}
 			watchHistoryEnabled={watchHistoryEnabled}
@@ -189,5 +207,16 @@ export function PlayerPage({
 			}}
 			onPlayedChange={() => undefined}
 		/>
+	);
+	return suppliedFullscreenHostRef ? (
+		player
+	) : (
+		<div
+			ref={localFullscreenHostRef}
+			data-testid="player-fullscreen-host"
+			className="fixed inset-0 z-[200] h-[100dvh] overflow-hidden bg-black text-white"
+		>
+			{player}
+		</div>
 	);
 }

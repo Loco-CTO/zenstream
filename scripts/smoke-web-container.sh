@@ -26,7 +26,10 @@ done
 curl --silent --show-error --dump-header "$RUNNER_TEMP/zenstream-headers.txt" \
 	http://127.0.0.1:9086/ --output "$RUNNER_TEMP/zenstream-page.html"
 grep -Fq 'runtime-config.js' "$RUNNER_TEMP/zenstream-page.html"
-grep -Fq "Content-Security-Policy:" "$RUNNER_TEMP/zenstream-headers.txt"
+grep -Fqi "Content-Security-Policy:" "$RUNNER_TEMP/zenstream-headers.txt" || {
+	echo "The page response did not include a Content-Security-Policy header." >&2
+	exit 1
+}
 grep -Fq "img-src 'self' data: blob: $origin" "$RUNNER_TEMP/zenstream-headers.txt"
 grep -Fq "media-src 'self' blob: $origin" "$RUNNER_TEMP/zenstream-headers.txt"
 grep -Fq "connect-src 'self' $origin wss://orchestrator.example.test:9443" \

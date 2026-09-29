@@ -49,6 +49,14 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.10.0
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Prepare or reuse release candidate
         id: prepare
         env:
@@ -109,6 +117,27 @@ jobs:
                 exit 1
               }
             fi
+            if [[ "$candidate_ref_present" == true && "$published" == false ]]; then
+              pnpm exec prettier --write package.json .main-version.json
+              if ! git diff --quiet -- package.json .main-version.json; then
+                git config user.name 'github-actions[bot]'
+                git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+                git add package.json .main-version.json
+                git commit --amend --no-edit
+                repaired_sha="$(git rev-parse HEAD)"
+                [[ "$(git rev-parse "$repaired_sha^")" == "$base_main" ]] || {
+                  echo "Formatted candidate $repaired_sha no longer has its recorded main base as its parent." >&2
+                  exit 1
+                }
+                git push --force-with-lease="$candidate_ref:$sha" origin "$repaired_sha:$candidate_ref"
+                [[ "$(remote_ref_sha "$candidate_ref")" == "$repaired_sha" ]] || {
+                  echo "Release candidate ref did not settle at repaired SHA $repaired_sha." >&2
+                  exit 1
+                }
+                echo "Reformatted existing release candidate $tag as $repaired_sha."
+                sha="$repaired_sha"
+              fi
+            fi
             echo "Reusing candidate SHA $sha for $tag."
           else
             base_main="$(remote_ref_sha refs/heads/main)"
@@ -143,6 +172,7 @@ jobs:
             }
             VERSION="$version" node -e "const fs=require('fs'); const p=require('./package.json'); p.version=process.env.VERSION; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\\n')"
             printf '{\n  "main": 0\n}\n' > .main-version.json
+            pnpm exec prettier --write package.json .main-version.json
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add package.json .main-version.json

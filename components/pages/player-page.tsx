@@ -76,8 +76,7 @@ export function PlayerPage({
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const localFullscreenHostRef = useRef<HTMLDivElement>(null);
-	const fullscreenHostRef =
-		suppliedFullscreenHostRef ?? localFullscreenHostRef;
+	const fullscreenHostRef = suppliedFullscreenHostRef ?? localFullscreenHostRef;
 	const { active, setWatchingTogether } = useSyncplay();
 	const [item, setItem] = useState(initialData.item);
 	const [streams, setStreams] = useState<ReturnType<typeof playbackStreams>>();

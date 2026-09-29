@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
@@ -120,8 +126,9 @@ function mockFullscreenApi() {
 		"requestFullscreen",
 	);
 	let activeElement: Element | null = null;
-	const requestFullscreen = vi.fn(function (this: HTMLElement) {
-		activeElement = this;
+	let requestedElement: Element | null = null;
+	const requestFullscreen = vi.fn(() => {
+		activeElement = requestedElement;
 		return Promise.resolve();
 	});
 	const exitFullscreen = vi.fn(() => {
@@ -145,6 +152,9 @@ function mockFullscreenApi() {
 			return activeElement;
 		},
 		exitFullscreen,
+		setTarget(element: Element) {
+			requestedElement = element;
+		},
 		restore() {
 			if (fullscreenElementDescriptor)
 				Object.defineProperty(
@@ -154,11 +164,7 @@ function mockFullscreenApi() {
 				);
 			else Reflect.deleteProperty(document, "fullscreenElement");
 			if (exitFullscreenDescriptor)
-				Object.defineProperty(
-					document,
-					"exitFullscreen",
-					exitFullscreenDescriptor,
-				);
+				Object.defineProperty(document, "exitFullscreen", exitFullscreenDescriptor);
 			else Reflect.deleteProperty(document, "exitFullscreen");
 			if (requestFullscreenDescriptor)
 				Object.defineProperty(
@@ -331,6 +337,7 @@ describe("detail route refreshes", () => {
 		await waitFor(() =>
 			expect(screen.getByTestId("player-page")).toHaveTextContent("Episode 2"),
 		);
+		fullscreen.setTarget(host);
 		fireEvent.click(screen.getByRole("button", { name: "Enter fullscreen" }));
 		await waitFor(() => expect(fullscreen.activeElement).toBe(host));
 
@@ -343,10 +350,7 @@ describe("detail route refreshes", () => {
 			);
 		});
 		await waitFor(() =>
-			expect(fetchPlayData).toHaveBeenCalledWith(
-				expect.anything(),
-				"episode-3",
-			),
+			expect(fetchPlayData).toHaveBeenCalledWith(expect.anything(), "episode-3"),
 		);
 		await waitFor(() =>
 			expect(screen.getByTestId("player-route-loading")).toBeInTheDocument(),

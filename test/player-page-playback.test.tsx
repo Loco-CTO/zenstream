@@ -180,8 +180,9 @@ describe("PlayerPage playback startup", () => {
 			"requestFullscreen",
 		);
 		let activeElement: Element | null = null;
-		const requestFullscreen = vi.fn(function (this: HTMLElement) {
-			activeElement = this;
+		let requestedElement: Element | null = null;
+		const requestFullscreen = vi.fn(() => {
+			activeElement = requestedElement;
 			document.dispatchEvent(new Event("fullscreenchange"));
 			return Promise.resolve();
 		});
@@ -207,6 +208,9 @@ describe("PlayerPage playback startup", () => {
 				return activeElement;
 			},
 			exitFullscreen,
+			setTarget(element: Element) {
+				requestedElement = element;
+			},
 			restore() {
 				if (fullscreenElementDescriptor)
 					Object.defineProperty(
@@ -214,30 +218,21 @@ describe("PlayerPage playback startup", () => {
 						"fullscreenElement",
 						fullscreenElementDescriptor,
 					);
-				else
-					delete (document as Document & {
-						fullscreenElement?: Element | null;
-					}).fullscreenElement;
+				else Reflect.deleteProperty(document, "fullscreenElement");
 				if (exitFullscreenDescriptor)
 					Object.defineProperty(
 						document,
 						"exitFullscreen",
 						exitFullscreenDescriptor,
 					);
-				else
-					delete (document as Document & {
-						exitFullscreen?: () => Promise<void>;
-					}).exitFullscreen;
+				else Reflect.deleteProperty(document, "exitFullscreen");
 				if (requestFullscreenDescriptor)
 					Object.defineProperty(
 						HTMLElement.prototype,
 						"requestFullscreen",
 						requestFullscreenDescriptor,
 					);
-				else
-					delete (HTMLElement.prototype as HTMLElement & {
-						requestFullscreen?: () => Promise<void>;
-					}).requestFullscreen;
+				else Reflect.deleteProperty(HTMLElement.prototype, "requestFullscreen");
 			},
 		};
 	}
@@ -246,6 +241,7 @@ describe("PlayerPage playback startup", () => {
 		{ label: "automatic next episode playback", autoplayNextEpisode: true },
 		{ label: "manual Next Up playback", autoplayNextEpisode: false },
 	])("keeps fullscreen during $label", async ({ autoplayNextEpisode }) => {
+		mocks.active = null;
 		const episode2 = {
 			Id: "episode-2",
 			Name: "Episode 2",
@@ -298,6 +294,7 @@ describe("PlayerPage playback startup", () => {
 			</I18nProvider>,
 		);
 		const fullscreenHost = view.getByTestId("player-fullscreen-host");
+		fullscreen.setTarget(fullscreenHost);
 		await waitFor(() => expect(mocks.getPlaybackInfo).toHaveBeenCalled());
 		fireEvent.click(view.getByRole("button", { name: "Fullscreen" }));
 		await waitFor(() => expect(fullscreen.activeElement).toBe(fullscreenHost));
@@ -329,9 +326,7 @@ describe("PlayerPage playback startup", () => {
 		}
 
 		await waitFor(() =>
-			expect(
-				view.getByRole("heading", { name: "Episode 3" }),
-			).toBeInTheDocument(),
+			expect(view.getByRole("heading", { name: "Episode 3" })).toBeInTheDocument(),
 		);
 		expect(view.getByTestId("player-fullscreen-host")).toBe(fullscreenHost);
 		expect(fullscreen.activeElement).toBe(fullscreenHost);

@@ -204,13 +204,10 @@ export function AppShell() {
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const playerFullscreenHostRef = useRef<HTMLDivElement>(null);
 	const lastPlayerFullscreenHostRef = useRef<HTMLDivElement | null>(null);
-	const setPlayerFullscreenHost = useCallback(
-		(node: HTMLDivElement | null) => {
-			playerFullscreenHostRef.current = node;
-			if (node) lastPlayerFullscreenHostRef.current = node;
-		},
-		[],
-	);
+	const setPlayerFullscreenHost = useCallback((node: HTMLDivElement | null) => {
+		playerFullscreenHostRef.current = node;
+		if (node) lastPlayerFullscreenHostRef.current = node;
+	}, []);
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
 	const [searchData, setSearchData] = useState<string | null>(null);
@@ -234,6 +231,13 @@ export function AppShell() {
 		getBrowserAuthSnapshot,
 		getServerBrowserAuthSnapshot,
 	);
+	const renderStatus =
+		status === "checking" &&
+		browserAuth.hydrated &&
+		!browserAuth.session &&
+		!session
+			? "login"
+			: status;
 	const effectiveLocale = localePreferenceLoaded ? locale : storedLocale;
 	const [metadataLanguages, setMetadataLanguages] = useState<string[]>(["en"]);
 	const [metadataLanguage, setMetadataLanguage] =
@@ -477,10 +481,7 @@ export function AppShell() {
 		return () => {
 			const fullscreenHost =
 				playerFullscreenHostRef.current ?? lastPlayerFullscreenHostRef.current;
-			if (
-				fullscreenHost &&
-				document.fullscreenElement === fullscreenHost
-			) {
+			if (fullscreenHost && document.fullscreenElement === fullscreenHost) {
 				const exitFullscreen = document.exitFullscreen?.();
 				if (exitFullscreen) void exitFullscreen.catch(() => undefined);
 			}
@@ -926,13 +927,6 @@ export function AppShell() {
 	const handlePasswordChanged = useCallback(() => {
 		clearLocalSession();
 	}, [clearLocalSession]);
-	const renderStatus =
-		status === "checking" &&
-		browserAuth.hydrated &&
-		!browserAuth.session &&
-		!session
-			? "login"
-			: status;
 
 	useEffect(() => {
 		const handleAuthExpired = (event: Event) => {

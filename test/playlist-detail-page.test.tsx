@@ -276,14 +276,17 @@ describe("playlist detail playback", () => {
 	});
 
 	it("moves an entry across loaded pages using an adjacent entry anchor", async () => {
-		let onIntersect: IntersectionObserverCallback = () => {};
+		let onIntersect: IntersectionObserverCallback | null = null;
+		const observe = vi.fn();
 		vi.stubGlobal(
 			"IntersectionObserver",
 			class {
 				constructor(callback: IntersectionObserverCallback) {
 					onIntersect = callback;
+			}
+				observe(target: Element) {
+					observe(target);
 				}
-				observe() {}
 				disconnect() {}
 			},
 		);
@@ -314,12 +317,13 @@ describe("playlist detail playback", () => {
 		});
 		render(<PlaylistDetailPage session={session} playlistId={detail.id} />);
 		await screen.findByRole("button", { name: "play Track 19" });
-		await act(async () =>
-			onIntersect(
+		await waitFor(() => expect(observe).toHaveBeenCalled());
+		await act(async () => {
+			onIntersect?.(
 				[{ isIntersecting: true } as IntersectionObserverEntry],
 				{} as IntersectionObserver,
-			),
-		);
+			);
+		});
 		await screen.findByRole("button", { name: "play Track 20" });
 		act(() => drag.onReorder?.(0, 20));
 		await waitFor(() =>

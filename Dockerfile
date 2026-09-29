@@ -7,8 +7,6 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM node:26-alpine AS builder
 WORKDIR /app
 RUN npm install --global pnpm@11.10.0
-ARG NEXT_PUBLIC_ZSO_URL
-ENV NEXT_PUBLIC_ZSO_URL=$NEXT_PUBLIC_ZSO_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
@@ -21,5 +19,7 @@ EXPOSE 9086
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --chmod=755 docker-entrypoint.sh ./docker-entrypoint.sh
 USER node
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

@@ -1,5 +1,6 @@
 import packageJson from "../package.json";
 import mainVersion from "../.main-version.json";
+import { orchestratorBaseUrl } from "@/lib/authenticated-request";
 
 export function formatVersion(version: string, main: number): string {
 	return main === 0 ? `v${version}` : `v${version}-main.${main}`;
@@ -12,8 +13,7 @@ export const zenstreamVersion = formatVersion(
 
 export async function fetchOrchestratorVersion(): Promise<string | null> {
 	try {
-		const base = (process.env.NEXT_PUBLIC_ZSO_URL ?? "").replace(/\/+$/, "");
-		const response = await fetch(`${base}/api/version`);
+		const response = await fetch(`${orchestratorBaseUrl()}/api/version`);
 		if (!response.ok) return null;
 		const payload = (await response.json()) as {
 			version?: unknown;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
+import Script from "next/script";
 import { Suspense } from "react";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
@@ -40,6 +41,7 @@ export default function RootLayout({
 	return (
 		<html lang="en" className={`dark ${notoSans.variable}`}>
 			<body>
+				<Script src="/runtime-config.js" strategy="beforeInteractive" />
 				<ServiceWorkerRegistration />
 				<ProgressProvider>
 					<Suspense fallback={<div className="min-h-screen bg-background" />}>

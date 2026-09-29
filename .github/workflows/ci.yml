@@ -1,6 +1,17 @@
 name: Web CI
 
 on:
+  workflow_call:
+    inputs:
+      candidate_sha:
+        description: Exact candidate commit to validate
+        required: true
+        type: string
+      skip_coverage_upload:
+        description: Skip the external coverage report for release validation
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
   pull_request:
@@ -22,7 +33,13 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify candidate checkout
+        if: inputs.candidate_sha != ''
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -38,9 +55,6 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Apply formatting
-        run: pnpm format --write
-
       - name: Check formatting
         run: pnpm format:check
 
@@ -51,9 +65,11 @@ jobs:
         run: pnpm test:coverage
 
       - name: Install DeepSource CLI
+        if: ${{ !inputs.skip_coverage_upload }}
         run: curl -fsSL https://cli.deepsource.com/install | BINDIR=./bin sh
 
       - name: Upload JavaScript coverage
+        if: ${{ !inputs.skip_coverage_upload }}
         run: ./bin/deepsource report --analyzer test-coverage --key javascript --value-file coverage/lcov.info --use-oidc
 
       - name: Build web client

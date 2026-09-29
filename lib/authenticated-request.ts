@@ -9,9 +9,14 @@ type RefreshResult = "refreshed" | "unauthorized" | "unavailable";
 let browserRefreshInFlight: Promise<RefreshResult> | null = null;
 
 export function orchestratorBaseUrl() {
+	if (typeof window !== "undefined") {
+		const runtimeUrl = window.__ZENSTREAM_RUNTIME_CONFIG__?.orchestratorUrl;
+		if (runtimeUrl) return runtimeUrl.replace(/\/+$/, "");
+	}
+	if (process.env.ZENSTREAM_ORCHESTRATOR_URL)
+		return process.env.ZENSTREAM_ORCHESTRATOR_URL.replace(/\/+$/, "");
 	if (process.env.NEXT_PUBLIC_ZSO_URL)
 		return process.env.NEXT_PUBLIC_ZSO_URL.replace(/\/+$/, "");
-	if (typeof window !== "undefined") return window.location.origin;
 	return "http://127.0.0.1:9090";
 }
 

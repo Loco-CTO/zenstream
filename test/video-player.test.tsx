@@ -54,6 +54,7 @@ import {
 } from "@/lib/player-preferences";
 import {
 	getEpisodes,
+	getPlaybackMarkers,
 	getPlaybackInfo,
 	getSeasons,
 	heartbeatPlaybackViewer,
@@ -169,6 +170,7 @@ describe("video player controls", () => {
 			.mockReset()
 			.mockResolvedValue({ ticket: "legacy-ticket", expiresIn: 900 });
 		vi.mocked(getEpisodes).mockReset().mockResolvedValue([]);
+		vi.mocked(getPlaybackMarkers).mockReset().mockResolvedValue(null);
 		vi.mocked(getSeasons).mockReset().mockResolvedValue([]);
 		vi
 			.mocked(heartbeatPlaybackViewer)
@@ -194,10 +196,14 @@ describe("video player controls", () => {
 		autoplayNextEpisode = true,
 		withNext = true,
 		viewerSessionId,
+		initialStreams,
+		initialSubtitleStreamIndex,
 	}: {
 		autoplayNextEpisode?: boolean;
 		withNext?: boolean;
 		viewerSessionId?: string;
+		initialStreams?: ReturnType<typeof playbackStreams>;
+		initialSubtitleStreamIndex?: number;
 	} = {}) {
 		const session = { token: "token", userId: "user", username: "Alex" };
 		const item = {
@@ -245,7 +251,8 @@ describe("video player controls", () => {
 							item={item}
 							session={session}
 							initialStreams={
-								{
+								initialStreams ??
+								({
 									source: {
 										Id: "source-1",
 										mode: "direct",
@@ -255,8 +262,9 @@ describe("video player controls", () => {
 									audio: [],
 									subtitles: [],
 									qualities: [],
-								} as ReturnType<typeof playbackStreams>
+								} as ReturnType<typeof playbackStreams>)
 							}
+							initialSubtitleStreamIndex={initialSubtitleStreamIndex}
 							onClose={onClose}
 							onNext={onNext}
 						/>
@@ -266,6 +274,254 @@ describe("video player controls", () => {
 		);
 		return { view, onNext, onClose };
 	}
+
+	it("scopes transport, seek, and volume shortcuts to focused player content", async () => {
+		window.localStorage.setItem(
+			VIDEO_PLAYER_PREFERENCES_STORAGE_KEY,
+			JSON.stringify({ volume: 0.5, muted: false }),
+		);
+		const { view } = renderEpisodePlayer({ withNext: false });
+		await flushPlayerEffects();
+		const player = view.container.firstElementChild as HTMLElement;
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "duration", {
+			configurable: true,
+			value: 120,
+		});
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 30,
+		});
+		Object.defineProperty(video, "paused", {
+			configurable: true,
+			value: true,
+		});
+		const play = vi.spyOn(video, "play").mockResolvedValue(undefined);
+
+		fireEvent.keyDown(player, { key: "ArrowRight" });
+		expect(video.currentTime).toBe(30);
+
+		player.focus();
+		fireEvent.keyDown(player, { key: "ArrowRight" });
+		expect(video.currentTime).toBe(40);
+		fireEvent.keyDown(player, { key: "J" });
+		expect(video.currentTime).toBe(30);
+		fireEvent.keyDown(player, { key: "ArrowUp" });
+		expect(
+			JSON.parse(
+				window.localStorage.getItem(VIDEO_PLAYER_PREFERENCES_STORAGE_KEY) ?? "{}",
+			),
+		).toMatchObject({ volume: 0.55, muted: false });
+		fireEvent.keyDown(player, { key: "ArrowDown" });
+		fireEvent.keyDown(player, { key: "M" });
+		expect(
+			JSON.parse(
+				window.localStorage.getItem(VIDEO_PLAYER_PREFERENCES_STORAGE_KEY) ?? "{}",
+			),
+		).toMatchObject({ volume: 0.5, muted: true });
+
+		fireEvent.keyDown(player, { key: " " });
+		expect(play).toHaveBeenCalledOnce();
+		view.getByRole("slider", { name: "Volume" }).focus();
+		fireEvent.keyDown(view.getByRole("slider", { name: "Volume" }), {
+			key: "ArrowUp",
+		});
+		expect(
+			JSON.parse(
+				window.localStorage.getItem(VIDEO_PLAYER_PREFERENCES_STORAGE_KEY) ?? "{}",
+			),
+		).toMatchObject({ volume: 0.5, muted: true });
+	});
+
+	it("supports absolute seeking, playback speed, and timer display shortcuts", async () => {
+		const { view } = renderEpisodePlayer({ withNext: false });
+		await flushPlayerEffects();
+		const player = view.container.firstElementChild as HTMLElement;
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "duration", {
+			configurable: true,
+			value: 120,
+		});
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 30,
+		});
+		fireEvent.loadedMetadata(video);
+		player.focus();
+
+		fireEvent.keyDown(player, { key: "5" });
+		expect(video.currentTime).toBe(60);
+		fireEvent.keyDown(player, { key: "Home" });
+		expect(video.currentTime).toBe(0);
+		fireEvent.keyDown(player, { key: "End" });
+		expect(video.currentTime).toBe(120);
+		fireEvent.keyDown(player, { key: "<", shiftKey: true });
+		expect(video.playbackRate).toBe(0.75);
+		fireEvent.keyDown(player, { key: ">", shiftKey: true });
+		expect(video.playbackRate).toBe(1);
+		fireEvent.keyDown(player, { key: "t" });
+		expect(view.getByTestId("player-time")).toHaveAccessibleName(
+			"Show remaining time",
+		);
+	});
+
+	it("opens a keyboard help dialog and restores focus when it closes", async () => {
+		const { view } = renderEpisodePlayer({ withNext: false });
+		await flushPlayerEffects();
+		const player = view.container.firstElementChild as HTMLElement;
+		player.focus();
+
+		fireEvent.keyDown(player, { key: "?", shiftKey: true });
+		const dialog = view.getByRole("dialog", { name: "Keyboard shortcuts" });
+		expect(dialog).toHaveTextContent("Space / K");
+		expect(dialog).toHaveTextContent("0–9, Home / End");
+		const closeButton = view.getByRole("button", { name: "Close" });
+		expect(closeButton).toHaveFocus();
+		fireEvent.keyDown(closeButton, { key: "Escape" });
+		expect(view.queryByRole("dialog")).not.toBeInTheDocument();
+		expect(player).toHaveFocus();
+
+		fireEvent.click(
+			view.getByRole("button", { name: "Show keyboard shortcuts" }),
+		);
+		expect(
+			view.getByRole("dialog", { name: "Keyboard shortcuts" }),
+		).toBeInTheDocument();
+	});
+
+	it("toggles and selects subtitle and audio tracks with shortcuts", async () => {
+		const streams = {
+			source: { Id: "source-1", mode: "direct", url: "/episode.mp4" },
+			audio: [
+				{ Index: 1, Type: "Audio", DisplayTitle: "English audio" },
+				{ Index: 2, Type: "Audio", DisplayTitle: "Japanese audio" },
+			],
+			subtitles: [
+				{
+					Index: 3,
+					Type: "Subtitle",
+					Language: "en",
+					DisplayTitle: "English captions",
+				},
+				{
+					Index: 4,
+					Type: "Subtitle",
+					Language: "ja",
+					DisplayTitle: "Japanese captions",
+				},
+			],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi.mocked(playbackStreams).mockImplementation((value) => value as never);
+		const { view } = renderEpisodePlayer({
+			withNext: false,
+			initialStreams: streams,
+			initialSubtitleStreamIndex: 3,
+		});
+		await flushPlayerEffects();
+		const player = view.container.firstElementChild as HTMLElement;
+		player.focus();
+
+		fireEvent.keyDown(player, { key: "S" });
+		expect(
+			view
+				.getByRole("button", { name: "English captions" })
+				.querySelector(".lucide-check"),
+		).not.toBeNull();
+		fireEvent.click(view.getByRole("button", { name: "Japanese captions" }));
+		player.focus();
+		fireEvent.keyDown(player, { key: "S" });
+		expect(
+			view
+				.getByRole("button", { name: "Japanese captions" })
+				.querySelector(".lucide-check"),
+		).not.toBeNull();
+		fireEvent.keyDown(player, { key: "Escape" });
+
+		fireEvent.keyDown(player, { key: "C" });
+		fireEvent.keyDown(player, { key: "S" });
+		expect(
+			view
+				.getByRole("button", { name: "Subtitles off" })
+				.querySelector(".lucide-check"),
+		).not.toBeNull();
+		fireEvent.keyDown(player, { key: "Escape" });
+		fireEvent.keyDown(player, { key: "C" });
+		fireEvent.keyDown(player, { key: "S" });
+		expect(
+			view
+				.getByRole("button", { name: "Japanese captions" })
+				.querySelector(".lucide-check"),
+		).not.toBeNull();
+		fireEvent.keyDown(player, { key: "Escape" });
+
+		fireEvent.keyDown(player, { key: "A" });
+		expect(
+			view.getByRole("button", { name: "Japanese audio" }),
+		).toBeInTheDocument();
+		fireEvent.keyDown(player, { key: "Escape" });
+		expect(
+			view.queryByRole("button", { name: "Japanese audio" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("skips active markers and only advances through visible Next Up", async () => {
+		vi.mocked(playbackStreams).mockImplementation((value) => value as never);
+		vi.mocked(getPlaybackMarkers).mockResolvedValue({
+			intro: { start: 10, end: 20 },
+			outro: { start: 80, end: 90 },
+		} as never);
+		const { view, onNext } = renderEpisodePlayer({ autoplayNextEpisode: false });
+		await flushPlayerEffects();
+		const player = view.container.firstElementChild as HTMLElement;
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "duration", {
+			configurable: true,
+			value: 120,
+		});
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 15,
+		});
+		fireEvent.loadedMetadata(video);
+		fireEvent.timeUpdate(video);
+		await flushPlayerEffects();
+		player.focus();
+
+		fireEvent.keyDown(player, { key: "i" });
+		expect(video.currentTime).toBe(20);
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 85,
+		});
+		fireEvent.timeUpdate(video);
+		fireEvent.keyDown(player, { key: "o" });
+		expect(video.currentTime).toBe(90);
+
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 100,
+		});
+		fireEvent.timeUpdate(video);
+		fireEvent.keyDown(player, { key: "N", shiftKey: true });
+		expect(onNext).not.toHaveBeenCalled();
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 115,
+		});
+		fireEvent.timeUpdate(video);
+		expect(view.getByTestId("next-up")).toBeInTheDocument();
+		fireEvent.keyDown(player, { key: "N", shiftKey: true });
+		expect(onNext).toHaveBeenCalledWith(
+			expect.objectContaining({ Id: "episode-2" }),
+		);
+	});
 
 	function renderSyncplayEpisodePlayer(
 		commandResponse: Response | Promise<Response>,

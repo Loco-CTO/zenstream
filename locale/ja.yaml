@@ -170,6 +170,27 @@ trackList: トラックリスト
 totalDuration: "{count}分"
 skipIntro: イントロをスキップ
 skipOutro: アウトロをスキップ
+keyboardShortcuts: キーボードショートカット
+keyboardShortcutsDescription: プレーヤーにフォーカスがあるときに使用できます。
+openKeyboardShortcuts: キーボードショートカットを表示
+keyboardShortcutPlayPause: 再生／一時停止
+keyboardShortcutSeek: 10秒戻る／進む
+keyboardShortcutVolume: 音量を5%下げる／上げる
+keyboardShortcutMute: ミュート／ミュート解除
+keyboardShortcutFullscreen: 全画面表示を切り替え
+keyboardShortcutPictureInPicture: ピクチャー イン ピクチャーを切り替え
+keyboardShortcutCaptions: 字幕のオン／オフ
+keyboardShortcutAudioTracks: 音声トラックを選択
+keyboardShortcutSubtitleTracks: 字幕トラックを選択
+keyboardShortcutQuality: 品質設定を開く
+keyboardShortcutSpeed: 再生速度を下げる／上げる
+keyboardShortcutSubtitleOffset: 字幕のタイミングを0.1秒調整
+keyboardShortcutSeekPosition: 先頭、割合指定、または末尾に移動
+keyboardShortcutSkipIntroOutro: イントロ／アウトロをスキップ（利用可能な場合）
+keyboardShortcutNextEpisode: 次のエピソードを再生（次のエピソード表示中）
+keyboardShortcutTimeDisplay: 経過時間／残り時間を切り替え
+keyboardShortcutHelp: ショートカット一覧を表示
+keyboardShortcutClose: 開いているパネルを閉じる
 info: 詳細
 save: 保存
 saved: 保存済み

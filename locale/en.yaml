@@ -168,6 +168,27 @@ trackList: Track list
 totalDuration: "{count} min"
 skipIntro: Skip intro
 skipOutro: Skip outro
+keyboardShortcuts: Keyboard shortcuts
+keyboardShortcutsDescription: These shortcuts work while focus is within the player.
+openKeyboardShortcuts: Show keyboard shortcuts
+keyboardShortcutPlayPause: Play or pause
+keyboardShortcutSeek: Seek back or forward 10 seconds
+keyboardShortcutVolume: Decrease or increase volume by 5%
+keyboardShortcutMute: Mute or unmute
+keyboardShortcutFullscreen: Toggle fullscreen
+keyboardShortcutPictureInPicture: Toggle Picture in Picture
+keyboardShortcutCaptions: Toggle subtitles
+keyboardShortcutAudioTracks: Choose an audio track
+keyboardShortcutSubtitleTracks: Choose a subtitle track
+keyboardShortcutQuality: Open quality options
+keyboardShortcutSpeed: Decrease or increase playback speed
+keyboardShortcutSubtitleOffset: Adjust subtitle timing by 0.1 seconds
+keyboardShortcutSeekPosition: Jump to the start, a percentage, or the end
+keyboardShortcutSkipIntroOutro: Skip an intro or outro when available
+keyboardShortcutNextEpisode: Play the next episode while Next Up is shown
+keyboardShortcutTimeDisplay: Switch elapsed and remaining time
+keyboardShortcutHelp: Show this shortcut panel
+keyboardShortcutClose: Close the open panel
 info: Info
 save: Save
 saved: Saved

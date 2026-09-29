@@ -16,6 +16,7 @@ import {
 	Check,
 	ChevronLeft,
 	FastForward,
+	Keyboard,
 	LoaderCircle,
 	Maximize,
 	Minimize,
@@ -27,6 +28,7 @@ import {
 	SkipForward,
 	Volume2,
 	VolumeX,
+	X,
 } from "lucide-react";
 import {
 	getPlaybackInfo,
@@ -574,6 +576,11 @@ export function VideoPlayer({
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const nativeSubtitleTrackRef = useRef<HTMLTrackElement>(null);
 	const playerRef = useRef<HTMLDivElement>(null);
+	const keyboardHelpCloseButtonRef = useRef<HTMLButtonElement>(null);
+	const keyboardHelpWasOpenRef = useRef(false);
+	const lastSubtitleRef = useRef(
+		initialSubtitleStreamIndex == null ? "" : String(initialSubtitleStreamIndex),
+	);
 	const hlsRef = useRef<Hls | null>(null);
 	const handledViewerCommandsRef = useRef(new Set<string>());
 	const viewerCommandAcksRef = useRef<ViewerCommandAck[]>([]);
@@ -627,6 +634,7 @@ export function VideoPlayer({
 		"root" | "quality" | "speed" | "offset"
 	>("root");
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
 	const [debugOpen, setDebugOpen] = useState(false);
 	const [debugStats, setDebugStats] = useState({
 		manifestParsed: false,
@@ -733,6 +741,40 @@ export function VideoPlayer({
 		timeDisplayMode === "remaining"
 			? t("showElapsedTime")
 			: t("showRemainingTime");
+	const keyboardShortcutRows = [
+		{ keys: "Space / K", label: t("keyboardShortcutPlayPause") },
+		{ keys: "← / →, J / L", label: t("keyboardShortcutSeek") },
+		{ keys: "↑ / ↓", label: t("keyboardShortcutVolume") },
+		{ keys: "M", label: t("keyboardShortcutMute") },
+		{ keys: "F", label: t("keyboardShortcutFullscreen") },
+		...(pipSupported
+			? [{ keys: "P", label: t("keyboardShortcutPictureInPicture") }]
+			: []),
+		...(info?.subtitles.length
+			? [
+					{ keys: "C", label: t("keyboardShortcutCaptions") },
+					{ keys: "S", label: t("keyboardShortcutSubtitleTracks") },
+				]
+			: []),
+		...(info?.audio.length && info.audio.length > 1
+			? [{ keys: "A", label: t("keyboardShortcutAudioTracks") }]
+			: []),
+		{ keys: "Q", label: t("keyboardShortcutQuality") },
+		{ keys: "< / >", label: t("keyboardShortcutSpeed") },
+		...(style.renderer === "overlay"
+			? [{ keys: "[ / ]", label: t("keyboardShortcutSubtitleOffset") }]
+			: []),
+		{ keys: "0–9, Home / End", label: t("keyboardShortcutSeekPosition") },
+		...(markers?.intro || markers?.outro
+			? [{ keys: "I / O", label: t("keyboardShortcutSkipIntroOutro") }]
+			: []),
+		...(item.Type === "Episode"
+			? [{ keys: "Shift + N", label: t("keyboardShortcutNextEpisode") }]
+			: []),
+		{ keys: "T", label: t("keyboardShortcutTimeDisplay") },
+		{ keys: "Shift + / (?)", label: t("keyboardShortcutHelp") },
+		{ keys: "Esc", label: t("keyboardShortcutClose") },
+	];
 	const debugSource = sourceRef.current ?? info?.source;
 	const playbackSessionId = info?.source?.sessionId;
 	const viewerSessionId = info?.source?.viewerSessionId;
@@ -745,8 +787,27 @@ export function VideoPlayer({
 			timeDisplayMode === "remaining" ? "elapsed" : "remaining",
 		);
 	}, [timeDisplayMode]);
+	useEffect(() => {
+		if (keyboardHelpOpen) {
+			keyboardHelpWasOpenRef.current = true;
+			keyboardHelpCloseButtonRef.current?.focus();
+			return;
+		}
+		if (keyboardHelpWasOpenRef.current) {
+			keyboardHelpWasOpenRef.current = false;
+			playerRef.current?.focus({ preventScroll: true });
+		}
+	}, [keyboardHelpOpen]);
+	function openKeyboardHelp() {
+		setSettingsOpen(false);
+		setTrackMenu(null);
+		setKeyboardHelpOpen(true);
+	}
+	function closeKeyboardHelp() {
+		setKeyboardHelpOpen(false);
+	}
 	const selectedSubtitleStream = info?.subtitles.find(
-		(stream) => stream.Index === Number(subtitle),
+		(stream) => subtitle !== "" && stream.Index === Number(subtitle),
 	);
 	const nativeSubtitleTrackUrl =
 		style.renderer === "native" && subtitle && info?.source
@@ -1697,11 +1758,12 @@ export function VideoPlayer({
 						? (next.audio.find((track) => track.IsDefault) ?? next.audio[0])
 						: next.audio.find((track) => track.Index === initialAudioStreamId);
 				setAudio(initialAudio?.Index != null ? String(initialAudio.Index) : "");
-				setSubtitle(
+				const initialSubtitle =
 					initialSubtitleStreamIndex == null
 						? ""
-						: String(initialSubtitleStreamIndex),
-				);
+						: String(initialSubtitleStreamIndex);
+				setSubtitle(initialSubtitle);
+				lastSubtitleRef.current = initialSubtitle;
 			})
 			.catch((error) => {
 				if (!active) return;
@@ -2541,6 +2603,7 @@ export function VideoPlayer({
 			touchVideoInteractionRef.current = false;
 			return;
 		}
+		playerRef.current?.focus({ preventScroll: true });
 		if (videoClickTimerRef.current)
 			window.clearTimeout(videoClickTimerRef.current);
 		videoClickTimerRef.current = window.setTimeout(() => {
@@ -2571,11 +2634,26 @@ export function VideoPlayer({
 			seekPreviewRef.current?.itemId === item.Id
 				? seekPreviewRef.current.value
 				: video.currentTime;
-		const target = Math.max(
+		seekTo(previewTarget + delta);
+	}
+	function mediaDurationSeconds() {
+		const mediaDuration = videoRef.current?.duration;
+		if (
+			mediaDuration != null &&
+			Number.isFinite(mediaDuration) &&
+			mediaDuration > 0
+		)
+			return mediaDuration;
+		return duration > 0 ? duration : knownDuration;
+	}
+	function seekTo(target: number) {
+		if (!videoRef.current) return;
+		const mediaDuration = mediaDurationSeconds();
+		const boundedTarget = Math.max(
 			0,
-			Math.min(duration || video.duration || Infinity, previewTarget + delta),
+			Math.min(mediaDuration > 0 ? mediaDuration : Infinity, target),
 		);
-		stageSeek(target);
+		stageSeek(boundedTarget);
 		commitPendingSeek();
 	}
 	function stageSeek(target: number) {
@@ -2699,6 +2777,7 @@ export function VideoPlayer({
 	function chooseTrack(kind: "audio" | "subtitle", value: string) {
 		if (kind === "subtitle") {
 			const changed = subtitle !== value;
+			if (value) lastSubtitleRef.current = value;
 			setSubtitle(value);
 			if (changed) setSubtitleCueData(undefined);
 			setTrackMenu(null);
@@ -2765,10 +2844,188 @@ export function VideoPlayer({
 				}
 			});
 	}
+	function toggleSubtitles() {
+		const subtitles = info?.subtitles ?? [];
+		if (subtitles.length === 0) return;
+		if (subtitle) {
+			lastSubtitleRef.current = subtitle;
+			chooseTrack("subtitle", "");
+			return;
+		}
+		const remembered = subtitles.find(
+			(track) => String(track.Index) === lastSubtitleRef.current,
+		);
+		chooseTrack(
+			"subtitle",
+			remembered ? String(remembered.Index) : String(subtitles[0].Index),
+		);
+	}
+	function openTrackMenu(kind: "audio" | "subtitle") {
+		if (kind === "audio" && (info?.audio.length ?? 0) < 2) return;
+		if (kind === "subtitle" && (info?.subtitles.length ?? 0) === 0) return;
+		setSettingsOpen(false);
+		setTrackMenu(kind);
+	}
+	function openQualitySettings() {
+		setTrackMenu(null);
+		setSettingsSection("quality");
+		setSettingsOpen(true);
+	}
+	function adjustPlaybackSpeed(direction: -1 | 1) {
+		const currentIndex = Math.max(0, speeds.indexOf(Number(speed)));
+		const nextIndex = Math.max(
+			0,
+			Math.min(speeds.length - 1, currentIndex + direction),
+		);
+		const nextSpeed = speeds[nextIndex];
+		setSpeed(String(nextSpeed));
+		if (videoRef.current) videoRef.current.playbackRate = nextSpeed;
+	}
+	function adjustSubtitleOffset(direction: -1 | 1) {
+		setOffset(
+			(current) =>
+				Math.round(Math.max(-5, Math.min(5, current + direction * 0.1)) * 10) / 10,
+		);
+	}
 	function skip(marker?: PlaybackMarker) {
 		if (!marker) return;
 		stageSeek(marker.end);
 		commitPendingSeek();
+	}
+	function handlePlayerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+		showControls();
+		const target = event.target instanceof Element ? event.target : null;
+		const key = event.key;
+		if (!event.currentTarget.contains(document.activeElement)) return;
+		if (keyboardHelpOpen) {
+			if (key === "Escape") {
+				event.preventDefault();
+				closeKeyboardHelp();
+			}
+			return;
+		}
+		if (key === "Escape") {
+			if (trackMenu) {
+				event.preventDefault();
+				setTrackMenu(null);
+				playerRef.current?.focus({ preventScroll: true });
+			} else if (settingsOpen) {
+				event.preventDefault();
+				setSettingsOpen(false);
+				setSettingsSection("root");
+				playerRef.current?.focus({ preventScroll: true });
+			}
+			return;
+		}
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (
+			target?.closest(
+				"input, textarea, select, [contenteditable='true'], [data-player-context]",
+			)
+		)
+			return;
+		if (settingsOpen || trackMenu) return;
+
+		const isHelpShortcut = (key === "?" || key === "/") && event.shiftKey;
+		const isNextShortcut = key.toLowerCase() === "n" && event.shiftKey;
+		const isSpeedShortcut = key === "<" || key === ">";
+		if (event.shiftKey && !isHelpShortcut && !isNextShortcut && !isSpeedShortcut)
+			return;
+		const lowerKey = key.toLowerCase();
+		const repeatableKeys = [
+			"ArrowLeft",
+			"ArrowRight",
+			"ArrowUp",
+			"ArrowDown",
+			"j",
+			"J",
+			"l",
+			"L",
+			"<",
+			">",
+			"[",
+			"]",
+		];
+		if (event.repeat && !repeatableKeys.includes(key)) return;
+		if (key === " " && target?.closest("button, [role='button']")) return;
+
+		if (key === " " || (!event.shiftKey && lowerKey === "k")) {
+			event.preventDefault();
+			togglePlay();
+		} else if (key === "ArrowLeft" || (!event.shiftKey && lowerKey === "j")) {
+			event.preventDefault();
+			seek(-10);
+		} else if (key === "ArrowRight" || (!event.shiftKey && lowerKey === "l")) {
+			event.preventDefault();
+			seek(10);
+		} else if (key === "ArrowUp" || key === "ArrowDown") {
+			event.preventDefault();
+			const direction = key === "ArrowUp" ? 1 : -1;
+			if (!muted || direction > 0)
+				setVideoVolume((muted ? 0 : volume) + direction * 0.05);
+		} else if (!event.shiftKey && lowerKey === "m") {
+			event.preventDefault();
+			setVideoMuted(!muted);
+		} else if (!event.shiftKey && lowerKey === "f") {
+			event.preventDefault();
+			toggleFullscreen();
+		} else if (!event.shiftKey && lowerKey === "p" && pipSupported) {
+			event.preventDefault();
+			togglePictureInPicture();
+		} else if (!event.shiftKey && lowerKey === "c" && info?.subtitles.length) {
+			event.preventDefault();
+			toggleSubtitles();
+		} else if (
+			!event.shiftKey &&
+			lowerKey === "a" &&
+			(info?.audio.length ?? 0) > 1
+		) {
+			event.preventDefault();
+			openTrackMenu("audio");
+		} else if (!event.shiftKey && lowerKey === "s" && info?.subtitles.length) {
+			event.preventDefault();
+			openTrackMenu("subtitle");
+		} else if (!event.shiftKey && lowerKey === "q") {
+			event.preventDefault();
+			openQualitySettings();
+		} else if (isSpeedShortcut) {
+			event.preventDefault();
+			adjustPlaybackSpeed(key === "<" ? -1 : 1);
+		} else if ((key === "[" || key === "]") && style.renderer === "overlay") {
+			event.preventDefault();
+			adjustSubtitleOffset(key === "[" ? -1 : 1);
+		} else if (/^[0-9]$/.test(key)) {
+			const mediaDuration = mediaDurationSeconds();
+			if (mediaDuration > 0) {
+				event.preventDefault();
+				seekTo((mediaDuration * Number(key)) / 10);
+			}
+		} else if (key === "Home" || key === "End") {
+			const mediaDuration = mediaDurationSeconds();
+			if (mediaDuration > 0) {
+				event.preventDefault();
+				seekTo(key === "Home" ? 0 : mediaDuration);
+			}
+		} else if (lowerKey === "i" && markers?.intro) {
+			if (currentTime >= markers.intro.start && currentTime < markers.intro.end) {
+				event.preventDefault();
+				skip(markers.intro);
+			}
+		} else if (lowerKey === "o" && markers?.outro) {
+			if (currentTime >= markers.outro.start && currentTime < markers.outro.end) {
+				event.preventDefault();
+				skip(markers.outro);
+			}
+		} else if (isNextShortcut && nextUpVisible && nextItem) {
+			event.preventDefault();
+			void playNext();
+		} else if (isHelpShortcut) {
+			event.preventDefault();
+			openKeyboardHelp();
+		} else if (!event.shiftKey && lowerKey === "t") {
+			event.preventDefault();
+			toggleTimeDisplay();
+		}
 	}
 	function previewTimeline(event: React.PointerEvent<HTMLInputElement>) {
 		if (!duration) return;
@@ -2797,25 +3054,71 @@ export function VideoPlayer({
 					: "fixed inset-0 z-[200] h-[100dvh]"
 			} overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`}
 			onPointerMove={showControls}
-			onPointerDown={showControls}
+			onPointerDown={(event) => {
+				showControls();
+				if (event.target === event.currentTarget)
+					event.currentTarget.focus({ preventScroll: true });
+			}}
 			onClickCapture={(event) => {
 				if (!suppressNextClickRef.current) return;
 				suppressNextClickRef.current = false;
 				event.preventDefault();
 				event.stopPropagation();
 			}}
-			onKeyDown={(event) => {
-				showControls();
-				if (event.target !== event.currentTarget) return;
-				if (event.key === " ") {
-					event.preventDefault();
-					togglePlay();
-				}
-				if (event.key === "ArrowLeft") seek(-10);
-				if (event.key === "ArrowRight") seek(10);
-			}}
+			onKeyDown={handlePlayerKeyDown}
 			tabIndex={0}
 		>
+			{keyboardHelpOpen && (
+				<div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+					<section
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="player-keyboard-shortcuts-title"
+						onKeyDown={(event) => {
+							if (event.key === "Tab") {
+								event.preventDefault();
+								keyboardHelpCloseButtonRef.current?.focus();
+							}
+						}}
+						className="max-h-[calc(100dvh-2rem)] w-[min(36rem,100%)] overflow-y-auto rounded-2xl border border-white/20 bg-[#101114] p-4 shadow-2xl sm:p-6"
+					>
+						<div className="mb-4 flex items-start justify-between gap-4">
+							<div>
+								<h2
+									id="player-keyboard-shortcuts-title"
+									className="text-lg font-semibold"
+								>
+									{t("keyboardShortcuts")}
+								</h2>
+								<p className="mt-1 text-sm text-white/65">
+									{t("keyboardShortcutsDescription")}
+								</p>
+							</div>
+							<button
+								ref={keyboardHelpCloseButtonRef}
+								type="button"
+								aria-label={t("close")}
+								onClick={closeKeyboardHelp}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+							>
+								<X />
+							</button>
+						</div>
+						<dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-x-4 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
+							{keyboardShortcutRows.map(({ keys, label }) => (
+								<div className="contents" key={keys}>
+									<dt>
+										<kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-white">
+											{keys}
+										</kbd>
+									</dt>
+									<dd className="text-white/75">{label}</dd>
+								</div>
+							))}
+						</dl>
+					</section>
+				</div>
+			)}
 			{style.renderer === "native" && <style>{nativeSubtitleCueCss(style)}</style>}
 			<video
 				ref={videoRef}
@@ -3406,6 +3709,7 @@ export function VideoPlayer({
 				<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
 					<button
 						aria-label="Skip back 10 seconds"
+						aria-keyshortcuts="ArrowLeft J"
 						onClick={() => seek(-10)}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 					>
@@ -3413,6 +3717,7 @@ export function VideoPlayer({
 					</button>
 					<button
 						aria-label={playing ? "Pause" : "Play"}
+						aria-keyshortcuts="Space K"
 						onClick={togglePlay}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 					>
@@ -3420,6 +3725,7 @@ export function VideoPlayer({
 					</button>
 					<button
 						aria-label="Skip forward 10 seconds"
+						aria-keyshortcuts="ArrowRight L"
 						onClick={() => seek(10)}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 					>
@@ -3429,6 +3735,7 @@ export function VideoPlayer({
 						type="button"
 						data-testid="player-time"
 						aria-label={timeDisplayActionLabel}
+						aria-keyshortcuts="T"
 						aria-pressed={timeDisplayMode === "elapsed"}
 						title={timeDisplayActionLabel}
 						onClick={toggleTimeDisplay}
@@ -3441,6 +3748,7 @@ export function VideoPlayer({
 						<button
 							data-player-context-trigger
 							aria-label={t("audioTrack")}
+							aria-keyshortcuts="A"
 							onClick={() => {
 								setTrackMenu(trackMenu === "audio" ? null : "audio");
 								setSettingsOpen(false);
@@ -3454,6 +3762,7 @@ export function VideoPlayer({
 						<button
 							data-player-context-trigger
 							aria-label={t("subtitleTrack")}
+							aria-keyshortcuts="S"
 							onClick={() => {
 								setTrackMenu(trackMenu === "subtitle" ? null : "subtitle");
 								setSettingsOpen(false);
@@ -3480,6 +3789,7 @@ export function VideoPlayer({
 						</div>
 						<button
 							aria-label={muted ? "Unmute" : "Mute"}
+							aria-keyshortcuts="M"
 							onClick={() => setVideoMuted(!muted)}
 							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 						>
@@ -3503,6 +3813,7 @@ export function VideoPlayer({
 							aria-label={
 								isPictureInPicture ? t("exitPictureInPicture") : t("pictureInPicture")
 							}
+							aria-keyshortcuts="P"
 							onClick={togglePictureInPicture}
 							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 						>
@@ -3511,10 +3822,21 @@ export function VideoPlayer({
 					)}
 					<button
 						aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+						aria-keyshortcuts="F"
 						onClick={toggleFullscreen}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 					>
 						{isFullscreen ? <Minimize /> : <Maximize />}
+					</button>
+					<button
+						type="button"
+						aria-label={t("openKeyboardShortcuts")}
+						aria-keyshortcuts="Shift+/"
+						title={t("openKeyboardShortcuts")}
+						onClick={openKeyboardHelp}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+					>
+						<Keyboard />
 					</button>
 					{trackMenu === "audio" && (
 						<ChoicePanel

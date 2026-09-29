@@ -161,7 +161,7 @@ if (!fixtureRoot) {
 					body.items[0].metadata.title || body.items[0].name,
 				);
 				expect(item.Type, fixture.operationId).toBe("Movie");
-				expect(item.UserData.IsFavorite, fixture.operationId).toBe(true);
+				expect(item.UserData?.IsFavorite, fixture.operationId).toBe(true);
 			}
 
 			const catalogItem = fixtureDocument.operations.find(

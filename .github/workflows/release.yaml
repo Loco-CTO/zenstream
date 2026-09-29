@@ -360,8 +360,29 @@ jobs:
             echo "Version and SHA tags do not resolve to the same multi-platform manifest." >&2
             exit 1
           }
-          grep -Fq 'Platform: linux/amd64' <<<"$version_info"
-          grep -Fq 'Platform: linux/arm64' <<<"$version_info"
+          version_platforms="$(
+            docker buildx imagetools inspect --raw "$image:v$VERSION" |
+              python3 -c '
+          import json
+          import sys
+
+          manifest = json.load(sys.stdin)
+          platforms = set()
+          for item in manifest.get("manifests", []):
+              platform = item.get("platform") or {}
+              platform_os = platform.get("os")
+              architecture = platform.get("architecture")
+              if platform_os and architecture:
+                  platforms.add(f"{platform_os}/{architecture}")
+          print("\n".join(sorted(platforms)))
+          '
+          )"
+          for platform in linux/amd64 linux/arm64; do
+            grep -Fxq "$platform" <<<"$version_platforms" || {
+              echo "Version image manifest does not contain $platform." >&2
+              exit 1
+            }
+          done
           echo "digest=$version_digest" >> "$GITHUB_OUTPUT"
 
       - name: Make the self-hosted image public

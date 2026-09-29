@@ -81,6 +81,7 @@ import {
 type Props = {
 	item: MediaItem;
 	session: AuthSession;
+	fullscreenHostRef?: { current: HTMLDivElement | null };
 	initialAudioStreamId?: number;
 	initialSubtitleStreamIndex?: number | null;
 	initialStreams?: ReturnType<typeof playbackStreams>;
@@ -546,6 +547,7 @@ export function VideoPlayer({
 	initialSubtitleStreamIndex,
 	initialStreams,
 	deferPlaybackNegotiation = false,
+	fullscreenHostRef,
 	watchHistoryEnabled = true,
 	watchHistoryLoaded = false,
 	onClose,
@@ -2411,16 +2413,17 @@ export function VideoPlayer({
 	}, []);
 
 	useEffect(() => {
-		const player = playerRef.current;
+		const player = fullscreenHostRef?.current ?? playerRef.current;
 		const syncFullscreenState = () =>
 			setIsFullscreen(document.fullscreenElement === player);
 		document.addEventListener("fullscreenchange", syncFullscreenState);
 		syncFullscreenState();
 		return () => {
 			document.removeEventListener("fullscreenchange", syncFullscreenState);
-			if (document.fullscreenElement === player) exitFullscreenSafely();
+			if (!fullscreenHostRef && document.fullscreenElement === player)
+				exitFullscreenSafely();
 		};
-	}, []);
+	}, [fullscreenHostRef]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -2499,10 +2502,11 @@ export function VideoPlayer({
 			window.clearTimeout(videoClickTimerRef.current);
 			videoClickTimerRef.current = null;
 		}
+		const fullscreenTarget = fullscreenHostRef?.current ?? playerRef.current;
 		if (document.fullscreenElement) {
 			exitFullscreenSafely();
 		} else {
-			void playerRef.current?.requestFullscreen?.();
+			void fullscreenTarget?.requestFullscreen?.();
 		}
 	}
 	function togglePictureInPicture() {
@@ -2787,7 +2791,11 @@ export function VideoPlayer({
 	return (
 		<div
 			ref={playerRef}
-			className={`fixed inset-0 z-[200] h-[100dvh] overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`}
+			className={`${
+				fullscreenHostRef
+					? "absolute inset-0 h-full w-full"
+					: "fixed inset-0 z-[200] h-[100dvh]"
+			} overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`}
 			onPointerMove={showControls}
 			onPointerDown={showControls}
 			onClickCapture={(event) => {

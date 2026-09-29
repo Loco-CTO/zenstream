@@ -1,6 +1,9 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
+import {
+	PlaybackBehaviorPreferencesProvider,
+	playbackBehaviorStorageKey,
+} from "@/components/playback-behavior-preferences-provider";
 import { PlayerPage } from "@/components/pages/player-page";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -154,8 +157,186 @@ describe("PlayerPage playback startup", () => {
 		vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
 	});
 
+	let restoreFullscreenApi: (() => void) | undefined;
+
 	afterEach(() => {
+		restoreFullscreenApi?.();
+		restoreFullscreenApi = undefined;
+		window.localStorage.removeItem(playbackBehaviorStorageKey(session.userId));
 		vi.restoreAllMocks();
+	});
+
+	function mockFullscreenApi() {
+		const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
+			document,
+			"fullscreenElement",
+		);
+		const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+			document,
+			"exitFullscreen",
+		);
+		const requestFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+			HTMLElement.prototype,
+			"requestFullscreen",
+		);
+		let activeElement: Element | null = null;
+		let requestedElement: Element | null = null;
+		const requestFullscreen = vi.fn(() => {
+			activeElement = requestedElement;
+			document.dispatchEvent(new Event("fullscreenchange"));
+			return Promise.resolve();
+		});
+		const exitFullscreen = vi.fn(() => {
+			activeElement = null;
+			document.dispatchEvent(new Event("fullscreenchange"));
+			return Promise.resolve();
+		});
+		Object.defineProperty(document, "fullscreenElement", {
+			configurable: true,
+			get: () => activeElement,
+		});
+		Object.defineProperty(document, "exitFullscreen", {
+			configurable: true,
+			value: exitFullscreen,
+		});
+		Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+			configurable: true,
+			value: requestFullscreen,
+		});
+		return {
+			get activeElement() {
+				return activeElement;
+			},
+			exitFullscreen,
+			setTarget(element: Element) {
+				requestedElement = element;
+			},
+			restore() {
+				if (fullscreenElementDescriptor)
+					Object.defineProperty(
+						document,
+						"fullscreenElement",
+						fullscreenElementDescriptor,
+					);
+				else Reflect.deleteProperty(document, "fullscreenElement");
+				if (exitFullscreenDescriptor)
+					Object.defineProperty(
+						document,
+						"exitFullscreen",
+						exitFullscreenDescriptor,
+					);
+				else Reflect.deleteProperty(document, "exitFullscreen");
+				if (requestFullscreenDescriptor)
+					Object.defineProperty(
+						HTMLElement.prototype,
+						"requestFullscreen",
+						requestFullscreenDescriptor,
+					);
+				else Reflect.deleteProperty(HTMLElement.prototype, "requestFullscreen");
+			},
+		};
+	}
+
+	it.each([
+		{ label: "automatic next episode playback", autoplayNextEpisode: true },
+		{ label: "manual Next Up playback", autoplayNextEpisode: false },
+	])("keeps fullscreen during $label", async ({ autoplayNextEpisode }) => {
+		mocks.active = null;
+		const episode2 = {
+			Id: "episode-2",
+			Name: "Episode 2",
+			Type: "Episode",
+			SeriesId: "series-1",
+			ParentIndexNumber: 1,
+			IndexNumber: 2,
+			RunTimeTicks: 120 * 10_000_000,
+		} as MediaItem;
+		const episode3 = {
+			...episode2,
+			Id: "episode-3",
+			Name: "Episode 3",
+			IndexNumber: 3,
+		} as MediaItem;
+		mocks.getSeasons.mockResolvedValue([
+			{ Id: "season-1", Type: "Season", IndexNumber: 1 } as MediaItem,
+		]);
+		mocks.getEpisodes.mockResolvedValue([episode2, episode3]);
+		mocks.getPlaybackPreference.mockResolvedValue({
+			audioLanguage: null,
+			subtitleLanguage: null,
+			audioLanguages: [],
+			subtitleLanguages: [],
+		});
+		mocks.getPlaybackInfo.mockImplementation(async (_session, itemId) => ({
+			source: { ...negotiatedSource, url: `/media/${itemId}.mp4` },
+		}));
+		window.localStorage.setItem(
+			playbackBehaviorStorageKey(session.userId),
+			JSON.stringify({ autoplayNextEpisode, autoplayBrowse: true }),
+		);
+		const fullscreen = mockFullscreenApi();
+		restoreFullscreenApi = fullscreen.restore;
+		const episodeData = {
+			item: episode2,
+			seasons: [],
+			episodes: [],
+			similar: [],
+		} satisfies DetailData;
+		const view = render(
+			<I18nProvider locale="en">
+				<ToastProvider>
+					<PlaybackBehaviorPreferencesProvider userId={session.userId}>
+						<SubtitlePreferencesProvider>
+							<PlayerPage initialData={episodeData} session={session} />
+						</SubtitlePreferencesProvider>
+					</PlaybackBehaviorPreferencesProvider>
+				</ToastProvider>
+			</I18nProvider>,
+		);
+		const fullscreenHost = view.getByTestId("player-fullscreen-host");
+		fullscreen.setTarget(fullscreenHost);
+		await waitFor(() => expect(mocks.getPlaybackInfo).toHaveBeenCalled());
+		fireEvent.click(view.getByRole("button", { name: "Fullscreen" }));
+		await waitFor(() => expect(fullscreen.activeElement).toBe(fullscreenHost));
+
+		const video = view.container.querySelector("video");
+		if (!video) throw new Error("The player did not render a video element.");
+		Object.defineProperty(video, "duration", {
+			configurable: true,
+			value: 120,
+		});
+		Object.defineProperty(video, "currentTime", {
+			configurable: true,
+			writable: true,
+			value: 119,
+		});
+		fireEvent.loadedMetadata(video);
+		fireEvent.timeUpdate(video);
+		await waitFor(() => expect(view.getByTestId("next-up")).toBeInTheDocument());
+
+		if (autoplayNextEpisode) {
+			Object.defineProperty(video, "currentTime", {
+				configurable: true,
+				writable: true,
+				value: 120,
+			});
+			fireEvent.ended(video);
+		} else {
+			fireEvent.click(view.getByRole("button", { name: /Play next/i }));
+		}
+
+		await waitFor(() =>
+			expect(view.getByRole("heading", { name: "Episode 3" })).toBeInTheDocument(),
+		);
+		expect(view.getByTestId("player-fullscreen-host")).toBe(fullscreenHost);
+		expect(fullscreen.activeElement).toBe(fullscreenHost);
+		expect(fullscreen.exitFullscreen).not.toHaveBeenCalled();
+		expect(
+			view.getByRole("button", { name: "Exit fullscreen" }),
+		).toBeInTheDocument();
+
+		view.unmount();
+		expect(fullscreen.exitFullscreen).toHaveBeenCalledOnce();
 	});
 
 	it("negotiates direct media and clears SyncPlay loading after an aborted preference request", async () => {

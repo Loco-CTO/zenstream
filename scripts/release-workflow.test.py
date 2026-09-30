@@ -69,6 +69,22 @@ class CandidateFirstWorkflowTest(unittest.TestCase):
             publish.index("Prepare and publish the verified release manifest"),
         )
 
+    def test_candidate_ref_cleanup_receives_candidate_ref(self) -> None:
+        workflow = RELEASE.read_text(encoding="utf-8")
+        promote = job_block(workflow, "promote")
+        cleanup_step = promote.split(
+            "      - name: Tag latest and stable after branch promotion", 1
+        )[1]
+
+        self.assertIn(
+            "CANDIDATE_REF: ${{ needs.candidate.outputs.candidate_ref }}",
+            cleanup_step,
+        )
+        self.assertIn(
+            'delete_candidate_ref "$CANDIDATE_REF" "$CANDIDATE_SHA"',
+            cleanup_step,
+        )
+
     def test_reusable_ci_checks_explicit_candidate_sha(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertRegex(ci, r"workflow_call:")

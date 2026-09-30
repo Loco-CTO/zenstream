@@ -480,6 +480,7 @@ jobs:
 
       - name: Tag latest and stable after branch promotion
         env:
+          CANDIDATE_REF: ${{ needs.candidate.outputs.candidate_ref }}
           CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
         run: |
           set -euo pipefail

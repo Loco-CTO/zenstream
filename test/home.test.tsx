@@ -12,9 +12,25 @@ import { ProgressProvider } from "@/components/status/progress-indicator";
 import * as jellyfin from "@/lib/media-api";
 import * as session from "@/lib/session";
 
+// Shell fixtures use synthetic sessions; SyncPlay suites cover transport recovery.
+vi.mock("@/lib/syncplay", async () => {
+	const actual =
+		await vi.importActual<typeof import("@/lib/syncplay")>("@/lib/syncplay");
+	return {
+		...actual,
+		SyncplayProvider: ({
+			children,
+		}: Parameters<typeof actual.SyncplayProvider>[0]) => children,
+	};
+});
+
 describe("home screen", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		// Other shell reads must not authenticate these fake sessions with a real server.
+		vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async () => new Response("{}"));
 		vi
 			.spyOn(jellyfin, "validateBrowserSession")
 			.mockImplementation(async (value) => value);

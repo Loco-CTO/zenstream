@@ -612,6 +612,8 @@ export function VideoPlayer({
 	const readyItemIdRef = useRef<string | null>(null);
 	const readyLoadIdRef = useRef<number | null>(null);
 	const readyPresenceKeyRef = useRef<string | null>(null);
+	const readyPresencePendingRef = useRef<{ key: string } | null>(null);
+	const syncplayRecoveryEpochRef = useRef(syncplay.recoveryEpoch);
 	const appliedTimelineRef = useRef<string | null>(null);
 	const settlingTimelineRef = useRef<string | null>(null);
 	const seekedTimelineRef = useRef<string | null>(null);
@@ -1494,21 +1496,44 @@ export function VideoPlayer({
 			const seekTimeline = state.pauseReason === "seek";
 			const settlingSeek =
 				seekTimeline && seekedTimelineRef.current !== timelineKey;
-			const presenceKey = `${expectedLoadId}:${state.id}:${item.Id}:${generation}:${timelineRevision}:${settlingSeek ? "seek" : "ready"}`;
+			const presenceKey = `${expectedLoadId}:${state.id}:${item.Id}:${generation}:${timelineRevision}:${settlingSeek ? "seek" : "ready"}:${syncplayRecoveryEpochRef.current}`;
 			if (seekTimeline && !settlingSeek) {
 				settlingTimelineRef.current = null;
 				seekSettlingUntilRef.current = 0;
 			}
 			if (
-				readyPresenceKeyRef.current === presenceKey &&
+				(readyPresenceKeyRef.current === presenceKey ||
+					readyPresencePendingRef.current?.key === presenceKey) &&
 				bufferedRef.current === settlingSeek
 			)
 				return true;
-			readyPresenceKeyRef.current = presenceKey;
+			const submission = { key: presenceKey };
+			const recoveryEpoch = syncplayRecoveryEpochRef.current;
+			readyPresencePendingRef.current = submission;
 			bufferedRef.current = settlingSeek;
 			void syncplayApiRef.current
 				.presence(true, settlingSeek, generation, timelineRevision)
-				.catch(() => undefined);
+				.then((delivery) => {
+					if (readyPresencePendingRef.current !== submission) return;
+					readyPresencePendingRef.current = null;
+					const current = syncplayStateRef.current;
+					if (
+						delivery === "acknowledged" &&
+						mediaLoadActiveRef.current &&
+						mediaLoadIdRef.current === expectedLoadId &&
+						syncplayRecoveryEpochRef.current === recoveryEpoch &&
+						current?.id === state.id &&
+						current.itemId === item.Id &&
+						(current.mediaGeneration ?? 0) === generation &&
+						(current.timelineRevision ?? current.revision) === timelineRevision
+					) {
+						readyPresenceKeyRef.current = presenceKey;
+					}
+				})
+				.catch(() => {
+					if (readyPresencePendingRef.current === submission)
+						readyPresencePendingRef.current = null;
+				});
 			return true;
 		},
 		[
@@ -1522,6 +1547,11 @@ export function VideoPlayer({
 	useEffect(() => {
 		syncplayStateRef.current = syncplay.active;
 	}, [syncplay.active]);
+	useEffect(() => {
+		syncplayRecoveryEpochRef.current = syncplay.recoveryEpoch;
+		readyPresenceKeyRef.current = null;
+		readyPresencePendingRef.current = null;
+	}, [syncplay.recoveryEpoch]);
 	useEffect(() => {
 		syncplayApiRef.current = {
 			presence: syncplay.presence,
@@ -1822,6 +1852,7 @@ export function VideoPlayer({
 		syncplayItemId,
 		syncplayGeneration,
 		syncplayTimelineRevision,
+		syncplay.recoveryEpoch,
 		item.Id,
 		acknowledgeMediaReady,
 	]);

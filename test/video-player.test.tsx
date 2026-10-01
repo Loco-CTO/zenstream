@@ -657,7 +657,7 @@ describe("video player controls", () => {
 		return { active, commandBodies, fetchMock, next, onClose, onNext, view };
 	}
 
-	function renderSyncplaySeekBarrierPlayer() {
+	function renderSyncplaySeekBarrierPlayer(failReadyOnce = false) {
 		const session = { token: "token", userId: "user", username: "Alex" };
 		const active = {
 			id: "group",
@@ -710,7 +710,12 @@ describe("video player controls", () => {
 				if (url.endsWith("/api/auth/socket-ticket"))
 					return new Response(JSON.stringify({ ticket: "socket-ticket" }));
 				if (url.endsWith("/api/syncplay/groups/group/presence")) {
-					presenceBodies.push(JSON.parse(String(init?.body)));
+					const body = JSON.parse(String(init?.body));
+					presenceBodies.push(body);
+					if (failReadyOnce && body.viewing && !body.loading) {
+						failReadyOnce = false;
+						throw new TypeError("Ready response lost");
+					}
 					return new Response(JSON.stringify(active));
 				}
 				return new Response(JSON.stringify({}), { status: 404 });
@@ -740,6 +745,51 @@ describe("video player controls", () => {
 			view,
 		};
 	}
+
+	it("retries a lost ready report without a new media event or source reload", async () => {
+		const { fetchMock, loadInitialStreams, presenceBodies, view } =
+			renderSyncplaySeekBarrierPlayer(true);
+		try {
+			for (let attempt = 0; attempt < 8; attempt++) await flushPlayerEffects();
+			loadInitialStreams();
+			for (let attempt = 0; attempt < 8; attempt++) await flushPlayerEffects();
+			const video = view.container.querySelector("video")!;
+			const source = video.getAttribute("src");
+			Object.defineProperty(video, "currentTime", {
+				configurable: true,
+				value: 45,
+			});
+			Object.defineProperty(video, "readyState", {
+				configurable: true,
+				value: HTMLMediaElement.HAVE_FUTURE_DATA,
+			});
+			fireEvent.seeked(video);
+			fireEvent.canPlay(video);
+			await flushPlayerEffects();
+			const negotiations = vi.mocked(getPlaybackInfo).mock.calls.length;
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(1_500);
+			});
+			const reports = presenceBodies.filter(
+				(report) => report.viewing && !report.loading,
+			);
+			expect(reports.length).toBeGreaterThanOrEqual(2);
+			const requests = fetchMock.mock.calls.filter(
+				([url, init]) =>
+					String(url).endsWith("/presence") &&
+					JSON.parse(String(init?.body)).loading === false,
+			);
+			expect(JSON.parse(String(requests[0][1]?.body))).toEqual(
+				JSON.parse(String(requests[1][1]?.body)),
+			);
+			expect(view.container.querySelector("video")).toBe(video);
+			expect(video.getAttribute("src")).toBe(source);
+			expect(vi.mocked(getPlaybackInfo).mock.calls).toHaveLength(negotiations);
+		} finally {
+			view.unmount();
+			fetchMock.mockRestore();
+		}
+	});
 
 	it("completes a seek barrier when seeked arrives before future data", async () => {
 		const { fetchMock, loadInitialStreams, presenceBodies, view } =

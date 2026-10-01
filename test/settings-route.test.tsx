@@ -51,6 +51,18 @@ vi.mock("next/navigation", () => ({
 	useSearchParams: () => new URLSearchParams(),
 }));
 
+// Shell fixtures use synthetic sessions; SyncPlay suites cover transport recovery.
+vi.mock("@/lib/syncplay", async () => {
+	const actual =
+		await vi.importActual<typeof import("@/lib/syncplay")>("@/lib/syncplay");
+	return {
+		...actual,
+		SyncplayProvider: ({
+			children,
+		}: Parameters<typeof actual.SyncplayProvider>[0]) => children,
+	};
+});
+
 describe("settings route", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();

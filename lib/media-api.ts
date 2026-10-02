@@ -482,6 +482,7 @@ export interface HomeData {
 	newlyAdded?: NewlyAddedSection[];
 	continueWatching: MediaItem[];
 	nextUp: MediaItem[];
+	recommendations?: MediaItem[];
 	libraryRows: HomeLibrarySection[];
 	topRated?: MediaItem[];
 	newReleases?: MediaItem[];
@@ -978,6 +979,9 @@ export async function fetchHomeData(
 			const rest = await Promise.all([
 				section<{ continueWatching?: CatalogItem[] }>("continueWatching", 18),
 				section<{ nextUp?: CatalogItem[] }>("nextUp", 18),
+				section<{ recommendations?: CatalogItem[] }>("recommendations", 18).catch(
+					(): { recommendations?: CatalogItem[] } => ({}),
+				),
 				section<{
 					myList?: CatalogItem[];
 					favoriteMusic?: CatalogItem[];
@@ -994,11 +998,13 @@ export async function fetchHomeData(
 			]);
 			const continueWatching = (rest[0].continueWatching ?? []).map(toMediaItem);
 			const nextUp = (rest[1].nextUp ?? []).map(toMediaItem);
-			const derived = rest[2];
-			const libraries = rest[3] as LibraryView[];
+			const recommendations = (rest[2].recommendations ?? []).map(toMediaItem);
+			const derived = rest[3];
+			const libraries = rest[4] as LibraryView[];
 			onSection?.({
 				continueWatching,
 				nextUp,
+				recommendations,
 				myList: (derived.myList ?? []).map(toMediaItem),
 				favoriteMusic: (derived.favoriteMusic ?? []).map(toMediaItem),
 				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),
@@ -1035,6 +1041,7 @@ export async function fetchHomeData(
 				latestItems,
 				continueWatching,
 				nextUp,
+				recommendations,
 				myList: (derived.myList ?? []).map(toMediaItem),
 				favoriteMusic: (derived.favoriteMusic ?? []).map(toMediaItem),
 				recentlyPlayed: (derived.recentlyPlayed ?? []).map(toMediaItem),

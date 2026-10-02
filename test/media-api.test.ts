@@ -3,6 +3,7 @@ import {
 	artworkVariantUrl,
 	changeAccountPassword,
 	fetchArtistData,
+	fetchHomeData,
 	getAudioLyrics,
 	getSearchItems,
 	getSearchPage,
@@ -45,6 +46,38 @@ describe("changeAccountPassword", () => {
 				}),
 			}),
 		);
+	});
+});
+
+describe("Home recommendations", () => {
+	it("treats the optional recommendation section as empty when an older server rejects it", async () => {
+		const userSession = { ...session, userId: "home-optional-recommendations" };
+		const requestedUrls: string[] = [];
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input) => {
+				const url = String(input);
+				requestedUrls.push(url);
+				if (url.includes("section=recommendations"))
+					return new Response(null, { status: 404 });
+				if (url.includes("section=featured"))
+					return Response.json({ latestItems: [] });
+				if (url.includes("section=continueWatching"))
+					return Response.json({ continueWatching: [] });
+				if (url.includes("section=nextUp")) return Response.json({ nextUp: [] });
+				if (url.includes("section=derived")) return Response.json({});
+				if (url.endsWith("/api/catalog/libraries"))
+					return Response.json({ libraries: [] });
+				return new Response(null, { status: 404 });
+			});
+
+		const result = await fetchHomeData(userSession);
+
+		expect(
+			requestedUrls.some((url) => url.includes("section=recommendations")),
+		).toBe(true);
+		expect(result.recommendations).toEqual([]);
+		expect(fetchMock).toHaveBeenCalled();
 	});
 });
 

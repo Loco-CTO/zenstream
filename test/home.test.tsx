@@ -150,6 +150,7 @@ describe("home screen", () => {
 			],
 			continueWatching: [item("resume-1", "Resume Show")],
 			nextUp: [item("next-1", "Next Episode")],
+			recommendations: [item("recommendation-1", "Recommended Movie")],
 			topRated: [item("top-1", "Top Rated")],
 			newReleases: [item("new-1", "New Release")],
 			movies: [item("movie-1", "Movie")],
@@ -206,6 +207,8 @@ describe("home screen", () => {
 		).not.toBeInTheDocument();
 		expect(screen.getByText("Continue watching")).toBeInTheDocument();
 		expect(screen.getByText("Next Up")).toBeInTheDocument();
+		expect(screen.getByText("Recommended for you")).toBeInTheDocument();
+		expect(screen.getByText("Recommended Movie")).toBeInTheDocument();
 		expect(screen.getByText("Favorite Music")).toBeInTheDocument();
 		expect(screen.getByText("Favorite Artist")).toBeInTheDocument();
 		expect(screen.getByText("Favorite Album")).toBeInTheDocument();
@@ -236,6 +239,9 @@ describe("home screen", () => {
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Next Up")).toBeLessThan(
+			sectionHeadings.indexOf("Recommended for you"),
+		);
+		expect(sectionHeadings.indexOf("Recommended for you")).toBeLessThan(
 			sectionHeadings.indexOf("Newly Added on Anime"),
 		);
 		expect(sectionHeadings.indexOf("Newly Added on Anime")).toBeLessThan(

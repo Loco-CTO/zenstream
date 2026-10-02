@@ -28,6 +28,7 @@ watchlistLoadFailed: Could not load your Watchlist
 watchlistEmpty: Your Watchlist is empty
 watchlistEmptyHint: Follow a movie, series, or artist to add it here.
 continueWatching: Continue watching
+recommendationsForYou: Recommended for you
 upNextEpisode: "Up next · S{season} E{episode}"
 removeFromWatchlist: Remove from Watchlist
 playlistsLoadFailed: Could not load your playlists

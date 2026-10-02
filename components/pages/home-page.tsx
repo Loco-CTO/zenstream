@@ -61,6 +61,14 @@ export function HomePage({
 						session={session}
 					/>
 				))}
+				{(data.recommendations ?? []).length > 0 && (
+					<MediaRow
+						title={t("recommendationsForYou")}
+						items={uniqueItems(data.recommendations ?? [])}
+						variant="poster"
+						session={session}
+					/>
+				)}
 				{libraryRows.map((section) => (
 					<MediaRow
 						key={`${section.libraryId}:${section.titleKey}`}

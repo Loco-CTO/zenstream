@@ -69,6 +69,13 @@ class CandidateFirstWorkflowTest(unittest.TestCase):
             publish.index("Prepare and publish the verified release manifest"),
         )
 
+    def test_arm64_image_uses_a_native_arm64_runner(self) -> None:
+        workflow = RELEASE.read_text(encoding="utf-8")
+        arm64 = job_block(workflow, "image-arm64")
+
+        self.assertRegex(arm64, r"(?m)^    runs-on: ubuntu-24\.04-arm$")
+        self.assertNotIn("docker/setup-qemu-action@", arm64)
+
     def test_candidate_ref_cleanup_receives_candidate_ref(self) -> None:
         workflow = RELEASE.read_text(encoding="utf-8")
         promote = job_block(workflow, "promote")
@@ -106,3 +113,4 @@ class CandidateFirstWorkflowTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

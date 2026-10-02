@@ -47,6 +47,7 @@ watchlistLoadFailed: ウォッチリストを読み込めませんでした
 watchlistEmpty: ウォッチリストは空です
 watchlistEmptyHint: 映画、シリーズ、アーティストをフォローするとここに表示されます。
 continueWatching: 続きから再生
+recommendationsForYou: あなたへのおすすめ
 upNextEpisode: "次のエピソード · S{season} E{episode}"
 removeFromWatchlist: ウォッチリストから削除
 playlistsLoadFailed: プレイリストを読み込めませんでした

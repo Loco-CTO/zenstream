@@ -38,6 +38,7 @@ export const TRANSLATION_KEYS = [
 	"watchlistEmpty",
 	"watchlistEmptyHint",
 	"continueWatching",
+	"recommendationsForYou",
 	"upNextEpisode",
 	"removeFromWatchlist",
 	"playlistsLoadFailed",

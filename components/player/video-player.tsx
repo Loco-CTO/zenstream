@@ -2538,13 +2538,16 @@ export function VideoPlayer({
 		};
 	}, []);
 
-	function showControls() {
+	const showControls = useCallback(() => {
 		setControlsVisible(true);
 		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
 		controlsTimerRef.current = window.setTimeout(() => {
 			if (!settingsOpen && !trackMenu) setControlsVisible(false);
 		}, 2500);
-	}
+	}, [settingsOpen, trackMenu]);
+	useEffect(() => {
+		showControls();
+	}, [showControls]);
 	function seekPlayback(target: number) {
 		const video = videoRef.current;
 		const source = sourceRef.current;

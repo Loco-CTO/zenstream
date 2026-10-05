@@ -2398,12 +2398,14 @@ describe("video player controls", () => {
 		document.body.style.overflow = "";
 	});
 
-	it("hides the player gradient when controls time out", () => {
+	it("hides player controls after a fresh episode opens without input", () => {
 		const { container } = render(
 			<I18nProvider locale="en">
 				<SubtitlePreferencesProvider>
 					<VideoPlayer
-						item={{ Id: "movie", Name: "Movie", Type: "Movie" } as MediaItem}
+						item={
+							{ Id: "episode-2", Name: "Episode 2", Type: "Episode" } as MediaItem
+						}
 						session={{ token: "token", userId: "user", username: "Alex" }}
 						onClose={vi.fn()}
 					/>
@@ -2411,10 +2413,12 @@ describe("video player controls", () => {
 			</I18nProvider>,
 		);
 
+		const controls = container.querySelector(".zenstream-player-controls");
 		const gradient = container.querySelector(".bg-gradient-to-b");
+		expect(controls).toHaveClass("opacity-100");
 		expect(gradient).toHaveClass("opacity-100");
-		fireEvent.pointerMove(container.firstElementChild!);
 		act(() => vi.advanceTimersByTime(2501));
+		expect(controls).toHaveClass("pointer-events-none", "opacity-0");
 		expect(gradient).toHaveClass("opacity-0");
 	});
 

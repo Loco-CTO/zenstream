@@ -2538,13 +2538,19 @@ export function VideoPlayer({
 		};
 	}, []);
 
-	function showControls() {
-		setControlsVisible(true);
+	const scheduleControlsAutoHide = useCallback(() => {
 		if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
 		controlsTimerRef.current = window.setTimeout(() => {
 			if (!settingsOpen && !trackMenu) setControlsVisible(false);
 		}, 2500);
-	}
+	}, [settingsOpen, trackMenu]);
+	const showControls = useCallback(() => {
+		setControlsVisible(true);
+		scheduleControlsAutoHide();
+	}, [scheduleControlsAutoHide]);
+	useEffect(() => {
+		scheduleControlsAutoHide();
+	}, [scheduleControlsAutoHide]);
 	function seekPlayback(target: number) {
 		const video = videoRef.current;
 		const source = sourceRef.current;

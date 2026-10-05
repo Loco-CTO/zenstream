@@ -241,7 +241,7 @@ jobs:
       - name: Save tested amd64 image
         run: docker save zenstream:amd64 --output "$RUNNER_TEMP/zenstream-amd64.tar"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-image-amd64
           path: ${{ runner.temp }}/zenstream-amd64.tar
@@ -278,7 +278,7 @@ jobs:
       - name: Save tested arm64 image
         run: docker save zenstream:arm64 --output "$RUNNER_TEMP/zenstream-arm64.tar"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-image-arm64
           path: ${{ runner.temp }}/zenstream-arm64.tar

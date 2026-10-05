@@ -307,12 +307,12 @@ jobs:
           assert_ref_state refs/heads/main "$BASE_MAIN" "$CANDIDATE_SHA"
           assert_ref_state refs/heads/stable "$BASE_STABLE" "$CANDIDATE_SHA"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: web-image-amd64
           path: image-amd64
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: web-image-arm64
           path: image-arm64

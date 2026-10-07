@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LumiPage } from "@/components/pages/lumi-page";
 import { I18nProvider } from "@/lib/i18n";
@@ -7,7 +7,7 @@ import * as mediaApi from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
 const navigation = vi.hoisted(() => ({ query: "" }));
-const router = vi.hoisted(() => ({ push: vi.fn() }));
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
 	useRouter: () => router,
@@ -72,6 +72,7 @@ describe("LumiPage", () => {
 	beforeEach(() => {
 		navigation.query = "conversation=new-conversation";
 		router.push.mockReset();
+		router.replace.mockReset();
 		mockModels();
 		vi.mocked(lumi.getLumiConversations).mockResolvedValue({ conversations: [] });
 		vi.mocked(lumi.getLumiConversation).mockReset();
@@ -79,6 +80,58 @@ describe("LumiPage", () => {
 		vi.mocked(lumi.updateLumiConversationChoice).mockReset();
 		vi.mocked(lumi.updateLumiModelPreference).mockReset();
 		vi.mocked(mediaApi.getItem).mockReset();
+	});
+
+	it("returns to the launching ZenStream route from the close control", async () => {
+		navigation.query = "returnTo=%2Flibrary%3Ftab%3Dmusic";
+		renderPage();
+
+		fireEvent.click(screen.getByRole("button", { name: "Return to ZenStream" }));
+
+		expect(router.replace).toHaveBeenCalledWith("/library?tab=music");
+	});
+
+	it("uses the ZenStream home route when opened without an in-app return path", () => {
+		navigation.query = "";
+		renderPage();
+
+		fireEvent.click(screen.getByRole("button", { name: "Return to ZenStream" }));
+
+		expect(router.replace).toHaveBeenCalledWith("/");
+	});
+
+	it("keeps the launching route when starting a new conversation", () => {
+		navigation.query = "returnTo=%2Flibrary%3Ftab%3Dmusic";
+		renderPage();
+
+		fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+
+		const pushedRoute = router.push.mock.calls[0]?.[0];
+		expect(pushedRoute).toContain("/lumi?");
+		const params = new URLSearchParams(pushedRoute.split("?")[1]);
+		expect(params.get("conversation")).toBeTruthy();
+		expect(params.get("returnTo")).toBe("/library?tab=music");
+	});
+
+	it("rejects an external close destination", () => {
+		navigation.query = "returnTo=https%3A%2F%2Fevil.example";
+		renderPage();
+
+		fireEvent.click(screen.getByRole("button", { name: "Return to ZenStream" }));
+
+		expect(router.replace).toHaveBeenCalledWith("/");
+	});
+
+	it("puts a selected starter prompt into the composer", async () => {
+		renderPage();
+
+		fireEvent.click(
+			await screen.findByRole("button", { name: "What should I watch tonight?" }),
+		);
+
+		expect(screen.getByRole("textbox", { name: "Message Lumi" })).toHaveValue(
+			"What should I watch tonight?",
+		);
 	});
 
 	afterEach(() => {
@@ -211,6 +264,7 @@ describe("LumiPage", () => {
 
 		const model = await screen.findByRole("combobox", { name: "Model" });
 		fireEvent.change(model, { target: { value: "qwen-fast" } });
+		fireEvent.click(screen.getByRole("button", { name: "Chat options" }));
 		fireEvent.click(screen.getByRole("button", { name: "Apply to chat" }));
 
 		await screen.findByRole("status");

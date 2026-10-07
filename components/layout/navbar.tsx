@@ -31,6 +31,12 @@ export function Navbar({
 	const searchParams = useSearchParams();
 	const isSearchPage = pathname === "/search";
 	const routeSearchQuery = isSearchPage ? (searchParams.get("q") ?? "") : "";
+	const currentQuery = searchParams.toString();
+	const lumiReturnTo =
+		pathname && pathname !== "/lumi"
+			? `${pathname}${currentQuery ? `?${currentQuery}` : ""}`
+			: "/";
+	const lumiHref = `/lumi?returnTo=${encodeURIComponent(lumiReturnTo)}`;
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
 	const profileRef = useRef<HTMLDivElement>(null);
@@ -108,7 +114,7 @@ export function Navbar({
 							{t("calendar")}
 						</Link>
 						<Link
-							href="/lumi"
+							href={lumiHref}
 							className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/lumi" ? "text-white" : "text-white/35 hover:text-white/70"}`}
 						>
 							<Sparkles className="h-3.5 w-3.5" />

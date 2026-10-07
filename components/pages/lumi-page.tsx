@@ -205,9 +205,6 @@ export function LumiPage({ session }: LumiPageProps) {
 
 	const createConversation = useCallback(() => {
 		const id = createConversationId();
-		const preserveUnsavedChoice = Boolean(
-			selectedId === null && choiceOverrideEntry?.conversationId === null,
-		);
 		activeRequest.current?.abort();
 		setDraftIds((current) => new Set(current).add(id));
 		setDetailError(null);

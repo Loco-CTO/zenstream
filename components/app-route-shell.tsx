@@ -16,6 +16,7 @@ function isAppRoute(pathname: string) {
 		pathname === "/favorites" ||
 		pathname === "/my-lists" ||
 		pathname === "/library" ||
+		pathname === "/lumi" ||
 		pathname === "/notifications" ||
 		pathname === "/search" ||
 		pathname === "/settings" ||

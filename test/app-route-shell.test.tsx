@@ -34,6 +34,12 @@ describe("app route shell", () => {
 				<div data-testid="public-page">public page</div>
 			</AppRouteShell>,
 		);
+		navigation.pathname = "/lumi";
+		view.rerender(
+			<AppRouteShell shell={shell}>
+				<div data-testid="public-page">public page</div>
+			</AppRouteShell>,
+		);
 		navigation.pathname = "/album/album-1";
 		view.rerender(
 			<AppRouteShell shell={shell}>

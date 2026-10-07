@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Play } from "lucide-react";
+import { audioHref, detailHref } from "@/lib/media-links";
+export { audioHref } from "@/lib/media-links";
 import {
 	landscapeImage,
 	seriesPosterImage,
@@ -278,24 +280,6 @@ export function SquareAudioCard({
 			</div>
 		</article>
 	);
-}
-
-function detailHref(item: MediaItem) {
-	if (item.Type === "BoxSet") return `/collection/${item.Id}`;
-	if (item.Type === "MusicArtist") return `/artist/${item.Id}`;
-	if (item.Type === "MusicAlbum") return `/album/${item.Id}`;
-	if (item.Type === "Audio") return audioHref(item);
-	return item.Type === "Episode" && item.SeriesId
-		? `/show/${item.SeriesId}/episode/${item.Id}`
-		: `/show/${item.Id}`;
-}
-
-export function audioHref(item: MediaItem) {
-	if (item.Type === "MusicArtist") return `/artist/${item.Id}`;
-	if (item.Type === "MusicAlbum") return `/album/${item.Id}`;
-	if (item.Type === "Audio" && item.AlbumId)
-		return `/album/${item.AlbumId}?trackId=${encodeURIComponent(item.Id)}`;
-	return `/album/${item.Id}`;
 }
 
 export const MEDIA_CARD_IMAGE_CLASS =

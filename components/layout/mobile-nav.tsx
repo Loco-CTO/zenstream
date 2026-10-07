@@ -21,7 +21,7 @@ export function MobileNav() {
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/" ? "text-violet-400" : "text-white/30"}`}
 			>
 				<Home className="h-5 w-5" />
-				<span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("home")}
 				</span>
 			</Link>
@@ -30,7 +30,7 @@ export function MobileNav() {
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/library" ? "text-violet-400" : "text-white/30"}`}
 			>
 				<Library className="h-5 w-5" />
-				<span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("library")}
 				</span>
 			</Link>
@@ -39,7 +39,7 @@ export function MobileNav() {
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/my-lists" || pathname === "/favorites" || pathname.startsWith("/playlist/") || pathname.startsWith("/shared/playlist/") ? "text-violet-400" : "text-white/30"}`}
 			>
 				<LayoutGrid className="h-5 w-5" />
-				<span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("myLists")}
 				</span>
 			</Link>
@@ -48,7 +48,7 @@ export function MobileNav() {
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/calendar" ? "text-violet-400" : "text-white/30"}`}
 			>
 				<CalendarDays className="h-5 w-5" />
-				<span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("calendar")}
 				</span>
 			</Link>
@@ -58,7 +58,7 @@ export function MobileNav() {
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/lumi" ? "text-violet-400" : "text-white/30"}`}
 			>
 				<Sparkles className="h-5 w-5" />
-				<span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("lumi")}
 				</span>
 			</Link>

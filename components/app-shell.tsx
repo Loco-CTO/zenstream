@@ -61,6 +61,10 @@ const LibraryPage = dynamic(
 	() => import("@/components/pages/library-page").then((m) => m.LibraryPage),
 	{ ssr: false },
 );
+const LumiPage = dynamic(
+	() => import("@/components/pages/lumi-page").then((m) => m.LumiPage),
+	{ ssr: false },
+);
 const FavoritesPage = dynamic(
 	() => import("@/components/pages/favorites-page").then((m) => m.FavoritesPage),
 	{ ssr: false },
@@ -795,7 +799,8 @@ export function AppShell() {
 			else if (
 				pathname === "/search" ||
 				pathname === "/settings" ||
-				pathname === "/notifications"
+				pathname === "/notifications" ||
+				pathname === "/lumi"
 			) {
 				if (generation === routeLoadGeneration.current) {
 					if (pathname === "/search") setSearchData(searchQuery);
@@ -853,7 +858,11 @@ export function AppShell() {
 		else if (artistId) await loadArtist(nextSession, artistId, generation);
 		else if (detailId || playId)
 			await loadDetail(nextSession, detailId ?? playId!, generation);
-		else if (pathname === "/search" || pathname === "/notifications") {
+		else if (
+			pathname === "/search" ||
+			pathname === "/notifications" ||
+			pathname === "/lumi"
+		) {
 			if (generation === routeLoadGeneration.current) {
 				setSearchData(searchQuery);
 				setStatus("ready");
@@ -1346,6 +1355,9 @@ export function AppShell() {
 											{renderStatus === "ready" && pathname === "/notifications" && (
 												<NotificationsPage session={session} />
 											)}
+											{renderStatus === "ready" && pathname === "/lumi" && (
+												<LumiPage session={session} />
+											)}
 											{renderStatus === "ready" && pathname === "/search" && (
 												<SearchPage
 													key={searchData ?? searchQuery}
@@ -1364,6 +1376,7 @@ export function AppShell() {
 												!sharedPlaylistToken &&
 												pathname !== "/calendar" &&
 												pathname !== "/notifications" &&
+												pathname !== "/lumi" &&
 												pathname !== "/search" && (
 													<HomePage data={homeData} session={session} />
 												)}

@@ -432,3 +432,37 @@ syncplayAlreadyInGroup: You already belong to an active Syncplay group.
 syncplayMustLeaveGroup: Leave your current Syncplay group before joining another.
 syncplayHostDisconnected: The host disconnected. The room will close if they do not reconnect within five minutes.
 syncplayParticipantReplaced: You were disconnected from Syncplay because this account joined from another device or tab.
+lumi: Lumi
+lumiHeading: Ask Lumi
+lumiDescription: Explore your ZenStream library and ask follow-up questions in a private conversation.
+lumiNew: New
+lumiNewChat: New chat
+lumiHistory: Recent chats
+lumiNoHistory: Your conversations will appear here.
+lumiConversationPanel: Lumi conversation
+lumiPrivateHistory: Your chat history is private to your account.
+lumiModelsLoadFailed: Could not load Lumi models.
+lumiHistoryLoadFailed: Could not load your Lumi conversations.
+lumiConversationLoadFailed: Could not load this conversation.
+lumiLoadingConversation: Loading conversation…
+lumiWelcome: What would you like to explore?
+lumiWelcomeHint: Ask about movies, series, music, or your library. Lumi can link to matching items and cite its web sources.
+lumiNoModels: No models available
+lumiModel: Model
+lumiThinking: Thinking
+lumiApplyChoice: Apply to chat
+lumiChoiceSaved: Model choice saved for this conversation.
+lumiChoiceSaveFailed: Could not save the model choice.
+lumiMakeDefault: Make default
+lumiDefaultSaved: Default model saved for new chats.
+lumiDefaultSaveFailed: Could not save the default model.
+lumiThinkingStatus: Lumi is thinking…
+lumiYou: You
+lumiAssistant: Lumi
+lumiReferences: In your library
+lumiSources: Web sources
+lumiMessageLabel: Message Lumi
+lumiMessagePlaceholder: Ask a question…
+lumiEnterHint: Enter to send · Shift+Enter for a new line
+lumiSend: Send message
+lumiSendFailed: Lumi could not answer. Your text is still in the composer.

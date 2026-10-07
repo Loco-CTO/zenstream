@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogOut, Search, Settings, X } from "lucide-react";
+import { LogOut, Search, Settings, Sparkles, X } from "lucide-react";
 import { UserAvatar } from "@/components/account/user-avatar";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { NotificationMenu } from "@/components/notifications/notification-menu";
@@ -106,6 +106,13 @@ export function Navbar({
 							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/calendar" ? "text-white" : "text-white/35 hover:text-white/70"}`}
 						>
 							{t("calendar")}
+						</Link>
+						<Link
+							href="/lumi"
+							className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/lumi" ? "text-white" : "text-white/35 hover:text-white/70"}`}
+						>
+							<Sparkles className="h-3.5 w-3.5" />
+							{t("lumi")}
 						</Link>
 					</div>
 					{isSearchPage && (

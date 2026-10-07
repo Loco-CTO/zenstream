@@ -432,3 +432,37 @@ syncplayAlreadyInGroup: すでにアクティブな Syncplay グループに参�
 syncplayMustLeaveGroup: 別のグループに参加する前に、現在の Syncplay グループを退出してください。
 syncplayHostDisconnected: ホストが切断されました。5分以内に再接続しない場合、ルームは終了します。
 syncplayParticipantReplaced: このアカウントが別のデバイスまたはタブから参加したため、Syncplayから切断されました。
+lumi: Lumi
+lumiHeading: Lumiに質問
+lumiDescription: ZenStreamライブラリについて質問し、プライベートな会話で続けて尋ねられます。
+lumiNew: 新規
+lumiNewChat: 新しい会話
+lumiHistory: 最近の会話
+lumiNoHistory: 会話はここに表示されます。
+lumiConversationPanel: Lumiとの会話
+lumiPrivateHistory: 会話履歴はアカウント内でのみ表示されます。
+lumiModelsLoadFailed: Lumiモデルを読み込めませんでした。
+lumiHistoryLoadFailed: Lumiの会話を読み込めませんでした。
+lumiConversationLoadFailed: この会話を読み込めませんでした。
+lumiLoadingConversation: 会話を読み込み中…
+lumiWelcome: 何を調べますか？
+lumiWelcomeHint: 映画、シリーズ、音楽、ライブラリについて質問できます。関連する作品やウェブの出典も表示します。
+lumiNoModels: 利用できるモデルがありません
+lumiModel: モデル
+lumiThinking: 思考
+lumiApplyChoice: この会話に適用
+lumiChoiceSaved: この会話のモデルを保存しました。
+lumiChoiceSaveFailed: モデル設定を保存できませんでした。
+lumiMakeDefault: 既定に設定
+lumiDefaultSaved: 新しい会話の既定モデルを保存しました。
+lumiDefaultSaveFailed: 既定モデルを保存できませんでした。
+lumiThinkingStatus: Lumiが回答を考えています…
+lumiYou: あなた
+lumiAssistant: Lumi
+lumiReferences: ライブラリ内の項目
+lumiSources: ウェブの出典
+lumiMessageLabel: Lumiへのメッセージ
+lumiMessagePlaceholder: 質問を入力…
+lumiEnterHint: Enterで送信 · Shift+Enterで改行
+lumiSend: メッセージを送信
+lumiSendFailed: Lumiが回答できませんでした。入力した文章は入力欄に残っています。

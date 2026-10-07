@@ -2,15 +2,16 @@
 
 import {
 	ArrowUp,
-	Bot,
 	CircleAlert,
+	CircleHelp,
 	ExternalLink,
 	Globe2,
 	LoaderCircle,
-	MessageSquareText,
+	Menu,
+	MoreHorizontal,
 	Plus,
 	Sparkles,
-	UserRound,
+	X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -80,10 +81,21 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [sending, setSending] = useState(false);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [sendSequence, setSendSequence] = useState(0);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
+	const [helpOpen, setHelpOpen] = useState(false);
 	const composerRef = useRef<HTMLTextAreaElement>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const activeRequest = useRef<AbortController | null>(null);
 	const { locale, t } = useI18n();
+	const returnTo = useMemo(
+		() => safeLumiReturnTo(searchParams.get("returnTo")),
+		[searchParams],
+	);
+	const closeLumi = useCallback(
+		() => router.replace(returnTo),
+		[returnTo, router],
+	);
 
 	const savedConversation =
 		conversations.find((item) => item.id === selectedId) ?? null;
@@ -109,7 +121,6 @@ export function LumiPage({ session }: LumiPageProps) {
 		selectedId && detailState?.id === selectedId && !activeIsDraft
 			? detailState.messages
 			: [];
-	const conversationTitle = activeConversation?.title || t("lumiNewChat");
 	const knownConversation = conversations.some((item) => item.id === selectedId);
 	const conversationIds = useMemo(
 		() => conversations.map((item) => item.id).join("\u0000"),
@@ -198,12 +209,40 @@ export function LumiPage({ session }: LumiPageProps) {
 	useEffect(() => () => activeRequest.current?.abort(), []);
 
 	useEffect(() => {
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = previousOverflow;
+		};
+	}, []);
+
+	useEffect(() => {
+		const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+			if (event.key !== "Escape" || event.isComposing) return;
+			event.preventDefault();
+			if (helpOpen) setHelpOpen(false);
+			else if (conversationMenuOpen) setConversationMenuOpen(false);
+			else if (sidebarOpen) setSidebarOpen(false);
+			else closeLumi();
+		};
+		document.addEventListener("keydown", closeOnEscape);
+		return () => document.removeEventListener("keydown", closeOnEscape);
+	}, [closeLumi, conversationMenuOpen, helpOpen, sidebarOpen]);
+
+	useEffect(() => {
 		const end = messagesEndRef.current;
 		if (end && typeof end.scrollIntoView === "function")
 			end.scrollIntoView({ behavior: "smooth", block: "end" });
 	}, [pendingMessage, selectedId, sending, visibleMessages.length]);
 
-	const createConversation = useCallback(() => {
+	useEffect(() => {
+		const textarea = composerRef.current;
+		if (!textarea) return;
+		textarea.style.height = "auto";
+		textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+	}, [composer]);
+
+	const createConversation = () => {
 		const id = createConversationId();
 		activeRequest.current?.abort();
 		setDraftIds((current) => new Set(current).add(id));
@@ -215,8 +254,10 @@ export function LumiPage({ session }: LumiPageProps) {
 			choice: { ...(selectedId === null ? choice : defaultChoice) },
 		});
 		setComposer("");
-		router.push(`/lumi?conversation=${encodeURIComponent(id)}`);
-	}, [choice, choiceOverrideEntry, defaultChoice, router, selectedId]);
+		setSidebarOpen(false);
+		setConversationMenuOpen(false);
+		router.push(lumiConversationHref(id, returnTo));
+	};
 
 	const selectConversation = (conversation: LumiConversation) => {
 		activeRequest.current?.abort();
@@ -228,7 +269,8 @@ export function LumiPage({ session }: LumiPageProps) {
 			choice: { model: conversation.model, thinking: conversation.thinking },
 		});
 		setComposer("");
-		router.push(`/lumi?conversation=${encodeURIComponent(conversation.id)}`);
+		setSidebarOpen(false);
+		router.push(lumiConversationHref(conversation.id, returnTo));
 	};
 
 	const setChoiceModel = (modelId: string) => {
@@ -309,7 +351,7 @@ export function LumiPage({ session }: LumiPageProps) {
 				conversationId,
 				choice: { ...choice },
 			});
-			router.push(`/lumi?conversation=${encodeURIComponent(conversationId)}`);
+			router.push(lumiConversationHref(conversationId, returnTo));
 		}
 		const targetId = conversationId;
 		const sendId = sendSequence + 1;
@@ -413,121 +455,163 @@ export function LumiPage({ session }: LumiPageProps) {
 		detailState?.id !== selectedId,
 	);
 	const selectedModelSupportsThinking = selectedModel?.supportsThinking ?? false;
+	const promptSuggestions = [
+		t("lumiSuggestionTonight"),
+		t("lumiSuggestionHiddenGems"),
+		t("lumiSuggestionPlaylist"),
+		t("lumiSuggestionSimilar"),
+	];
 
 	return (
-		<main className="mx-auto min-h-screen max-w-[1500px] px-3 pb-32 pt-24 text-white sm:px-5 md:px-8 md:pb-10 md:pt-28">
-			<header className="mb-5 flex items-end justify-between gap-4">
-				<div>
-					<div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-violet-300/80">
-						<Sparkles className="h-4 w-4" />
-						<span>Lumi</span>
-					</div>
-					<h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-						{t("lumiHeading")}
-					</h1>
-					<p className="mt-1 max-w-2xl text-sm text-white/45">
-						{t("lumiDescription")}
-					</p>
-				</div>
+		<main
+			data-testid="lumi-overlay"
+			className="fixed inset-0 z-[100] h-dvh overflow-hidden bg-[#070707] text-white"
+		>
+			{sidebarOpen && (
 				<button
 					type="button"
-					onClick={createConversation}
-					className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-sm font-medium text-white/80 transition hover:border-violet-300/30 hover:bg-violet-300/10 hover:text-white"
+					aria-label={t("lumiCloseRecentChats")}
+					onClick={() => setSidebarOpen(false)}
+					className="fixed inset-0 z-20 bg-black/70 md:hidden"
+				/>
+			)}
+			<div className="flex h-full min-h-0">
+				<aside
+					aria-label={t("lumiHistory")}
+					className={`fixed inset-y-0 left-0 z-30 flex w-[min(18rem,88vw)] flex-col border-r border-white/[0.08] bg-[#080808] transition-transform duration-200 md:static md:z-auto md:w-[234px] md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
 				>
-					<Plus className="h-4 w-4" />
-					<span className="hidden sm:inline">{t("lumiNewChat")}</span>
-					<span className="sm:hidden">{t("lumiNew")}</span>
-				</button>
-			</header>
-
-			<div className="grid min-h-[min(74dvh,850px)] grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-				<aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] lg:max-h-[calc(100dvh-12rem)]">
-					<div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3">
-						<div className="flex items-center gap-2 text-sm font-medium text-white/80">
-							<MessageSquareText className="h-4 w-4 text-white/40" />
-							<span>{t("lumiHistory")}</span>
-						</div>
-						<span className="text-xs text-white/30">{conversations.length}</span>
+					<div className="flex h-12 shrink-0 items-center gap-2 px-4 text-sm font-semibold">
+						<Sparkles className="h-4 w-4 text-violet-300" />
+						<span>Lumi</span>
 					</div>
-					{listError ? (
-						<div
-							className="flex items-start gap-2 p-4 text-xs leading-5 text-rose-200/80"
-							role="alert"
-						>
-							<CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-							<span>{listError}</span>
-						</div>
-					) : listLoading ? (
-						<div
-							className="flex items-center gap-2 p-4 text-sm text-white/40"
-							role="status"
-						>
-							<LoaderCircle className="h-4 w-4 animate-spin" />
-							{t("loading")}
-						</div>
-					) : conversations.length === 0 ? (
-						<p className="px-4 py-5 text-sm leading-6 text-white/35">
-							{t("lumiNoHistory")}
-						</p>
-					) : (
-						<ul
-							className="min-h-0 space-y-1 overflow-y-auto p-2"
-							aria-label={t("lumiHistory")}
-						>
-							{conversations.map((conversation) => {
-								const selected = selectedId === conversation.id;
-								return (
-									<li key={conversation.id}>
-										<button
-											type="button"
-											aria-current={selected ? "page" : undefined}
-											onClick={() => selectConversation(conversation)}
-											className={`w-full rounded-xl px-3 py-2.5 text-left transition ${selected ? "bg-violet-300/10 text-white ring-1 ring-inset ring-violet-300/20" : "text-white/65 hover:bg-white/[0.05] hover:text-white"}`}
-										>
-											<span className="block truncate text-sm font-medium">
-												{conversation.title || t("lumiNewChat")}
-											</span>
-											<time
-												className="mt-1 block text-xs text-white/35"
-												dateTime={conversation.updatedAt}
+					<button
+						type="button"
+						onClick={createConversation}
+						className="mx-3 flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 text-left text-xs font-medium text-white/75 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+					>
+						<Plus className="h-3.5 w-3.5" />
+						{t("lumiNewChat")}
+					</button>
+					<div className="px-4 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
+						{t("lumiRecentLabel")}
+					</div>
+					<div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
+						{listError ? (
+							<p className="px-2 py-2 text-xs leading-5 text-rose-200/80" role="alert">
+								{listError}
+							</p>
+						) : listLoading ? (
+							<div
+								className="flex items-center gap-2 px-2 py-2 text-xs text-white/40"
+								role="status"
+							>
+								<LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+								{t("loading")}
+							</div>
+						) : conversations.length === 0 ? (
+							<p className="px-2 py-2 text-xs leading-5 text-white/35">
+								{t("lumiNoHistory")}
+							</p>
+						) : (
+							<ul className="space-y-1" aria-label={t("lumiHistory")}>
+								{conversations.map((conversation) => {
+									const selected = selectedId === conversation.id;
+									return (
+										<li key={conversation.id}>
+											<button
+												type="button"
+												aria-current={selected ? "page" : undefined}
+												onClick={() => selectConversation(conversation)}
+												className={`w-full rounded-lg px-2.5 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 ${selected ? "bg-[#1c1921] text-white ring-1 ring-inset ring-violet-300/20" : "text-white/65 hover:bg-white/[0.05] hover:text-white"}`}
 											>
-												{formatConversationDate(conversation.updatedAt, locale)}
-											</time>
-										</button>
-									</li>
-								);
-							})}
-						</ul>
-					)}
+												<span className="block truncate text-xs font-medium">
+													{conversation.title || t("lumiNewChat")}
+												</span>
+												<time
+													className="mt-0.5 block text-[10px] text-white/35"
+													dateTime={conversation.updatedAt}
+												>
+													{formatConversationDate(conversation.updatedAt, locale)}
+												</time>
+											</button>
+										</li>
+									);
+								})}
+							</ul>
+						)}
+					</div>
+					<div className="flex h-12 shrink-0 items-center gap-2.5 border-t border-white/[0.08] px-3">
+						<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#242227] text-[11px] font-medium text-white/75">
+							{(session.username || "Z").trim().slice(0, 1).toUpperCase()}
+						</div>
+						<span className="truncate text-xs text-white/60">{session.username}</span>
+					</div>
 				</aside>
 
 				<section
-					className="flex min-h-[62dvh] min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0c0d] shadow-2xl shadow-black/20 lg:max-h-[calc(100dvh-12rem)]"
+					className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
 					aria-label={t("lumiConversationPanel")}
 				>
-					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3 sm:px-5">
-						<div className="flex min-w-0 items-center gap-3">
-							<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-300/15 bg-violet-300/[0.08] text-violet-200">
-								<Bot className="h-[18px] w-[18px]" />
-							</div>
-							<div className="min-w-0">
-								<h2 className="truncate text-sm font-medium text-white/90">
-									{conversationTitle}
-								</h2>
-								<p className="mt-0.5 text-xs text-white/35">
-									{t("lumiPrivateHistory")}
-								</p>
+					<header className="flex h-[58px] shrink-0 items-center justify-between gap-3 px-3 sm:px-5">
+						<div className="flex min-w-0 items-center gap-2">
+							<button
+								type="button"
+								aria-label={t("lumiOpenRecentChats")}
+								aria-expanded={sidebarOpen}
+								onClick={() => setSidebarOpen(true)}
+								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden"
+							>
+								<Menu className="h-4 w-4" />
+							</button>
+							<div className="relative">
+								<button
+									type="button"
+									aria-label={t("lumiChatOptions")}
+									aria-expanded={conversationMenuOpen}
+									onClick={() => setConversationMenuOpen((open) => !open)}
+									className="flex h-9 w-9 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.06] hover:text-white"
+								>
+									<MoreHorizontal className="h-4 w-4" />
+								</button>
+								{conversationMenuOpen && (
+									<div className="absolute left-0 top-full z-40 mt-1.5 w-56 rounded-xl border border-white/10 bg-[#151416] p-1.5 shadow-2xl shadow-black/60">
+										{choiceNotice && (
+											<p className="px-2 py-1.5 text-xs text-white/55" role="status">
+												{choiceNotice}
+											</p>
+										)}
+										{choiceChanged && (
+											<button
+												type="button"
+												onClick={() => void applyConversationChoice()}
+												disabled={choiceBusy || sending}
+												className="w-full rounded-lg px-2.5 py-2 text-left text-xs text-white/75 transition hover:bg-white/[0.07] disabled:opacity-45"
+											>
+												{choiceBusy ? t("saving") : t("lumiApplyChoice")}
+											</button>
+										)}
+										<button
+											type="button"
+											onClick={() => void saveDefaultChoice()}
+											disabled={choiceBusy || sending || !choice.model}
+											className="w-full rounded-lg px-2.5 py-2 text-left text-xs text-white/75 transition hover:bg-white/[0.07] disabled:opacity-45"
+										>
+											{choiceBusy ? t("saving") : t("lumiMakeDefault")}
+										</button>
+									</div>
+								)}
 							</div>
 						</div>
-						<div className="flex w-full items-center gap-2 sm:w-auto">
-							<label className="min-w-0 flex-1 sm:w-56 sm:flex-none">
+
+						<div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
+							<label className="min-w-0">
 								<span className="sr-only">{t("lumiModel")}</span>
 								<select
 									aria-label={t("lumiModel")}
 									value={choice.model}
 									onChange={(event) => setChoiceModel(event.target.value)}
 									disabled={models.length === 0 || sending || choiceBusy}
-									className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-violet-300/40 disabled:opacity-50 [&>option]:bg-[#171719]"
+									className="h-9 max-w-[37vw] rounded-lg border border-white/10 bg-white/[0.035] px-2 text-xs text-white/75 outline-none transition focus:border-violet-300/40 disabled:opacity-50 sm:max-w-[13rem] sm:px-3 sm:text-sm [&>option]:bg-[#171719]"
 								>
 									{models.length === 0 && <option value="">{t("lumiNoModels")}</option>}
 									{models.map((model) => (
@@ -537,170 +621,202 @@ export function LumiPage({ session }: LumiPageProps) {
 									))}
 								</select>
 							</label>
-							<label
-								className={`flex h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-white/65 ${selectedModelSupportsThinking ? "bg-white/[0.04]" : "bg-white/[0.02] opacity-45"}`}
-							>
-								<input
-									type="checkbox"
-									checked={choice.thinking && selectedModelSupportsThinking}
-									disabled={!selectedModelSupportsThinking || sending || choiceBusy}
-									onChange={(event) =>
-										setChoiceOverrideEntry({
-											conversationId: selectedId,
-											choice: { ...choice, thinking: event.target.checked },
-										})
-									}
-									className="h-4 w-4 accent-violet-300"
-								/>
-								<span>{t("lumiThinking")}</span>
-							</label>
-						</div>
-						{modelsError && (
-							<p className="w-full text-right text-xs text-rose-200/75" role="alert">
-								{modelsError}
-							</p>
-						)}
-						<div className="flex w-full flex-wrap items-center justify-end gap-2">
-							{choiceNotice && (
-								<p
-									className={`mr-auto text-xs ${choiceNotice === t("lumiChoiceSaved") || choiceNotice === t("lumiDefaultSaved") ? "text-emerald-200/75" : "text-rose-200/80"}`}
-									role="status"
-								>
-									{choiceNotice}
-								</p>
-							)}
-							{choiceChanged && (
-								<button
-									type="button"
-									onClick={() => void applyConversationChoice()}
-									disabled={choiceBusy || sending}
-									className="h-8 rounded-lg border border-white/10 px-3 text-xs font-medium text-white/65 transition hover:bg-white/[0.06] disabled:opacity-45"
-								>
-									{choiceBusy ? t("saving") : t("lumiApplyChoice")}
-								</button>
-							)}
 							<button
 								type="button"
-								onClick={() => void saveDefaultChoice()}
-								disabled={choiceBusy || sending || !choice.model}
-								className="h-8 rounded-lg border border-violet-300/20 bg-violet-300/[0.07] px-3 text-xs font-medium text-violet-100/80 transition hover:bg-violet-300/15 disabled:opacity-45"
+								role="switch"
+								aria-label={t("lumiThinking")}
+								aria-checked={choice.thinking && selectedModelSupportsThinking}
+								disabled={!selectedModelSupportsThinking || sending || choiceBusy}
+								onClick={() =>
+									setChoiceOverrideEntry({
+										conversationId: selectedId,
+										choice: { ...choice, thinking: !choice.thinking },
+									})
+								}
+								className="flex h-9 items-center gap-2 rounded-lg px-1 text-[11px] text-white/55 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-2 sm:text-xs"
 							>
-								{choiceBusy ? t("saving") : t("lumiMakeDefault")}
+								<span className="hidden sm:inline">{t("lumiThinking")}</span>
+								<span
+									aria-hidden="true"
+									className={`relative h-[18px] w-9 rounded-full transition ${choice.thinking && selectedModelSupportsThinking ? "bg-violet-300/80" : "bg-white/15"}`}
+								>
+									<span
+										className={`absolute top-[3px] h-3 w-3 rounded-full bg-white transition ${choice.thinking && selectedModelSupportsThinking ? "left-[21px]" : "left-[3px]"}`}
+									/>
+								</span>
+							</button>
+							<button
+								type="button"
+								aria-label={t("lumiClose")}
+								title={t("lumiClose")}
+								onClick={closeLumi}
+								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+							>
+								<X className="h-4 w-4" />
 							</button>
 						</div>
-					</div>
+					</header>
+					{modelsError && (
+						<p className="px-5 pb-2 text-xs text-rose-200/75" role="alert">
+							{modelsError}
+						</p>
+					)}
 
 					<div
-						className="flex-1 space-y-5 overflow-y-auto px-3 py-5 sm:px-6"
+						className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 sm:px-6"
 						aria-live="polite"
 						aria-relevant="additions text"
 					>
-						{listLoading && !selectedId ? (
-							<div className="flex min-h-[32vh] items-center justify-center text-sm text-white/45">
-								<LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-								{t("loading")}
-							</div>
-						) : loadingDetail ? (
-							<div className="flex min-h-[32vh] items-center justify-center text-sm text-white/45">
+						{loadingDetail ? (
+							<div className="flex flex-1 items-center justify-center text-sm text-white/45">
 								<LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
 								{t("lumiLoadingConversation")}
 							</div>
 						) : detailError ? (
 							<div
-								className="mx-auto my-8 flex max-w-lg items-start gap-3 rounded-xl border border-rose-300/15 bg-rose-300/[0.05] p-4 text-sm leading-6 text-rose-100/85"
+								className="mx-auto my-auto flex max-w-lg items-start gap-3 rounded-xl border border-rose-300/15 bg-rose-300/[0.05] p-4 text-sm leading-6 text-rose-100/85"
 								role="alert"
 							>
 								<CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
 								<span>{detailError}</span>
 							</div>
-						) : visibleMessages.length === 0 ? (
-							<div className="flex min-h-[32vh] flex-col items-center justify-center px-4 text-center">
-								<div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-300/15 bg-violet-300/[0.07] text-violet-200">
-									<Sparkles className="h-5 w-5" />
-								</div>
-								<h3 className="text-lg font-medium text-white/90">
+						) : visibleMessages.length === 0 && !pendingMessage ? (
+							<div className="flex min-h-full flex-col items-center justify-center px-4 pb-24 text-center">
+								<h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
 									{t("lumiWelcome")}
-								</h3>
+								</h1>
 								<p className="mt-2 max-w-md text-sm leading-6 text-white/45">
 									{t("lumiWelcomeHint")}
 								</p>
+								<div className="mt-7 grid w-full max-w-[22rem] grid-cols-2 gap-2">
+									{promptSuggestions.map((suggestion) => (
+										<button
+											key={suggestion}
+											type="button"
+											onClick={() => {
+												setComposer(suggestion);
+												composerRef.current?.focus();
+											}}
+											className="min-h-[52px] rounded-xl border border-white/[0.09] bg-white/[0.035] px-3 py-2 text-left text-xs leading-5 text-white/65 transition hover:border-violet-300/25 hover:bg-violet-300/[0.06] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
+										>
+											{suggestion}
+										</button>
+									))}
+								</div>
 							</div>
 						) : (
-							visibleMessages.map((message) => (
-								<ChatMessage key={message.id} message={message} session={session} />
-							))
-						)}
-						{pendingMessage && (
-							<div
-								className="ml-auto max-w-[90%] rounded-2xl rounded-br-md border border-violet-300/15 bg-violet-300/[0.09] px-4 py-3 text-sm leading-6 text-white/90 sm:max-w-[78%]"
-								aria-label={t("lumiYou")}
-							>
-								{pendingMessage}
+							<div className="mx-auto flex w-full max-w-[620px] flex-col py-5">
+								{visibleMessages.map((message) => (
+									<ChatMessage key={message.id} message={message} session={session} />
+								))}
+								{pendingMessage && (
+									<div
+										className="my-3 ml-auto max-w-[88%] rounded-2xl rounded-br-md bg-[#242126] px-4 py-3 text-sm leading-6 text-white/90"
+										aria-label={t("lumiYou")}
+									>
+										{pendingMessage}
+									</div>
+								)}
+								{sending && (
+									<div
+										className="flex items-center gap-2 py-3 text-sm text-white/45"
+										role="status"
+									>
+										<LoaderCircle className="h-4 w-4 animate-spin text-violet-200/75" />
+										{t("lumiThinkingStatus")}
+									</div>
+								)}
+								<div ref={messagesEndRef} aria-hidden="true" />
 							</div>
 						)}
-						{sending && (
-							<div
-								className="flex items-center gap-2 text-sm text-white/45"
-								role="status"
-							>
-								<LoaderCircle className="h-4 w-4 animate-spin text-violet-200/75" />
-								{t("lumiThinkingStatus")}
-							</div>
-						)}
-						<div ref={messagesEndRef} aria-hidden="true" />
 					</div>
 
-					<div className="border-t border-white/[0.07] bg-black/15 p-3 sm:p-4">
-						{sendError && (
-							<p
-								className="mb-2 flex items-start gap-2 px-1 text-xs leading-5 text-rose-200/85"
-								role="alert"
-							>
-								<CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-								{sendError}
-							</p>
-						)}
-						<form
-							onSubmit={(event) => void submitMessage(event)}
-							className="rounded-2xl border border-white/10 bg-white/[0.035] p-2 transition focus-within:border-violet-300/30"
-						>
-							<label className="sr-only" htmlFor="lumi-composer">
-								{t("lumiMessageLabel")}
-							</label>
-							<textarea
-								ref={composerRef}
-								id="lumi-composer"
-								value={composer}
-								onChange={(event) => setComposer(event.target.value)}
-								onKeyDown={handleComposerKeyDown}
-								placeholder={t("lumiMessagePlaceholder")}
-								maxLength={6000}
-								rows={3}
-								disabled={sending || models.length === 0}
-								className="max-h-40 min-h-[4.5rem] w-full resize-y bg-transparent px-2 py-1.5 text-sm leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-50"
-							/>
-							<div className="flex items-center justify-between gap-3 px-1 pb-0.5">
-								<p className="text-[11px] text-white/30">{t("lumiEnterHint")}</p>
-								<button
-									type="submit"
-									disabled={
-										!composer.trim() ||
-										sending ||
-										loadingDetail ||
-										!choice.model ||
-										models.length === 0
-									}
-									aria-label={t("lumiSend")}
-									className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-300 text-[#16131b] transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+					<div className="shrink-0 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 sm:px-5 sm:pb-4">
+						<div className="mx-auto max-w-[38rem]">
+							{sendError && (
+								<p
+									className="mb-2 flex items-start gap-2 px-1 text-xs leading-5 text-rose-200/85"
+									role="alert"
 								>
-									{sending ? (
-										<LoaderCircle className="h-4 w-4 animate-spin" />
-									) : (
-										<ArrowUp className="h-4 w-4" />
-									)}
-								</button>
+									<CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+									{sendError}
+								</p>
+							)}
+							<form
+								onSubmit={(event) => void submitMessage(event)}
+								className="rounded-2xl border border-white/[0.11] bg-[#151515] px-3 py-2 transition focus-within:border-white/20"
+							>
+								<label className="sr-only" htmlFor="lumi-composer">
+									{t("lumiMessageLabel")}
+								</label>
+								<div className="flex items-end gap-2">
+									<textarea
+										ref={composerRef}
+										id="lumi-composer"
+										value={composer}
+										onChange={(event) => setComposer(event.target.value)}
+										onKeyDown={handleComposerKeyDown}
+										placeholder={t("lumiMessagePlaceholder")}
+										maxLength={6000}
+										rows={1}
+										disabled={sending || models.length === 0}
+										className="max-h-40 min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-50"
+									/>
+									<button
+										type="submit"
+										disabled={
+											!composer.trim() ||
+											sending ||
+											loadingDetail ||
+											!choice.model ||
+											models.length === 0
+										}
+										aria-label={t("lumiSend")}
+										className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
+									>
+										{sending ? (
+											<LoaderCircle className="h-4 w-4 animate-spin" />
+										) : (
+											<ArrowUp className="h-4 w-4" />
+										)}
+									</button>
+								</div>
+							</form>
+							<div className="flex items-center justify-between px-1 pt-2 text-[10px] text-white/30">
+								<span>{selectedModel?.label ?? t("lumi")}</span>
+								<span>{t("lumiEnterHint")}</span>
 							</div>
-						</form>
+						</div>
+					</div>
+
+					<div className="absolute bottom-24 right-4 z-10 md:bottom-4">
+						{helpOpen && (
+							<div className="absolute bottom-full right-0 mb-3 w-64 rounded-xl border border-white/10 bg-[#151416] p-4 shadow-2xl shadow-black/60">
+								<div className="flex items-center justify-between gap-3">
+									<h2 className="text-sm font-medium text-white/85">{t("lumiHelp")}</h2>
+									<button
+										type="button"
+										aria-label={t("lumiCloseHelp")}
+										onClick={() => setHelpOpen(false)}
+										className="text-white/40 hover:text-white"
+									>
+										<X className="h-4 w-4" />
+									</button>
+								</div>
+								<p className="mt-2 text-xs leading-5 text-white/55">
+									{t("lumiHelpHint")}
+								</p>
+							</div>
+						)}
+						<button
+							type="button"
+							aria-label={t("lumiHelp")}
+							aria-expanded={helpOpen}
+							onClick={() => setHelpOpen((open) => !open)}
+							className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-[#252525] text-white/55 transition hover:bg-white/[0.12] hover:text-white"
+						>
+							<CircleHelp className="h-4 w-4" />
+						</button>
 					</div>
 				</section>
 			</div>
@@ -719,39 +835,27 @@ function ChatMessage({
 	const isAssistant = message.role === "assistant";
 	return (
 		<article
-			className={`flex gap-3 ${isAssistant ? "items-start" : "flex-row-reverse items-start"}`}
+			className={`flex w-full py-3 ${isAssistant ? "justify-start" : "justify-end"}`}
 			aria-label={isAssistant ? t("lumiAssistant") : t("lumiYou")}
 		>
-			<div
-				className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${isAssistant ? "border-violet-300/15 bg-violet-300/[0.07] text-violet-200" : "border-white/10 bg-white/[0.04] text-white/50"}`}
-			>
-				{isAssistant ? (
-					<Bot className="h-4 w-4" />
-				) : (
-					<UserRound className="h-4 w-4" />
-				)}
-			</div>
-			<div
-				className={`min-w-0 max-w-[calc(100%-2.75rem)] ${isAssistant ? "flex-1" : "max-w-[85%] rounded-2xl rounded-br-md border border-violet-300/15 bg-violet-300/[0.09] px-4 py-3 text-white/90 sm:max-w-[78%]"}`}
-			>
-				<p className="mb-1 text-xs font-medium text-white/40">
-					{isAssistant ? t("lumiAssistant") : t("lumiYou")}
-				</p>
-				{isAssistant ? (
+			{isAssistant ? (
+				<div className="min-w-0 w-full text-sm leading-6 text-white/90">
+					<p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-white/40">
+						<Sparkles className="h-3 w-3 text-violet-300/70" />
+						{t("lumiAssistant")}
+					</p>
 					<AnswerText message={message} session={session} />
-				) : (
-					<div className="whitespace-pre-wrap break-words text-sm leading-6">
-						{message.content}
-					</div>
-				)}
-				{isAssistant && (
 					<AnswerMetadata
 						references={message.references}
 						sources={message.sources}
 						session={session}
 					/>
-				)}
-			</div>
+				</div>
+			) : (
+				<div className="max-w-[88%] rounded-2xl rounded-br-md bg-[#242126] px-4 py-3 text-sm leading-6 text-white/90 sm:max-w-[78%]">
+					<div className="whitespace-pre-wrap break-words">{message.content}</div>
+				</div>
+			)}
 		</article>
 	);
 }
@@ -1180,6 +1284,36 @@ function createConversationId() {
 				`${index === 4 || index === 6 || index === 8 || index === 10 ? "-" : ""}${byte.toString(16).padStart(2, "0")}`,
 		)
 		.join("");
+}
+
+function lumiConversationHref(conversationId: string, returnTo: string) {
+	const params = new URLSearchParams({ conversation: conversationId });
+	if (returnTo !== "/") params.set("returnTo", returnTo);
+	return `/lumi?${params.toString()}`;
+}
+
+function safeLumiReturnTo(candidate: string | null) {
+	if (
+		!candidate ||
+		!candidate.startsWith("/") ||
+		candidate.startsWith("//") ||
+		candidate.includes("\\") ||
+		/^\/(%2f|%5c)/i.test(candidate)
+	)
+		return "/";
+	try {
+		const url = new URL(candidate, "https://zenstream.invalid");
+		const decodedPath = decodeURIComponent(url.pathname);
+		if (
+			url.origin !== "https://zenstream.invalid" ||
+			decodedPath === "/lumi" ||
+			decodedPath.startsWith("/lumi/")
+		)
+			return "/";
+		return `${url.pathname}${url.search}${url.hash}`;
+	} catch {
+		return "/";
+	}
 }
 
 function formatConversationDate(value: string, locale: string) {

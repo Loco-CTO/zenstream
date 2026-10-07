@@ -445,8 +445,20 @@ lumiModelsLoadFailed: Could not load Lumi models.
 lumiHistoryLoadFailed: Could not load your Lumi conversations.
 lumiConversationLoadFailed: Could not load this conversation.
 lumiLoadingConversation: Loading conversation…
-lumiWelcome: What would you like to explore?
-lumiWelcomeHint: Ask about movies, series, music, or your library. Lumi can link to matching items and cite its web sources.
+lumiWelcome: Ask Lumi anything
+lumiWelcomeHint: Your personal guide to everything on Play — recommendations, soundtracks, hidden gems.
+lumiRecentLabel: Recent
+lumiClose: Return to ZenStream
+lumiCloseRecentChats: Close recent chats
+lumiOpenRecentChats: Open recent chats
+lumiChatOptions: Chat options
+lumiHelp: Lumi help
+lumiCloseHelp: Close Lumi help
+lumiHelpHint: Ask about movies, series, music, and what is in your library. Press Enter to send; Shift+Enter adds a line.
+lumiSuggestionTonight: What should I watch tonight?
+lumiSuggestionHiddenGems: Hidden gems in dark fantasy
+lumiSuggestionPlaylist: Build a late-night playlist
+lumiSuggestionSimilar: Shows like Frieren?
 lumiNoModels: No models available
 lumiModel: Model
 lumiThinking: Thinking

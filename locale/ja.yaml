@@ -469,6 +469,7 @@ lumiMakeDefault: 既定に設定
 lumiDefaultSaved: 新しい会話の既定モデルを保存しました。
 lumiDefaultSaveFailed: 既定モデルを保存できませんでした。
 lumiThinkingStatus: Lumiが回答を考えています…
+lumiStopGenerating: 生成を停止
 lumiYou: あなた
 lumiAssistant: Lumi
 lumiReferences: ライブラリ内の項目

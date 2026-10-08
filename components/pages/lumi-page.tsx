@@ -11,6 +11,7 @@ import {
 	MoreHorizontal,
 	Plus,
 	Sparkles,
+	Square,
 	X,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,7 +33,7 @@ import {
 	getLumiConversation,
 	getLumiConversations,
 	getLumiModels,
-	sendLumiTurn,
+	streamLumiTurn,
 	updateLumiConversationChoice,
 	updateLumiModelPreference,
 	type LumiConversation,
@@ -78,6 +79,7 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [choiceNotice, setChoiceNotice] = useState<string | null>(null);
 	const [composer, setComposer] = useState("");
 	const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+	const [streamedAnswer, setStreamedAnswer] = useState("");
 	const [sending, setSending] = useState(false);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [sendSequence, setSendSequence] = useState(0);
@@ -249,6 +251,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setDetailError(null);
 		setSendError(null);
 		setChoiceNotice(null);
+		setStreamedAnswer("");
 		setChoiceOverrideEntry({
 			conversationId: id,
 			choice: { ...(selectedId === null ? choice : defaultChoice) },
@@ -264,6 +267,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSendError(null);
 		setDetailError(null);
 		setChoiceNotice(null);
+		setStreamedAnswer("");
 		setChoiceOverrideEntry({
 			conversationId: conversation.id,
 			choice: { model: conversation.model, thinking: conversation.thinking },
@@ -358,6 +362,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSendSequence(sendId);
 		setSending(true);
 		setPendingMessage(message);
+		setStreamedAnswer("");
 		setSendError(null);
 		setChoiceNotice(null);
 		const controller = new AbortController();
@@ -382,10 +387,14 @@ export function LumiPage({ session }: LumiPageProps) {
 					),
 				);
 			}
-			const result = await sendLumiTurn(
+			const result = await streamLumiTurn(
 				session,
 				targetId,
 				message,
+				(text) => {
+					if (!controller.signal.aborted && activeRequest.current === controller)
+						setStreamedAnswer((current) => current + text);
+				},
 				controller.signal,
 				firstTurnChoice,
 			);
@@ -431,12 +440,14 @@ export function LumiPage({ session }: LumiPageProps) {
 			setChoiceOverrideEntry(null);
 			setComposer("");
 			setPendingMessage(null);
+			setStreamedAnswer("");
 		} catch (error) {
 			if (!controller.signal.aborted)
 				setSendError(requestMessage(error, t("lumiSendFailed")));
 		} finally {
 			if (activeRequest.current === controller) activeRequest.current = null;
 			setPendingMessage(null);
+			setStreamedAnswer("");
 			setSending(false);
 		}
 	};
@@ -680,7 +691,7 @@ export function LumiPage({ session }: LumiPageProps) {
 								<CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
 								<span>{detailError}</span>
 							</div>
-						) : visibleMessages.length === 0 && !pendingMessage ? (
+						) : visibleMessages.length === 0 && !pendingMessage && !streamedAnswer ? (
 							<div className="flex min-h-full flex-col items-center justify-center px-4 pb-24 text-center">
 								<h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
 									{t("lumiWelcome")}
@@ -716,6 +727,20 @@ export function LumiPage({ session }: LumiPageProps) {
 									>
 										{pendingMessage}
 									</div>
+								)}
+								{streamedAnswer && (
+									<ChatMessage
+										message={{
+											id: `streaming-assistant-${sendSequence}`,
+											role: "assistant",
+											content: streamedAnswer,
+											createdAt: "",
+											references: [],
+											sources: [],
+										}}
+										session={session}
+										streaming
+									/>
 								)}
 								{sending && (
 									<div
@@ -762,24 +787,30 @@ export function LumiPage({ session }: LumiPageProps) {
 										disabled={sending || models.length === 0}
 										className="max-h-40 min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-50"
 									/>
-									<button
-										type="submit"
-										disabled={
-											!composer.trim() ||
-											sending ||
-											loadingDetail ||
-											!choice.model ||
-											models.length === 0
-										}
-										aria-label={t("lumiSend")}
-										className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
-									>
-										{sending ? (
-											<LoaderCircle className="h-4 w-4 animate-spin" />
-										) : (
+									{sending ? (
+										<button
+											type="button"
+											aria-label={t("lumiStopGenerating")}
+											onClick={() => activeRequest.current?.abort()}
+											className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-300 text-[#16131b] transition hover:bg-violet-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-100"
+										>
+											<Square className="h-3.5 w-3.5 fill-current" />
+										</button>
+									) : (
+										<button
+											type="submit"
+											disabled={
+												!composer.trim() ||
+												loadingDetail ||
+												!choice.model ||
+												models.length === 0
+											}
+											aria-label={t("lumiSend")}
+											className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
+										>
 											<ArrowUp className="h-4 w-4" />
-										)}
-									</button>
+										</button>
+									)}
 								</div>
 							</form>
 							<div className="flex items-center justify-between px-1 pt-2 text-[10px] text-white/30">
@@ -827,9 +858,11 @@ export function LumiPage({ session }: LumiPageProps) {
 function ChatMessage({
 	message,
 	session,
+	streaming = false,
 }: {
 	message: LumiMessage;
 	session: AuthSession;
+	streaming?: boolean;
 }) {
 	const { t } = useI18n();
 	const isAssistant = message.role === "assistant";
@@ -837,6 +870,7 @@ function ChatMessage({
 		<article
 			className={`flex w-full py-3 ${isAssistant ? "justify-start" : "justify-end"}`}
 			aria-label={isAssistant ? t("lumiAssistant") : t("lumiYou")}
+			aria-live={streaming ? "off" : undefined}
 		>
 			{isAssistant ? (
 				<div className="min-w-0 w-full text-sm leading-6 text-white/90">

@@ -1,4 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LumiPage } from "@/components/pages/lumi-page";
 import { I18nProvider } from "@/lib/i18n";
@@ -18,7 +25,7 @@ vi.mock("@/lib/lumi", () => ({
 	getLumiConversation: vi.fn(),
 	getLumiConversations: vi.fn(),
 	getLumiModels: vi.fn(),
-	sendLumiTurn: vi.fn(),
+	streamLumiTurn: vi.fn(),
 	updateLumiConversationChoice: vi.fn(),
 	updateLumiModelPreference: vi.fn(),
 }));
@@ -76,7 +83,7 @@ describe("LumiPage", () => {
 		mockModels();
 		vi.mocked(lumi.getLumiConversations).mockResolvedValue({ conversations: [] });
 		vi.mocked(lumi.getLumiConversation).mockReset();
-		vi.mocked(lumi.sendLumiTurn).mockReset();
+		vi.mocked(lumi.streamLumiTurn).mockReset();
 		vi.mocked(lumi.updateLumiConversationChoice).mockReset();
 		vi.mocked(lumi.updateLumiModelPreference).mockReset();
 		vi.mocked(mediaApi.getItem).mockReset();
@@ -144,7 +151,7 @@ describe("LumiPage", () => {
 			id: "new-conversation",
 			title: "Find a movie",
 		});
-		vi.mocked(lumi.sendLumiTurn).mockResolvedValue({
+		vi.mocked(lumi.streamLumiTurn).mockResolvedValue({
 			conversation: created,
 			answer: {
 				markdown:
@@ -185,10 +192,11 @@ describe("LumiPage", () => {
 
 		await screen.findByText("match", { selector: "strong" });
 		expect(lumi.updateLumiModelPreference).not.toHaveBeenCalled();
-		expect(lumi.sendLumiTurn).toHaveBeenCalledWith(
+		expect(lumi.streamLumiTurn).toHaveBeenCalledWith(
 			session,
 			"new-conversation",
 			"Recommend a thoughtful science fiction movie",
+			expect.any(Function),
 			expect.any(AbortSignal),
 			undefined,
 		);
@@ -215,7 +223,7 @@ describe("LumiPage", () => {
 	});
 
 	it("sends a draft model choice with the first turn without changing the default", async () => {
-		vi.mocked(lumi.sendLumiTurn).mockResolvedValue({
+		vi.mocked(lumi.streamLumiTurn).mockResolvedValue({
 			conversation: conversation({
 				id: "new-conversation",
 				model: "qwen-fast",
@@ -233,10 +241,11 @@ describe("LumiPage", () => {
 		fireEvent.submit(composer.closest("form")!);
 
 		await screen.findByText("A quick suggestion.");
-		expect(lumi.sendLumiTurn).toHaveBeenCalledWith(
+		expect(lumi.streamLumiTurn).toHaveBeenCalledWith(
 			session,
 			"new-conversation",
 			"Use a fast model",
+			expect.any(Function),
 			expect.any(AbortSignal),
 			{ model: "qwen-fast", thinking: false },
 		);
@@ -282,5 +291,106 @@ describe("LumiPage", () => {
 			model: "qwen-fast",
 			thinking: false,
 		});
+	});
+
+	it("renders streamed Markdown and replaces it with the exact completion without duplication", async () => {
+		const created = conversation({
+			id: "new-conversation",
+			title: "Streamed chat",
+		});
+		let emitDelta: ((text: string) => void) | undefined;
+		let completeTurn: ((result: lumi.LumiTurnResponse) => void) | undefined;
+		vi
+			.mocked(lumi.streamLumiTurn)
+			.mockImplementation((_session, _id, _message, onDelta) => {
+				emitDelta = onDelta;
+				return new Promise((resolve) => {
+					completeTurn = resolve;
+				});
+			});
+		renderPage();
+		const composer = await screen.findByRole("textbox", { name: "Message Lumi" });
+		fireEvent.change(composer, { target: { value: "Stream a short answer" } });
+		fireEvent.submit(composer.closest("form")!);
+
+		act(() => emitDelta?.("A partial "));
+		expect(await screen.findByText("A partial")).toBeInTheDocument();
+		act(() => emitDelta?.("**answer**"));
+		expect(
+			await screen.findByText("answer", { selector: "strong" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Stop generating" }),
+		).toBeInTheDocument();
+		act(() =>
+			completeTurn?.({
+				conversation: created,
+				answer: {
+					markdown: "A partial **answer**",
+					references: [],
+					sources: [],
+				},
+			}),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "Stop generating" }),
+			).not.toBeInTheDocument(),
+		);
+		const assistant = screen.getByRole("article", { name: "Lumi" });
+		expect(
+			within(assistant).getByText("answer", { selector: "strong" }),
+		).toBeInTheDocument();
+		expect(assistant.textContent).not.toContain("A partial A partial");
+	});
+
+	it("shows a safe stream error and keeps the submitted text in the composer", async () => {
+		vi
+			.mocked(lumi.streamLumiTurn)
+			.mockRejectedValue(new Error("Model stream is unavailable."));
+		renderPage();
+		const composer = await screen.findByRole("textbox", { name: "Message Lumi" });
+		fireEvent.change(composer, { target: { value: "Keep this question" } });
+		fireEvent.submit(composer.closest("form")!);
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"Model stream is unavailable.",
+		);
+		expect(composer).toHaveValue("Keep this question");
+		expect(
+			screen.queryByRole("button", { name: "Stop generating" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows a stop control during generation and aborts the active request", async () => {
+		let requestSignal: AbortSignal | undefined;
+		vi
+			.mocked(lumi.streamLumiTurn)
+			.mockImplementation((_session, _id, _message, onDelta, signal) => {
+				requestSignal = signal;
+				onDelta("First token");
+				return new Promise((_resolve, reject) => {
+					signal?.addEventListener(
+						"abort",
+						() => reject(new DOMException("Aborted", "AbortError")),
+						{ once: true },
+					);
+				});
+			});
+		renderPage();
+		const composer = await screen.findByRole("textbox", { name: "Message Lumi" });
+		fireEvent.change(composer, { target: { value: "Stop this answer" } });
+		fireEvent.submit(composer.closest("form")!);
+
+		const stop = await screen.findByRole("button", { name: "Stop generating" });
+		expect(screen.getByText("First token")).toBeInTheDocument();
+		fireEvent.click(stop);
+		await waitFor(() => expect(requestSignal?.aborted).toBe(true));
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "Stop generating" }),
+			).not.toBeInTheDocument(),
+		);
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 	});
 });

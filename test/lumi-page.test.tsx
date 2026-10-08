@@ -163,9 +163,9 @@ describe("LumiPage", () => {
 				sources: [
 					{
 						url: "https://example.org/review",
-						websiteName: "Example",
+						websiteName: "example.org",
 						title: "Review",
-						faviconUrl: null,
+						faviconUrl: "https://example.org/favicon.ico",
 					},
 					{
 						url: "javascript:alert(1)",
@@ -191,6 +191,15 @@ describe("LumiPage", () => {
 		fireEvent.submit(composer.closest("form")!);
 
 		await screen.findByText("match", { selector: "strong" });
+		expect(screen.getByTestId("lumi-source-favicon")).toHaveAttribute(
+			"src",
+			"https://example.org/favicon.ico",
+		);
+		expect(screen.getByText("example.org")).toBeInTheDocument();
+		expect(screen.getByTestId("lumi-source-favicon")).toHaveAttribute(
+			"referrerpolicy",
+			"no-referrer",
+		);
 		expect(lumi.updateLumiModelPreference).not.toHaveBeenCalled();
 		expect(lumi.streamLumiTurn).toHaveBeenCalledWith(
 			session,

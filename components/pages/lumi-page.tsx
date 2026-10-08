@@ -1263,7 +1263,10 @@ function AnswerMetadata({
 	const { t } = useI18n();
 	const safeSources = sources.flatMap((source) => {
 		const safeUrl = safeExternalUrl(source.url);
-		return safeUrl ? [{ ...source, safeUrl }] : [];
+		const safeFaviconUrl = source.faviconUrl
+			? safeExternalUrl(source.faviconUrl)
+			: null;
+		return safeUrl ? [{ ...source, safeUrl, safeFaviconUrl }] : [];
 	});
 	return (
 		<div className="mt-4 space-y-3">
@@ -1295,7 +1298,23 @@ function AnswerMetadata({
 									rel="noopener noreferrer"
 									className="group inline-flex max-w-full items-start gap-2 text-xs text-white/60 transition hover:text-white/90"
 								>
-									<Globe2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/35" />
+									<span className="relative mt-0.5 h-3.5 w-3.5 shrink-0">
+										<Globe2 className="absolute inset-0 h-3.5 w-3.5 text-white/35" />
+										{source.safeFaviconUrl && (
+											<img
+												data-testid="lumi-source-favicon"
+												src={source.safeFaviconUrl}
+												alt=""
+												aria-hidden="true"
+												loading="lazy"
+												referrerPolicy="no-referrer"
+												className="relative h-3.5 w-3.5 rounded-sm"
+												onError={(event) => {
+													event.currentTarget.style.display = "none";
+												}}
+											/>
+										)}
+									</span>
 									<span className="min-w-0">
 										<span className="block truncate">
 											{source.title || source.websiteName}

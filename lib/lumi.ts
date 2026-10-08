@@ -116,7 +116,7 @@ export async function* parseLumiEventStream(
 	let streamEnded = false;
 
 	const dispatch = (events: LumiStreamEvent[]) => {
-		if (dataLines.length > 0) {
+		if (dataLines.length > 0 || eventName === "reset") {
 			events.push({
 				event: eventName || "message",
 				data: dataLines.join("\n"),
@@ -267,6 +267,7 @@ export async function streamLumiTurn(
 	onDelta: (text: string) => void,
 	signal?: AbortSignal,
 	choice?: LumiModelChoice,
+	onReset?: () => void,
 ): Promise<LumiTurnResponse> {
 	const response = await authenticatedFetch(
 		session,
@@ -296,6 +297,10 @@ export async function streamLumiTurn(
 
 	for await (const frame of parseLumiEventStream(response.body, signal)) {
 		if (signal?.aborted) throw abortError(signal);
+		if (frame.event === "reset") {
+			onReset?.();
+			continue;
+		}
 		let payload: unknown;
 		try {
 			payload = JSON.parse(frame.data);
@@ -310,7 +315,7 @@ export async function streamLumiTurn(
 				typeof (payload as { text?: unknown }).text === "string"
 			) {
 				const text = (payload as { text: string }).text;
-				if (text) onDelta(text);
+				onDelta(text);
 			}
 			continue;
 		}

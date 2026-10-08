@@ -199,6 +199,7 @@ describe("LumiPage", () => {
 			expect.any(Function),
 			expect.any(AbortSignal),
 			undefined,
+			expect.any(Function),
 		);
 		expect(await screen.findAllByRole("link", { name: /Arrival/ })).toHaveLength(
 			2,
@@ -248,6 +249,7 @@ describe("LumiPage", () => {
 			expect.any(Function),
 			expect.any(AbortSignal),
 			{ model: "qwen-fast", thinking: false },
+			expect.any(Function),
 		);
 		expect(lumi.updateLumiConversationChoice).not.toHaveBeenCalled();
 		expect(lumi.updateLumiModelPreference).not.toHaveBeenCalled();
@@ -342,6 +344,59 @@ describe("LumiPage", () => {
 			within(assistant).getByText("answer", { selector: "strong" }),
 		).toBeInTheDocument();
 		expect(assistant.textContent).not.toContain("A partial A partial");
+	});
+
+	it("clears GPU partial text on reset and shows a retry status until new text arrives", async () => {
+		const created = conversation({
+			id: "new-conversation",
+			title: "Fallback chat",
+		});
+		let emitDelta: ((text: string) => void) | undefined;
+		let emitReset: (() => void) | undefined;
+		let completeTurn: ((result: lumi.LumiTurnResponse) => void) | undefined;
+		vi
+			.mocked(lumi.streamLumiTurn)
+			.mockImplementation(
+				(_session, _id, _message, onDelta, _signal, _choice, onReset) => {
+					emitDelta = onDelta;
+					emitReset = onReset;
+					return new Promise((resolve) => {
+						completeTurn = resolve;
+					});
+				},
+			);
+		renderPage();
+		const composer = await screen.findByRole("textbox", { name: "Message Lumi" });
+		fireEvent.change(composer, { target: { value: "Try a GPU answer" } });
+		fireEvent.submit(composer.closest("form")!);
+
+		act(() => emitDelta?.("GPU partial answer"));
+		expect(await screen.findByText("GPU partial answer")).toBeInTheDocument();
+		act(() => emitReset?.());
+		expect(screen.queryByText("GPU partial answer")).not.toBeInTheDocument();
+		expect(await screen.findByText("Switching to CPU…")).toBeInTheDocument();
+
+		act(() => emitDelta?.("CPU fallback answer"));
+		expect(await screen.findByText("CPU fallback answer")).toBeInTheDocument();
+		expect(screen.queryByText("Switching to CPU…")).not.toBeInTheDocument();
+		act(() =>
+			completeTurn?.({
+				conversation: created,
+				answer: {
+					markdown: "CPU fallback answer",
+					references: [],
+					sources: [],
+				},
+			}),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "Stop generating" }),
+			).not.toBeInTheDocument(),
+		);
+		const assistant = screen.getByRole("article", { name: "Lumi" });
+		expect(assistant).toHaveTextContent("CPU fallback answer");
+		expect(assistant).not.toHaveTextContent("GPU partial answer");
 	});
 
 	it("shows a safe stream error and keeps the submitted text in the composer", async () => {

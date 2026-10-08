@@ -78,6 +78,16 @@ describe("Lumi stream client", () => {
 		expect(parsed).toEqual([{ event: "delta", data: '{"text":\n"end"}' }]);
 	});
 
+	it("parses a reset event without a data field", async () => {
+		const parsed: Array<{ event: string; data: string }> = [];
+		for await (const item of parseLumiEventStream(
+			sseBody("event: ready\n\nevent: reset\n\n"),
+		))
+			parsed.push(item);
+
+		expect(parsed).toEqual([{ event: "reset", data: "" }]);
+	});
+
 	it("posts the normal turn body and returns one exact completion after text deltas", async () => {
 		const body = sseBody(
 			`${event("delta", { text: "Hello " })}${event("delta", { text: "**world**" })}${event("complete", completion)}`,
@@ -113,6 +123,35 @@ describe("Lumi stream client", () => {
 				}),
 			}),
 		);
+	});
+
+	it("reports reset before forwarding fallback deltas", async () => {
+		const body = sseBody(
+			`${event("delta", { text: "GPU partial" })}event: reset\n\n${event("delta", { text: "CPU retry" })}${event(
+				"complete",
+				{
+					...completion,
+					answer: { markdown: "CPU retry", references: [], sources: [] },
+				},
+			)}`,
+		);
+		vi
+			.mocked(authenticatedFetch)
+			.mockResolvedValue(new Response(body, { status: 200 }));
+		const sequence: string[] = [];
+
+		const result = await streamLumiTurn(
+			session,
+			"conversation-1",
+			"Hello",
+			(text) => sequence.push(`delta:${text}`),
+			undefined,
+			undefined,
+			() => sequence.push("reset"),
+		);
+
+		expect(sequence).toEqual(["delta:GPU partial", "reset", "delta:CPU retry"]);
+		expect(result.answer.markdown).toBe("CPU retry");
 	});
 
 	it("surfaces safe server stream errors", async () => {

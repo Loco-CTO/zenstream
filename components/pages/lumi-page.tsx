@@ -80,6 +80,7 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [composer, setComposer] = useState("");
 	const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 	const [streamedAnswer, setStreamedAnswer] = useState("");
+	const [switchingToCpu, setSwitchingToCpu] = useState(false);
 	const [sending, setSending] = useState(false);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [sendSequence, setSendSequence] = useState(0);
@@ -252,6 +253,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSendError(null);
 		setChoiceNotice(null);
 		setStreamedAnswer("");
+		setSwitchingToCpu(false);
 		setChoiceOverrideEntry({
 			conversationId: id,
 			choice: { ...(selectedId === null ? choice : defaultChoice) },
@@ -268,6 +270,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setDetailError(null);
 		setChoiceNotice(null);
 		setStreamedAnswer("");
+		setSwitchingToCpu(false);
 		setChoiceOverrideEntry({
 			conversationId: conversation.id,
 			choice: { model: conversation.model, thinking: conversation.thinking },
@@ -363,6 +366,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSending(true);
 		setPendingMessage(message);
 		setStreamedAnswer("");
+		setSwitchingToCpu(false);
 		setSendError(null);
 		setChoiceNotice(null);
 		const controller = new AbortController();
@@ -392,11 +396,19 @@ export function LumiPage({ session }: LumiPageProps) {
 				targetId,
 				message,
 				(text) => {
-					if (!controller.signal.aborted && activeRequest.current === controller)
+					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setSwitchingToCpu(false);
 						setStreamedAnswer((current) => current + text);
+					}
 				},
 				controller.signal,
 				firstTurnChoice,
+				() => {
+					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setStreamedAnswer("");
+						setSwitchingToCpu(true);
+					}
+				},
 			);
 			if (selectedId !== targetId && !isNewConversation) return;
 			const createdAt = new Date().toISOString();
@@ -441,6 +453,7 @@ export function LumiPage({ session }: LumiPageProps) {
 			setComposer("");
 			setPendingMessage(null);
 			setStreamedAnswer("");
+			setSwitchingToCpu(false);
 		} catch (error) {
 			if (!controller.signal.aborted)
 				setSendError(requestMessage(error, t("lumiSendFailed")));
@@ -448,6 +461,7 @@ export function LumiPage({ session }: LumiPageProps) {
 			if (activeRequest.current === controller) activeRequest.current = null;
 			setPendingMessage(null);
 			setStreamedAnswer("");
+			setSwitchingToCpu(false);
 			setSending(false);
 		}
 	};
@@ -748,7 +762,7 @@ export function LumiPage({ session }: LumiPageProps) {
 										role="status"
 									>
 										<LoaderCircle className="h-4 w-4 animate-spin text-violet-200/75" />
-										{t("lumiThinkingStatus")}
+										{switchingToCpu ? t("lumiSwitchingToCpu") : t("lumiThinkingStatus")}
 									</div>
 								)}
 								<div ref={messagesEndRef} aria-hidden="true" />

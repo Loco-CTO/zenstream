@@ -479,6 +479,7 @@ export const TRANSLATION_KEYS = [
 	"lumiDefaultSaved",
 	"lumiDefaultSaveFailed",
 	"lumiThinkingStatus",
+	"lumiSwitchingToCpu",
 	"lumiStopGenerating",
 	"lumiYou",
 	"lumiAssistant",

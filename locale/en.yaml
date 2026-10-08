@@ -469,6 +469,8 @@ lumiMakeDefault: Make default
 lumiDefaultSaved: Default model saved for new chats.
 lumiDefaultSaveFailed: Could not save the default model.
 lumiThinkingStatus: Lumi is thinking…
+lumiSwitchingToCpu: Switching to CPU…
+lumiStopGenerating: Stop generating
 lumiYou: You
 lumiAssistant: Lumi
 lumiReferences: In your library

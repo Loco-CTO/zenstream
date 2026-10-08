@@ -11,6 +11,7 @@ import {
 	MoreHorizontal,
 	Plus,
 	Sparkles,
+	Square,
 	X,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,7 +33,7 @@ import {
 	getLumiConversation,
 	getLumiConversations,
 	getLumiModels,
-	sendLumiTurn,
+	streamLumiTurn,
 	updateLumiConversationChoice,
 	updateLumiModelPreference,
 	type LumiConversation,
@@ -78,6 +79,8 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [choiceNotice, setChoiceNotice] = useState<string | null>(null);
 	const [composer, setComposer] = useState("");
 	const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+	const [streamedAnswer, setStreamedAnswer] = useState("");
+	const [switchingToCpu, setSwitchingToCpu] = useState(false);
 	const [sending, setSending] = useState(false);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [sendSequence, setSendSequence] = useState(0);
@@ -85,7 +88,8 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
 	const [helpOpen, setHelpOpen] = useState(false);
 	const composerRef = useRef<HTMLTextAreaElement>(null);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const messagesScrollRef = useRef<HTMLDivElement>(null);
+	const shouldFollowMessagesRef = useRef(true);
 	const activeRequest = useRef<AbortController | null>(null);
 	const { locale, t } = useI18n();
 	const returnTo = useMemo(
@@ -230,10 +234,24 @@ export function LumiPage({ session }: LumiPageProps) {
 	}, [closeLumi, conversationMenuOpen, helpOpen, sidebarOpen]);
 
 	useEffect(() => {
-		const end = messagesEndRef.current;
-		if (end && typeof end.scrollIntoView === "function")
-			end.scrollIntoView({ behavior: "smooth", block: "end" });
-	}, [pendingMessage, selectedId, sending, visibleMessages.length]);
+		shouldFollowMessagesRef.current = true;
+	}, [selectedId]);
+
+	useEffect(() => {
+		if (!shouldFollowMessagesRef.current) return;
+		const frame = window.requestAnimationFrame(() => {
+			const container = messagesScrollRef.current;
+			if (container && shouldFollowMessagesRef.current)
+				container.scrollTop = container.scrollHeight;
+		});
+		return () => window.cancelAnimationFrame(frame);
+	}, [
+		pendingMessage,
+		selectedId,
+		sending,
+		streamedAnswer,
+		visibleMessages.length,
+	]);
 
 	useEffect(() => {
 		const textarea = composerRef.current;
@@ -249,6 +267,8 @@ export function LumiPage({ session }: LumiPageProps) {
 		setDetailError(null);
 		setSendError(null);
 		setChoiceNotice(null);
+		setStreamedAnswer("");
+		setSwitchingToCpu(false);
 		setChoiceOverrideEntry({
 			conversationId: id,
 			choice: { ...(selectedId === null ? choice : defaultChoice) },
@@ -264,6 +284,8 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSendError(null);
 		setDetailError(null);
 		setChoiceNotice(null);
+		setStreamedAnswer("");
+		setSwitchingToCpu(false);
 		setChoiceOverrideEntry({
 			conversationId: conversation.id,
 			choice: { model: conversation.model, thinking: conversation.thinking },
@@ -358,6 +380,9 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSendSequence(sendId);
 		setSending(true);
 		setPendingMessage(message);
+		setStreamedAnswer("");
+		shouldFollowMessagesRef.current = true;
+		setSwitchingToCpu(false);
 		setSendError(null);
 		setChoiceNotice(null);
 		const controller = new AbortController();
@@ -382,12 +407,24 @@ export function LumiPage({ session }: LumiPageProps) {
 					),
 				);
 			}
-			const result = await sendLumiTurn(
+			const result = await streamLumiTurn(
 				session,
 				targetId,
 				message,
+				(text) => {
+					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setSwitchingToCpu(false);
+						setStreamedAnswer((current) => current + text);
+					}
+				},
 				controller.signal,
 				firstTurnChoice,
+				(reason) => {
+					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setStreamedAnswer("");
+						setSwitchingToCpu(reason === "cpu_fallback");
+					}
+				},
 			);
 			if (selectedId !== targetId && !isNewConversation) return;
 			const createdAt = new Date().toISOString();
@@ -431,12 +468,16 @@ export function LumiPage({ session }: LumiPageProps) {
 			setChoiceOverrideEntry(null);
 			setComposer("");
 			setPendingMessage(null);
+			setStreamedAnswer("");
+			setSwitchingToCpu(false);
 		} catch (error) {
 			if (!controller.signal.aborted)
 				setSendError(requestMessage(error, t("lumiSendFailed")));
 		} finally {
 			if (activeRequest.current === controller) activeRequest.current = null;
 			setPendingMessage(null);
+			setStreamedAnswer("");
+			setSwitchingToCpu(false);
 			setSending(false);
 		}
 	};
@@ -663,6 +704,14 @@ export function LumiPage({ session }: LumiPageProps) {
 					)}
 
 					<div
+						ref={messagesScrollRef}
+						data-testid="lumi-message-scroller"
+						onScroll={(event) => {
+							const container = event.currentTarget;
+							shouldFollowMessagesRef.current =
+								container.scrollHeight - container.scrollTop - container.clientHeight <=
+								96;
+						}}
 						className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 sm:px-6"
 						aria-live="polite"
 						aria-relevant="additions text"
@@ -680,7 +729,7 @@ export function LumiPage({ session }: LumiPageProps) {
 								<CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
 								<span>{detailError}</span>
 							</div>
-						) : visibleMessages.length === 0 && !pendingMessage ? (
+						) : visibleMessages.length === 0 && !pendingMessage && !streamedAnswer ? (
 							<div className="flex min-h-full flex-col items-center justify-center px-4 pb-24 text-center">
 								<h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
 									{t("lumiWelcome")}
@@ -717,16 +766,29 @@ export function LumiPage({ session }: LumiPageProps) {
 										{pendingMessage}
 									</div>
 								)}
+								{streamedAnswer && (
+									<ChatMessage
+										message={{
+											id: `streaming-assistant-${sendSequence}`,
+											role: "assistant",
+											content: streamedAnswer,
+											createdAt: "",
+											references: [],
+											sources: [],
+										}}
+										session={session}
+										streaming
+									/>
+								)}
 								{sending && (
 									<div
 										className="flex items-center gap-2 py-3 text-sm text-white/45"
 										role="status"
 									>
 										<LoaderCircle className="h-4 w-4 animate-spin text-violet-200/75" />
-										{t("lumiThinkingStatus")}
+										{switchingToCpu ? t("lumiSwitchingToCpu") : t("lumiThinkingStatus")}
 									</div>
 								)}
-								<div ref={messagesEndRef} aria-hidden="true" />
 							</div>
 						)}
 					</div>
@@ -762,24 +824,30 @@ export function LumiPage({ session }: LumiPageProps) {
 										disabled={sending || models.length === 0}
 										className="max-h-40 min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-50"
 									/>
-									<button
-										type="submit"
-										disabled={
-											!composer.trim() ||
-											sending ||
-											loadingDetail ||
-											!choice.model ||
-											models.length === 0
-										}
-										aria-label={t("lumiSend")}
-										className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
-									>
-										{sending ? (
-											<LoaderCircle className="h-4 w-4 animate-spin" />
-										) : (
+									{sending ? (
+										<button
+											type="button"
+											aria-label={t("lumiStopGenerating")}
+											onClick={() => activeRequest.current?.abort()}
+											className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-300 text-[#16131b] transition hover:bg-violet-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-100"
+										>
+											<Square className="h-3.5 w-3.5 fill-current" />
+										</button>
+									) : (
+										<button
+											type="submit"
+											disabled={
+												!composer.trim() ||
+												loadingDetail ||
+												!choice.model ||
+												models.length === 0
+											}
+											aria-label={t("lumiSend")}
+											className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
+										>
 											<ArrowUp className="h-4 w-4" />
-										)}
-									</button>
+										</button>
+									)}
 								</div>
 							</form>
 							<div className="flex items-center justify-between px-1 pt-2 text-[10px] text-white/30">
@@ -827,9 +895,11 @@ export function LumiPage({ session }: LumiPageProps) {
 function ChatMessage({
 	message,
 	session,
+	streaming = false,
 }: {
 	message: LumiMessage;
 	session: AuthSession;
+	streaming?: boolean;
 }) {
 	const { t } = useI18n();
 	const isAssistant = message.role === "assistant";
@@ -837,6 +907,7 @@ function ChatMessage({
 		<article
 			className={`flex w-full py-3 ${isAssistant ? "justify-start" : "justify-end"}`}
 			aria-label={isAssistant ? t("lumiAssistant") : t("lumiYou")}
+			aria-live={streaming ? "off" : undefined}
 		>
 			{isAssistant ? (
 				<div className="min-w-0 w-full text-sm leading-6 text-white/90">
@@ -1192,7 +1263,10 @@ function AnswerMetadata({
 	const { t } = useI18n();
 	const safeSources = sources.flatMap((source) => {
 		const safeUrl = safeExternalUrl(source.url);
-		return safeUrl ? [{ ...source, safeUrl }] : [];
+		const safeFaviconUrl = source.faviconUrl
+			? safeExternalUrl(source.faviconUrl)
+			: null;
+		return safeUrl ? [{ ...source, safeUrl, safeFaviconUrl }] : [];
 	});
 	return (
 		<div className="mt-4 space-y-3">
@@ -1224,7 +1298,23 @@ function AnswerMetadata({
 									rel="noopener noreferrer"
 									className="group inline-flex max-w-full items-start gap-2 text-xs text-white/60 transition hover:text-white/90"
 								>
-									<Globe2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/35" />
+									<span className="relative mt-0.5 h-3.5 w-3.5 shrink-0">
+										<Globe2 className="absolute inset-0 h-3.5 w-3.5 text-white/35" />
+										{source.safeFaviconUrl && (
+											<img
+												data-testid="lumi-source-favicon"
+												src={source.safeFaviconUrl}
+												alt=""
+												aria-hidden="true"
+												loading="lazy"
+												referrerPolicy="no-referrer"
+												className="relative h-3.5 w-3.5 rounded-sm"
+												onError={(event) => {
+													event.currentTarget.style.display = "none";
+												}}
+											/>
+										)}
+									</span>
 									<span className="min-w-0">
 										<span className="block truncate">
 											{source.title || source.websiteName}

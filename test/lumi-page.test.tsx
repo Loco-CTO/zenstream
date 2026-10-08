@@ -352,7 +352,7 @@ describe("LumiPage", () => {
 			title: "Fallback chat",
 		});
 		let emitDelta: ((text: string) => void) | undefined;
-		let emitReset: (() => void) | undefined;
+		let emitReset: ((reason: lumi.LumiStreamResetReason) => void) | undefined;
 		let completeTurn: ((result: lumi.LumiTurnResponse) => void) | undefined;
 		vi
 			.mocked(lumi.streamLumiTurn)
@@ -372,13 +372,26 @@ describe("LumiPage", () => {
 
 		act(() => emitDelta?.("GPU partial answer"));
 		expect(await screen.findByText("GPU partial answer")).toBeInTheDocument();
-		act(() => emitReset?.());
+		act(() => emitReset?.("cpu_fallback"));
 		expect(screen.queryByText("GPU partial answer")).not.toBeInTheDocument();
 		expect(await screen.findByText("Switching to CPU…")).toBeInTheDocument();
 
+		act(() => emitDelta?.("CPU partial answer"));
+		expect(await screen.findByText("CPU partial answer")).toBeInTheDocument();
+		expect(screen.queryByText("Switching to CPU…")).not.toBeInTheDocument();
+		act(() => emitReset?.("intermediate"));
+		expect(screen.queryByText("CPU partial answer")).not.toBeInTheDocument();
+		expect(screen.queryByText("Switching to CPU…")).not.toBeInTheDocument();
+		expect(screen.getByText("Lumi is thinking…")).toBeInTheDocument();
+		act(() => emitDelta?.("Unknown-reset partial"));
+		expect(await screen.findByText("Unknown-reset partial")).toBeInTheDocument();
+		act(() => emitReset?.("unknown"));
+		expect(screen.queryByText("Unknown-reset partial")).not.toBeInTheDocument();
+		expect(screen.queryByText("Switching to CPU…")).not.toBeInTheDocument();
+		expect(screen.getByText("Lumi is thinking…")).toBeInTheDocument();
+
 		act(() => emitDelta?.("CPU fallback answer"));
 		expect(await screen.findByText("CPU fallback answer")).toBeInTheDocument();
-		expect(screen.queryByText("Switching to CPU…")).not.toBeInTheDocument();
 		act(() =>
 			completeTurn?.({
 				conversation: created,

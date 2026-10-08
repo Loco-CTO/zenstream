@@ -125,9 +125,9 @@ describe("Lumi stream client", () => {
 		);
 	});
 
-	it("reports reset before forwarding fallback deltas", async () => {
+	it("reports reset reasons before forwarding fallback deltas", async () => {
 		const body = sseBody(
-			`${event("delta", { text: "GPU partial" })}event: reset\n\n${event("delta", { text: "CPU retry" })}${event(
+			`${event("delta", { text: "GPU partial" })}${event("reset", { reason: "cpu_fallback" })}${event("delta", { text: "CPU partial" })}${event("reset", { reason: "intermediate" })}${event("delta", { text: "Intermediate partial" })}${event("reset", { reason: "future_reason" })}event: reset\n\n${event("delta", { text: "CPU retry" })}${event(
 				"complete",
 				{
 					...completion,
@@ -147,10 +147,19 @@ describe("Lumi stream client", () => {
 			(text) => sequence.push(`delta:${text}`),
 			undefined,
 			undefined,
-			() => sequence.push("reset"),
+			(reason) => sequence.push(`reset:${reason}`),
 		);
 
-		expect(sequence).toEqual(["delta:GPU partial", "reset", "delta:CPU retry"]);
+		expect(sequence).toEqual([
+			"delta:GPU partial",
+			"reset:cpu_fallback",
+			"delta:CPU partial",
+			"reset:intermediate",
+			"delta:Intermediate partial",
+			"reset:unknown",
+			"reset:unknown",
+			"delta:CPU retry",
+		]);
 		expect(result.answer.markdown).toBe("CPU retry");
 	});
 

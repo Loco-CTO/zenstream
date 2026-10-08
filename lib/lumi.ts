@@ -70,6 +70,8 @@ export type LumiStreamEvent = {
 	data: string;
 };
 
+export type LumiStreamResetReason = "cpu_fallback" | "intermediate" | "unknown";
+
 export type LumiChoiceResponse = { conversation: LumiConversation };
 export type LumiPreferenceResponse = { preference: LumiModelChoice };
 
@@ -267,7 +269,7 @@ export async function streamLumiTurn(
 	onDelta: (text: string) => void,
 	signal?: AbortSignal,
 	choice?: LumiModelChoice,
-	onReset?: () => void,
+	onReset?: (reason: LumiStreamResetReason) => void,
 ): Promise<LumiTurnResponse> {
 	const response = await authenticatedFetch(
 		session,
@@ -298,7 +300,21 @@ export async function streamLumiTurn(
 	for await (const frame of parseLumiEventStream(response.body, signal)) {
 		if (signal?.aborted) throw abortError(signal);
 		if (frame.event === "reset") {
-			onReset?.();
+			let reason: LumiStreamResetReason = "unknown";
+			try {
+				const payload: unknown = JSON.parse(frame.data);
+				if (
+					typeof payload === "object" &&
+					payload !== null &&
+					"reason" in payload
+				) {
+					const value = (payload as { reason?: unknown }).reason;
+					if (value === "cpu_fallback" || value === "intermediate") reason = value;
+				}
+			} catch {
+				// Empty and malformed reset payloads still clear the partial turn.
+			}
+			onReset?.(reason);
 			continue;
 		}
 		let payload: unknown;

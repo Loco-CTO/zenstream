@@ -403,10 +403,10 @@ export function LumiPage({ session }: LumiPageProps) {
 				},
 				controller.signal,
 				firstTurnChoice,
-				() => {
+				(reason) => {
 					if (!controller.signal.aborted && activeRequest.current === controller) {
 						setStreamedAnswer("");
-						setSwitchingToCpu(true);
+						setSwitchingToCpu(reason === "cpu_fallback");
 					}
 				},
 			);

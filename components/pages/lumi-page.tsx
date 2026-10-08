@@ -88,7 +88,8 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
 	const [helpOpen, setHelpOpen] = useState(false);
 	const composerRef = useRef<HTMLTextAreaElement>(null);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const messagesScrollRef = useRef<HTMLDivElement>(null);
+	const shouldFollowMessagesRef = useRef(true);
 	const activeRequest = useRef<AbortController | null>(null);
 	const { locale, t } = useI18n();
 	const returnTo = useMemo(
@@ -233,10 +234,24 @@ export function LumiPage({ session }: LumiPageProps) {
 	}, [closeLumi, conversationMenuOpen, helpOpen, sidebarOpen]);
 
 	useEffect(() => {
-		const end = messagesEndRef.current;
-		if (end && typeof end.scrollIntoView === "function")
-			end.scrollIntoView({ behavior: "smooth", block: "end" });
-	}, [pendingMessage, selectedId, sending, visibleMessages.length]);
+		shouldFollowMessagesRef.current = true;
+	}, [selectedId]);
+
+	useEffect(() => {
+		if (!shouldFollowMessagesRef.current) return;
+		const frame = window.requestAnimationFrame(() => {
+			const container = messagesScrollRef.current;
+			if (container && shouldFollowMessagesRef.current)
+				container.scrollTop = container.scrollHeight;
+		});
+		return () => window.cancelAnimationFrame(frame);
+	}, [
+		pendingMessage,
+		selectedId,
+		sending,
+		streamedAnswer,
+		visibleMessages.length,
+	]);
 
 	useEffect(() => {
 		const textarea = composerRef.current;
@@ -366,6 +381,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSending(true);
 		setPendingMessage(message);
 		setStreamedAnswer("");
+		shouldFollowMessagesRef.current = true;
 		setSwitchingToCpu(false);
 		setSendError(null);
 		setChoiceNotice(null);
@@ -688,6 +704,14 @@ export function LumiPage({ session }: LumiPageProps) {
 					)}
 
 					<div
+						ref={messagesScrollRef}
+						data-testid="lumi-message-scroller"
+						onScroll={(event) => {
+							const container = event.currentTarget;
+							shouldFollowMessagesRef.current =
+								container.scrollHeight - container.scrollTop - container.clientHeight <=
+								96;
+						}}
 						className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 sm:px-6"
 						aria-live="polite"
 						aria-relevant="additions text"
@@ -765,7 +789,6 @@ export function LumiPage({ session }: LumiPageProps) {
 										{switchingToCpu ? t("lumiSwitchingToCpu") : t("lumiThinkingStatus")}
 									</div>
 								)}
-								<div ref={messagesEndRef} aria-hidden="true" />
 							</div>
 						)}
 					</div>

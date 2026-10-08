@@ -346,6 +346,47 @@ describe("LumiPage", () => {
 		expect(assistant.textContent).not.toContain("A partial A partial");
 	});
 
+	it("follows streamed text until the user scrolls away", async () => {
+		let emitDelta: ((text: string) => void) | undefined;
+		vi
+			.mocked(lumi.streamLumiTurn)
+			.mockImplementation((_session, _id, _message, onDelta) => {
+				emitDelta = onDelta;
+				return new Promise<lumi.LumiTurnResponse>(() => undefined);
+			});
+		renderPage();
+		const scroller = await screen.findByTestId("lumi-message-scroller");
+		Object.defineProperties(scroller, {
+			scrollHeight: { configurable: true, value: 500 },
+			clientHeight: { configurable: true, value: 100 },
+		});
+		const composer = await screen.findByRole("textbox", { name: "Message Lumi" });
+		fireEvent.change(composer, {
+			target: { value: "Keep the response in view" },
+		});
+		fireEvent.submit(composer.closest("form")!);
+		await waitFor(() => expect(scroller.scrollTop).toBe(500));
+
+		act(() => {
+			scroller.scrollTop = 100;
+			fireEvent.scroll(scroller);
+			emitDelta?.("A streamed answer");
+		});
+		expect(await screen.findByText("A streamed answer")).toBeInTheDocument();
+		await waitFor(() => expect(scroller.scrollTop).toBe(100));
+
+		Object.defineProperty(scroller, "scrollHeight", {
+			configurable: true,
+			value: 600,
+		});
+		act(() => {
+			scroller.scrollTop = 500;
+			fireEvent.scroll(scroller);
+			emitDelta?.(" and more text");
+		});
+		await waitFor(() => expect(scroller.scrollTop).toBe(600));
+	});
+
 	it("clears GPU partial text on reset and shows a retry status until new text arrives", async () => {
 		const created = conversation({
 			id: "new-conversation",

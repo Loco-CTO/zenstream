@@ -1,10 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { Navbar } from "@/components/layout/navbar";
+import * as lumi from "@/lib/lumi";
 import * as notifications from "@/lib/notifications";
 
 const navigation = vi.hoisted(() => ({ pathname: "/", query: "" }));
 const router = vi.hoisted(() => ({ back: vi.fn(), push: vi.fn() }));
+const session = { token: "token", userId: "user-123", username: "Test User" };
+const lumiModels = {
+	models: [{ id: "qwen-small", label: "Qwen small", supportsThinking: true }],
+	defaultModel: "qwen-small",
+	defaultThinking: false,
+};
 
 vi.mock("next/navigation", () => ({
 	usePathname: () => navigation.pathname,
@@ -17,6 +24,9 @@ describe("Navbar", () => {
 		navigation.pathname = "/";
 		navigation.query = "";
 		router.push.mockReset();
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	const renderNavbar = () =>
@@ -73,6 +83,93 @@ describe("Navbar", () => {
 			"href",
 			"/settings",
 		);
+	});
+
+	it("shows available Lumi as an experimental profile-menu link", async () => {
+		navigation.pathname = "/search";
+		navigation.query = "q=anime";
+		vi.spyOn(lumi, "getLumiModels").mockResolvedValue(lumiModels);
+
+		render(
+			<Navbar
+				displayName="Test User"
+				userId="user-123"
+				onLogout={() => undefined}
+				session={session}
+			/>,
+		);
+		expect(
+			screen.queryByRole("link", { name: /Ask Lumi/ }),
+		).not.toBeInTheDocument();
+		fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+
+		const lumiLink = await screen.findByRole("link", { name: /Ask Lumi/ });
+		expect(lumiLink).toHaveAttribute(
+			"href",
+			"/lumi?returnTo=%2Fsearch%3Fq%3Danime",
+		);
+		expect(lumiLink).toHaveTextContent("Experimental");
+		expect(lumiLink).toHaveTextContent("Experimental preview");
+		fireEvent.click(lumiLink);
+		expect(screen.queryByTestId("profile-popup")).not.toBeInTheDocument();
+	});
+
+	it("keeps Lumi hidden when it has no available models or cannot be reached", async () => {
+		const getModels = vi
+			.spyOn(lumi, "getLumiModels")
+			.mockResolvedValueOnce({ ...lumiModels, models: [] })
+			.mockRejectedValueOnce(new Error("Lumi unavailable"));
+
+		render(
+			<Navbar
+				displayName="Test User"
+				userId="user-123"
+				onLogout={() => undefined}
+				session={session}
+			/>,
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+		await waitFor(() => expect(getModels).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("link", { name: /Ask Lumi/ }),
+			).not.toBeInTheDocument(),
+		);
+
+		fireEvent.focus(window);
+		await waitFor(() => expect(getModels).toHaveBeenCalledTimes(2));
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("link", { name: /Ask Lumi/ }),
+			).not.toBeInTheDocument(),
+		);
+	});
+
+	it("refreshes Lumi availability when the page becomes visible and aborts on close", async () => {
+		const signals: AbortSignal[] = [];
+		const getModels = vi
+			.spyOn(lumi, "getLumiModels")
+			.mockImplementation(async (_session, signal) => {
+				if (signal) signals.push(signal);
+				return { ...lumiModels, models: [] };
+			});
+
+		render(
+			<Navbar
+				displayName="Test User"
+				userId="user-123"
+				onLogout={() => undefined}
+				session={session}
+			/>,
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+		await waitFor(() => expect(getModels).toHaveBeenCalledTimes(1));
+
+		fireEvent.visibilityChange(document);
+		await waitFor(() => expect(getModels).toHaveBeenCalledTimes(2));
+
+		fireEvent.pointerDown(document.body);
+		expect(signals[1]?.aborted).toBe(true);
 	});
 
 	it("links Library to the Library route", () => {
@@ -175,3 +272,4 @@ describe("Navbar", () => {
 		);
 	});
 });
+

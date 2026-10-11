@@ -64,7 +64,7 @@ export function Navbar({
 	};
 
 	useEffect(() => {
-		if (!session) return;
+		if (!session || !profileOpen) return;
 
 		let active = true;
 		let request: AbortController | null = null;
@@ -92,17 +92,15 @@ export function Navbar({
 		const refreshWhenVisible = () => {
 			if (document.visibilityState === "visible") checkLumiAvailability();
 		};
-		const refreshTimer = window.setInterval(checkLumiAvailability, 60_000);
 		window.addEventListener("focus", checkLumiAvailability);
 		document.addEventListener("visibilitychange", refreshWhenVisible);
 		return () => {
 			active = false;
 			request?.abort();
-			window.clearInterval(refreshTimer);
 			window.removeEventListener("focus", checkLumiAvailability);
 			document.removeEventListener("visibilitychange", refreshWhenVisible);
 		};
-	}, [session]);
+	}, [profileOpen, session]);
 
 	useEffect(() => {
 		if (!profileOpen) return;
@@ -212,7 +210,11 @@ export function Navbar({
 								type="button"
 								aria-label={t("profile")}
 								aria-expanded={profileOpen}
-								onClick={() => setProfileOpen((open) => !open)}
+								onClick={() => {
+									const opening = !profileOpen;
+									if (opening) setLumiAvailability(null);
+									setProfileOpen(opening);
+								}}
 								className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/8 text-white/70 transition hover:border-violet-400/60"
 							>
 								<UserAvatar

@@ -854,6 +854,9 @@ export function LumiPage({ session }: LumiPageProps) {
 								<span>{selectedModel?.label ?? t("lumi")}</span>
 								<span>{t("lumiEnterHint")}</span>
 							</div>
+							<p className="mt-1 px-1 text-center text-[10px] leading-4 text-white/30">
+								{t("lumiExperimentalNote")}
+							</p>
 						</div>
 					</div>
 

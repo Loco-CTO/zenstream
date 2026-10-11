@@ -248,18 +248,35 @@ export function Navbar({
 										<Link
 											href={lumiHref}
 											onClick={() => setProfileOpen(false)}
-											className="flex w-full items-start gap-2.5 px-4 py-3 text-left text-xs text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+											className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-xs text-white/70 transition hover:bg-white/[0.06] hover:text-white"
 										>
-											<Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+											<Sparkles
+												className="h-3.5 w-3.5 shrink-0"
+												color="url(#lumi-profile-menu-gradient)"
+												aria-hidden="true"
+											>
+												<defs>
+													<linearGradient
+														id="lumi-profile-menu-gradient"
+														x1="0"
+														y1="0"
+														x2="1"
+														y2="1"
+													>
+														<stop offset="0%" stopColor="#c4b5fd" />
+														<stop offset="55%" stopColor="#e879f9" />
+														<stop offset="100%" stopColor="#7dd3fc" />
+													</linearGradient>
+												</defs>
+											</Sparkles>
 											<span className="min-w-0 flex-1">
 												<span className="flex items-center justify-between gap-2">
-													<span>{t("lumiHeading")}</span>
+													<span className="bg-gradient-to-r from-violet-300 via-fuchsia-200 to-sky-300 bg-clip-text text-transparent">
+														{t("lumiHeading")}
+													</span>
 													<span className="shrink-0 rounded bg-violet-400/15 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-violet-200">
 														{t("lumiExperimental")}
 													</span>
-												</span>
-												<span className="mt-1 block leading-relaxed text-white/45">
-													{t("lumiExperimentalNote")}
 												</span>
 											</span>
 										</Link>

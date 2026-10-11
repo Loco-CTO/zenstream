@@ -109,7 +109,7 @@ describe("Navbar", () => {
 			"/lumi?returnTo=%2Fsearch%3Fq%3Danime",
 		);
 		expect(lumiLink).toHaveTextContent("Experimental");
-		expect(lumiLink).toHaveTextContent("Experimental preview");
+		expect(lumiLink).not.toHaveTextContent("Experimental preview");
 		fireEvent.click(lumiLink);
 		expect(screen.queryByTestId("profile-popup")).not.toBeInTheDocument();
 	});

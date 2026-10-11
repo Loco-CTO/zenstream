@@ -64,7 +64,7 @@ export function Navbar({
 	};
 
 	useEffect(() => {
-		if (!session || !profileOpen) return;
+		if (!session || !profileOpen) return undefined;
 
 		let active = true;
 		let request: AbortController | null = null;
@@ -72,7 +72,7 @@ export function Navbar({
 			request?.abort();
 			const controller = new AbortController();
 			request = controller;
-			void getLumiModels(session, controller.signal)
+			getLumiModels(session, controller.signal)
 				.then(({ models }) => {
 					if (active && !controller.signal.aborted) {
 						setLumiAvailability({

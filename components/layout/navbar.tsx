@@ -258,7 +258,7 @@ export function Navbar({
 														{t("lumiExperimental")}
 													</span>
 												</span>
-												<span className="mt-1 block text-[10px] leading-relaxed text-white/45">
+												<span className="mt-1 block text-xs leading-relaxed text-white/45">
 													{t("lumiExperimentalNote")}
 												</span>
 											</span>
@@ -283,3 +283,4 @@ export function Navbar({
 		</>
 	);
 }
+

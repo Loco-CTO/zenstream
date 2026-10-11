@@ -10,6 +10,7 @@ import { SearchOverlay } from "@/components/layout/search-overlay";
 import { NotificationMenu } from "@/components/notifications/notification-menu";
 import { SyncplayGroupMenu } from "@/components/syncplay/group-menu";
 import { useI18n } from "@/lib/i18n";
+import { getLumiModels } from "@/lib/lumi";
 import type { AuthSession } from "@/lib/session";
 
 export function Navbar({
@@ -39,8 +40,16 @@ export function Navbar({
 	const lumiHref = `/lumi?returnTo=${encodeURIComponent(lumiReturnTo)}`;
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
+	const [lumiAvailability, setLumiAvailability] = useState<{
+		token: string;
+		available: boolean;
+	} | null>(null);
 	const profileRef = useRef<HTMLDivElement>(null);
 	const profileTriggerRef = useRef<HTMLButtonElement>(null);
+	const lumiAvailable =
+		session !== undefined &&
+		lumiAvailability?.token === session.token &&
+		lumiAvailability.available;
 
 	const submitSearch = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -53,6 +62,47 @@ export function Navbar({
 	const clearSearch = () => {
 		router.push("/search");
 	};
+
+	useEffect(() => {
+		if (!session) return;
+
+		let active = true;
+		let request: AbortController | null = null;
+		const checkLumiAvailability = () => {
+			request?.abort();
+			const controller = new AbortController();
+			request = controller;
+			void getLumiModels(session, controller.signal)
+				.then(({ models }) => {
+					if (active && !controller.signal.aborted) {
+						setLumiAvailability({
+							token: session.token,
+							available: Array.isArray(models) && models.length > 0,
+						});
+					}
+				})
+				.catch(() => {
+					if (active && !controller.signal.aborted) {
+						setLumiAvailability({ token: session.token, available: false });
+					}
+				});
+		};
+
+		checkLumiAvailability();
+		const refreshWhenVisible = () => {
+			if (document.visibilityState === "visible") checkLumiAvailability();
+		};
+		const refreshTimer = window.setInterval(checkLumiAvailability, 60_000);
+		window.addEventListener("focus", checkLumiAvailability);
+		document.addEventListener("visibilitychange", refreshWhenVisible);
+		return () => {
+			active = false;
+			request?.abort();
+			window.clearInterval(refreshTimer);
+			window.removeEventListener("focus", checkLumiAvailability);
+			document.removeEventListener("visibilitychange", refreshWhenVisible);
+		};
+	}, [session]);
 
 	useEffect(() => {
 		if (!profileOpen) return;
@@ -112,13 +162,6 @@ export function Navbar({
 							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/calendar" ? "text-white" : "text-white/35 hover:text-white/70"}`}
 						>
 							{t("calendar")}
-						</Link>
-						<Link
-							href={lumiHref}
-							className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/lumi" ? "text-white" : "text-white/35 hover:text-white/70"}`}
-						>
-							<Sparkles className="h-3.5 w-3.5" />
-							{t("lumi")}
 						</Link>
 					</div>
 					{isSearchPage && (
@@ -199,6 +242,26 @@ export function Navbar({
 										<Settings className="h-3.5 w-3.5" />
 										{t("settings")}
 									</Link>
+									{lumiAvailable && (
+										<Link
+											href={lumiHref}
+											onClick={() => setProfileOpen(false)}
+											className="flex w-full items-start gap-2.5 px-4 py-3 text-left text-xs text-white/70 transition hover:bg-white/[0.06] hover:text-white"
+										>
+											<Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+											<span className="min-w-0 flex-1">
+												<span className="flex items-center justify-between gap-2">
+													<span>{t("lumiHeading")}</span>
+													<span className="shrink-0 rounded bg-violet-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-200">
+														{t("lumiExperimental")}
+													</span>
+												</span>
+												<span className="mt-1 block text-[10px] leading-relaxed text-white/45">
+													{t("lumiExperimentalNote")}
+												</span>
+											</span>
+										</Link>
+									)}
 									<button
 										onClick={onLogout}
 										className="flex w-full items-center gap-2.5 border-t border-white/[0.06] px-4 py-3 text-left text-xs text-red-300/80 transition hover:bg-red-500/10 hover:text-red-300"

@@ -2222,17 +2222,30 @@ async function getChildren(
 	view: "card" | "full" = "card",
 ) {
 	if (!parent.LibraryId) return [];
-	const params = new URLSearchParams({
-		libraryId: parent.LibraryId,
-		parentId: parent.Id,
-		pageSize: "100",
-		view,
-	});
-	const result = await catalogRequest<{ items: CatalogItem[] }>(
-		session,
-		`/api/catalog/items?${params}`,
-	);
-	return result.items.map(toMediaItem);
+	const pageSize = 100;
+	const items: CatalogItem[] = [];
+	for (let page = 1; ; page += 1) {
+		const params = new URLSearchParams({
+			libraryId: parent.LibraryId,
+			parentId: parent.Id,
+			page: String(page),
+			pageSize: String(pageSize),
+			view,
+		});
+		const result = await catalogRequest<{
+			items: CatalogItem[];
+			total?: number;
+		}>(session, `/api/catalog/items?${params}`);
+		items.push(...result.items);
+
+		if (result.total !== undefined) {
+			if (items.length >= result.total) break;
+		} else if (result.items.length < pageSize) {
+			break;
+		}
+		if (result.items.length === 0) break;
+	}
+	return items.map(toMediaItem);
 }
 
 export async function setFavorite(

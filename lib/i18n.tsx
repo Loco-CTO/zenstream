@@ -445,6 +445,8 @@ export const TRANSLATION_KEYS = [
 	"lumi",
 	"lumiHeading",
 	"lumiDescription",
+	"lumiExperimental",
+	"lumiExperimentalNote",
 	"lumiNew",
 	"lumiNewChat",
 	"lumiHistory",

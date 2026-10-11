@@ -435,6 +435,8 @@ syncplayParticipantReplaced: You were disconnected from Syncplay because this ac
 lumi: Lumi
 lumiHeading: Ask Lumi
 lumiDescription: Explore your ZenStream library and ask follow-up questions in a private conversation.
+lumiExperimental: Experimental
+lumiExperimentalNote: Experimental preview; answers may be incomplete or inaccurate.
 lumiNew: New
 lumiNewChat: New chat
 lumiHistory: Recent chats

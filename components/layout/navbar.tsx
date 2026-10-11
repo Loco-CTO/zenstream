@@ -254,7 +254,7 @@ export function Navbar({
 											<span className="min-w-0 flex-1">
 												<span className="flex items-center justify-between gap-2">
 													<span>{t("lumiHeading")}</span>
-													<span className="shrink-0 rounded bg-violet-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-200">
+													<span className="shrink-0 rounded bg-violet-400/15 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-200">
 														{t("lumiExperimental")}
 													</span>
 												</span>
@@ -283,3 +283,4 @@ export function Navbar({
 		</>
 	);
 }
+

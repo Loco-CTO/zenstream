@@ -436,7 +436,7 @@ lumi: Lumi
 lumiHeading: Lumiに質問
 lumiDescription: ZenStreamライブラリについて質問し、プライベートな会話で続けて尋ねられます。
 lumiExperimental: 実験的
-lumiExperimentalNote: プレビュー機能です。回答に誤りや不完全な点が含まれる場合があります。
+lumiExperimentalNote: 実験的なプレビュー機能です。回答に誤りや不完全な点が含まれる場合があります。
 lumiNew: 新規
 lumiNewChat: 新しい会話
 lumiHistory: 最近の会話

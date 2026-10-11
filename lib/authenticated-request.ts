@@ -75,7 +75,7 @@ function openRefreshAttemptDatabase() {
 				reject(request.error ?? new Error("Could not open refresh storage."));
 		});
 		refreshAttemptDatabase = opening;
-		void opening.catch(() => {
+		opening.catch(() => {
 			if (refreshAttemptDatabase === opening) refreshAttemptDatabase = null;
 		});
 	}

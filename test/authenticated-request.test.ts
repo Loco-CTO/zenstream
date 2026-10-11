@@ -11,11 +11,20 @@ const session = { token: "", userId: "user-1", username: "Alex" };
 const refreshAttemptIdKey = () =>
 	`zenstream.auth-refresh-attempt-id:${new URL(orchestratorBaseUrl()).origin}`;
 
-function createSharedIndexedDb() {
+function createSharedIndexedDb(
+	options: {
+		transactionEvent?: {
+			transactionNumber: number;
+			event: "abort" | "complete" | "error";
+		};
+	} = {},
+) {
 	const values = new Map<string, unknown>();
 	let objectStoreCreated = false;
+	let transactionNumber = 0;
 	let transactionTail: Promise<void> = Promise.resolve();
 	const database = {
+		onversionchange: null as ((event: IDBVersionChangeEvent) => void) | null,
 		objectStoreNames: {
 			contains: (name: string) => name === "attempts" && objectStoreCreated,
 		},
@@ -25,8 +34,11 @@ function createSharedIndexedDb() {
 		}),
 		close: vi.fn(),
 		transaction: vi.fn(() => {
+			transactionNumber += 1;
+			const currentTransactionNumber = transactionNumber;
 			const operations: Array<() => void> = [];
 			const transaction = {
+				error: null as DOMException | null,
 				objectStore: vi.fn(() => ({
 					get: vi.fn((key: string) => {
 						const request: {
@@ -45,6 +57,8 @@ function createSharedIndexedDb() {
 					}),
 				})),
 				oncomplete: null as ((event: Event) => void) | null,
+				onerror: null as ((event: Event) => void) | null,
+				onabort: null as ((event: Event) => void) | null,
 			};
 
 			const previous = transactionTail;
@@ -54,11 +68,23 @@ function createSharedIndexedDb() {
 			});
 			queueMicrotask(async () => {
 				await previous;
-				for (const operation of operations) {
-					operation();
-					await Promise.resolve();
+				const injectedEvent =
+					options.transactionEvent?.transactionNumber === currentTransactionNumber
+						? options.transactionEvent.event
+						: null;
+				if (injectedEvent === "complete") {
+					transaction.oncomplete?.(new Event("complete"));
+				} else if (injectedEvent === "error") {
+					transaction.onerror?.(new Event("error"));
+				} else if (injectedEvent === "abort") {
+					transaction.onabort?.(new Event("abort"));
+				} else {
+					for (const operation of operations) {
+						operation();
+						await Promise.resolve();
+					}
+					transaction.oncomplete?.(new Event("complete"));
 				}
-				transaction.oncomplete?.(new Event("complete"));
 				release();
 			});
 			return transaction;
@@ -83,7 +109,7 @@ function createSharedIndexedDb() {
 			return request;
 		}),
 	} as unknown as IDBFactory;
-	return { factory, values };
+	return { database, factory, values };
 }
 
 afterEach(() => {
@@ -433,6 +459,436 @@ describe("browser authentication transport", () => {
 		await expect(validateBrowserSession(session)).rejects.toThrow(
 			"Could not refresh the browser session.",
 		);
+	});
+
+	it("uses getRandomValues when crypto.randomUUID is unavailable", async () => {
+		const previousCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		Object.defineProperty(globalThis, "crypto", {
+			configurable: true,
+			value: {
+				getRandomValues: (bytes: Uint8Array) => {
+					bytes.fill(0x11);
+					return bytes;
+				},
+			},
+		});
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: undefined,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+
+		try {
+			vi.resetModules();
+			const { getRefreshAttemptId: getId } =
+				await import("@/lib/authenticated-request");
+			await expect(getId()).resolves.toBe("11111111-1111-4111-9111-111111111111");
+		} finally {
+			if (previousCrypto)
+				Object.defineProperty(globalThis, "crypto", previousCrypto);
+			else Reflect.deleteProperty(globalThis, "crypto");
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
+	it("uses Math.random when browser crypto is unavailable", async () => {
+		const previousCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		Object.defineProperty(globalThis, "crypto", {
+			configurable: true,
+			value: undefined,
+		});
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: undefined,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+		vi.spyOn(Math, "random").mockReturnValue(0.1);
+
+		try {
+			vi.resetModules();
+			const { getRefreshAttemptId: getId } =
+				await import("@/lib/authenticated-request");
+			await expect(getId()).resolves.toBe("19191919-1919-4919-9919-191919191919");
+		} finally {
+			if (previousCrypto)
+				Object.defineProperty(globalThis, "crypto", previousCrypto);
+			else Reflect.deleteProperty(globalThis, "crypto");
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
+	it("falls back after an IndexedDB open error and retries opening the database", async () => {
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		const failedFactory = {
+			open: vi.fn(() => {
+				const request: {
+					error: DOMException;
+					onerror: ((event: Event) => void) | null;
+				} = {
+					error: new DOMException("open failed"),
+					onerror: null,
+				};
+				queueMicrotask(() => request.onerror?.(new Event("error")));
+				return request;
+			}),
+		} as unknown as IDBFactory;
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: failedFactory,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+
+		try {
+			vi.resetModules();
+			const { getRefreshAttemptId: getId } =
+				await import("@/lib/authenticated-request");
+			const fallbackId = await getId();
+			const sharedIndexedDb = createSharedIndexedDb();
+			Object.defineProperty(window, "indexedDB", {
+				configurable: true,
+				value: sharedIndexedDb.factory,
+			});
+
+			expect(await getId()).toBe(fallbackId);
+			expect(failedFactory.open).toHaveBeenCalledTimes(1);
+			expect(sharedIndexedDb.factory.open).toHaveBeenCalledTimes(1);
+		} finally {
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
+	it("closes and reopens refresh storage after a database version change", async () => {
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		const sharedIndexedDb = createSharedIndexedDb();
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: sharedIndexedDb.factory,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+
+		try {
+			vi.resetModules();
+			const { getRefreshAttemptId: getId } =
+				await import("@/lib/authenticated-request");
+			await getId();
+			sharedIndexedDb.database.onversionchange?.(
+				new Event("versionchange") as IDBVersionChangeEvent,
+			);
+			await getId();
+
+			expect(sharedIndexedDb.database.close).toHaveBeenCalledTimes(1);
+			expect(sharedIndexedDb.factory.open).toHaveBeenCalledTimes(2);
+		} finally {
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
+	it.each(["complete", "error", "abort"] as const)(
+		"falls back to localStorage when the IndexedDB read transaction ends with %s",
+		async (event) => {
+			const previousIndexedDB = Object.getOwnPropertyDescriptor(
+				window,
+				"indexedDB",
+			);
+			const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+			const existingId = "11111111-1111-4111-9111-111111111111";
+			window.localStorage.setItem(refreshAttemptIdKey(), existingId);
+			const sharedIndexedDb = createSharedIndexedDb({
+				transactionEvent: { transactionNumber: 1, event },
+			});
+			Object.defineProperty(window, "indexedDB", {
+				configurable: true,
+				value: sharedIndexedDb.factory,
+			});
+			Object.defineProperty(navigator, "locks", {
+				configurable: true,
+				value: undefined,
+			});
+
+			try {
+				vi.resetModules();
+				const { getRefreshAttemptId: getId } =
+					await import("@/lib/authenticated-request");
+				expect(await getId()).toBe(existingId);
+			} finally {
+				if (previousIndexedDB)
+					Object.defineProperty(window, "indexedDB", previousIndexedDB);
+				else Reflect.deleteProperty(window, "indexedDB");
+				if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+				else Reflect.deleteProperty(navigator, "locks");
+			}
+		},
+	);
+
+	it.each(["error", "abort"] as const)(
+		"advances the attempt ID through localStorage when its IndexedDB write transaction ends with %s",
+		async (event) => {
+			const previousIndexedDB = Object.getOwnPropertyDescriptor(
+				window,
+				"indexedDB",
+			);
+			const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+			const sharedIndexedDb = createSharedIndexedDb({
+				transactionEvent: { transactionNumber: 2, event },
+			});
+			Object.defineProperty(window, "indexedDB", {
+				configurable: true,
+				value: sharedIndexedDb.factory,
+			});
+			Object.defineProperty(navigator, "locks", {
+				configurable: true,
+				value: undefined,
+			});
+			let protectedRequests = 0;
+			let refreshId = "";
+			vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.includes("/api/auth/refresh")) {
+					refreshId =
+						(
+							JSON.parse(String(init?.body ?? "{}")) as {
+								refreshAttemptId?: string;
+							}
+						).refreshAttemptId ?? "";
+					return new Response(null, { status: 200 });
+				}
+				protectedRequests += 1;
+				return new Response(null, {
+					status: protectedRequests === 1 ? 401 : 200,
+				});
+			});
+
+			try {
+				vi.resetModules();
+				const {
+					authenticatedFetch: fetchAuthenticated,
+					getRefreshAttemptId: getId,
+				} = await import("@/lib/authenticated-request");
+				const response = await fetchAuthenticated(session, "/api/catalog/home");
+				const originalId = refreshId;
+				Object.defineProperty(window, "indexedDB", {
+					configurable: true,
+					value: undefined,
+				});
+				const nextId = await getId();
+
+				expect(response.ok).toBe(true);
+				expect(originalId).toMatch(
+					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+				);
+				expect(nextId).not.toBe(originalId);
+				expect(window.localStorage.getItem(refreshAttemptIdKey())).toBe(nextId);
+				expect(sharedIndexedDb.values.get(refreshAttemptIdKey())).toBe(originalId);
+			} finally {
+				if (previousIndexedDB)
+					Object.defineProperty(window, "indexedDB", previousIndexedDB);
+				else Reflect.deleteProperty(window, "indexedDB");
+				if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+				else Reflect.deleteProperty(navigator, "locks");
+			}
+		},
+	);
+
+	it("falls back to localStorage when the Web Locks request rejects", async () => {
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: undefined,
+		});
+		const locks = {
+			request: vi.fn(() => Promise.reject(new Error("lock failed"))),
+		};
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: locks,
+		});
+
+		try {
+			vi.resetModules();
+			const { getRefreshAttemptId: getId } =
+				await import("@/lib/authenticated-request");
+			const id = await getId();
+
+			expect(id).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+			);
+			expect(window.localStorage.getItem(refreshAttemptIdKey())).toBe(id);
+			expect(locks.request).toHaveBeenCalledTimes(1);
+		} finally {
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
+	it("keeps an in-memory attempt ID when both browser storage calls fail", async () => {
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: undefined,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+		vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+			throw new DOMException("storage unavailable");
+		});
+		vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+			throw new DOMException("storage unavailable");
+		});
+		let protectedRequests = 0;
+		let refreshId = "";
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.includes("/api/auth/refresh")) {
+				refreshId =
+					(
+						JSON.parse(String(init?.body ?? "{}")) as {
+							refreshAttemptId?: string;
+						}
+					).refreshAttemptId ?? "";
+				return new Response(null, { status: 200 });
+			}
+			protectedRequests += 1;
+			return new Response(null, {
+				status: protectedRequests === 1 ? 401 : 200,
+			});
+		});
+
+		try {
+			vi.resetModules();
+			const {
+				authenticatedFetch: fetchAuthenticated,
+				getRefreshAttemptId: getId,
+			} = await import("@/lib/authenticated-request");
+			const response = await fetchAuthenticated(session, "/api/catalog/home");
+			const originalId = refreshId;
+			Object.defineProperty(window, "indexedDB", {
+				configurable: true,
+				value: undefined,
+			});
+			const nextId = await getId();
+
+			expect(response.ok).toBe(true);
+			expect(originalId).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+			);
+			expect(nextId).not.toBe(originalId);
+		} finally {
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
+	});
+
+	it("advances the in-memory attempt ID during server-side refresh", async () => {
+		const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: undefined,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+		let protectedRequests = 0;
+		let refreshId = "";
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url.includes("/api/auth/refresh")) {
+				refreshId =
+					(
+						JSON.parse(String(init?.body ?? "{}")) as {
+							refreshAttemptId?: string;
+						}
+					).refreshAttemptId ?? "";
+				return new Response(null, { status: 200 });
+			}
+			protectedRequests += 1;
+			return new Response(null, {
+				status: protectedRequests === 1 ? 401 : 200,
+			});
+		});
+
+		try {
+			vi.resetModules();
+			const {
+				authenticatedFetch: fetchAuthenticated,
+				getRefreshAttemptId: getId,
+			} = await import("@/lib/authenticated-request");
+			const originalId = await getId();
+			const response = await fetchAuthenticated(session, "/api/catalog/home");
+
+			expect(response.ok).toBe(true);
+			expect(refreshId).toBe(originalId);
+			expect(await getId()).not.toBe(originalId);
+		} finally {
+			if (previousWindow)
+				Object.defineProperty(globalThis, "window", previousWindow);
+			else Reflect.deleteProperty(globalThis, "window");
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+		}
 	});
 
 	it("does not persist a bearer token in readable cookies", () => {

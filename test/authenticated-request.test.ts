@@ -1,13 +1,95 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { validateBrowserSession } from "@/lib/media-api";
-import { authenticatedFetch } from "@/lib/authenticated-request";
+import {
+	authenticatedFetch,
+	getRefreshAttemptId,
+	orchestratorBaseUrl,
+} from "@/lib/authenticated-request";
 import { clearAuthCookies, setAuthCookies } from "@/lib/session";
 
 const session = { token: "", userId: "user-1", username: "Alex" };
+const refreshAttemptIdKey = () =>
+	`zenstream.auth-refresh-attempt-id:${new URL(orchestratorBaseUrl()).origin}`;
+
+function createSharedIndexedDb() {
+	const values = new Map<string, unknown>();
+	let objectStoreCreated = false;
+	let transactionTail: Promise<void> = Promise.resolve();
+	const database = {
+		objectStoreNames: {
+			contains: (name: string) => name === "attempts" && objectStoreCreated,
+		},
+		createObjectStore: vi.fn((name: string) => {
+			if (name === "attempts") objectStoreCreated = true;
+			return {};
+		}),
+		close: vi.fn(),
+		transaction: vi.fn(() => {
+			const operations: Array<() => void> = [];
+			const transaction = {
+				objectStore: vi.fn(() => ({
+					get: vi.fn((key: string) => {
+						const request: {
+							result: unknown;
+							onsuccess: ((event: Event) => void) | null;
+						} = { result: undefined, onsuccess: null };
+						operations.push(() => {
+							request.result = values.get(key);
+							request.onsuccess?.(new Event("success"));
+						});
+						return request;
+					}),
+					put: vi.fn((value: unknown, key: string) => {
+						operations.push(() => values.set(key, value));
+						return {};
+					}),
+				})),
+				oncomplete: null as ((event: Event) => void) | null,
+			};
+
+			const previous = transactionTail;
+			let release!: () => void;
+			transactionTail = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			queueMicrotask(async () => {
+				await previous;
+				for (const operation of operations) {
+					operation();
+					await Promise.resolve();
+				}
+				transaction.oncomplete?.(new Event("complete"));
+				release();
+			});
+			return transaction;
+		}),
+	};
+	const factory = {
+		open: vi.fn(() => {
+			const request: {
+				result: typeof database;
+				onupgradeneeded: ((event: Event) => void) | null;
+				onsuccess: ((event: Event) => void) | null;
+			} = {
+				result: database,
+				onupgradeneeded: null,
+				onsuccess: null,
+			};
+			queueMicrotask(() => {
+				if (!objectStoreCreated)
+					request.onupgradeneeded?.(new Event("upgradeneeded"));
+				request.onsuccess?.(new Event("success"));
+			});
+			return request;
+		}),
+	} as unknown as IDBFactory;
+	return { factory, values };
+}
 
 afterEach(() => {
 	vi.restoreAllMocks();
 	clearAuthCookies();
+	window.localStorage.removeItem(refreshAttemptIdKey());
 });
 
 describe("browser authentication transport", () => {
@@ -84,23 +166,191 @@ describe("browser authentication transport", () => {
 		);
 	});
 
-	it("rechecks protected requests under the cross-tab refresh lock", async () => {
+	it("serializes first-use refresh ID creation across tabs with empty storage", async () => {
+		window.localStorage.removeItem(refreshAttemptIdKey());
 		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: undefined,
+		});
 		let lockTail = Promise.resolve();
 		const locks = {
-			request: vi.fn(async (_name: string, callback: () => Promise<Response>) => {
-				const previous = lockTail;
-				let release!: () => void;
-				lockTail = new Promise<void>((resolve) => {
-					release = resolve;
-				});
-				await previous;
-				try {
-					return await callback();
-				} finally {
-					release();
+			request: vi.fn(
+				async (_name: string, callback: () => Promise<string> | string) => {
+					const previous = lockTail;
+					let release!: () => void;
+					lockTail = new Promise<void>((resolve) => {
+						release = resolve;
+					});
+					await previous;
+					try {
+						return await callback();
+					} finally {
+						release();
+					}
+				},
+			),
+		};
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: locks,
+		});
+
+		try {
+			const tabOneGetId = getRefreshAttemptId;
+			vi.resetModules();
+			const { getRefreshAttemptId: tabTwoGetId } =
+				await import("@/lib/authenticated-request");
+			const [tabOneId, tabTwoId] = await Promise.all([
+				tabOneGetId(),
+				tabTwoGetId(),
+			]);
+
+			expect(tabOneId).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+			);
+			expect(tabTwoId).toBe(tabOneId);
+			expect(window.localStorage.getItem(refreshAttemptIdKey())).toBe(tabOneId);
+			expect(locks.request).toHaveBeenCalledTimes(2);
+			expect(locks.request).toHaveBeenCalledWith(
+				expect.stringContaining("zenstream:auth-refresh-attempt-id"),
+				expect.any(Function),
+			);
+		} finally {
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+		}
+	});
+
+	it("shares a first-use refresh attempt ID across tabs without Web Locks", async () => {
+		window.localStorage.removeItem(refreshAttemptIdKey());
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		const previousIndexedDB = Object.getOwnPropertyDescriptor(
+			window,
+			"indexedDB",
+		);
+		const indexedDb = createSharedIndexedDb();
+		Object.defineProperty(window, "indexedDB", {
+			configurable: true,
+			value: indexedDb.factory,
+		});
+		Object.defineProperty(navigator, "locks", {
+			configurable: true,
+			value: undefined,
+		});
+
+		let releaseRefreshes!: () => void;
+		const bothRefreshesStarted = new Promise<void>((resolve) => {
+			releaseRefreshes = resolve;
+		});
+		const refreshAttemptIds: string[] = [];
+		let rotated = false;
+		let familyRevoked = false;
+		let acceptedAttemptId: string | undefined;
+		const protectedAttempts = new Map<string, number>();
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(async (input, init) => {
+				const url = String(input);
+				if (url.includes("/api/auth/refresh")) {
+					const body = JSON.parse(String(init?.body ?? "{}")) as {
+						refreshAttemptId?: string;
+					};
+					refreshAttemptIds.push(body.refreshAttemptId ?? "");
+					if (refreshAttemptIds.length === 2) releaseRefreshes();
+					await bothRefreshesStarted;
+
+					if (acceptedAttemptId === undefined) {
+						acceptedAttemptId = body.refreshAttemptId;
+						rotated = true;
+					} else if (body.refreshAttemptId !== acceptedAttemptId) {
+						familyRevoked = true;
+					}
+					return new Response(null, {
+						status: familyRevoked ? 401 : 200,
+					});
 				}
-			}),
+
+				const attempts = (protectedAttempts.get(url) ?? 0) + 1;
+				protectedAttempts.set(url, attempts);
+				return new Response(null, {
+					status: attempts === 1 || !rotated || familyRevoked ? 401 : 200,
+				});
+			});
+
+		try {
+			const tabOneFetch = authenticatedFetch;
+			vi.resetModules();
+			const { authenticatedFetch: tabTwoFetch } =
+				await import("@/lib/authenticated-request");
+			const responses = await Promise.all([
+				tabOneFetch(session, "/api/catalog/home"),
+				tabTwoFetch(session, "/api/catalog/libraries"),
+			]);
+
+			expect(responses.every((response) => response.ok)).toBe(true);
+			expect(refreshAttemptIds).toHaveLength(2);
+			expect(refreshAttemptIds[0]).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+			);
+			expect(refreshAttemptIds[1]).toBe(refreshAttemptIds[0]);
+			expect(familyRevoked).toBe(false);
+			const nextAttemptId = window.localStorage.getItem(refreshAttemptIdKey());
+			expect(nextAttemptId).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+			);
+			expect(nextAttemptId).not.toBe(refreshAttemptIds[0]);
+			expect(indexedDb.values.get(refreshAttemptIdKey())).toBe(nextAttemptId);
+			const refreshCalls = fetchMock.mock.calls.filter(([input]) =>
+				String(input).includes("/api/auth/refresh"),
+			);
+			expect(
+				refreshCalls.map(([, init]) => JSON.parse(String(init?.body ?? "{}"))),
+			).toEqual([
+				{ refreshAttemptId: refreshAttemptIds[0] },
+				{ refreshAttemptId: refreshAttemptIds[0] },
+			]);
+			expect(
+				refreshCalls.every(([, init]) => init?.credentials === "include"),
+			).toBe(true);
+		} finally {
+			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);
+			else Reflect.deleteProperty(navigator, "locks");
+			if (previousIndexedDB)
+				Object.defineProperty(window, "indexedDB", previousIndexedDB);
+			else Reflect.deleteProperty(window, "indexedDB");
+		}
+	});
+
+	it("rechecks protected requests under the cross-tab refresh lock", async () => {
+		const previousLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+		const lockTails = new Map<string, Promise<void>>();
+		const locks = {
+			request: vi.fn(
+				async (name: string, callback: () => Promise<Response | string>) => {
+					const previous = lockTails.get(name) ?? Promise.resolve();
+					let release!: () => void;
+					lockTails.set(
+						name,
+						new Promise<void>((resolve) => {
+							release = resolve;
+						}),
+					);
+					await previous;
+					try {
+						return await callback();
+					} finally {
+						release();
+					}
+				},
+			),
 		};
 		Object.defineProperty(navigator, "locks", {
 			configurable: true,
@@ -136,11 +386,15 @@ describe("browser authentication transport", () => {
 			expect(
 				[...protectedAttempts.values()].reduce((sum, count) => sum + count, 0),
 			).toBe(5);
-			expect(locks.request).toHaveBeenCalledTimes(2);
-			expect(locks.request).toHaveBeenCalledWith(
-				expect.stringContaining("zenstream:auth-refresh"),
-				expect.any(Function),
-			);
+			const lockNames = locks.request.mock.calls.map(([name]) => name);
+			expect(
+				lockNames.filter((name) => name.startsWith("zenstream:auth-refresh:")),
+			).toHaveLength(2);
+			expect(
+				lockNames.filter((name) =>
+					name.startsWith("zenstream:auth-refresh-attempt-id:"),
+				),
+			).toHaveLength(1);
 			expect(fetchMock).toHaveBeenCalled();
 		} finally {
 			if (previousLocks) Object.defineProperty(navigator, "locks", previousLocks);

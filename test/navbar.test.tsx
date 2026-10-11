@@ -165,7 +165,7 @@ describe("Navbar", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Profile" }));
 		await waitFor(() => expect(getModels).toHaveBeenCalledTimes(1));
 
-		fireEvent.visibilityChange(document);
+		fireEvent(document, new Event("visibilitychange"));
 		await waitFor(() => expect(getModels).toHaveBeenCalledTimes(2));
 
 		fireEvent.pointerDown(document.body);
@@ -272,3 +272,4 @@ describe("Navbar", () => {
 		);
 	});
 });
+

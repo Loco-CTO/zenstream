@@ -269,6 +269,79 @@ describe("catalog client", () => {
 		expect(childrenRequest?.searchParams.get("view")).toBe("full");
 	});
 
+	it("loads every child across catalog pages", async () => {
+		const seasonId = "season-many-episodes";
+		const allEpisodes = Array.from({ length: 250 }, (_, index) => ({
+			id: `episode-${index + 1}`,
+			libraryId: "shows",
+			type: "episode",
+			name: `Episode ${index + 1}`,
+			seasonId,
+			episodeNumber: index + 1,
+			metadata: { title: `Episode ${index + 1}` },
+		}));
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation((input) => {
+				const url = new URL(String(input));
+				if (url.pathname === `/api/catalog/items/${seasonId}`) {
+					return Promise.resolve(
+						new Response(
+							JSON.stringify({
+								id: seasonId,
+								libraryId: "shows",
+								type: "season",
+								name: "Season 1",
+								metadata: { title: "Season 1" },
+							}),
+							{ status: 200 },
+						),
+					);
+				}
+				if (
+					url.pathname === "/api/catalog/items" &&
+					url.searchParams.get("parentId") === seasonId
+				) {
+					const page = Number(url.searchParams.get("page"));
+					const pageSize = Number(url.searchParams.get("pageSize"));
+					const offset = (page - 1) * pageSize;
+					return Promise.resolve(
+						new Response(
+							JSON.stringify({
+								items: allEpisodes.slice(offset, offset + pageSize),
+								page,
+								pageSize,
+								total: allEpisodes.length,
+							}),
+							{ status: 200 },
+						),
+					);
+				}
+				return Promise.resolve(new Response(null, { status: 404 }));
+			});
+
+		const episodes = await getEpisodes(session, "series-1", seasonId);
+		const childRequests = fetchMock.mock.calls
+			.map(([input]) => new URL(String(input)))
+			.filter(
+				(url) =>
+					url.pathname === "/api/catalog/items" &&
+					url.searchParams.get("parentId") === seasonId,
+			);
+
+		expect(episodes).toHaveLength(250);
+		expect(episodes[0]?.Id).toBe("episode-1");
+		expect(episodes[249]?.Id).toBe("episode-250");
+		expect(childRequests.map((url) => url.searchParams.get("page"))).toEqual([
+			"1",
+			"2",
+			"3",
+		]);
+		expect(
+			childRequests.every((url) => url.searchParams.get("pageSize") === "100"),
+		).toBe(true);
+	});
+
 	it("loads source-specific intro and outro markers from the Orchestrator", async () => {
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
 			new Response(

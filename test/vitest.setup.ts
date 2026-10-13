@@ -16,6 +16,20 @@ vi.mock("next/navigation", () => ({
 	useSearchParams: () => new URLSearchParams(),
 }));
 
+vi.mock("next/image", () => ({
+	__esModule: true,
+	default: (props: any) => {
+		const { src, alt, ...rest } = props;
+		const resolvedSrc =
+			typeof src === "string"
+				? src
+				: src && typeof src === "object"
+					? src.src
+					: "";
+		return <img {...rest} src={resolvedSrc} alt={alt ?? ""} />;
+	},
+}));
+
 Object.defineProperty(window, "matchMedia", {
 	configurable: true,
 	value: vi.fn().mockImplementation((query: string) => ({

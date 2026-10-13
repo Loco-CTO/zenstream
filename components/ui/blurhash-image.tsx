@@ -4,7 +4,7 @@ import { decode } from "blurhash";
 import { Clapperboard } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, CSSProperties } from "react";
 import { artworkVariantUrl, type MediaImage } from "@/lib/media-api";
 
 type BlurHashImageProps = Omit<
@@ -52,7 +52,12 @@ export function BlurHashImage({
 					className={`pointer-events-none absolute inset-0 h-full w-full scale-105 bg-cover bg-center [clip-path:inset(0)] blur-xl transition-opacity duration-150 ${
 						loaded ? "opacity-0" : "opacity-100"
 					}`}
-					style={{ backgroundImage: `url("${placeholder}")` }}
+					style={
+						{
+							"--blurhash-image": `url("${placeholder}")`,
+							backgroundImage: "var(--blurhash-image)",
+						} as CSSProperties
+					}
 				/>
 			)}
 			{failed ? (

@@ -19,8 +19,18 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/image", () => ({
 	__esModule: true,
-	default: (props: { src?: unknown; alt?: string; [key: string]: unknown }) => {
-		const { src, alt, ...rest } = props;
+	default: (props: {
+		src?: unknown;
+		alt?: string;
+		loader?: (params: { src: string; width: number }) => string;
+		unoptimized?: boolean;
+		fill?: boolean;
+		quality?: number;
+		[key: string]: unknown;
+	}) => {
+		const { src, alt, loader, unoptimized, ...rest } = props;
+		delete rest.fill;
+		delete rest.quality;
 		const resolvedSrc =
 			typeof src === "string"
 				? src
@@ -30,9 +40,21 @@ vi.mock("next/image", () => ({
 					  typeof src.src === "string"
 					? src.src
 					: "";
+		const widths = [128, 256, 384];
+		const resolvedSrcSet =
+			loader && !unoptimized
+				? widths
+						.map((width) => `${loader({ src: resolvedSrc, width })} ${width}w`)
+						.join(", ")
+				: undefined;
+		const displaySrc =
+			loader && !unoptimized
+				? loader({ src: resolvedSrc, width: widths[widths.length - 1] })
+				: resolvedSrc;
 		return createElement("img", {
 			...rest,
-			src: resolvedSrc,
+			src: displaySrc,
+			srcSet: resolvedSrcSet,
 			alt: alt ?? "",
 		} as ImgHTMLAttributes<HTMLImageElement>);
 	},

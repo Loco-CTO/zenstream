@@ -21,10 +21,13 @@ describe("BlurHashImage", () => {
 		const image = screen.getByRole("img", { name: "Poster" });
 		expect(image.getAttribute("src")).toContain("/poster.jpg");
 		expect(image.getAttribute("src")).not.toContain("/_next/image");
-		expect(
-			(container.querySelector("div[aria-hidden='true']") as HTMLElement).style
-				.backgroundImage,
-		).toContain("data:image/svg+xml");
+		const placeholder = container.querySelector(
+			"div[aria-hidden='true']",
+		) as HTMLElement;
+		expect(placeholder.style.backgroundImage).toBe("var(--blurhash-image)");
+		expect(placeholder.style.getPropertyValue("--blurhash-image")).toContain(
+			"data:image/svg+xml",
+		);
 		expect(container.querySelector("div[aria-hidden='true']")).not.toHaveClass(
 			"hero-backdrop-active",
 		);

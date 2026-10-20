@@ -9,6 +9,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      react-runtime:
+        patterns:
+          - "react"
+          - "react-dom"
 
   - package-ecosystem: "docker"
     directory: "/"

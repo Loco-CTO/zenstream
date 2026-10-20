@@ -286,7 +286,7 @@ export function Tooltip() {
 	useEffect(() => {
 		const tooltip = tooltipRef.current;
 		const target = active?.target;
-		if (!tooltip || !target) return;
+		if (!tooltip || !target) return undefined;
 
 		let frame: number | undefined;
 		/** Repositions the tooltip beside its current anchor. */

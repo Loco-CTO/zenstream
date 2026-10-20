@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 const TOOLTIP_ID = "zenstream-global-tooltip";
-const SHOW_DELAY_MS = 350;
 const EDGE_PADDING = 8;
 const ARROW_PADDING = 10;
 const TOOLTIP_TRANSLATIONS: Record<string, TranslationKey> = {
@@ -173,11 +172,8 @@ export function Tooltip() {
 	}, []);
 
 	useEffect(() => {
-		let showTimer: number | undefined;
-		/** Hides the active tooltip and clears any pending hover timer. */
+		/** Hides the active tooltip. */
 		const hide = () => {
-			if (showTimer !== undefined) window.clearTimeout(showTimer);
-			showTimer = undefined;
 			hoveredTargetRef.current = null;
 			setActiveTooltip(null);
 		};
@@ -190,7 +186,7 @@ export function Tooltip() {
 					.forEach(migrateNativeTitle);
 			}
 		};
-		/** Starts a delayed tooltip when a mouse or pen enters a labeled button. */
+		/** Shows a tooltip when a mouse or pen enters a labeled button. */
 		const handlePointerOver = (event: PointerEvent) => {
 			const button = buttonFromTarget(event.target);
 			if (!button) return;
@@ -209,17 +205,11 @@ export function Tooltip() {
 			}
 			const label = tooltipLabel(trigger);
 			if (!label) return;
-			if (showTimer !== undefined) window.clearTimeout(showTimer);
 			hoveredTargetRef.current = trigger;
-			showTimer = window.setTimeout(() => {
-				if (hoveredTargetRef.current !== trigger || !trigger.isConnected) return;
-				const currentLabel = tooltipLabel(trigger);
-				if (currentLabel)
-					setActiveTooltip({
-						target: trigger,
-						label: localizeTooltipLabel(currentLabel, t),
-					});
-			}, SHOW_DELAY_MS);
+			setActiveTooltip({
+				target: trigger,
+				label: localizeTooltipLabel(label, t),
+			});
 		};
 		/** Hides the tooltip after the pointer leaves its button. */
 		const handlePointerOut = (event: PointerEvent) => {
@@ -272,7 +262,6 @@ export function Tooltip() {
 		window.addEventListener("blur", hide);
 
 		return () => {
-			if (showTimer !== undefined) window.clearTimeout(showTimer);
 			observer.disconnect();
 			document.removeEventListener("pointerover", handlePointerOver, true);
 			document.removeEventListener("pointerout", handlePointerOut, true);

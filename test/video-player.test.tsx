@@ -1930,7 +1930,13 @@ describe("video player controls", () => {
 
 		const first = renderPlayer();
 		expect(first.getByRole("button", { name: "Unmute" })).toBeInTheDocument();
+		const firstVolumeButton = first.getByRole("button", { name: "Unmute" });
 		const firstSlider = first.getByRole("slider", { name: "Volume" });
+		const volumeControl = firstVolumeButton.parentElement;
+		expect(volumeControl).toHaveClass("group", "gap-2");
+		expect(volumeControl?.firstElementChild).toBe(firstVolumeButton);
+		expect(volumeControl).toContainElement(firstSlider);
+		expect(firstSlider.parentElement).toHaveClass("group-hover:w-20");
 		expect(firstSlider).toHaveValue("0");
 		fireEvent.click(first.getByRole("button", { name: "Unmute" }));
 		expect(firstSlider).toHaveValue("0.35");

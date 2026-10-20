@@ -3813,7 +3813,15 @@ export function VideoPlayer({
 							<Captions />
 						</button>
 					)}
-					<div className="group flex shrink-0 items-center">
+					<div className="group flex shrink-0 items-center gap-2">
+						<button
+							aria-label={muted ? "Unmute" : "Mute"}
+							aria-keyshortcuts="M"
+							onClick={() => setVideoMuted(!muted)}
+							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+						>
+							{muted ? <VolumeX /> : <Volume2 />}
+						</button>
 						<div className="relative h-5 w-0 shrink-0 overflow-hidden opacity-0 transition-[width,opacity] duration-200 group-hover:w-20 group-hover:opacity-100">
 							<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
 								<div
@@ -3834,14 +3842,6 @@ export function VideoPlayer({
 								className="zenstream-player-volume-slider relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 							/>
 						</div>
-						<button
-							aria-label={muted ? "Unmute" : "Mute"}
-							aria-keyshortcuts="M"
-							onClick={() => setVideoMuted(!muted)}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-						>
-							{muted ? <VolumeX /> : <Volume2 />}
-						</button>
 					</div>
 					<button
 						data-player-context-trigger

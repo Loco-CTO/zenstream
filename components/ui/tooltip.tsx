@@ -174,12 +174,14 @@ export function Tooltip() {
 
 	useEffect(() => {
 		let showTimer: number | undefined;
+		/** Hides the active tooltip and clears any pending hover timer. */
 		const hide = () => {
 			if (showTimer !== undefined) window.clearTimeout(showTimer);
 			showTimer = undefined;
 			hoveredTargetRef.current = null;
 			setActiveTooltip(null);
 		};
+		/** Migrates titles from a newly inserted button subtree. */
 		const scanNode = (node: Node) => {
 			if (node instanceof HTMLButtonElement) migrateNativeTitle(node);
 			if (node instanceof Element) {
@@ -188,6 +190,7 @@ export function Tooltip() {
 					.forEach(migrateNativeTitle);
 			}
 		};
+		/** Starts a delayed tooltip when a mouse or pen enters a labeled button. */
 		const handlePointerOver = (event: PointerEvent) => {
 			const button = buttonFromTarget(event.target);
 			if (!button) return;
@@ -218,6 +221,7 @@ export function Tooltip() {
 					});
 			}, SHOW_DELAY_MS);
 		};
+		/** Hides the tooltip after the pointer leaves its button. */
 		const handlePointerOut = (event: PointerEvent) => {
 			const hoveredTarget = hoveredTargetRef.current;
 			if (!hoveredTarget || !(event.target instanceof Node)) return;
@@ -285,37 +289,39 @@ export function Tooltip() {
 		if (!tooltip || !target) return;
 
 		let frame: number | undefined;
+		/** Repositions the tooltip beside its current anchor. */
 		const updatePosition = () => {
 			frame = undefined;
-			if (!target.isConnected) {
-				tooltip.style.visibility = "hidden";
-				return;
-			}
 			const anchor = target.getBoundingClientRect();
 			const viewportWidth =
 				document.documentElement.clientWidth || window.innerWidth;
 			const viewportHeight = window.innerHeight;
-			if (anchor.bottom < 0 || anchor.top > viewportHeight) {
+			if (
+				!target.isConnected ||
+				anchor.bottom < 0 ||
+				anchor.top > viewportHeight
+			) {
 				tooltip.style.visibility = "hidden";
-				return;
-			}
-			const bounds = tooltip.getBoundingClientRect();
-			const position = calculateTooltipPosition(
-				anchor,
-				{ width: bounds.width, height: bounds.height },
-				{ width: viewportWidth, height: viewportHeight },
-			);
-			tooltip.style.left = `${position.left}px`;
-			tooltip.style.top = `${position.top}px`;
-			tooltip.dataset.placement = position.side;
-			tooltip.style.visibility = "visible";
-			const arrow = tooltip.querySelector<HTMLElement>("[data-tooltip-arrow]");
-			if (arrow) {
-				arrow.style.left = `${position.arrowLeft}px`;
-				arrow.style.top = position.side === "bottom" ? "-4px" : "auto";
-				arrow.style.bottom = position.side === "top" ? "-4px" : "auto";
+			} else {
+				const bounds = tooltip.getBoundingClientRect();
+				const position = calculateTooltipPosition(
+					anchor,
+					{ width: bounds.width, height: bounds.height },
+					{ width: viewportWidth, height: viewportHeight },
+				);
+				tooltip.style.left = `${position.left}px`;
+				tooltip.style.top = `${position.top}px`;
+				tooltip.dataset.placement = position.side;
+				tooltip.style.visibility = "visible";
+				const arrow = tooltip.querySelector<HTMLElement>("[data-tooltip-arrow]");
+				if (arrow) {
+					arrow.style.left = `${position.arrowLeft}px`;
+					arrow.style.top = position.side === "bottom" ? "-4px" : "auto";
+					arrow.style.bottom = position.side === "top" ? "-4px" : "auto";
+				}
 			}
 		};
+		/** Schedules a position update on the next animation frame. */
 		const schedulePosition = () => {
 			if (frame !== undefined) cancelFrame(frame);
 			frame = requestFrame(updatePosition);

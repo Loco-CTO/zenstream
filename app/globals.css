@@ -119,6 +119,26 @@ body {
 	background: rgb(245 245 245);
 }
 
+.zenstream-player-volume-slider {
+	accent-color: rgb(196 181 253);
+}
+
+.zenstream-player-volume-slider::-webkit-slider-thumb {
+	appearance: none;
+	height: 0.75rem;
+	width: 0.75rem;
+	border-radius: 9999px;
+	background: rgb(196 181 253);
+}
+
+.zenstream-player-volume-slider::-moz-range-thumb {
+	height: 0.75rem;
+	width: 0.75rem;
+	border: 0;
+	border-radius: 9999px;
+	background: rgb(196 181 253);
+}
+
 @media (max-width: 640px) {
 	html {
 		font-size: 16px;
@@ -151,33 +171,6 @@ body {
 		margin-bottom: 0;
 		overflow-y: auto;
 		overscroll-behavior: contain;
-	}
-
-	.zenstream-player-volume-popover {
-		position: fixed;
-		top: auto;
-		right: auto;
-		bottom: calc(4.75rem + env(safe-area-inset-bottom));
-		left: 50%;
-		width: 3.5rem;
-		height: min(
-			9rem,
-			calc(100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))
-		);
-		max-height: calc(
-			100dvh - 6rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-		);
-		padding: 0.75rem 0.5rem;
-	}
-
-	.zenstream-player-volume-input {
-		height: min(
-			7rem,
-			calc(
-				100dvh - 7.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-			)
-		);
-		max-height: 100%;
 	}
 
 	.zenstream-player-next-up {

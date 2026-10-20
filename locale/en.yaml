@@ -140,6 +140,13 @@ duration: Duration
 volume: Volume
 mute: Mute
 unmute: Unmute
+skipBackTenSeconds: Skip back 10 seconds
+skipForwardTenSeconds: Skip forward 10 seconds
+fullscreen: Fullscreen
+exitFullscreen: Exit fullscreen
+copyColor: Copy color
+colorCopied: Color copied
+closePlayer: Close player
 lyrics: Lyrics
 openLyrics: Open lyrics
 closeLyrics: Close lyrics

@@ -142,6 +142,13 @@ duration: 再生時間
 volume: 音量
 mute: ミュート
 unmute: ミュート解除
+skipBackTenSeconds: 10秒戻る
+skipForwardTenSeconds: 10秒進む
+fullscreen: 全画面表示
+exitFullscreen: 全画面表示を終了
+copyColor: 色をコピー
+colorCopied: 色をコピーしました
+closePlayer: プレーヤーを閉じる
 lyrics: 歌詞
 openLyrics: 歌詞を開く
 closeLyrics: 歌詞を閉じる

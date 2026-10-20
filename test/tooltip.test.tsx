@@ -164,8 +164,8 @@ describe("global tooltip", () => {
 	});
 
 	it("uses timeout frames and cancels a pending fallback update", () => {
-		vi.stubGlobal("requestAnimationFrame", undefined);
-		vi.stubGlobal("cancelAnimationFrame", undefined);
+		vi.stubGlobal("requestAnimationFrame", null);
+		vi.stubGlobal("cancelAnimationFrame", null);
 		const clearTimeout = vi.spyOn(window, "clearTimeout");
 		const view = render(
 			<>
@@ -220,7 +220,7 @@ describe("global tooltip", () => {
 		vi.stubGlobal(
 			"requestAnimationFrame",
 			vi.fn((callback: FrameRequestCallback) => {
-				callback(0);
+				callback(performance.now());
 				return 1;
 			}),
 		);

@@ -573,7 +573,6 @@ export function PlaylistDetailPage({
 						type="button"
 						onClick={() => void sharePlaylist()}
 						aria-label={copied ? t("linkCopied") : t("copyShareLink")}
-						title={copied ? t("linkCopied") : t("copyShareLink")}
 						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 					>
 						<Share2 className="h-5 w-5" />
@@ -584,7 +583,6 @@ export function PlaylistDetailPage({
 						type="button"
 						onClick={() => setEditOpen(true)}
 						aria-label={t("editPlaylist")}
-						title={t("editPlaylist")}
 						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 					>
 						<SquarePen className="h-5 w-5" />
@@ -595,7 +593,6 @@ export function PlaylistDetailPage({
 						type="button"
 						onClick={() => setDeleteOpen(true)}
 						aria-label={t("deletePlaylist")}
-						title={t("deletePlaylist")}
 						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-red-200/65 transition-colors hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
 					>
 						<Trash2 className="h-5 w-5" />
@@ -847,7 +844,6 @@ const PlaylistTrackList = memo(function PlaylistTrackList({
 										type="button"
 										disabled={busy}
 										aria-label={removeLabel}
-										title={removeLabel}
 										onClick={() => void onRemove(entry.entryId)}
 										className="rounded p-1 text-white/35 transition hover:bg-white/[0.08] hover:text-white disabled:opacity-25"
 									>

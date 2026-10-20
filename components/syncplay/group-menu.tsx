@@ -259,9 +259,6 @@ export function SyncplayGroupMenu({
 																				aria-label={t("syncplayRemoveMember", {
 																					member: member.username,
 																				})}
-																				title={t("syncplayRemoveMember", {
-																					member: member.username,
-																				})}
 																				className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
 																			>
 																				<Trash2 className="h-3.5 w-3.5" />
@@ -393,7 +390,6 @@ function ActiveGroupView({
 									aria-label={t("syncplayRemoveMember", {
 										member: member.username,
 									})}
-									title={t("syncplayRemoveMember", { member: member.username })}
 									className="absolute right-0 rounded-md p-1 text-red-100/45 transition hover:bg-red-200/10 hover:text-red-100"
 								>
 									<Trash2 className="h-3.5 w-3.5" />

@@ -682,7 +682,6 @@ function SelectionPanel({
 						<button
 							type="button"
 							aria-label={t(event.following ? "unfollow" : "follow")}
-							title={t(event.following ? "unfollow" : "follow")}
 							onClick={onFollow}
 							className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-[11px] font-semibold transition ${event.following ? "border-violet-300/40 bg-violet-400/15 text-violet-200" : "border-white/[0.1] text-white/60 hover:border-white/25 hover:text-white"}`}
 						>

@@ -44,7 +44,6 @@ export function CopyShareLinkButton({
 				type="button"
 				onClick={() => void copyLink()}
 				aria-label={feedback || t("copyShareLink")}
-				title={feedback || t("copyShareLink")}
 				className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${className}`}
 			>
 				{copied ? (

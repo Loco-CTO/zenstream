@@ -130,6 +130,7 @@ import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behav
 import { SyncplayProvider } from "@/lib/syncplay";
 import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
 import { ToastProvider } from "@/components/ui/toast";
+import { Tooltip } from "@/components/ui/tooltip";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 import { AudioPlayerProvider } from "@/components/audio/audio-player-provider";
@@ -1208,6 +1209,7 @@ export function AppShell() {
 	return (
 		<I18nProvider locale={effectiveLocale}>
 			<NativeAppBanner />
+			<Tooltip />
 			<ToastProvider>
 				<SubtitlePreferencesProvider>
 					{renderStatus === "checking" ? (

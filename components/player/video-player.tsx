@@ -3813,8 +3813,14 @@ export function VideoPlayer({
 							<Captions />
 						</button>
 					)}
-					<div className="group relative flex items-center">
-						<div className="zenstream-player-volume-popover pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 max-h-[30vh] -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+					<div className="group flex shrink-0 items-center">
+						<div className="relative h-5 w-0 shrink-0 overflow-hidden opacity-0 transition-[width,opacity] duration-200 group-hover:w-20 group-hover:opacity-100">
+							<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
+								<div
+									className="h-full bg-violet-300 transition-[width] duration-100"
+									style={{ width: `${(muted ? 0 : volume) * 100}%` }}
+								/>
+							</div>
 							<input
 								aria-label="Volume"
 								type="range"
@@ -3825,7 +3831,7 @@ export function VideoPlayer({
 								onChange={(event) => {
 									setVideoVolume(Number(event.target.value));
 								}}
-								className="zenstream-player-volume-input h-28 w-5 cursor-pointer [writing-mode:vertical-lr] [direction:rtl] accent-violet-300"
+								className="zenstream-player-volume-slider relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 							/>
 						</div>
 						<button

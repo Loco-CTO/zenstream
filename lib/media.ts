@@ -150,12 +150,6 @@ function areBatchEpisodes(a: MediaItem, b: MediaItem) {
 		b.Type === "Episode" &&
 		Boolean(a.SeriesId) &&
 		a.SeriesId === b.SeriesId &&
-		Boolean(a.SeasonId) &&
-		a.SeasonId === b.SeasonId &&
-		a.ParentIndexNumber === b.ParentIndexNumber &&
-		a.IndexNumber != null &&
-		b.IndexNumber != null &&
-		Math.abs(a.IndexNumber - b.IndexNumber) === 1 &&
 		addedWithinOneHour(a.LastAddedAt, b.LastAddedAt)
 	);
 }

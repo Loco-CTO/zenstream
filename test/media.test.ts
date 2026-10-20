@@ -37,7 +37,7 @@ describe("random hero selection", () => {
 });
 
 describe("newly added grouping", () => {
-	it("stacks adjacent sequential episodes added within one hour", () => {
+	it("stacks adjacent episodes from the same series added within one hour", () => {
 		const items: MediaItem[] = [
 			episode("ep-2", "series-1", 2, "2026-01-01T12:00:00Z"),
 			episode("ep-1", "series-1", 1, "2026-01-01T11:15:00Z"),
@@ -49,13 +49,38 @@ describe("newly added grouping", () => {
 		).toEqual([["ep-2", "ep-1"], ["other"]]);
 	});
 
-	it("does not stack non-sequential or separately added releases", () => {
+	it("stacks consecutive episodes even when their episode numbers are out of order", () => {
+		const items: MediaItem[] = [
+			episode("ep-5", "series-1", 5, "2026-01-01T12:00:00Z"),
+			episode("ep-4", "series-1", 4, "2026-01-01T11:45:00Z"),
+			episode("ep-1", "series-1", 1, "2026-01-01T11:30:00Z"),
+			episode("ep-3", "series-1", 3, "2026-01-01T11:15:00Z"),
+			episode("ep-2", "series-1", 2, "2026-01-01T11:00:00Z"),
+		];
+
 		expect(
-			stackNewlyAdded([
-				episode("ep-3", "series-1", 3, "2026-01-01T12:00:00Z"),
-				episode("ep-1", "series-1", 1, "2026-01-01T11:30:00Z"),
-			]),
-		).toHaveLength(2);
+			stackNewlyAdded(items).map((stack) => stack.items.map((item) => item.Id)),
+		).toEqual([["ep-5", "ep-4", "ep-1", "ep-3", "ep-2"]]);
+	});
+
+	it("starts a new stack when another series interrupts the run", () => {
+		const items: MediaItem[] = [
+			episode("series-1-ep-1", "series-1", 1, "2026-01-01T12:00:00Z"),
+			episode("series-1-ep-3", "series-1", 3, "2026-01-01T11:45:00Z"),
+			episode("series-2-ep-1", "series-2", 1, "2026-01-01T11:30:00Z"),
+			episode("series-1-ep-5", "series-1", 5, "2026-01-01T11:15:00Z"),
+		];
+
+		expect(
+			stackNewlyAdded(items).map((stack) => stack.items.map((item) => item.Id)),
+		).toEqual([
+			["series-1-ep-1", "series-1-ep-3"],
+			["series-2-ep-1"],
+			["series-1-ep-5"],
+		]);
+	});
+
+	it("does not stack separately added releases", () => {
 		expect(
 			stackNewlyAdded([
 				episode("ep-2", "series-1", 2, "2026-01-01T12:00:00Z"),

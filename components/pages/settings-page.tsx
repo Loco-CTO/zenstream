@@ -929,7 +929,6 @@ function ColorControl({
 	value: string;
 	onChange: (value: string) => void;
 }) {
-	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
 	const [position, setPosition] = useState<ColorPickerPosition>("below");
 	const controlRef = useRef<HTMLDivElement>(null);
@@ -1161,7 +1160,8 @@ function ColorControl({
 						/>
 						<button
 							type="button"
-							aria-label={copied ? t("colorCopied") : t("copyColor")}
+							aria-label="Copy color"
+							title={copied ? "Copied" : "Copy color"}
 							onClick={async () => {
 								await navigator.clipboard?.writeText(value.toUpperCase());
 								setCopied(true);

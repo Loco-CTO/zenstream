@@ -3464,7 +3464,7 @@ export function VideoPlayer({
 				className={`absolute left-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex max-w-[calc(100%-4.5rem)] items-start gap-2 transition-opacity duration-300 sm:left-5 sm:top-5 sm:gap-3 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 			>
 				<button
-					aria-label={t("closePlayer")}
+					aria-label="Close player"
 					className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white"
 					onClick={handleClose}
 				>
@@ -3701,7 +3701,7 @@ export function VideoPlayer({
 						)}
 					</div>
 					<input
-						aria-label={t("seek")}
+						aria-label="Seek"
 						type="range"
 						min="0"
 						max={duration}
@@ -3749,7 +3749,7 @@ export function VideoPlayer({
 				</div>
 				<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
 					<button
-						aria-label={t("skipBackTenSeconds")}
+						aria-label="Skip back 10 seconds"
 						aria-keyshortcuts="ArrowLeft J"
 						onClick={() => seek(-10)}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
@@ -3757,7 +3757,7 @@ export function VideoPlayer({
 						<SkipBack />
 					</button>
 					<button
-						aria-label={playing ? t("pause") : t("play")}
+						aria-label={playing ? "Pause" : "Play"}
 						aria-keyshortcuts="Space K"
 						onClick={togglePlay}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
@@ -3765,7 +3765,7 @@ export function VideoPlayer({
 						{playing ? <Pause /> : <Play />}
 					</button>
 					<button
-						aria-label={t("skipForwardTenSeconds")}
+						aria-label="Skip forward 10 seconds"
 						aria-keyshortcuts="ArrowRight L"
 						onClick={() => seek(10)}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
@@ -3778,7 +3778,7 @@ export function VideoPlayer({
 						aria-label={timeDisplayActionLabel}
 						aria-keyshortcuts="T"
 						aria-pressed={timeDisplayMode === "elapsed"}
-						data-tooltip={timeDisplayActionLabel}
+						title={timeDisplayActionLabel}
 						onClick={toggleTimeDisplay}
 						className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center px-1 text-xs tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60 sm:min-w-[6.25rem] sm:text-sm"
 					>
@@ -3816,7 +3816,7 @@ export function VideoPlayer({
 					<div className="group relative flex items-center">
 						<div className="zenstream-player-volume-popover pointer-events-none absolute bottom-full left-1/2 z-30 flex h-36 max-h-[30vh] -translate-x-1/2 items-center rounded-2xl border border-white/20 bg-black/25 px-3 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
 							<input
-								aria-label={t("volume")}
+								aria-label="Volume"
 								type="range"
 								min="0"
 								max="1"
@@ -3829,7 +3829,7 @@ export function VideoPlayer({
 							/>
 						</div>
 						<button
-							aria-label={muted ? t("unmute") : t("mute")}
+							aria-label={muted ? "Unmute" : "Mute"}
 							aria-keyshortcuts="M"
 							onClick={() => setVideoMuted(!muted)}
 							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
@@ -3862,7 +3862,7 @@ export function VideoPlayer({
 						</button>
 					)}
 					<button
-						aria-label={t(isFullscreen ? "exitFullscreen" : "fullscreen")}
+						aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
 						aria-keyshortcuts="F"
 						onClick={toggleFullscreen}
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"

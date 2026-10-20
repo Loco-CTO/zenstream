@@ -2,12 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 const TOOLTIP_ID = "zenstream-global-tooltip";
 const SHOW_DELAY_MS = 350;
 const EDGE_PADDING = 8;
 const ARROW_PADDING = 10;
+const TOOLTIP_TRANSLATIONS: Record<string, TranslationKey> = {
+	"Close player": "closePlayer",
+	"Skip back 10 seconds": "skipBackTenSeconds",
+	"Skip forward 10 seconds": "skipForwardTenSeconds",
+	Play: "play",
+	Pause: "pause",
+	Mute: "mute",
+	Unmute: "unmute",
+	Fullscreen: "fullscreen",
+	"Exit fullscreen": "exitFullscreen",
+	"Copy color": "copyColor",
+	Copied: "colorCopied",
+};
 
+/** Schedules a callback for the next browser animation frame. */
 function requestFrame(callback: FrameRequestCallback) {
 	if (typeof window.requestAnimationFrame === "function") {
 		return window.requestAnimationFrame(callback);
@@ -15,6 +30,7 @@ function requestFrame(callback: FrameRequestCallback) {
 	return window.setTimeout(() => callback(performance.now()), 16);
 }
 
+/** Cancels a frame scheduled by {@link requestFrame}. */
 function cancelFrame(frame: number) {
 	if (typeof window.cancelAnimationFrame === "function") {
 		window.cancelAnimationFrame(frame);
@@ -35,6 +51,7 @@ export type TooltipPosition = {
 	arrowLeft: number;
 };
 
+/** Keeps a tooltip inside the viewport and flips it when there is more room. */
 export function calculateTooltipPosition(
 	anchor: { left: number; top: number; width: number; height: number },
 	tooltip: { width: number; height: number },
@@ -73,6 +90,7 @@ export function calculateTooltipPosition(
 	return { left, top, side, arrowLeft };
 }
 
+/** Finds the nearest button for a delegated pointer event. */
 function buttonFromTarget(
 	target: EventTarget | null,
 ): HTMLButtonElement | null {
@@ -81,10 +99,12 @@ function buttonFromTarget(
 	return button instanceof HTMLButtonElement ? button : null;
 }
 
+/** Returns whether a button has visible text content. */
 function hasVisibleText(button: HTMLButtonElement) {
 	return (button.innerText ?? button.textContent ?? "").trim().length > 0;
 }
 
+/** Selects icon-only buttons and buttons with an explicit tooltip label. */
 function tooltipTrigger(button: HTMLButtonElement) {
 	if (button.hasAttribute("data-tooltip")) return button;
 	if (button.getAttribute("aria-label")?.trim() && !hasVisibleText(button)) {
@@ -93,14 +113,25 @@ function tooltipTrigger(button: HTMLButtonElement) {
 	return null;
 }
 
+/** Reads the tooltip label, preferring an explicit or migrated title. */
 function tooltipLabel(button: HTMLButtonElement) {
 	return (
-		button.getAttribute("aria-label")?.trim() ||
 		button.getAttribute("data-tooltip")?.trim() ||
+		button.getAttribute("aria-label")?.trim() ||
 		null
 	);
 }
 
+/** Localizes legacy English player labels while preserving localized labels. */
+function localizeTooltipLabel(
+	label: string,
+	t: (key: TranslationKey) => string,
+) {
+	const key = TOOLTIP_TRANSLATIONS[label];
+	return key ? t(key) : label;
+}
+
+/** Removes the browser's native title and migrates it to the global tooltip. */
 function migrateNativeTitle(button: HTMLButtonElement) {
 	if (!button.hasAttribute("title")) return;
 	const title = button.getAttribute("title")?.trim();
@@ -112,6 +143,7 @@ function migrateNativeTitle(button: HTMLButtonElement) {
 	}
 }
 
+/** Adds or removes the global tooltip's accessible description reference. */
 function updateDescribedBy(button: HTMLButtonElement, add: boolean) {
 	const ids = new Set(
 		(button.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean),
@@ -122,7 +154,9 @@ function updateDescribedBy(button: HTMLButtonElement, add: boolean) {
 	else button.removeAttribute("aria-describedby");
 }
 
+/** Renders the single viewport-aware tooltip for hovered buttons. */
 export function Tooltip() {
+	const { t } = useI18n();
 	const [active, setActive] = useState<TooltipTarget | null>(null);
 	const activeRef = useRef<TooltipTarget | null>(null);
 	const hoveredTargetRef = useRef<HTMLButtonElement | null>(null);
@@ -178,7 +212,10 @@ export function Tooltip() {
 				if (hoveredTargetRef.current !== trigger || !trigger.isConnected) return;
 				const currentLabel = tooltipLabel(trigger);
 				if (currentLabel)
-					setActiveTooltip({ target: trigger, label: currentLabel });
+					setActiveTooltip({
+						target: trigger,
+						label: localizeTooltipLabel(currentLabel, t),
+					});
 			}, SHOW_DELAY_MS);
 		};
 		const handlePointerOut = (event: PointerEvent) => {
@@ -206,7 +243,11 @@ export function Tooltip() {
 				if (record.attributeName === "title") migrateNativeTitle(button);
 				if (activeRef.current?.target === button) {
 					const label = tooltipLabel(button);
-					if (label) setActiveTooltip({ target: button, label });
+					if (label)
+						setActiveTooltip({
+							target: button,
+							label: localizeTooltipLabel(label, t),
+						});
 					else hide();
 				}
 			}
@@ -236,7 +277,7 @@ export function Tooltip() {
 			if (activeRef.current) updateDescribedBy(activeRef.current.target, false);
 			activeRef.current = null;
 		};
-	}, [setActiveTooltip]);
+	}, [setActiveTooltip, t]);
 
 	useEffect(() => {
 		const tooltip = tooltipRef.current;

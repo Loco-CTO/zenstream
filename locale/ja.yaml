@@ -140,14 +140,12 @@ plays: "{count}回再生"
 playCount: 再生回数
 duration: 再生時間
 volume: 音量
-seek: シーク
 mute: ミュート
 unmute: ミュート解除
 skipBackTenSeconds: 10秒戻る
 skipForwardTenSeconds: 10秒進む
 fullscreen: 全画面表示
 exitFullscreen: 全画面表示を終了
-episodeDetails: エピソードの詳細
 copyColor: 色をコピー
 colorCopied: 色をコピーしました
 closePlayer: プレーヤーを閉じる

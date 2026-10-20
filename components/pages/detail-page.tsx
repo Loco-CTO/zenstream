@@ -664,6 +664,7 @@ function ActionButton({
 	return (
 		<button
 			aria-label={label}
+			title={label}
 			onClick={onClick}
 			className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${active ? "border-violet-400/40 bg-violet-500/15 text-violet-300" : "border-white/15 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"}`}
 		>
@@ -892,6 +893,7 @@ function ItemActionButtons({
 			<button
 				type="button"
 				aria-label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
+				title={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
 				className={`${buttonClass} ${item.UserData?.Played ? "text-violet-300" : ""}`}
 				onClick={(event) => {
 					event.preventDefault();
@@ -904,6 +906,7 @@ function ItemActionButtons({
 			<button
 				type="button"
 				aria-label={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
+				title={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
 				className={`${buttonClass} ${item.UserData?.IsFavorite ? "text-violet-300" : ""}`}
 				onClick={(event) => {
 					event.preventDefault();

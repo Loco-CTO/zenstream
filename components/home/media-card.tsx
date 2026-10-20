@@ -386,7 +386,6 @@ export function WatchProgress({ progress }: { progress: number | undefined }) {
 }
 
 function CardText({ item }: { item: MediaItem }) {
-	const { t } = useI18n();
 	if (item.Type === "Episode" && item.SeriesId) {
 		return (
 			<div className="mt-2 min-w-0">
@@ -397,7 +396,7 @@ function CardText({ item }: { item: MediaItem }) {
 					{item.SeriesName ?? "Series"}
 				</Link>
 				<Link
-					aria-label={t("episodeDetails")}
+					aria-label="Episode details"
 					href={detailHref(item)}
 					className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline"
 				>

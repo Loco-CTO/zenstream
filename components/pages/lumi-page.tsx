@@ -689,6 +689,7 @@ export function LumiPage({ session }: LumiPageProps) {
 							<button
 								type="button"
 								aria-label={t("lumiClose")}
+								title={t("lumiClose")}
 								onClick={closeLumi}
 								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
 							>

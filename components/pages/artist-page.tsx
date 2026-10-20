@@ -268,6 +268,7 @@ export function ArtistPage({
 						disabled={followBusy}
 						onClick={() => void toggleFollowing()}
 						aria-label={t(following ? "unfollow" : "follow")}
+						title={t(following ? "unfollow" : "follow")}
 						className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-wait disabled:opacity-50 ${following ? "text-violet-200" : "text-white/35 hover:text-white/75"}`}
 					>
 						<Bookmark className={`h-5 w-5 ${following ? "fill-current" : ""}`} />
@@ -276,6 +277,7 @@ export function ArtistPage({
 						type="button"
 						onClick={() => void toggleFavorite()}
 						aria-label={favorite ? t("removeFavorite") : t("addFavorite")}
+						title={favorite ? t("removeFavorite") : t("addFavorite")}
 						className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/35 hover:text-white/75"}`}
 					>
 						<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
@@ -295,6 +297,7 @@ export function ArtistPage({
 							onClick={() => void addAllToQueue()}
 							aria-label={t("addToQueue")}
 							aria-busy={queueBusy}
+							title={t("addToQueue")}
 							className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
 						>
 							<ListPlus className="h-5 w-5" />

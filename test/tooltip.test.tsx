@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { calculateTooltipPosition, Tooltip } from "@/components/ui/tooltip";
+import { I18nProvider } from "@/lib/i18n";
 
 describe("global tooltip", () => {
 	beforeEach(() => vi.useFakeTimers());
@@ -36,6 +37,25 @@ describe("global tooltip", () => {
 
 		fireEvent.pointerOut(button, { relatedTarget: document.body });
 		expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+	});
+
+	it("localizes known player labels for the active locale", () => {
+		render(
+			<I18nProvider locale="ja">
+				<Tooltip />
+				<button aria-label="Skip back 10 seconds">
+					<svg aria-hidden="true" />
+				</button>
+			</I18nProvider>,
+		);
+		const button = screen.getByRole("button", {
+			name: "Skip back 10 seconds",
+		});
+
+		fireEvent.pointerOver(button, { pointerType: "mouse" });
+		act(() => vi.advanceTimersByTime(350));
+		act(() => vi.advanceTimersByTime(16));
+		expect(screen.getByRole("tooltip")).toHaveTextContent("10秒戻る");
 	});
 
 	it("flips below near the top and keeps the tooltip inside viewport edges", () => {

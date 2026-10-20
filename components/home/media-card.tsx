@@ -313,6 +313,7 @@ export function MediaCardOverlay({
 		>
 			<button
 				type="button"
+				data-tooltip-ignore
 				aria-label={title ? `${t("play")} ${title}` : t("play")}
 				disabled={Boolean(!onPlay && item && session && !canStartPlayback)}
 				onClick={(event) => {

@@ -105,6 +105,7 @@ function hasVisibleText(button: HTMLButtonElement) {
 
 /** Selects icon-only buttons and buttons with an explicit tooltip label. */
 function tooltipTrigger(button: HTMLButtonElement) {
+	if (button.hasAttribute("data-tooltip-ignore")) return null;
 	if (button.hasAttribute("data-tooltip")) return button;
 	if (button.getAttribute("aria-label")?.trim() && !hasVisibleText(button)) {
 		return button;

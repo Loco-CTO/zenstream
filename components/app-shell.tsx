@@ -843,6 +843,16 @@ export function AppShell() {
 		start,
 	]);
 
+	useEffect(() => {
+		if (
+			!session ||
+			!["/search", "/settings", "/notifications", "/lumi"].includes(pathname)
+		)
+			return;
+		void primeArtworkTicket(session);
+		void primeResourceTicket(session);
+	}, [pathname, session]);
+
 	const handleLogin = async (username: string, password: string) => {
 		const response = await authenticateByName(username, password);
 		const nextSession = sessionFromAuth(response);
@@ -850,34 +860,8 @@ export function AppShell() {
 		sessionRef.current = nextSession;
 		authExpiryHandled.current = null;
 		setAvatarVersion(nextSession.avatarVersion ?? null);
-		await primeArtworkTicket(nextSession);
+		setStatus("checking");
 		setSession(nextSession);
-		const generation = ++routeLoadGeneration.current;
-		loadPreferences(nextSession);
-		void primeResourceTicket(nextSession);
-		if (audioAlbumId) await loadAudioAlbum(nextSession, audioAlbumId, generation);
-		else if (artistId) await loadArtist(nextSession, artistId, generation);
-		else if (detailId || playId)
-			await loadDetail(nextSession, detailId ?? playId!, generation);
-		else if (
-			pathname === "/search" ||
-			pathname === "/notifications" ||
-			pathname === "/lumi"
-		) {
-			if (generation === routeLoadGeneration.current) {
-				setSearchData(searchQuery);
-				setStatus("ready");
-			}
-		} else if (
-			pathname === "/library" ||
-			pathname === "/favorites" ||
-			pathname === "/my-lists" ||
-			pathname === "/calendar" ||
-			playlistId ||
-			sharedPlaylistToken
-		) {
-			if (generation === routeLoadGeneration.current) setStatus("ready");
-		} else await loadHome(nextSession, generation);
 	};
 
 	const clearLocalSession = useCallback(

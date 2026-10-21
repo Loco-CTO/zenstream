@@ -250,7 +250,7 @@ describe("AudioPlayerBar", () => {
 			screen.getAllByRole("button", { name: "Loop off" }).length,
 		).toBeGreaterThan(0);
 		expect(screen.getAllByRole("button", { name: "Loop off" })[0]).toHaveClass(
-			"text-white/35",
+			"text-neutral-500",
 		);
 		expect(
 			screen.queryByRole("button", {

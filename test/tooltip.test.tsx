@@ -3,11 +3,56 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { calculateTooltipPosition, Tooltip } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 
+const originalRequestAnimationFrame = Object.getOwnPropertyDescriptor(
+	window,
+	"requestAnimationFrame",
+);
+const originalCancelAnimationFrame = Object.getOwnPropertyDescriptor(
+	window,
+	"cancelAnimationFrame",
+);
+
+function stubWindowAnimationFrames(request: unknown, cancel: unknown) {
+	Object.defineProperty(window, "requestAnimationFrame", {
+		configurable: true,
+		writable: true,
+		value: request,
+	});
+	Object.defineProperty(window, "cancelAnimationFrame", {
+		configurable: true,
+		writable: true,
+		value: cancel,
+	});
+}
+
+function restoreWindowAnimationFrames() {
+	if (originalRequestAnimationFrame) {
+		Object.defineProperty(
+			window,
+			"requestAnimationFrame",
+			originalRequestAnimationFrame,
+		);
+	} else {
+		Reflect.deleteProperty(window, "requestAnimationFrame");
+	}
+	if (originalCancelAnimationFrame) {
+		Object.defineProperty(
+			window,
+			"cancelAnimationFrame",
+			originalCancelAnimationFrame,
+		);
+	} else {
+		Reflect.deleteProperty(window, "cancelAnimationFrame");
+	}
+}
+
 describe("global tooltip", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => {
 		vi.useRealTimers();
+		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		restoreWindowAnimationFrames();
 	});
 
 	it("shows the localized accessible label on hover only and replaces title", async () => {
@@ -164,8 +209,10 @@ describe("global tooltip", () => {
 	});
 
 	it("uses timeout frames and cancels a pending fallback update", () => {
-		vi.stubGlobal("requestAnimationFrame", null);
-		vi.stubGlobal("cancelAnimationFrame", null);
+		stubWindowAnimationFrames(null, null);
+		expect(window.requestAnimationFrame).toBeNull();
+		expect(window.cancelAnimationFrame).toBeNull();
+		const setTimeout = vi.spyOn(window, "setTimeout");
 		const clearTimeout = vi.spyOn(window, "clearTimeout");
 		const view = render(
 			<>
@@ -177,11 +224,13 @@ describe("global tooltip", () => {
 		);
 		const button = screen.getByRole("button", { name: "Play" });
 		fireEvent.pointerOver(button, { pointerType: "mouse" });
-		act(() => vi.advanceTimersByTime(350));
+		const initialFrame = setTimeout.mock.results.at(-1)?.value;
+		expect(setTimeout.mock.calls.at(-1)?.[1]).toBe(16);
 		act(() => fireEvent.scroll(window));
-		expect(clearTimeout).toHaveBeenCalledTimes(1);
+		expect(clearTimeout).toHaveBeenCalledWith(initialFrame);
+		const rescheduledFrame = setTimeout.mock.results.at(-1)?.value;
 		view.unmount();
-		expect(clearTimeout).toHaveBeenCalledTimes(3);
+		expect(clearTimeout).toHaveBeenCalledWith(rescheduledFrame);
 	});
 
 	it("cancels queued animation-frame updates when rescheduled and unmounted", () => {
@@ -195,8 +244,7 @@ describe("global tooltip", () => {
 		const cancelAnimationFrame = vi.fn((frame: number) => {
 			pendingFrames.delete(frame);
 		});
-		vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
-		vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+		stubWindowAnimationFrames(requestAnimationFrame, cancelAnimationFrame);
 		const view = render(
 			<>
 				<Tooltip />
@@ -207,22 +255,22 @@ describe("global tooltip", () => {
 		);
 		const button = screen.getByRole("button", { name: "Play" });
 		fireEvent.pointerOver(button, { pointerType: "mouse" });
-		act(() => vi.advanceTimersByTime(350));
+		const initialFrame = requestAnimationFrame.mock.results.at(-1)?.value;
 		act(() => fireEvent.scroll(window));
-		expect(requestAnimationFrame).toHaveBeenCalledTimes(2);
-		expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
+		expect(cancelAnimationFrame).toHaveBeenCalledWith(initialFrame);
+		const rescheduledFrame = requestAnimationFrame.mock.results.at(-1)?.value;
 
 		view.unmount();
-		expect(cancelAnimationFrame).toHaveBeenCalledWith(2);
+		expect(cancelAnimationFrame).toHaveBeenCalledWith(rescheduledFrame);
 	});
 
 	it("hides a tooltip when its anchor is outside the viewport", () => {
-		vi.stubGlobal(
-			"requestAnimationFrame",
+		stubWindowAnimationFrames(
 			vi.fn((callback: FrameRequestCallback) => {
 				callback(performance.now());
 				return 1;
 			}),
+			null,
 		);
 		render(
 			<>

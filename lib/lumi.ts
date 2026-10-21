@@ -75,6 +75,31 @@ export type LumiStreamResetReason = "cpu_fallback" | "intermediate" | "unknown";
 export type LumiChoiceResponse = { conversation: LumiConversation };
 export type LumiPreferenceResponse = { preference: LumiModelChoice };
 
+export function renameLumiConversation(
+	session: AuthSession,
+	conversationId: string,
+	title: string,
+	signal?: AbortSignal,
+) {
+	return lumiRequest<LumiChoiceResponse>(
+		session,
+		`/api/lumi/conversations/${encodeURIComponent(conversationId)}`,
+		{ method: "PATCH", body: JSON.stringify({ title }), signal },
+	);
+}
+
+export function deleteLumiConversation(
+	session: AuthSession,
+	conversationId: string,
+	signal?: AbortSignal,
+) {
+	return lumiRequest<{ deleted: true }>(
+		session,
+		`/api/lumi/conversations/${encodeURIComponent(conversationId)}`,
+		{ method: "DELETE", signal },
+	);
+}
+
 export class LumiRequestError extends Error {
 	readonly status: number;
 

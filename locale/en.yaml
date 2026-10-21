@@ -461,9 +461,12 @@ lumiClose: Return to ZenStream
 lumiCloseRecentChats: Close recent chats
 lumiOpenRecentChats: Open recent chats
 lumiChatOptions: Chat options
-lumiHelp: Lumi help
-lumiCloseHelp: Close Lumi help
-lumiHelpHint: Ask about movies, series, music, and what is in your library. Press Enter to send; Shift+Enter adds a line.
+lumiRenameChat: Rename chat
+lumiChatName: Chat name
+lumiRenameChatFailed: Could not rename this chat.
+lumiDeleteChat: Delete chat
+lumiDeleteChatConfirm: This removes the chat and all of its messages.
+lumiDeleteChatFailed: Could not delete this chat.
 lumiSuggestionTonight: What should I watch tonight?
 lumiSuggestionHiddenGems: Hidden gems in dark fantasy
 lumiSuggestionPlaylist: Build a late-night playlist
@@ -482,7 +485,6 @@ lumiSwitchingToCpu: Switching to CPU…
 lumiStopGenerating: Stop generating
 lumiYou: You
 lumiAssistant: Lumi
-lumiReferences: In your library
 lumiSources: Web sources
 lumiMessageLabel: Message Lumi
 lumiMessagePlaceholder: Ask a question…

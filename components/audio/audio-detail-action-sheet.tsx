@@ -94,9 +94,9 @@ export function AudioDetailSheetAction({
 		<button
 			type="button"
 			onClick={onClick}
-			className={`flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07] active:bg-white/[0.11] ${className}`}
+			className={`group flex min-h-14 w-full items-center gap-4 rounded-xl px-3 text-left text-base text-white/85 transition hover:bg-white/[0.07] active:bg-white/[0.11] ${className}`}
 		>
-			<span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75">
+			<span className="flex h-9 w-9 shrink-0 items-center justify-center text-neutral-500 transition-colors group-hover:text-white">
 				{icon}
 			</span>
 			<span className="min-w-0 flex-1 truncate">{children}</span>

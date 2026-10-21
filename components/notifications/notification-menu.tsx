@@ -81,9 +81,11 @@ export function NotificationMenu({
 			<Link
 				href="/notifications"
 				aria-label={t("notifications")}
-				className={`relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${displayPath === "/notifications" ? "text-white" : ""}`}
+				className={`group relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${displayPath === "/notifications" ? "text-white" : ""}`}
 			>
-				<Bell className="h-[22px] w-[22px]" />
+				<Bell
+					className={`h-[22px] w-[22px] ${displayPath === "/notifications" ? "text-white" : "text-neutral-500 group-hover:text-white"}`}
+				/>
 			</Link>
 		);
 	}
@@ -97,9 +99,11 @@ export function NotificationMenu({
 				aria-expanded={open}
 				aria-controls={open ? "notification-menu" : undefined}
 				onClick={() => setOpen((value) => !value)}
-				className={`relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${displayPath === "/notifications" || open ? "text-white" : ""}`}
+				className={`group relative flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white ${displayPath === "/notifications" || open ? "text-white" : ""}`}
 			>
-				<Bell className="h-[22px] w-[22px]" />
+				<Bell
+					className={`h-[22px] w-[22px] ${displayPath === "/notifications" || open ? "text-white" : "text-neutral-500 group-hover:text-white"}`}
+				/>
 				{badgeCount > 0 && (
 					<span className="absolute right-2 top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-violet-400 px-0.5 text-[9px] font-bold leading-none text-black">
 						{badge}

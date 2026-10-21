@@ -518,7 +518,7 @@ export function SkipMarkerActions({
 							if (markers.intro) onSkip(markers.intro);
 						}}
 					>
-						<FastForward className="h-5 w-5" />
+						<FastForward className="h-5 w-5 text-neutral-500" />
 						{labelIntro}
 					</button>
 				)}
@@ -533,7 +533,7 @@ export function SkipMarkerActions({
 							if (markers.outro) onSkip(markers.outro);
 						}}
 					>
-						<FastForward className="h-5 w-5" />
+						<FastForward className="h-5 w-5 text-neutral-500" />
 						{labelOutro}
 					</button>
 				)}
@@ -3140,9 +3140,9 @@ export function VideoPlayer({
 								type="button"
 								aria-label={t("close")}
 								onClick={closeKeyboardHelp}
-								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+								className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
 							>
-								<X />
+								<X className="text-neutral-500 group-hover:text-white" />
 							</button>
 						</div>
 						<dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-x-4 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
@@ -3465,10 +3465,10 @@ export function VideoPlayer({
 			>
 				<button
 					aria-label="Close player"
-					className="pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white"
+					className="group pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white"
 					onClick={handleClose}
 				>
-					<ArrowLeft />
+					<ArrowLeft className="text-neutral-500 group-hover:text-white" />
 				</button>
 				<div className="min-w-0">
 					{item.Type === "Episode" && (
@@ -3794,9 +3794,9 @@ export function VideoPlayer({
 								setTrackMenu(trackMenu === "audio" ? null : "audio");
 								setSettingsOpen(false);
 							}}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
+							className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
 						>
-							<AudioLines />
+							<AudioLines className="text-neutral-500 group-hover:text-white" />
 						</button>
 					)}
 					{(info?.subtitles.length ?? 0) > 0 && (
@@ -3808,9 +3808,9 @@ export function VideoPlayer({
 								setTrackMenu(trackMenu === "subtitle" ? null : "subtitle");
 								setSettingsOpen(false);
 							}}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
+							className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
 						>
-							<Captions />
+							<Captions className="text-neutral-500 group-hover:text-white" />
 						</button>
 					)}
 					<div className="group flex shrink-0 items-center gap-2">
@@ -4038,7 +4038,7 @@ function SettingsSubmenu({
 				onClick={onBack}
 				className="mb-1 flex items-center gap-1 rounded-lg px-2 py-2 text-left text-xs font-medium leading-5 text-white/85 transition hover:bg-white/10 hover:text-white"
 			>
-				<ChevronLeft className="h-4 w-4" />
+				<ChevronLeft className="h-4 w-4 text-neutral-500" />
 				{title}
 			</button>
 			{children}
@@ -4074,7 +4074,7 @@ function ChoicePanel({
 					className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-normal leading-5 text-white/75 transition hover:bg-white/10 hover:text-white"
 				>
 					{option.value === value ? (
-						<Check className="h-4 w-4 shrink-0" />
+						<Check className="h-4 w-4 shrink-0 text-neutral-500" />
 					) : (
 						<span className="h-4 w-4 shrink-0" />
 					)}

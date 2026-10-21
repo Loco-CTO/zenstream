@@ -153,7 +153,7 @@ export function Dropdown({
 			>
 				<span className="truncate">{selected?.label ?? value}</span>
 				<ChevronDown
-					className={`h-3.5 w-3.5 shrink-0 text-white/35 transition-transform ${open ? "rotate-180" : ""}`}
+					className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${open ? "rotate-180" : ""}`}
 				/>
 			</button>
 			{open &&
@@ -188,7 +188,7 @@ export function Dropdown({
 									<span className="truncate">{option.label}</span>
 								</span>
 								{option.value === value && (
-									<Check className="h-3.5 w-3.5 text-white/70" />
+									<Check className="h-3.5 w-3.5 text-neutral-500" />
 								)}
 							</button>
 						))}

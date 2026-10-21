@@ -150,7 +150,7 @@ export function BazarrSubtitles({
 						disabled={busy !== null}
 						className="shrink-0 rounded-lg p-2 text-white/45 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
 					>
-						<X className="h-5 w-5" />
+						<X className="h-5 w-5 text-neutral-500" />
 					</button>
 				</div>
 				<div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">

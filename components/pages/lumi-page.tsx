@@ -630,7 +630,7 @@ export function LumiPage({ session }: LumiPageProps) {
 						onClick={createConversation}
 						className="mx-3 flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 text-left text-xs font-medium text-white/75 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
 					>
-						<Plus className="h-3.5 w-3.5" />
+						<Plus className="h-3.5 w-3.5 text-neutral-500" />
 						{t("lumiNewChat")}
 					</button>
 					<div className="px-4 pb-2 pt-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
@@ -689,7 +689,7 @@ export function LumiPage({ session }: LumiPageProps) {
 														}
 														className="flex h-7 w-7 items-center justify-center rounded-md text-white/50 opacity-100 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
 													>
-														<EllipsisVertical className="h-4 w-4" />
+														<EllipsisVertical className="h-4 w-4 text-neutral-500" />
 													</button>
 													{actionMenuOpen && (
 														<div
@@ -703,7 +703,7 @@ export function LumiPage({ session }: LumiPageProps) {
 																onClick={() => beginRenameConversation(conversation)}
 																className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-white/75 transition hover:bg-white/[0.07] hover:text-white"
 															>
-																<Pencil className="h-3.5 w-3.5" />
+																<Pencil className="h-3.5 w-3.5 text-neutral-500" />
 																{t("lumiRenameChat")}
 															</button>
 															<button
@@ -750,7 +750,7 @@ export function LumiPage({ session }: LumiPageProps) {
 								onClick={() => setSidebarOpen(true)}
 								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden"
 							>
-								<Menu className="h-4 w-4" />
+								<Menu className="h-4 w-4 text-neutral-500" />
 							</button>
 							<div className="relative">
 								<button
@@ -760,7 +760,7 @@ export function LumiPage({ session }: LumiPageProps) {
 									onClick={() => setConversationMenuOpen((open) => !open)}
 									className="flex h-9 w-9 items-center justify-center rounded-lg text-white/35 transition hover:bg-white/[0.06] hover:text-white"
 								>
-									<MoreHorizontal className="h-4 w-4" />
+									<MoreHorizontal className="h-4 w-4 text-neutral-500" />
 								</button>
 								{conversationMenuOpen && (
 									<div className="absolute left-0 top-full z-40 mt-1.5 w-56 rounded-xl border border-white/10 bg-[#151416] p-1.5 shadow-2xl shadow-black/60">
@@ -831,7 +831,7 @@ export function LumiPage({ session }: LumiPageProps) {
 								onClick={closeLumi}
 								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300"
 							>
-								<X className="h-4 w-4" />
+								<X className="h-4 w-4 text-neutral-500" />
 							</button>
 						</div>
 					</header>
@@ -981,9 +981,9 @@ export function LumiPage({ session }: LumiPageProps) {
 												models.length === 0
 											}
 											aria-label={t("lumiSend")}
-											className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
+											className="group mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#252329] text-white/35 transition hover:bg-violet-300 hover:text-[#16131b] disabled:cursor-not-allowed disabled:bg-white/[0.08] disabled:text-white/25"
 										>
-											<ArrowUp className="h-4 w-4" />
+											<ArrowUp className="h-4 w-4 text-neutral-500 group-hover:text-[#16131b]" />
 										</button>
 									)}
 								</div>
@@ -1532,7 +1532,7 @@ function AnswerMetadata({ sources }: { sources: LumiSource[] }) {
 									className="group inline-flex max-w-full items-start gap-2 text-xs text-white/60 transition hover:text-white/90"
 								>
 									<span className="relative mt-0.5 h-3.5 w-3.5 shrink-0">
-										<Globe2 className="absolute inset-0 h-3.5 w-3.5 text-white/35" />
+										<Globe2 className="absolute inset-0 h-3.5 w-3.5 text-neutral-500" />
 										{source.safeFaviconUrl && (
 											<img
 												data-testid="lumi-source-favicon"
@@ -1556,7 +1556,7 @@ function AnswerMetadata({ sources }: { sources: LumiSource[] }) {
 											{source.websiteName}
 										</span>
 									</span>
-									<ExternalLink className="mt-0.5 h-3 w-3 shrink-0 opacity-0 transition group-hover:opacity-70" />
+									<ExternalLink className="mt-0.5 h-3 w-3 shrink-0 opacity-0 transition group-hover:opacity-70 text-neutral-500" />
 								</a>
 							</li>
 						))}

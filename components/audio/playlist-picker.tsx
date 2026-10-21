@@ -223,7 +223,9 @@ export function PlaylistPicker({
 				}
 			>
 				{triggerContent ?? (
-					<CirclePlus className={compact ? "h-3.5 w-3.5" : "h-5 w-5"} />
+					<CirclePlus
+						className={`${compact ? "h-3.5 w-3.5" : "h-5 w-5"} text-neutral-500`}
+					/>
 				)}
 			</button>
 			{open &&
@@ -249,7 +251,7 @@ export function PlaylistPicker({
 							className="flex w-full shrink-0 items-center gap-3 rounded-lg border-b border-white/10 px-2 py-3 text-left text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
 						>
 							<span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/[0.08]">
-								<Plus className="h-4 w-4" />
+								<Plus className="h-4 w-4 text-neutral-500" />
 							</span>
 							{t("createPlaylist")}
 						</button>
@@ -401,7 +403,7 @@ export function CreatePlaylistDialog({
 						onClick={onClose}
 						className="shrink-0 rounded-lg p-2 text-white/45 transition hover:bg-white/10 hover:text-white"
 					>
-						<X className="h-5 w-5" />
+						<X className="h-5 w-5 text-neutral-500" />
 					</button>
 				</div>
 

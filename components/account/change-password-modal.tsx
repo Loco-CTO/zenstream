@@ -80,7 +80,7 @@ export function ChangePasswordModal({
 							aria-label={t("close")}
 							className="flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/8 hover:text-white disabled:opacity-40"
 						>
-							<X className="h-4 w-4" />
+							<X className="h-4 w-4 text-neutral-500" />
 						</button>
 					)}
 				</div>

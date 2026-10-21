@@ -197,7 +197,7 @@ export function SettingsPage({
 						aria-label={t("back")}
 						className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition hover:bg-white/8 hover:text-white"
 					>
-						<ChevronLeft className="h-4 w-4" />
+						<ChevronLeft className="h-4 w-4 text-neutral-500" />
 					</button>
 					<h1 className="text-lg font-bold tracking-tight text-white">
 						{section === "root"
@@ -252,7 +252,7 @@ export function SettingsPage({
 								label={t("changePassword")}
 								border={false}
 								onClick={() => setPasswordModalOpen(true)}
-								right={<ChevronRight className="h-4 w-4 text-white/20" />}
+								right={<ChevronRight className="h-4 w-4 text-neutral-500" />}
 							/>
 						</SettingsSection>
 					)}
@@ -784,7 +784,7 @@ function SettingsMenuItem({
 				<p className="text-sm font-medium text-white/85">{label}</p>
 				{sub && <p className="mt-0.5 truncate text-xs text-white/35">{sub}</p>}
 			</div>
-			<ChevronRight className="h-4 w-4 shrink-0 text-white/25" />
+			<ChevronRight className="h-4 w-4 shrink-0 text-neutral-500" />
 		</button>
 	);
 }
@@ -1169,7 +1169,7 @@ function ColorControl({
 							}}
 							className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 text-white/55 transition hover:border-white/25 hover:bg-white/[0.055] hover:text-white focus:outline-none focus:ring-2 focus:ring-violet-400/70"
 						>
-							<Copy className="h-4 w-4" />
+							<Copy className="h-4 w-4 text-neutral-500" />
 						</button>
 					</div>
 				</div>

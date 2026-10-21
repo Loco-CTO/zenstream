@@ -338,7 +338,7 @@ export function CalendarPage({ session }: { session: AuthSession }) {
 								onClick={() => void load()}
 								className="flex shrink-0 items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-white/25 hover:text-white"
 							>
-								<RefreshCw className="h-3.5 w-3.5" />
+								<RefreshCw className="h-3.5 w-3.5 text-neutral-500" />
 								{t("retry")}
 							</button>
 						</div>
@@ -413,7 +413,7 @@ function CalendarToolbar({
 					disabled={disablePrevious}
 					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white disabled:cursor-not-allowed disabled:text-white/10 disabled:hover:text-white/10"
 				>
-					<ChevronLeft className="h-4 w-4" />
+					<ChevronLeft className="h-4 w-4 text-neutral-500" />
 				</button>
 				<button
 					type="button"
@@ -422,7 +422,7 @@ function CalendarToolbar({
 					disabled={disableNext}
 					className="flex h-7 w-7 items-center justify-center text-white/30 transition hover:text-white disabled:cursor-not-allowed disabled:text-white/10 disabled:hover:text-white/10"
 				>
-					<ChevronRight className="h-4 w-4" />
+					<ChevronRight className="h-4 w-4 text-neutral-500" />
 				</button>
 			</div>
 			<button
@@ -684,10 +684,10 @@ function SelectionPanel({
 							aria-label={t(event.following ? "unfollow" : "follow")}
 							title={t(event.following ? "unfollow" : "follow")}
 							onClick={onFollow}
-							className={`flex items-center gap-1.5 rounded border px-3 py-1.5 text-[11px] font-semibold transition ${event.following ? "border-violet-300/40 bg-violet-400/15 text-violet-200" : "border-white/[0.1] text-white/60 hover:border-white/25 hover:text-white"}`}
+							className={`group flex items-center gap-1.5 rounded border px-3 py-1.5 text-[11px] font-semibold transition ${event.following ? "border-violet-300/40 bg-violet-400/15 text-violet-200" : "border-white/[0.1] text-white/60 hover:border-white/25 hover:text-white"}`}
 						>
 							<Bookmark
-								className={`h-3.5 w-3.5 ${event.following ? "fill-violet-200" : ""}`}
+								className={`h-3.5 w-3.5 ${event.following ? "fill-violet-200 text-violet-200" : "text-neutral-500 group-hover:text-white"}`}
 							/>
 							{t(event.following ? "unfollow" : "follow")}
 						</button>
@@ -718,7 +718,7 @@ function SelectionPanel({
 						onClick={onClose}
 						className="rounded p-1 text-white/40 transition hover:bg-white/[0.08] hover:text-white"
 					>
-						<X className="h-4 w-4" />
+						<X className="h-4 w-4 text-neutral-500" />
 					</button>
 				</div>
 			</div>

@@ -191,7 +191,7 @@ export function AudioAlbumPage({
 				aria-label={t("back")}
 				className="absolute left-4 top-[calc(4rem+env(safe-area-inset-top))] z-10 flex items-center gap-1 rounded-md px-2 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:left-5 md:left-8 md:top-20"
 			>
-				<ChevronLeft className="h-4 w-4" />
+				<ChevronLeft className="h-4 w-4 text-neutral-500" />
 				{t("back")}
 			</button>
 			<section className="flex flex-col items-start gap-6 px-6 pb-8 pt-32 sm:flex-row sm:items-end md:gap-8 md:px-10">
@@ -310,9 +310,12 @@ export function AudioAlbumPage({
 					onClick={toggleFavorite}
 					aria-pressed={favorite}
 					aria-label={favorite ? t("removeFavorite") : t("addFavorite")}
-					className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/25 hover:text-white/55"}`}
+					className={`group inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/25 hover:text-white/55"}`}
 				>
-					<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
+					<Heart
+						className={`h-5 w-5 ${favorite ? "text-white" : "text-neutral-500 group-hover:text-white/55"}`}
+						fill={favorite ? "currentColor" : "none"}
+					/>
 				</button>
 				<CopyShareLinkButton />
 				<div className="hidden items-center gap-2 md:flex">
@@ -329,7 +332,7 @@ export function AudioAlbumPage({
 						aria-label={t("addToQueue")}
 						className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40"
 					>
-						<ListPlus className="h-5 w-5" />
+						<ListPlus className="h-5 w-5 text-neutral-500" />
 					</button>
 				</div>
 				<button
@@ -338,7 +341,7 @@ export function AudioAlbumPage({
 					aria-label={t("showMore")}
 					className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden"
 				>
-					<MoreHorizontal className="h-5 w-5" />
+					<MoreHorizontal className="h-5 w-5 text-neutral-500" />
 				</button>
 				<AudioDetailPlaybackActions
 					className="ml-auto"
@@ -383,7 +386,7 @@ export function AudioAlbumPage({
 						triggerContent={
 							<>
 								<span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75">
-									<CirclePlus className="h-5 w-5" />
+									<CirclePlus className="h-5 w-5 text-neutral-500" />
 								</span>
 								<span>{t("addToPlaylist")}</span>
 							</>
@@ -623,9 +626,12 @@ function TrackRow({
 						event.stopPropagation();
 						onToggleFavorite();
 					}}
-					className={`rounded p-1 transition group-hover/track:opacity-100 focus:opacity-100 ${liked ? "text-white opacity-100" : "text-white/25 opacity-0 hover:text-white/60"}`}
+					className={`group rounded p-1 transition group-hover/track:opacity-100 focus:opacity-100 ${liked ? "text-white opacity-100" : "text-white/25 opacity-0 hover:text-white/60"}`}
 				>
-					<Heart className="h-3.5 w-3.5" fill={liked ? "currentColor" : "none"} />
+					<Heart
+						className={`h-3.5 w-3.5 ${liked ? "text-white" : "text-neutral-500 group-hover:text-white/60"}`}
+						fill={liked ? "currentColor" : "none"}
+					/>
 				</button>
 			</div>
 		</div>

@@ -231,9 +231,9 @@ export function FavoritesPage({
 							className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:text-white"
 						>
 							{sortOrder === "Ascending" ? (
-								<ArrowUp className="h-3.5 w-3.5" />
+								<ArrowUp className="h-3.5 w-3.5 text-neutral-500" />
 							) : (
-								<ArrowDown className="h-3.5 w-3.5" />
+								<ArrowDown className="h-3.5 w-3.5 text-neutral-500" />
 							)}
 						</button>
 						<Dropdown
@@ -543,10 +543,10 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 								item.UserData?.IsFavorite ? t("removeFavorite") : t("addFavorite")
 							}
 							onClick={() => void toggleFavorite(item)}
-							className={`rounded p-2 transition hover:bg-white/[0.06] ${item.UserData?.IsFavorite ? "text-violet-300" : "text-white/40 hover:text-white"}`}
+							className={`group rounded p-2 transition hover:bg-white/[0.06] ${item.UserData?.IsFavorite ? "text-violet-300" : "text-white/40 hover:text-white"}`}
 						>
 							<Heart
-								className="h-4 w-4"
+								className={`h-4 w-4 ${item.UserData?.IsFavorite ? "text-violet-300" : "text-neutral-500 group-hover:text-white"}`}
 								fill={item.UserData?.IsFavorite ? "currentColor" : "none"}
 							/>
 						</button>
@@ -557,7 +557,7 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 							onClick={() => void unfollow(item)}
 							className="rounded p-2 text-white/35 transition hover:bg-white/[0.06] hover:text-white"
 						>
-							<Trash2 className="h-4 w-4" />
+							<Trash2 className="h-4 w-4 text-neutral-500" />
 						</button>
 					</div>
 				);
@@ -622,7 +622,7 @@ function PlaylistsSection({ session }: { session: AuthSession }) {
 					onClick={() => setCreating(true)}
 					className="flex h-[148px] w-[148px] shrink-0 flex-col items-center justify-center gap-3 rounded-sm border border-dashed border-white/20 bg-white/[0.02] text-white/45 transition hover:border-white/40 hover:bg-white/[0.05] hover:text-white sm:h-[180px] sm:w-[180px] md:h-[200px] md:w-[200px]"
 				>
-					<Plus className="h-6 w-6" />
+					<Plus className="h-6 w-6 text-neutral-500" />
 					<span className="text-[10px] font-semibold uppercase tracking-wider">
 						{t("newPlaylist")}
 					</span>

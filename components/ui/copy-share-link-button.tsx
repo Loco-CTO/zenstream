@@ -52,7 +52,7 @@ export function CopyShareLinkButton({
 				) : failed ? (
 					<CircleAlert className="h-5 w-5 text-red-300" />
 				) : (
-					<Share2 className="h-5 w-5" />
+					<Share2 className="h-5 w-5 text-neutral-500" />
 				)}
 			</button>
 			<span className="sr-only" role={failed ? "alert" : "status"}>

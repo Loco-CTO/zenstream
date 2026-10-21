@@ -514,9 +514,9 @@ export function Hero({
 					className="absolute bottom-14 right-6 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white/75 backdrop-blur transition hover:bg-black/75 hover:text-white md:right-10"
 				>
 					{isTrailerMuted ? (
-						<VolumeX className="h-4 w-4" />
+						<VolumeX className="h-4 w-4 text-neutral-500" />
 					) : (
-						<Volume2 className="h-4 w-4" />
+						<Volume2 className="h-4 w-4 text-neutral-500" />
 					)}
 				</button>
 			)}
@@ -528,7 +528,7 @@ export function Hero({
 						onClick={goToPreviousSlide}
 						className="absolute left-4 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/12 bg-black/50 text-white/65 opacity-0 backdrop-blur transition hover:bg-white/10 hover:text-white group-hover/hero:opacity-100 md:flex"
 					>
-						<ChevronLeft className="h-4 w-4" />
+						<ChevronLeft className="h-4 w-4 text-neutral-500" />
 					</button>
 					<button
 						type="button"
@@ -536,7 +536,7 @@ export function Hero({
 						onClick={goToNextSlide}
 						className="absolute right-4 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/12 bg-black/50 text-white/65 opacity-0 backdrop-blur transition hover:bg-white/10 hover:text-white group-hover/hero:opacity-100 md:flex"
 					>
-						<ChevronRight className="h-4 w-4" />
+						<ChevronRight className="h-4 w-4 text-neutral-500" />
 					</button>
 				</>
 			)}
@@ -592,7 +592,7 @@ export function Hero({
 							onClick={() => router.push(`/show/${item.Id}`)}
 							className="flex h-11 min-w-24 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-5 text-sm font-medium tracking-normal text-white/70 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
 						>
-							<Info className="h-4 w-4" />
+							<Info className="h-4 w-4 text-neutral-500" />
 							{t("info")}
 						</button>
 					</div>

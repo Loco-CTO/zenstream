@@ -75,7 +75,7 @@ export function ExpandableDescription({
 					{t(expanded ? "showLess" : "showMore")}
 					<ChevronDown
 						aria-hidden="true"
-						className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+						className={`h-3.5 w-3.5 text-neutral-500 transition-transform ${expanded ? "rotate-180" : ""}`}
 					/>
 				</button>
 			)}

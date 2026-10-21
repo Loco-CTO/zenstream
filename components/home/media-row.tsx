@@ -48,7 +48,7 @@ export function MediaRow({
 							href={viewAllHref}
 							className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-white/25 transition hover:text-white/70"
 						>
-							{t("all")} <ChevronRight className="h-3 w-3" />
+							{t("all")} <ChevronRight className="h-3 w-3 text-neutral-500" />
 						</Link>
 					) : null}
 				</div>

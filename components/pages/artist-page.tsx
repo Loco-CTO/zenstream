@@ -213,7 +213,7 @@ export function ArtistPage({
 					aria-label={t("back")}
 					className="mb-8 inline-flex items-center gap-1 rounded-md px-2 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/40 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 				>
-					<ChevronLeft className="h-4 w-4" /> {t("back")}
+					<ChevronLeft className="h-4 w-4 text-neutral-500" /> {t("back")}
 				</button>
 
 				<header className="grid items-end gap-8 md:grid-cols-[11rem_minmax(0,1fr)] lg:grid-cols-[13rem_minmax(0,1fr)]">
@@ -269,18 +269,23 @@ export function ArtistPage({
 						onClick={() => void toggleFollowing()}
 						aria-label={t(following ? "unfollow" : "follow")}
 						title={t(following ? "unfollow" : "follow")}
-						className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-wait disabled:opacity-50 ${following ? "text-violet-200" : "text-white/35 hover:text-white/75"}`}
+						className={`group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-wait disabled:opacity-50 ${following ? "text-violet-200" : "text-white/35 hover:text-white/75"}`}
 					>
-						<Bookmark className={`h-5 w-5 ${following ? "fill-current" : ""}`} />
+						<Bookmark
+							className={`h-5 w-5 ${following ? "fill-current text-violet-200" : "text-neutral-500 group-hover:text-white/75"}`}
+						/>
 					</button>
 					<button
 						type="button"
 						onClick={() => void toggleFavorite()}
 						aria-label={favorite ? t("removeFavorite") : t("addFavorite")}
 						title={favorite ? t("removeFavorite") : t("addFavorite")}
-						className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/35 hover:text-white/75"}`}
+						className={`group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 ${favorite ? "text-white" : "text-white/35 hover:text-white/75"}`}
 					>
-						<Heart className="h-5 w-5" fill={favorite ? "currentColor" : "none"} />
+						<Heart
+							className={`h-5 w-5 ${favorite ? "text-white" : "text-neutral-500 group-hover:text-white/75"}`}
+							fill={favorite ? "currentColor" : "none"}
+						/>
 					</button>
 					<CopyShareLinkButton />
 					<div className="hidden items-center gap-3 md:flex">
@@ -300,7 +305,7 @@ export function ArtistPage({
 							title={t("addToQueue")}
 							className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:opacity-40"
 						>
-							<ListPlus className="h-5 w-5" />
+							<ListPlus className="h-5 w-5 text-neutral-500" />
 						</button>
 					</div>
 					<button
@@ -309,7 +314,7 @@ export function ArtistPage({
 						aria-label={t("showMore")}
 						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:hidden"
 					>
-						<MoreHorizontal className="h-5 w-5" />
+						<MoreHorizontal className="h-5 w-5 text-neutral-500" />
 					</button>
 					<AudioDetailPlaybackActions
 						className="ml-auto"
@@ -371,7 +376,7 @@ export function ArtistPage({
 							triggerContent={
 								<>
 									<span className="flex h-9 w-9 shrink-0 items-center justify-center text-white/75">
-										<CirclePlus className="h-5 w-5" />
+										<CirclePlus className="h-5 w-5 text-neutral-500" />
 									</span>
 									<span>{t("addToPlaylist")}</span>
 								</>

@@ -22,9 +22,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/lumi", () => ({
+	deleteLumiConversation: vi.fn(),
 	getLumiConversation: vi.fn(),
 	getLumiConversations: vi.fn(),
 	getLumiModels: vi.fn(),
+	renameLumiConversation: vi.fn(),
 	streamLumiTurn: vi.fn(),
 	updateLumiConversationChoice: vi.fn(),
 	updateLumiModelPreference: vi.fn(),
@@ -83,6 +85,8 @@ describe("LumiPage", () => {
 		mockModels();
 		vi.mocked(lumi.getLumiConversations).mockResolvedValue({ conversations: [] });
 		vi.mocked(lumi.getLumiConversation).mockReset();
+		vi.mocked(lumi.deleteLumiConversation).mockReset();
+		vi.mocked(lumi.renameLumiConversation).mockReset();
 		vi.mocked(lumi.streamLumiTurn).mockReset();
 		vi.mocked(lumi.updateLumiConversationChoice).mockReset();
 		vi.mocked(lumi.updateLumiModelPreference).mockReset();
@@ -141,12 +145,100 @@ describe("LumiPage", () => {
 		);
 	});
 
+	it("uses the shared thinking switch and removes the unused help control", async () => {
+		renderPage();
+
+		const thinking = await screen.findByRole("switch", { name: "Thinking" });
+		expect(thinking).toHaveAttribute("aria-checked", "true");
+		expect(
+			screen.queryByRole("button", { name: "Lumi help" }),
+		).not.toBeInTheDocument();
+
+		fireEvent.change(screen.getByRole("combobox", { name: "Model" }), {
+			target: { value: "qwen-fast" },
+		});
+		expect(thinking).toBeDisabled();
+	});
+
+	it("renames a saved chat from its per-chat menu", async () => {
+		const existing = conversation();
+		navigation.query = "conversation=conversation-1";
+		vi.mocked(lumi.getLumiConversations).mockResolvedValue({
+			conversations: [existing],
+		});
+		vi.mocked(lumi.getLumiConversation).mockResolvedValue({
+			conversation: existing,
+			messages: [],
+		});
+		vi.mocked(lumi.renameLumiConversation).mockResolvedValue({
+			conversation: conversation({
+				title: "Renamed chat",
+				updatedAt: "2026-10-07T10:00:00Z",
+			}),
+		});
+		renderPage();
+
+		fireEvent.click(
+			await screen.findByRole("button", {
+				name: "Chat options: Find a movie",
+			}),
+		);
+		fireEvent.click(screen.getByRole("menuitem", { name: "Rename chat" }));
+		const dialog = screen.getByRole("dialog", { name: "Rename chat" });
+		fireEvent.change(within(dialog).getByRole("textbox", { name: "Chat name" }), {
+			target: { value: "  Renamed   chat  " },
+		});
+		fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+		expect(await screen.findByText("Renamed chat")).toBeInTheDocument();
+		expect(lumi.renameLumiConversation).toHaveBeenCalledWith(
+			session,
+			"conversation-1",
+			"Renamed chat",
+		);
+	});
+
+	it("deletes a saved chat after confirmation and returns from the deleted chat", async () => {
+		const existing = conversation();
+		navigation.query = "conversation=conversation-1";
+		vi.mocked(lumi.getLumiConversations).mockResolvedValue({
+			conversations: [existing],
+		});
+		vi.mocked(lumi.getLumiConversation).mockResolvedValue({
+			conversation: existing,
+			messages: [],
+		});
+		vi.mocked(lumi.deleteLumiConversation).mockResolvedValue({ deleted: true });
+		renderPage();
+
+		fireEvent.click(
+			await screen.findByRole("button", {
+				name: "Chat options: Find a movie",
+			}),
+		);
+		fireEvent.click(screen.getByRole("menuitem", { name: "Delete chat" }));
+		const dialog = screen.getByRole("dialog", { name: "Delete chat" });
+		expect(
+			within(dialog).getByText("This removes the chat and all of its messages."),
+		).toBeInTheDocument();
+		fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+		await waitFor(() =>
+			expect(lumi.deleteLumiConversation).toHaveBeenCalledWith(
+				session,
+				"conversation-1",
+			),
+		);
+		expect(router.replace).toHaveBeenCalledWith("/");
+		expect(screen.queryByText("Find a movie")).not.toBeInTheDocument();
+	});
+
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.clearAllMocks();
 	});
 
-	it("creates a conversation on its first turn and displays validated references and sources", async () => {
+	it("creates a conversation and displays catalog cards instead of raw reference markers", async () => {
 		const created = conversation({
 			id: "new-conversation",
 			title: "Find a movie",
@@ -155,7 +247,7 @@ describe("LumiPage", () => {
 			conversation: created,
 			answer: {
 				markdown:
-					'Here is a **match**:\n:::zenstream{type="movie" id="movie-1"}\n:::zenstream{type="movie" id="other-movie"}',
+					'Here is a **match**:\nArrival :::zenstream{type="movie" id="movie-1"} (Arrival)\n:::zenstream{type="movie" id="other-movie"}',
 				references: [
 					{ type: "movie", id: "movie-1", title: "Arrival" },
 					{ type: "series", id: "missing-series", title: "Unresolved series" },
@@ -176,10 +268,18 @@ describe("LumiPage", () => {
 				],
 			},
 		});
-		vi.mocked(mediaApi.getItem).mockResolvedValue({
-			Id: "movie-1",
-			Name: "Arrival",
-			Type: "Movie",
+		vi.mocked(mediaApi.getItem).mockImplementation(async (_session, itemId) => {
+			if (itemId !== "movie-1") throw new Error("Item not found");
+			return {
+				Id: "movie-1",
+				Name: "Arrival",
+				Type: "Movie",
+				ProductionYear: 2016,
+				OfficialRating: "PG-13",
+				CommunityRating: 7.9,
+				Overview: "A linguist works to understand an alien language.",
+				Genres: ["Science Fiction"],
+			};
 		});
 		const storageWrite = vi.spyOn(Storage.prototype, "setItem");
 		renderPage();
@@ -210,20 +310,29 @@ describe("LumiPage", () => {
 			undefined,
 			expect.any(Function),
 		);
-		expect(await screen.findAllByRole("link", { name: /Arrival/ })).toHaveLength(
-			2,
+		expect(await screen.findAllByRole("link", { name: "Arrival" })).toHaveLength(
+			1,
 		);
-		expect(screen.getAllByRole("link", { name: /Arrival/ })[0]).toHaveAttribute(
+		expect(screen.getByRole("link", { name: "Arrival" })).toHaveAttribute(
 			"href",
 			"/show/movie-1",
 		);
 		expect(
+			screen.getByText("A linguist works to understand an alien language."),
+		).toBeInTheDocument();
+		expect(screen.getByText("2016")).toBeInTheDocument();
+		expect(screen.getByText("PG-13")).toBeInTheDocument();
+		expect(screen.getByText("7.9")).toBeInTheDocument();
+		expect(screen.getByText("Science Fiction")).toBeInTheDocument();
+		expect(
 			screen.queryByRole("link", { name: /Unresolved series/ }),
 		).not.toBeInTheDocument();
-		expect(screen.getByText("Unresolved series")).toBeInTheDocument();
+		expect(screen.queryByText("Unresolved series")).not.toBeInTheDocument();
+		expect(screen.queryByText(/:::zenstream/)).not.toBeInTheDocument();
+		const assistantMessage = screen.getByRole("article", { name: "Lumi" });
 		expect(
-			screen.getByText(':::zenstream{type="movie" id="other-movie"}'),
-		).toBeInTheDocument();
+			within(assistantMessage).queryByText("Lumi", { exact: true }),
+		).not.toBeInTheDocument();
 		expect(screen.getByRole("link", { name: /Review/ })).toHaveAttribute(
 			"href",
 			"https://example.org/review",

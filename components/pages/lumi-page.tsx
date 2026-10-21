@@ -3,18 +3,19 @@
 import {
 	ArrowUp,
 	CircleAlert,
-	CircleHelp,
+	EllipsisVertical,
 	ExternalLink,
 	Globe2,
 	LoaderCircle,
 	Menu,
 	MoreHorizontal,
+	Pencil,
 	Plus,
 	Sparkles,
 	Square,
+	Trash2,
 	X,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
 	useCallback,
@@ -22,6 +23,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	Fragment,
 	type FormEvent,
 	type KeyboardEvent,
 	type ReactNode,
@@ -29,10 +31,14 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { getItem, type MediaItem } from "@/lib/media-api";
 import { detailHref } from "@/lib/media-links";
+import { MediaBannerCard } from "@/components/home/media-banner-card";
+import { Toggle } from "@/components/ui/toggle";
 import {
+	deleteLumiConversation,
 	getLumiConversation,
 	getLumiConversations,
 	getLumiModels,
+	renameLumiConversation,
 	streamLumiTurn,
 	updateLumiConversationChoice,
 	updateLumiModelPreference,
@@ -86,7 +92,17 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [sendSequence, setSendSequence] = useState(0);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
-	const [helpOpen, setHelpOpen] = useState(false);
+	const [chatActionMenuId, setChatActionMenuId] = useState<string | null>(null);
+	const [renameTarget, setRenameTarget] = useState<LumiConversation | null>(
+		null,
+	);
+	const [renameValue, setRenameValue] = useState("");
+	const [renameError, setRenameError] = useState<string | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<LumiConversation | null>(
+		null,
+	);
+	const [deleteError, setDeleteError] = useState<string | null>(null);
+	const [conversationActionBusy, setConversationActionBusy] = useState(false);
 	const composerRef = useRef<HTMLTextAreaElement>(null);
 	const messagesScrollRef = useRef<HTMLDivElement>(null);
 	const shouldFollowMessagesRef = useRef(true);
@@ -224,14 +240,23 @@ export function LumiPage({ session }: LumiPageProps) {
 		const closeOnEscape = (event: globalThis.KeyboardEvent) => {
 			if (event.key !== "Escape" || event.isComposing) return;
 			event.preventDefault();
-			if (helpOpen) setHelpOpen(false);
+			if (renameTarget) setRenameTarget(null);
+			else if (deleteTarget) setDeleteTarget(null);
+			else if (chatActionMenuId) setChatActionMenuId(null);
 			else if (conversationMenuOpen) setConversationMenuOpen(false);
 			else if (sidebarOpen) setSidebarOpen(false);
 			else closeLumi();
 		};
 		document.addEventListener("keydown", closeOnEscape);
 		return () => document.removeEventListener("keydown", closeOnEscape);
-	}, [closeLumi, conversationMenuOpen, helpOpen, sidebarOpen]);
+	}, [
+		chatActionMenuId,
+		closeLumi,
+		conversationMenuOpen,
+		deleteTarget,
+		renameTarget,
+		sidebarOpen,
+	]);
 
 	useEffect(() => {
 		shouldFollowMessagesRef.current = true;
@@ -281,6 +306,7 @@ export function LumiPage({ session }: LumiPageProps) {
 
 	const selectConversation = (conversation: LumiConversation) => {
 		activeRequest.current?.abort();
+		setChatActionMenuId(null);
 		setSendError(null);
 		setDetailError(null);
 		setChoiceNotice(null);
@@ -351,6 +377,80 @@ export function LumiPage({ session }: LumiPageProps) {
 			setChoiceNotice(requestMessage(error, t("lumiDefaultSaveFailed")));
 		} finally {
 			setChoiceBusy(false);
+		}
+	};
+
+	const beginRenameConversation = (conversation: LumiConversation) => {
+		setChatActionMenuId(null);
+		setRenameTarget(conversation);
+		setRenameValue(conversation.title);
+		setRenameError(null);
+	};
+
+	const renameConversation = async (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (!renameTarget || conversationActionBusy) return;
+		const title = renameValue.trim().replace(/\s+/g, " ");
+		if (!title || title.length > 120) {
+			setRenameError(t("lumiRenameChatFailed"));
+			return;
+		}
+		setConversationActionBusy(true);
+		setRenameError(null);
+		try {
+			const result = await renameLumiConversation(session, renameTarget.id, title);
+			setConversations((current) =>
+				current
+					.map((item) =>
+						item.id === result.conversation.id ? result.conversation : item,
+					)
+					.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+			);
+			setDetailState((current) =>
+				current?.id === result.conversation.id
+					? { ...current, conversation: result.conversation }
+					: current,
+			);
+			setRenameTarget(null);
+		} catch (error) {
+			setRenameError(requestMessage(error, t("lumiRenameChatFailed")));
+		} finally {
+			setConversationActionBusy(false);
+		}
+	};
+
+	const deleteConversation = async () => {
+		if (!deleteTarget || conversationActionBusy) return;
+		const conversationId = deleteTarget.id;
+		setConversationActionBusy(true);
+		setDeleteError(null);
+		if (selectedId === conversationId) activeRequest.current?.abort();
+		try {
+			await deleteLumiConversation(session, conversationId);
+			setConversations((current) =>
+				current.filter((item) => item.id !== conversationId),
+			);
+			setDraftIds((current) => {
+				const next = new Set(current);
+				next.delete(conversationId);
+				return next;
+			});
+			setDetailState((current) =>
+				current?.id === conversationId ? null : current,
+			);
+			if (selectedId === conversationId) {
+				setChoiceOverrideEntry(null);
+				setComposer("");
+				setPendingMessage(null);
+				setStreamedAnswer("");
+				setSending(false);
+				router.replace(returnTo);
+			}
+			setDeleteTarget(null);
+		} catch (error) {
+			setDeleteError(requestMessage(error, t("lumiDeleteChatFailed")));
+		} finally {
+			setConversationActionBusy(false);
 		}
 	};
 
@@ -557,24 +657,72 @@ export function LumiPage({ session }: LumiPageProps) {
 							<ul className="space-y-1" aria-label={t("lumiHistory")}>
 								{conversations.map((conversation) => {
 									const selected = selectedId === conversation.id;
+									const actionMenuOpen = chatActionMenuId === conversation.id;
+									const title = conversation.title || t("lumiNewChat");
 									return (
 										<li key={conversation.id}>
-											<button
-												type="button"
-												aria-current={selected ? "page" : undefined}
-												onClick={() => selectConversation(conversation)}
-												className={`w-full rounded-lg px-2.5 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 ${selected ? "bg-[#1c1921] text-white ring-1 ring-inset ring-violet-300/20" : "text-white/65 hover:bg-white/[0.05] hover:text-white"}`}
-											>
-												<span className="block truncate text-xs font-medium">
-													{conversation.title || t("lumiNewChat")}
-												</span>
-												<time
-													className="mt-0.5 block text-[10px] text-white/35"
-													dateTime={conversation.updatedAt}
+											<div className="group relative">
+												<button
+													type="button"
+													aria-current={selected ? "page" : undefined}
+													onClick={() => selectConversation(conversation)}
+													className={`w-full rounded-lg py-2 pl-2.5 pr-9 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 ${selected ? "bg-[#1c1921] text-white ring-1 ring-inset ring-violet-300/20" : "text-white/65 hover:bg-white/[0.05] hover:text-white"}`}
 												>
-													{formatConversationDate(conversation.updatedAt, locale)}
-												</time>
-											</button>
+													<span className="block truncate text-xs font-medium">{title}</span>
+													<time
+														className="mt-0.5 block text-[10px] text-white/35"
+														dateTime={conversation.updatedAt}
+													>
+														{formatConversationDate(conversation.updatedAt, locale)}
+													</time>
+												</button>
+												<div className="absolute right-1 top-1">
+													<button
+														type="button"
+														aria-label={`${t("lumiChatOptions")}: ${title}`}
+														aria-haspopup="menu"
+														aria-expanded={actionMenuOpen}
+														onClick={() =>
+															setChatActionMenuId((current) =>
+																current === conversation.id ? null : conversation.id,
+															)
+														}
+														className="flex h-7 w-7 items-center justify-center rounded-md text-white/50 opacity-100 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+													>
+														<EllipsisVertical className="h-4 w-4" />
+													</button>
+													{actionMenuOpen && (
+														<div
+															role="menu"
+															aria-label={`${t("lumiChatOptions")}: ${title}`}
+															className="absolute right-0 top-full z-40 mt-1 w-40 rounded-xl border border-white/10 bg-[#151416] p-1.5 shadow-2xl shadow-black/60"
+														>
+															<button
+																type="button"
+																role="menuitem"
+																onClick={() => beginRenameConversation(conversation)}
+																className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-white/75 transition hover:bg-white/[0.07] hover:text-white"
+															>
+																<Pencil className="h-3.5 w-3.5" />
+																{t("lumiRenameChat")}
+															</button>
+															<button
+																type="button"
+																role="menuitem"
+																onClick={() => {
+																	setChatActionMenuId(null);
+																	setDeleteTarget(conversation);
+																	setDeleteError(null);
+																}}
+																className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-rose-200/80 transition hover:bg-rose-300/[0.09] hover:text-rose-100"
+															>
+																<Trash2 className="h-3.5 w-3.5" />
+																{t("lumiDeleteChat")}
+															</button>
+														</div>
+													)}
+												</div>
+											</div>
 										</li>
 									);
 								})}
@@ -662,30 +810,20 @@ export function LumiPage({ session }: LumiPageProps) {
 									))}
 								</select>
 							</label>
-							<button
-								type="button"
-								role="switch"
-								aria-label={t("lumiThinking")}
-								aria-checked={choice.thinking && selectedModelSupportsThinking}
-								disabled={!selectedModelSupportsThinking || sending || choiceBusy}
-								onClick={() =>
-									setChoiceOverrideEntry({
-										conversationId: selectedId,
-										choice: { ...choice, thinking: !choice.thinking },
-									})
-								}
-								className="flex h-9 items-center gap-2 rounded-lg px-1 text-[11px] text-white/55 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:px-2 sm:text-xs"
-							>
+							<div className="flex h-9 items-center gap-2 rounded-lg px-1 text-[11px] text-white/55 sm:px-2 sm:text-xs">
 								<span className="hidden sm:inline">{t("lumiThinking")}</span>
-								<span
-									aria-hidden="true"
-									className={`relative h-[18px] w-9 rounded-full transition ${choice.thinking && selectedModelSupportsThinking ? "bg-violet-300/80" : "bg-white/15"}`}
-								>
-									<span
-										className={`absolute top-[3px] h-3 w-3 rounded-full bg-white transition ${choice.thinking && selectedModelSupportsThinking ? "left-[21px]" : "left-[3px]"}`}
-									/>
-								</span>
-							</button>
+								<Toggle
+									label={t("lumiThinking")}
+									checked={choice.thinking && selectedModelSupportsThinking}
+									disabled={!selectedModelSupportsThinking || sending || choiceBusy}
+									onChange={(thinking) =>
+										setChoiceOverrideEntry({
+											conversationId: selectedId,
+											choice: { ...choice, thinking },
+										})
+									}
+								/>
+							</div>
 							<button
 								type="button"
 								aria-label={t("lumiClose")}
@@ -859,38 +997,99 @@ export function LumiPage({ session }: LumiPageProps) {
 							</p>
 						</div>
 					</div>
-
-					<div className="absolute bottom-24 right-4 z-10 md:bottom-4">
-						{helpOpen && (
-							<div className="absolute bottom-full right-0 mb-3 w-64 rounded-xl border border-white/10 bg-[#151416] p-4 shadow-2xl shadow-black/60">
-								<div className="flex items-center justify-between gap-3">
-									<h2 className="text-sm font-medium text-white/85">{t("lumiHelp")}</h2>
-									<button
-										type="button"
-										aria-label={t("lumiCloseHelp")}
-										onClick={() => setHelpOpen(false)}
-										className="text-white/40 hover:text-white"
-									>
-										<X className="h-4 w-4" />
-									</button>
-								</div>
-								<p className="mt-2 text-xs leading-5 text-white/55">
-									{t("lumiHelpHint")}
-								</p>
-							</div>
-						)}
-						<button
-							type="button"
-							aria-label={t("lumiHelp")}
-							aria-expanded={helpOpen}
-							onClick={() => setHelpOpen((open) => !open)}
-							className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-[#252525] text-white/55 transition hover:bg-white/[0.12] hover:text-white"
-						>
-							<CircleHelp className="h-4 w-4" />
-						</button>
-					</div>
 				</section>
 			</div>
+			{renameTarget && (
+				<div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4">
+					<form
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="lumi-rename-title"
+						onSubmit={(event) => void renameConversation(event)}
+						className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151416] p-5 shadow-2xl shadow-black/60"
+					>
+						<h2 id="lumi-rename-title" className="text-base font-semibold text-white">
+							{t("lumiRenameChat")}
+						</h2>
+						<label className="mt-4 block text-xs text-white/60">
+							<span>{t("lumiChatName")}</span>
+							<input
+								autoFocus
+								aria-label={t("lumiChatName")}
+								value={renameValue}
+								onChange={(event) => setRenameValue(event.target.value)}
+								maxLength={120}
+								className="mt-1.5 h-10 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-violet-300/45"
+							/>
+						</label>
+						{renameError && (
+							<p className="mt-2 text-xs text-rose-200" role="alert">
+								{renameError}
+							</p>
+						)}
+						<div className="mt-5 flex justify-end gap-2">
+							<button
+								type="button"
+								disabled={conversationActionBusy}
+								onClick={() => setRenameTarget(null)}
+								className="rounded-lg px-3 py-2 text-xs text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+							>
+								{t("cancel")}
+							</button>
+							<button
+								type="submit"
+								disabled={conversationActionBusy || !renameValue.trim()}
+								className="rounded-lg bg-violet-300 px-3 py-2 text-xs font-medium text-[#17131c] transition hover:bg-violet-200 disabled:opacity-50"
+							>
+								{conversationActionBusy ? t("saving") : t("save")}
+							</button>
+						</div>
+					</form>
+				</div>
+			)}
+			{deleteTarget && (
+				<div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4">
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="lumi-delete-title"
+						className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151416] p-5 shadow-2xl shadow-black/60"
+					>
+						<h2 id="lumi-delete-title" className="text-base font-semibold text-white">
+							{t("lumiDeleteChat")}
+						</h2>
+						<p className="mt-2 text-sm leading-6 text-white/60">
+							{t("lumiDeleteChatConfirm")}
+						</p>
+						<p className="mt-1 truncate text-xs text-white/40">
+							{deleteTarget.title}
+						</p>
+						{deleteError && (
+							<p className="mt-2 text-xs text-rose-200" role="alert">
+								{deleteError}
+							</p>
+						)}
+						<div className="mt-5 flex justify-end gap-2">
+							<button
+								type="button"
+								disabled={conversationActionBusy}
+								onClick={() => setDeleteTarget(null)}
+								className="rounded-lg px-3 py-2 text-xs text-white/60 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+							>
+								{t("cancel")}
+							</button>
+							<button
+								type="button"
+								disabled={conversationActionBusy}
+								onClick={() => void deleteConversation()}
+								className="rounded-lg bg-rose-300 px-3 py-2 text-xs font-medium text-[#211214] transition hover:bg-rose-200 disabled:opacity-50"
+							>
+								{conversationActionBusy ? t("saving") : t("delete")}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</main>
 	);
 }
@@ -914,16 +1113,8 @@ function ChatMessage({
 		>
 			{isAssistant ? (
 				<div className="min-w-0 w-full text-sm leading-6 text-white/90">
-					<p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-white/40">
-						<Sparkles className="h-3 w-3 text-violet-300/70" />
-						{t("lumiAssistant")}
-					</p>
 					<AnswerText message={message} session={session} />
-					<AnswerMetadata
-						references={message.references}
-						sources={message.sources}
-						session={session}
-					/>
+					<AnswerMetadata sources={message.sources} />
 				</div>
 			) : (
 				<div className="max-w-[88%] rounded-2xl rounded-br-md bg-[#242126] px-4 py-3 text-sm leading-6 text-white/90 sm:max-w-[78%]">
@@ -947,6 +1138,18 @@ function AnswerText({
 			reference,
 		]),
 	);
+	const contentWithoutCode = message.content.replace(/```[\s\S]*?```/g, "");
+	const inlineReferenceKeys = new Set(
+		Array.from(
+			contentWithoutCode.matchAll(
+				/:::zenstream\s*\{\s*type="([^"]+)"\s+id="([^"]+)"\s*\}/g,
+			),
+			(match) => `${match[1]}:${match[2]}`,
+		),
+	);
+	const remainingReferences = [...references.values()].filter(
+		(reference) => !inlineReferenceKeys.has(`${reference.type}:${reference.id}`),
+	);
 	return (
 		<div className="break-words text-sm leading-7 text-white/85">
 			<MarkdownContent
@@ -954,6 +1157,17 @@ function AnswerText({
 				references={references}
 				session={session}
 			/>
+			{remainingReferences.length > 0 && (
+				<div className="mt-3">
+					{remainingReferences.map((reference) => (
+						<LumiRecommendationCard
+							key={`${reference.type}:${reference.id}`}
+							reference={reference}
+							session={session}
+						/>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -980,13 +1194,20 @@ function MarkdownContent({
 			{parseMarkdownBlocks(content).map((block, index) => {
 				if (block.kind === "heading") {
 					const Heading = markdownHeadingTags[block.level - 1];
-					return (
+					const heading = (
+						<MarkdownInline
+							text={block.text}
+							references={references}
+							session={session}
+						/>
+					);
+					return containsLumiReference(block.text) ? (
+						<div key={index} className="font-semibold leading-snug text-white/95">
+							{heading}
+						</div>
+					) : (
 						<Heading key={index} className="font-semibold leading-snug text-white/95">
-							<MarkdownInline
-								text={block.text}
-								references={references}
-								session={session}
-							/>
+							{heading}
 						</Heading>
 					);
 				}
@@ -1019,7 +1240,9 @@ function MarkdownContent({
 						</List>
 					);
 				}
-				const Paragraph = block.kind === "quote" ? "blockquote" : "p";
+				const hasReference = block.lines.some(containsLumiReference);
+				const Paragraph =
+					block.kind === "quote" ? "blockquote" : hasReference ? "div" : "p";
 				return (
 					<Paragraph
 						key={index}
@@ -1030,10 +1253,10 @@ function MarkdownContent({
 						}
 					>
 						{block.lines.map((line, lineIndex) => (
-							<span key={`${lineIndex}:${line}`}>
+							<Fragment key={`${lineIndex}:${line}`}>
 								<MarkdownInline text={line} references={references} session={session} />
-								{lineIndex < block.lines.length - 1 && " "}
-							</span>
+								{lineIndex < block.lines.length - 1 && <br />}
+							</Fragment>
 						))}
 					</Paragraph>
 				);
@@ -1073,7 +1296,7 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
 			const codeLines: string[] = [];
 			index += 1;
 			while (index < lines.length && !/^\s*```/.test(lines[index])) {
-				codeLines.push(lines[index]);
+				codeLines.push(lines[index].replace(/:::zenstream\s*(?:\{[^}]*\})?/g, ""));
 				index += 1;
 			}
 			blocks.push({ kind: "code", text: codeLines.join("\n") });
@@ -1118,27 +1341,49 @@ function MarkdownInline({
 	session: AuthSession;
 }) {
 	const tokens =
-		/\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\*([^*]+)\*|_([^_]+)_|:::zenstream\{type="([^"]+)" id="([^"]+)"\}/g;
+		/\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\*([^*]+)\*|_([^_]+)_|:::zenstream\s*\{\s*type="([^"]+)"\s+id="([^"]+)"\s*\}|:::zenstream\s*\{[^}]*\}/g;
 	const parts: ReactNode[] = [];
 	let cursor = 0;
 	let match: RegExpExecArray | null;
 	let index = 0;
 	while ((match = tokens.exec(text)) !== null) {
-		if (match.index > cursor) parts.push(text.slice(cursor, match.index));
+		let before = text.slice(cursor, match.index);
+		if (match[8] !== undefined && match[9] !== undefined) {
+			const reference = references.get(`${match[8]}:${match[9]}`);
+			if (reference) {
+				const trimmed = before.trimEnd();
+				const title = reference.title.trim();
+				if (
+					title.length > 0 &&
+					trimmed.toLocaleLowerCase().endsWith(title.toLocaleLowerCase())
+				) {
+					before = trimmed.slice(0, trimmed.length - title.length);
+				}
+			}
+		}
+		if (before) parts.push(before);
 		if (match[8] !== undefined && match[9] !== undefined) {
 			const reference = references.get(`${match[8]}:${match[9]}`);
 			parts.push(
 				reference ? (
-					<LumiReferenceLink
+					<LumiRecommendationCard
 						key={index}
 						reference={reference}
 						session={session}
-						compact
 					/>
-				) : (
-					match[0]
-				),
+				) : null,
 			);
+			const rest = text.slice(tokens.lastIndex);
+			const duplicateTitle = rest.match(/^\s+\(([^)]+)\)/);
+			if (
+				reference &&
+				duplicateTitle?.[1].trim().toLocaleLowerCase() ===
+					reference.title.trim().toLocaleLowerCase()
+			) {
+				tokens.lastIndex += duplicateTitle[0].length;
+			}
+		} else if (match[10] !== undefined) {
+			// Suppress malformed internal markers instead of exposing implementation text.
 		} else if (match[1] !== undefined && match[2] !== undefined) {
 			const href = safeExternalUrl(match[2]);
 			parts.push(
@@ -1181,8 +1426,16 @@ function MarkdownInline({
 		cursor = tokens.lastIndex;
 		index += 1;
 	}
-	if (cursor < text.length) parts.push(text.slice(cursor));
+	if (cursor < text.length) {
+		const tail = text.slice(cursor);
+		const partialMarkerIndex = tail.indexOf(":::zenstream");
+		parts.push(partialMarkerIndex < 0 ? tail : tail.slice(0, partialMarkerIndex));
+	}
 	return <>{parts}</>;
+}
+
+function containsLumiReference(text: string) {
+	return /:::zenstream\s*\{/.test(text);
 }
 
 const supportedReferenceTypes: Record<string, string[]> = {
@@ -1197,18 +1450,16 @@ const supportedReferenceTypes: Record<string, string[]> = {
 	collection: ["BoxSet"],
 };
 
-function LumiReferenceLink({
+function LumiRecommendationCard({
 	reference,
 	session,
-	compact = false,
 }: {
 	reference: LumiEntityReference;
 	session: AuthSession;
-	compact?: boolean;
 }) {
-	const [resolvedItem, setResolvedItem] = useState<{
+	const [resolution, setResolution] = useState<{
 		key: string;
-		item: MediaItem;
+		item: MediaItem | null;
 	} | null>(null);
 	const referenceKey = `${session.userId}:${reference.type}:${reference.id}`;
 	useEffect(() => {
@@ -1220,49 +1471,42 @@ function LumiReferenceLink({
 		}
 		void getItem(session, reference.id)
 			.then((result) => {
-				if (
-					current &&
-					result.Id === reference.id &&
-					supportedReferenceTypes[reference.type].includes(result.Type ?? "")
-				)
-					setResolvedItem({
+				if (current) {
+					setResolution({
 						key: referenceKey,
-						item: result,
+						item:
+							result.Id === reference.id &&
+							supportedReferenceTypes[reference.type].includes(result.Type ?? "")
+								? result
+								: null,
 					});
+				}
 			})
-			.catch(() => {});
+			.catch(() => {
+				if (current) setResolution({ key: referenceKey, item: null });
+			});
 		return () => {
 			current = false;
 		};
 	}, [reference.id, reference.type, referenceKey, session]);
-	const item = resolvedItem?.key === referenceKey ? resolvedItem.item : null;
-	const href = item ? catalogReferenceHref(reference, item) : null;
-	const className = compact
-		? "inline-flex max-w-full translate-y-0.5 items-center gap-1 rounded-md border border-violet-300/20 bg-violet-300/[0.08] px-2 py-0.5 text-violet-100/90 transition hover:bg-violet-300/[0.15]"
-		: "inline-flex max-w-full items-center gap-1.5 rounded-lg border border-violet-300/15 bg-violet-300/[0.06] px-2.5 py-1.5 text-xs text-violet-100/85 transition hover:bg-violet-300/[0.12]";
-	return href ? (
-		<Link href={href} className={className}>
-			<span className="truncate">{reference.title}</span>
-			<ExternalLink className="h-3 w-3 shrink-0 opacity-55" />
-		</Link>
-	) : (
-		<span
-			className={`inline-flex max-w-full items-center rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-white/65 ${compact ? "translate-y-0.5" : ""}`}
-		>
-			<span className="truncate">{reference.title}</span>
-		</span>
+	if (!supportedReferenceTypes[reference.type]) return null;
+	const resolved = resolution?.key === referenceKey;
+	const item = resolved ? resolution.item : null;
+	if (resolved && !item) return null;
+	if (!item) {
+		return (
+			<div
+				aria-hidden="true"
+				className="my-3 h-36 w-full animate-pulse rounded-xl border border-white/10 bg-white/[0.04]"
+			/>
+		);
+	}
+	return (
+		<MediaBannerCard item={item} href={catalogReferenceHref(reference, item)} />
 	);
 }
 
-function AnswerMetadata({
-	references,
-	sources,
-	session,
-}: {
-	references: LumiEntityReference[];
-	sources: LumiSource[];
-	session: AuthSession;
-}) {
+function AnswerMetadata({ sources }: { sources: LumiSource[] }) {
 	const { t } = useI18n();
 	const safeSources = sources.flatMap((source) => {
 		const safeUrl = safeExternalUrl(source.url);
@@ -1273,20 +1517,6 @@ function AnswerMetadata({
 	});
 	return (
 		<div className="mt-4 space-y-3">
-			{references.length > 0 && (
-				<section aria-label={t("lumiReferences")}>
-					<h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-200/55">
-						{t("lumiReferences")}
-					</h3>
-					<ul className="flex flex-wrap gap-2">
-						{references.map((reference) => (
-							<li key={`${reference.type}:${reference.id}`}>
-								<LumiReferenceLink reference={reference} session={session} />
-							</li>
-						))}
-					</ul>
-				</section>
-			)}
 			{safeSources.length > 0 && (
 				<section aria-label={t("lumiSources")}>
 					<h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">

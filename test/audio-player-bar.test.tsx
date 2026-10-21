@@ -219,7 +219,7 @@ describe("AudioPlayerBar", () => {
 			screen.getAllByRole("button", { name: "Shuffle" }).length,
 		).toBeGreaterThan(0);
 		expect(screen.getAllByRole("button", { name: "Shuffle" })[0]).toHaveClass(
-			"text-white/35",
+			"text-neutral-500",
 		);
 		expect(
 			screen.getAllByRole("button", { name: "Previous" }).length,

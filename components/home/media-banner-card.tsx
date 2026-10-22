@@ -38,14 +38,14 @@ export function MediaBannerCard({
 				)}
 				<div className="absolute inset-0 bg-gradient-to-r from-[#111115]/95 via-[#111115]/90 to-violet-950/40" />
 			</div>
-			<div className="relative min-h-[144px] overflow-hidden bg-black/25">
+			<div className="relative aspect-[2/3] overflow-hidden bg-black/25">
 				{poster ? (
 					<BlurHashImage
 						image={poster}
 						alt={item.Name}
 						useArtworkVariants
 						sizes="88px"
-						className="object-cover"
+						className="h-full w-full object-contain"
 					/>
 				) : (
 					<MediaPlaceholder />

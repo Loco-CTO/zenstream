@@ -1335,10 +1335,12 @@ function MarkdownInline({
 	text,
 	references,
 	session,
+	emphasis = [],
 }: {
 	text: string;
 	references: Map<string, LumiEntityReference>;
 	session: AuthSession;
+	emphasis?: Array<"strong" | "em">;
 }) {
 	const tokens =
 		/\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\*([^*]+)\*|_([^_]+)_|:::zenstream\s*\{\s*type="([^"]+)"\s+id="([^"]+)"\s*\}|:::zenstream\s*\{[^}]*\}/g;
@@ -1346,6 +1348,25 @@ function MarkdownInline({
 	let cursor = 0;
 	let match: RegExpExecArray | null;
 	let index = 0;
+	let styledPartIndex = 0;
+	const applyEmphasis = (node: ReactNode) => {
+		let result = node;
+		for (const [emphasisIndex, style] of emphasis.entries()) {
+			const key = `inline-emphasis-${styledPartIndex}-${emphasisIndex}`;
+			result =
+				style === "strong" ? (
+					<strong key={key} className="font-semibold text-white/95">
+						{result}
+					</strong>
+				) : (
+					<em key={key} className="italic text-white/90">
+						{result}
+					</em>
+				);
+		}
+		styledPartIndex += 1;
+		return result;
+	};
 	while ((match = tokens.exec(text)) !== null) {
 		let before = text.slice(cursor, match.index);
 		if (match[8] !== undefined && match[9] !== undefined) {
@@ -1361,7 +1382,7 @@ function MarkdownInline({
 				}
 			}
 		}
-		if (before) parts.push(before);
+		if (before) parts.push(applyEmphasis(before));
 		if (match[8] !== undefined && match[9] !== undefined) {
 			const reference = references.get(`${match[8]}:${match[9]}`);
 			parts.push(
@@ -1386,41 +1407,50 @@ function MarkdownInline({
 			// Suppress malformed internal markers instead of exposing implementation text.
 		} else if (match[1] !== undefined && match[2] !== undefined) {
 			const href = safeExternalUrl(match[2]);
-			parts.push(
-				href ? (
-					<a
-						key={index}
-						href={href}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="text-violet-200 underline decoration-violet-200/30 underline-offset-2 hover:text-violet-100"
-					>
-						{match[1]}
-					</a>
-				) : (
-					match[1]
-				),
+			const link = href ? (
+				<a
+					key={index}
+					href={href}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="text-violet-200 underline decoration-violet-200/30 underline-offset-2 hover:text-violet-100"
+				>
+					{match[1]}
+				</a>
+			) : (
+				match[1]
 			);
+			parts.push(applyEmphasis(link));
 		} else if (match[3] !== undefined || match[4] !== undefined) {
 			parts.push(
-				<strong key={index} className="font-semibold text-white/95">
-					{match[3] ?? match[4]}
-				</strong>,
+				<MarkdownInline
+					key={index}
+					text={match[3] ?? match[4]}
+					references={references}
+					session={session}
+					emphasis={[...emphasis, "strong"]}
+				/>,
 			);
 		} else if (match[5] !== undefined) {
 			parts.push(
-				<code
-					key={index}
-					className="rounded bg-white/10 px-1 py-0.5 font-mono text-[0.9em] text-violet-100/90"
-				>
-					{match[5]}
-				</code>,
+				applyEmphasis(
+					<code
+						key={index}
+						className="rounded bg-white/10 px-1 py-0.5 font-mono text-[0.9em] text-violet-100/90"
+					>
+						{match[5]}
+					</code>,
+				),
 			);
 		} else {
 			parts.push(
-				<em key={index} className="italic text-white/90">
-					{match[6] ?? match[7]}
-				</em>,
+				<MarkdownInline
+					key={index}
+					text={match[6] ?? match[7]}
+					references={references}
+					session={session}
+					emphasis={[...emphasis, "em"]}
+				/>,
 			);
 		}
 		cursor = tokens.lastIndex;
@@ -1429,7 +1459,9 @@ function MarkdownInline({
 	if (cursor < text.length) {
 		const tail = text.slice(cursor);
 		const partialMarkerIndex = tail.indexOf(":::zenstream");
-		parts.push(partialMarkerIndex < 0 ? tail : tail.slice(0, partialMarkerIndex));
+		const visibleTail =
+			partialMarkerIndex < 0 ? tail : tail.slice(0, partialMarkerIndex);
+		if (visibleTail) parts.push(applyEmphasis(visibleTail));
 	}
 	return <>{parts}</>;
 }

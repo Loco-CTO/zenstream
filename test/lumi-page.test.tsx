@@ -313,9 +313,21 @@ describe("LumiPage", () => {
 		expect(await screen.findAllByRole("link", { name: "Arrival" })).toHaveLength(
 			1,
 		);
-		expect(screen.getByRole("link", { name: "Arrival" })).toHaveAttribute(
-			"href",
-			"/show/movie-1",
+		const recommendationCard = screen.getByRole("link", { name: "Arrival" });
+		expect(recommendationCard).toHaveAttribute("href", "/show/movie-1");
+		expect(recommendationCard).toHaveClass(
+			"grid-cols-[96px_minmax(0,1fr)]",
+			"items-stretch",
+			"sm:grid-cols-[120px_minmax(0,1fr)]",
+		);
+		const poster = within(recommendationCard).getByRole("img", {
+			name: "Arrival",
+		});
+		expect(poster).toHaveClass("h-full", "w-full", "object-cover");
+		expect(poster.parentElement).toHaveClass(
+			"self-stretch",
+			"min-h-[144px]",
+			"sm:min-h-[180px]",
 		);
 		expect(
 			screen.getByText("A linguist works to understand an alien language."),

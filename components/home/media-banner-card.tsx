@@ -38,14 +38,14 @@ export function MediaBannerCard({
 				)}
 				<div className="absolute inset-0 bg-gradient-to-r from-[#111115]/95 via-[#111115]/90 to-violet-950/40" />
 			</div>
-			<div className="relative min-h-[144px] overflow-hidden bg-black/25">
+			<div className="relative min-h-[144px] self-stretch overflow-hidden bg-black/25 sm:min-h-[180px]">
 				{poster ? (
 					<BlurHashImage
 						image={poster}
 						alt={item.Name}
 						useArtworkVariants
-						sizes="88px"
-						className="object-cover"
+						sizes="(max-width: 639px) 96px, 120px"
+						className="h-full w-full object-cover"
 					/>
 				) : (
 					<MediaPlaceholder />
@@ -89,7 +89,7 @@ export function MediaBannerCard({
 		</>
 	);
 	const className =
-		"group/banner relative my-3 grid w-full grid-cols-[88px_minmax(0,1fr)] overflow-hidden rounded-xl border border-white/10 bg-[#111115] shadow-lg shadow-black/20 transition hover:border-violet-200/25 hover:bg-[#17161b]";
+		"group/banner relative my-3 grid w-full grid-cols-[96px_minmax(0,1fr)] items-stretch overflow-hidden rounded-xl border border-white/10 bg-[#111115] shadow-lg shadow-black/20 transition hover:border-violet-200/25 hover:bg-[#17161b] sm:grid-cols-[120px_minmax(0,1fr)]";
 
 	return href ? (
 		<Link href={href} aria-label={item.Name} className={className}>

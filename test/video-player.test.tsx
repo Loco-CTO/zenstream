@@ -1844,94 +1844,98 @@ describe("video player controls", () => {
 		expect(queryByText("Preview unavailable")).not.toBeInTheDocument();
 	});
 
-	it("toggles and remembers elapsed and remaining timer formats", async () => {
-		const item = {
-			Id: "movie",
-			Name: "Movie",
-			Type: "Movie",
-			RunTimeTicks: 1_500 * 10_000_000,
-		} as MediaItem;
-		const streams = {
-			source: { Id: "source", mode: "direct", url: "/movie.mp4" },
-			audio: [],
-			subtitles: [],
-			qualities: [],
-		} as never;
-		const renderPlayer = () =>
-			render(
-				<I18nProvider locale="en">
-					<SubtitlePreferencesProvider>
-						<VideoPlayer
-							item={item}
-							session={{ token: "token", userId: "user", username: "Alex" }}
-							initialStreams={streams}
-							onClose={vi.fn()}
-						/>
-					</SubtitlePreferencesProvider>
-				</I18nProvider>,
+	it.each([false, true])(
+		"toggles and remembers timer formats with minimized=%s",
+		async (minimized) => {
+			const item = {
+				Id: "movie",
+				Name: "Movie",
+				Type: "Movie",
+				RunTimeTicks: 1_500 * 10_000_000,
+			} as MediaItem;
+			const streams = {
+				source: { Id: "source", mode: "direct", url: "/movie.mp4" },
+				audio: [],
+				subtitles: [],
+				qualities: [],
+			} as never;
+			const renderPlayer = () =>
+				render(
+					<I18nProvider locale="en">
+						<SubtitlePreferencesProvider>
+							<VideoPlayer
+								item={item}
+								session={{ token: "token", userId: "user", username: "Alex" }}
+								initialStreams={streams}
+								minimized={minimized}
+								onClose={vi.fn()}
+							/>
+						</SubtitlePreferencesProvider>
+					</I18nProvider>,
+				);
+
+			const first = renderPlayer();
+			const firstVideo = first.container.querySelector("video")!;
+			Object.defineProperty(firstVideo, "duration", {
+				configurable: true,
+				value: 1_425,
+			});
+			Object.defineProperty(firstVideo, "currentTime", {
+				configurable: true,
+				writable: true,
+				value: 83,
+			});
+			fireEvent.loadedMetadata(firstVideo);
+			fireEvent.timeUpdate(firstVideo);
+
+			const firstTimer = first.getByTestId("player-time");
+			expect(firstTimer).toHaveTextContent("-22:22 / 23:45");
+			expect(firstTimer).toHaveAccessibleName("Show elapsed time");
+			expect(firstTimer).toHaveAttribute("aria-pressed", "false");
+			expect(firstTimer).toHaveClass(
+				"transition-colors",
+				"hover:text-white/60",
+				"focus-visible:text-white/60",
+			);
+			expect(firstTimer).not.toHaveClass(
+				"rounded",
+				"hover:bg-white/10",
+				"focus:ring-2",
+				"focus:ring-violet-300",
+			);
+			const timerClassName = firstTimer.className;
+
+			fireEvent.click(firstTimer);
+			expect(firstTimer).toHaveTextContent("1:23 / 23:45");
+			expect(firstTimer).toHaveAccessibleName("Show remaining time");
+			expect(firstTimer).toHaveAttribute("aria-pressed", "true");
+			expect(firstTimer.className).toBe(timerClassName);
+			expect(window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY)).toBe(
+				"elapsed",
 			);
 
-		const first = renderPlayer();
-		const firstVideo = first.container.querySelector("video")!;
-		Object.defineProperty(firstVideo, "duration", {
-			configurable: true,
-			value: 1_425,
-		});
-		Object.defineProperty(firstVideo, "currentTime", {
-			configurable: true,
-			writable: true,
-			value: 83,
-		});
-		fireEvent.loadedMetadata(firstVideo);
-		fireEvent.timeUpdate(firstVideo);
+			first.unmount();
+			const second = renderPlayer();
+			await act(async () => {
+				await Promise.resolve();
+			});
+			const secondVideo = second.container.querySelector("video")!;
+			Object.defineProperty(secondVideo, "duration", {
+				configurable: true,
+				value: 1_425,
+			});
+			Object.defineProperty(secondVideo, "currentTime", {
+				configurable: true,
+				writable: true,
+				value: 83,
+			});
+			fireEvent.loadedMetadata(secondVideo);
+			fireEvent.timeUpdate(secondVideo);
 
-		const firstTimer = first.getByTestId("player-time");
-		expect(firstTimer).toHaveTextContent("-22:22 / 23:45");
-		expect(firstTimer).toHaveAccessibleName("Show elapsed time");
-		expect(firstTimer).toHaveAttribute("aria-pressed", "false");
-		expect(firstTimer).toHaveClass(
-			"transition-colors",
-			"hover:text-white/60",
-			"focus-visible:text-white/60",
-		);
-		expect(firstTimer).not.toHaveClass(
-			"rounded",
-			"hover:bg-white/10",
-			"focus:ring-2",
-			"focus:ring-violet-300",
-		);
-		const timerClassName = firstTimer.className;
-
-		fireEvent.click(firstTimer);
-		expect(firstTimer).toHaveTextContent("1:23 / 23:45");
-		expect(firstTimer).toHaveAccessibleName("Show remaining time");
-		expect(firstTimer).toHaveAttribute("aria-pressed", "true");
-		expect(firstTimer.className).toBe(timerClassName);
-		expect(window.localStorage.getItem(PLAYER_TIME_DISPLAY_STORAGE_KEY)).toBe(
-			"elapsed",
-		);
-
-		first.unmount();
-		const second = renderPlayer();
-		await act(async () => {
-			await Promise.resolve();
-		});
-		const secondVideo = second.container.querySelector("video")!;
-		Object.defineProperty(secondVideo, "duration", {
-			configurable: true,
-			value: 1_425,
-		});
-		Object.defineProperty(secondVideo, "currentTime", {
-			configurable: true,
-			writable: true,
-			value: 83,
-		});
-		fireEvent.loadedMetadata(secondVideo);
-		fireEvent.timeUpdate(secondVideo);
-
-		const secondTimer = second.getByTestId("player-time");
-		expect(secondTimer).toHaveTextContent("1:23 / 23:45");
-	});
+			const secondTimer = second.getByTestId("player-time");
+			expect(secondTimer).toHaveTextContent("1:23 / 23:45");
+		},
+	);
 
 	it("falls back to remaining mode for an invalid stored timer preference", () => {
 		window.localStorage.setItem(PLAYER_TIME_DISPLAY_STORAGE_KEY, "invalid");

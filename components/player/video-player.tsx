@@ -4085,9 +4085,18 @@ export function VideoPlayer({
 						</button>
 					</div>
 					<div className="zenstream-mini-controls absolute inset-x-2 bottom-0 opacity-0 transition-opacity duration-150">
-						<div className="pointer-events-none mb-0.5 text-[10px] tabular-nums">
+						<button
+							type="button"
+							data-testid="player-time"
+							aria-label={timeDisplayActionLabel}
+							aria-keyshortcuts="T"
+							aria-pressed={timeDisplayMode === "elapsed"}
+							data-tooltip={timeDisplayActionLabel}
+							onClick={toggleTimeDisplay}
+							className="mb-0.5 flex h-6 items-center text-sm tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60"
+						>
 							{timerText}
-						</div>
+						</button>
 						{timeline}
 					</div>
 					{error && (

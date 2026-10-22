@@ -90,6 +90,8 @@ export function SettingsPage({
 		error: subtitleError,
 	} = useSubtitlePreferences();
 	const {
+		continueVideoInMiniPlayer,
+		setContinueVideoInMiniPlayer,
 		autoplayNextEpisode,
 		autoplayBrowse,
 		useHeroTrailer,
@@ -370,6 +372,20 @@ export function SettingsPage({
 										onChange={(value) =>
 											void changePlaybackPreference("subtitleLanguage", value)
 										}
+									/>
+								}
+							/>
+							<SettingsRow
+								label={t("leavingVideoPlayer")}
+								right={
+									<SettingsSelect
+										label={t("leavingVideoPlayer")}
+										value={continueVideoInMiniPlayer ? "mini" : "stop"}
+										options={[
+											["mini", t("continueInMiniPlayer")],
+											["stop", t("stopPlayback")],
+										]}
+										onChange={(value) => setContinueVideoInMiniPlayer(value === "mini")}
 									/>
 								}
 							/>

@@ -308,3 +308,15 @@ button:disabled {
 	background: rgba(255, 255, 255, 0.24);
 	border-radius: 2px;
 }
+
+.zenstream-mini-frame:hover .zenstream-mini-controls,
+.zenstream-mini-frame:has(:focus-visible) .zenstream-mini-controls {
+	opacity: 1;
+}
+.zenstream-mini-frame .zenstream-mini-controls {
+	visibility: hidden;
+}
+.zenstream-mini-frame:hover .zenstream-mini-controls,
+.zenstream-mini-frame:has(:focus-visible) .zenstream-mini-controls {
+	visibility: visible;
+}

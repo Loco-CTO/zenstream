@@ -62,12 +62,24 @@ export function playbackTrackChoices(
 
 export function PlayerPage({
 	initialData,
+	initialSearch,
+	minimized,
+	onBack,
+	onExpand,
+	onDismiss,
+	onNextItem,
 	session,
 	fullscreenHostRef: suppliedFullscreenHostRef,
 	watchHistoryEnabled = true,
 	watchHistoryLoaded = false,
 }: {
 	initialData: DetailData;
+	initialSearch?: string;
+	minimized?: boolean;
+	onBack?: () => void;
+	onExpand?: () => void;
+	onDismiss?: () => void;
+	onNextItem?: (itemId: string) => void;
 	session: AuthSession;
 	fullscreenHostRef?: { current: HTMLDivElement | null };
 	watchHistoryEnabled?: boolean;
@@ -93,8 +105,13 @@ export function PlayerPage({
 			: item;
 	const startPositionSeconds = savedPlaybackPositionSeconds(item);
 	const requestedTracks = useMemo(
-		() => playbackTrackChoices(searchParams),
-		[searchParams],
+		() =>
+			playbackTrackChoices(
+				initialSearch !== undefined
+					? new URLSearchParams(initialSearch)
+					: searchParams,
+			),
+		[initialSearch, searchParams],
 	);
 	const playbackRequestKey = `${item.Id}:${requestedTracks.audio ?? "auto"}:${
 		requestedTracks.subtitle === null
@@ -195,12 +212,20 @@ export function PlayerPage({
 			initialStreams={
 				streamsRequestKey === playbackRequestKey ? streams : undefined
 			}
+			minimized={minimized}
+			onExpand={onExpand}
+			onBack={onBack}
 			onClose={() => {
 				if (active) void setWatchingTogether(false).catch(() => undefined);
-				router.replace(getLastNonPlayerPath());
+				if (onDismiss) onDismiss();
+				else router.replace(getLastNonPlayerPath());
 			}}
 			onNext={(next) => {
 				if (active) return;
+				if (onNextItem) {
+					onNextItem(next.Id);
+					return;
+				}
 				setItem(next);
 				router.replace(`/play/${encodeURIComponent(next.Id)}`);
 			}}

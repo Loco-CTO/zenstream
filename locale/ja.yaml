@@ -491,3 +491,8 @@ lumiMessagePlaceholder: 質問を入力…
 lumiEnterHint: Enterで送信 · Shift+Enterで改行
 lumiSend: メッセージを送信
 lumiSendFailed: Lumiが回答できませんでした。入力した文章は入力欄に残っています。
+
+leavingVideoPlayer: 動画プレーヤーを離れるとき
+continueInMiniPlayer: ミニプレーヤーで再生を続ける
+stopPlayback: 再生を停止
+expandPlayer: 拡大

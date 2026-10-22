@@ -53,10 +53,7 @@ const DetailPage = dynamic(
 	() => import("@/components/pages/detail-page").then((m) => m.DetailPage),
 	{ ssr: false },
 );
-const PlayerPage = dynamic(
-	() => import("@/components/pages/player-page").then((m) => m.PlayerPage),
-	{ ssr: false },
-);
+
 const LibraryPage = dynamic(
 	() => import("@/components/pages/library-page").then((m) => m.LibraryPage),
 	{ ssr: false },
@@ -128,12 +125,12 @@ import {
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
-import { SyncplayPlaybackFollower } from "@/components/syncplay/playback-follower";
 import { ToastProvider } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { rememberLastNonPlayerPath } from "@/lib/player-navigation";
 import { startCatalogEvents } from "@/lib/catalog-events";
 import { AudioPlayerProvider } from "@/components/audio/audio-player-provider";
+import { VideoPlaybackHost } from "@/components/player/video-playback-host";
 import { AudioPlayerBar } from "@/components/audio/audio-player-bar";
 import { NativeAppBanner } from "@/components/native-app-banner";
 
@@ -208,11 +205,7 @@ export function AppShell() {
 	const { start } = useProgress();
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const playerFullscreenHostRef = useRef<HTMLDivElement>(null);
-	const lastPlayerFullscreenHostRef = useRef<HTMLDivElement | null>(null);
-	const setPlayerFullscreenHost = useCallback((node: HTMLDivElement | null) => {
-		playerFullscreenHostRef.current = node;
-		if (node) lastPlayerFullscreenHostRef.current = node;
-	}, []);
+
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
 	const [searchData, setSearchData] = useState<string | null>(null);
@@ -467,7 +460,6 @@ export function AppShell() {
 
 	const detailId = detailIdFromPath(pathname);
 	const playId = playIdFromPath(pathname);
-	const playerFullscreenActive = Boolean(playId && renderStatus !== "error");
 	const audioAlbumId = audioAlbumIdFromPath(pathname);
 	const artistId = artistIdFromPath(pathname);
 	const playlistId = playlistIdFromPath(pathname);
@@ -482,16 +474,7 @@ export function AppShell() {
 	const searchQuery = searchParams.get("q") ?? "";
 	const serializedSearch = searchParams.toString();
 	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
-	useEffect(() => {
-		return () => {
-			const fullscreenHost =
-				playerFullscreenHostRef.current ?? lastPlayerFullscreenHostRef.current;
-			if (fullscreenHost && document.fullscreenElement === fullscreenHost) {
-				const exitFullscreen = document.exitFullscreen?.();
-				if (exitFullscreen) void exitFullscreen.catch(() => undefined);
-			}
-		};
-	}, [playerFullscreenActive]);
+
 	const fetchDetailPayload = useCallback(
 		async (
 			nextSession: AuthSession,
@@ -1221,7 +1204,6 @@ export function AppShell() {
 								watchHistoryEnabled={watchHistoryLoaded ? watchHistoryEnabled : true}
 							>
 								<SyncplayProvider session={session}>
-									<SyncplayPlaybackFollower />
 									{pathname === "/settings" ? (
 										<SettingsPage
 											displayName={session.username}
@@ -1271,37 +1253,7 @@ export function AppShell() {
 													}}
 												/>
 											)}
-											{playId && (
-												<div
-													ref={setPlayerFullscreenHost}
-													data-testid="player-fullscreen-host"
-													className={
-														playerFullscreenActive
-															? "fixed inset-0 z-[200] h-[100dvh] overflow-hidden bg-black text-white"
-															: "hidden"
-													}
-												>
-													{playerFullscreenActive &&
-														(renderStatus === "ready" && detailData ? (
-															<PlayerPage
-																initialData={detailData}
-																session={session}
-																fullscreenHostRef={playerFullscreenHostRef}
-																watchHistoryEnabled={watchHistoryEnabled}
-																watchHistoryLoaded={watchHistoryLoaded}
-															/>
-														) : (
-															<div
-																data-testid="player-route-loading"
-																role="status"
-																aria-label="Loading"
-																className="flex h-full items-center justify-center"
-															>
-																<span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
-															</div>
-														))}
-												</div>
-											)}
+
 											{renderStatus === "ready" &&
 												detailData &&
 												detailId &&
@@ -1368,6 +1320,16 @@ export function AppShell() {
 												)}
 										</div>
 									)}
+									<VideoPlaybackHost
+										playId={renderStatus === "error" ? null : playId}
+										data={detailData}
+										ready={renderStatus === "ready"}
+										search={currentSearch}
+										session={session}
+										fullscreenHostRef={playerFullscreenHostRef}
+										watchHistoryEnabled={watchHistoryEnabled}
+										watchHistoryLoaded={watchHistoryLoaded}
+									/>
 									<AudioPlayerBar />
 								</SyncplayProvider>
 							</AudioPlayerProvider>

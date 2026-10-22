@@ -491,3 +491,8 @@ lumiMessagePlaceholder: Ask a question…
 lumiEnterHint: Enter to send · Shift+Enter for a new line
 lumiSend: Send message
 lumiSendFailed: Lumi could not answer. Your text is still in the composer.
+
+leavingVideoPlayer: When leaving the video player
+continueInMiniPlayer: Continue in mini-player
+stopPlayback: Stop playback
+expandPlayer: Expand

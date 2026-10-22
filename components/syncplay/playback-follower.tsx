@@ -4,7 +4,10 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSyncplay } from "@/lib/syncplay";
 
-export function SyncplayPlaybackFollower() {
+export function SyncplayPlaybackFollower({
+	viewingItemId,
+	onFollowItem,
+}: { viewingItemId?: string; onFollowItem?: (itemId: string) => void } = {}) {
 	const { active, currentMember, setWatchingTogether } = useSyncplay();
 	const pathname = usePathname() ?? "/";
 	const router = useRouter();
@@ -24,7 +27,7 @@ export function SyncplayPlaybackFollower() {
 			return;
 		}
 		const generationKey = `${active.id}:${active.mediaGeneration ?? 0}`;
-		if (isViewingItem(pathname, itemId)) {
+		if (isViewingItem(pathname, itemId) || viewingItemId === itemId) {
 			requestedGenerationRef.current = null;
 			viewedGenerationRef.current = generationKey;
 			return;
@@ -36,8 +39,17 @@ export function SyncplayPlaybackFollower() {
 		}
 		if (requestedGenerationRef.current === generationKey) return;
 		requestedGenerationRef.current = generationKey;
-		router.push(playbackPath(itemId));
-	}, [active, currentMember, pathname, router, setWatchingTogether]);
+		if (onFollowItem) onFollowItem(itemId);
+		else router.push(playbackPath(itemId));
+	}, [
+		active,
+		currentMember,
+		pathname,
+		router,
+		setWatchingTogether,
+		viewingItemId,
+		onFollowItem,
+	]);
 
 	return null;
 }

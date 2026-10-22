@@ -499,7 +499,7 @@ export function NotificationRow({
 							}}
 							className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-white/70 transition hover:bg-white/[.08] hover:text-white ${compact ? "text-[10px]" : "text-xs"}`}
 						>
-							<ActionIcon className="h-3.5 w-3.5" />
+							<ActionIcon className="h-3.5 w-3.5 text-neutral-500" />
 							{actionLabel}
 						</button>
 						<button

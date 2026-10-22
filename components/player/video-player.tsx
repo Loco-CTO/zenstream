@@ -4058,7 +4058,7 @@ export function VideoPlayer({
 			)}
 			{minimized && (
 				<>
-					<div className="zenstream-mini-controls pointer-events-none absolute inset-0 bg-black/35 opacity-0 transition-opacity duration-150">
+					<div className="zenstream-mini-controls pointer-events-none absolute inset-0 bg-black/55 opacity-0 transition-opacity duration-150">
 						<button
 							aria-label={t("expandPlayer")}
 							data-tooltip={t("expandPlayer")}

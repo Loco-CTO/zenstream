@@ -887,14 +887,16 @@ function ItemActionButtons({
 }) {
 	const { t } = useI18n();
 	const buttonClass =
-		"flex h-8 w-8 items-center justify-center rounded-md text-white/35 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/50";
+		"flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-white/[.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/50";
+	const activeButtonClass = "text-violet-300 hover:text-white";
+	const inactiveButtonClass = "text-white/35 hover:text-white";
 	return (
 		<div className="flex shrink-0 items-center gap-0.5">
 			<button
 				type="button"
 				aria-label={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
 				title={t(item.UserData?.Played ? "markUnwatched" : "markWatched")}
-				className={`${buttonClass} ${item.UserData?.Played ? "text-violet-300" : ""}`}
+				className={`${buttonClass} ${item.UserData?.Played ? activeButtonClass : inactiveButtonClass}`}
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -907,7 +909,7 @@ function ItemActionButtons({
 				type="button"
 				aria-label={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
 				title={t(item.UserData?.IsFavorite ? "removeFavorite" : "addFavorite")}
-				className={`${buttonClass} ${item.UserData?.IsFavorite ? "text-violet-300" : ""}`}
+				className={`${buttonClass} ${item.UserData?.IsFavorite ? activeButtonClass : inactiveButtonClass}`}
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();

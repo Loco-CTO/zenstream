@@ -20,11 +20,9 @@ import {
 export function MiniPlayerFrame({
 	minimized,
 	children,
-	title,
 }: {
 	minimized: boolean;
 	children: ReactNode;
-	title: string;
 }) {
 	const [placement, setPlacement] = useState<MiniPlacement>(readMiniPlacement);
 	const [viewport, setViewport] = useState({ width: 1280, height: 720 });
@@ -152,13 +150,7 @@ export function MiniPlayerFrame({
 			const next = {
 				corner: g.edge
 					? placement.corner
-					: nearestMiniCorner(
-							rect.x,
-							rect.y,
-							rect.width,
-							(rect.width * 9) / 16 + 52,
-							viewport,
-						),
+					: nearestMiniCorner(rect.x, rect.y, rect.width, rect.height, viewport),
 				width: rect.width,
 			};
 			pendingSnap.current = { from: rect, to: miniGeometry(next, viewport) };
@@ -186,7 +178,7 @@ export function MiniPlayerFrame({
 							left: rect.x,
 							top: rect.y,
 							width: rect.width,
-							height: (rect.width * 9) / 16 + 52,
+							height: rect.height,
 							transition: live
 								? "none"
 								: "width 160ms ease-out, height 160ms ease-out",
@@ -211,7 +203,7 @@ export function MiniPlayerFrame({
 			<div
 				className={
 					minimized
-						? "relative aspect-video w-full overflow-hidden rounded-t-xl"
+						? "relative aspect-video w-full overflow-hidden rounded-xl"
 						: "relative h-full w-full"
 				}
 			>
@@ -219,11 +211,6 @@ export function MiniPlayerFrame({
 			</div>
 			{minimized && (
 				<>
-					<div className="flex h-[52px] items-center px-3 text-sm font-medium">
-						<p className="truncate" title={title}>
-							{title}
-						</p>
-					</div>
 					<div
 						aria-hidden
 						className={`zenstream-mini-resize absolute inset-y-2 w-2 cursor-ew-resize ${right ? "-left-1" : "-right-1"}`}

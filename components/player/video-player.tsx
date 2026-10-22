@@ -3196,6 +3196,7 @@ export function VideoPlayer({
 			{timelinePreview && (
 				<TrickplayBubble
 					preview={timelinePreview}
+					compact={minimized}
 					onError={() => {
 						setTimelinePreview(undefined);
 						setPreviewUnavailable(true);
@@ -4416,15 +4417,21 @@ export function CustomSubtitleCue({
 
 export function TrickplayBubble({
 	preview,
+	compact = false,
 	onError,
 }: {
 	preview: NonNullable<ReturnType<typeof trickplayPreview>> & {
 		time: number;
 		left: number;
 	};
+	compact?: boolean;
 	onError: () => void;
 }) {
-	const scale = Math.min(1, 240 / preview.width, 150 / preview.height);
+	const scale = Math.min(
+		1,
+		(compact ? 160 : 240) / preview.width,
+		(compact ? 100 : 150) / preview.height,
+	);
 	const previewWidth = preview.width * scale;
 	const previewEdge = previewWidth / 2;
 	return (

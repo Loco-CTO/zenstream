@@ -2880,9 +2880,34 @@ describe("video player controls", () => {
 			/>,
 		);
 
-		expect(
-			getByAltText("Timeline preview").parentElement?.parentElement,
-		).toHaveClass("z-20");
+		const preview = getByAltText("Timeline preview");
+		expect(preview.parentElement?.parentElement).toHaveStyle({ width: "240px" });
+		expect(preview.parentElement?.parentElement).toHaveClass("z-20");
+	});
+
+	it("uses a smaller trickplay preview while minimized", () => {
+		const { getByAltText } = render(
+			<TrickplayBubble
+				compact
+				preview={{
+					url: "/trickplay.webp",
+					width: 320,
+					height: 180,
+					tileIndex: 0,
+					columns: 1,
+					rows: 1,
+					cellX: 0,
+					cellY: 0,
+					time: 70,
+					left: 0.5,
+				}}
+				onError={vi.fn()}
+			/>,
+		);
+
+		const image = getByAltText("Timeline preview");
+		expect(image.parentElement?.parentElement).toHaveStyle({ width: "160px" });
+		expect(image).toHaveStyle({ width: "160px", height: "90px" });
 	});
 
 	it("parses Jellyfin VTT with a BOM and cue settings", () => {

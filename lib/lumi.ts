@@ -45,6 +45,7 @@ export type LumiMessage = {
 	createdAt: string;
 	references: LumiEntityReference[];
 	sources: LumiSource[];
+	finishReason?: "stop" | "tool_calls" | "context_exhausted" | "deadline";
 };
 
 export type LumiConversationList = {
@@ -54,12 +55,16 @@ export type LumiConversationList = {
 export type LumiConversationDetail = {
 	conversation: LumiConversation;
 	messages: LumiMessage[];
+	nextCursor?: string | null;
+	hasMore?: boolean;
+	hasSummary?: boolean;
 };
 
 export type LumiTurnResponse = {
 	conversation: LumiConversation;
 	answer: {
 		markdown: string;
+		finishReason?: "stop" | "tool_calls" | "context_exhausted" | "deadline";
 		references: LumiEntityReference[];
 		sources: LumiSource[];
 	};
@@ -71,6 +76,8 @@ export type LumiStreamEvent = {
 };
 
 export type LumiStreamResetReason = "cpu_fallback" | "intermediate" | "unknown";
+export type LumiStreamStatus =
+	"context_expansion" | "summarization" | "generation";
 
 export type LumiChoiceResponse = { conversation: LumiConversation };
 export type LumiPreferenceResponse = { preference: LumiModelChoice };
@@ -261,10 +268,12 @@ export function getLumiConversation(
 	session: AuthSession,
 	conversationId: string,
 	signal?: AbortSignal,
+	cursor?: string | null,
 ) {
+	const cursorQuery = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
 	return lumiRequest<LumiConversationDetail>(
 		session,
-		`/api/lumi/conversations/${encodeURIComponent(conversationId)}`,
+		`/api/lumi/conversations/${encodeURIComponent(conversationId)}${cursorQuery}`,
 		{ signal },
 	);
 }
@@ -295,6 +304,7 @@ export async function streamLumiTurn(
 	signal?: AbortSignal,
 	choice?: LumiModelChoice,
 	onReset?: (reason: LumiStreamResetReason) => void,
+	onStatus?: (status: LumiStreamStatus) => void,
 ): Promise<LumiTurnResponse> {
 	const response = await authenticatedFetch(
 		session,
@@ -357,6 +367,19 @@ export async function streamLumiTurn(
 			) {
 				const text = (payload as { text: string }).text;
 				onDelta(text);
+			}
+			continue;
+		}
+		if (frame.event === "status") {
+			if (typeof payload === "object" && payload !== null && "stage" in payload) {
+				const stage = (payload as { stage?: unknown }).stage;
+				if (
+					stage === "context_expansion" ||
+					stage === "summarization" ||
+					stage === "generation"
+				) {
+					onStatus?.(stage);
+				}
 			}
 			continue;
 		}

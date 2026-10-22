@@ -312,6 +312,7 @@ describe("LumiPage", () => {
 			expect.any(AbortSignal),
 			undefined,
 			expect.any(Function),
+			expect.any(Function),
 		);
 		expect(await screen.findAllByRole("link", { name: "Arrival" })).toHaveLength(
 			1,
@@ -383,6 +384,7 @@ describe("LumiPage", () => {
 			expect.any(AbortSignal),
 			{ model: "qwen-fast", thinking: false },
 			expect.any(Function),
+			expect.any(Function),
 		);
 		expect(lumi.updateLumiConversationChoice).not.toHaveBeenCalled();
 		expect(lumi.updateLumiModelPreference).not.toHaveBeenCalled();
@@ -426,6 +428,81 @@ describe("LumiPage", () => {
 			model: "qwen-fast",
 			thinking: false,
 		});
+	});
+
+	it("loads earlier messages by cursor, de-duplicates them, and shows the summary notice", async () => {
+		const existing = conversation();
+		const message = (id: string, content: string): lumi.LumiMessage => ({
+			id,
+			role: "user",
+			content,
+			createdAt: "2026-10-06T10:00:00Z",
+			references: [],
+			sources: [],
+		});
+		navigation.query = "conversation=conversation-1";
+		vi.mocked(lumi.getLumiConversations).mockResolvedValue({
+			conversations: [existing],
+		});
+		vi
+			.mocked(lumi.getLumiConversation)
+			.mockResolvedValueOnce({
+				conversation: existing,
+				messages: [message("recent-1", "Recent shared message")],
+				nextCursor: "older-page-token",
+				hasMore: true,
+				hasSummary: true,
+			})
+			.mockResolvedValueOnce({
+				conversation: existing,
+				messages: [
+					message("older-1", "Earlier message"),
+					message("recent-1", "Recent shared message"),
+				],
+				nextCursor: null,
+				hasMore: false,
+				hasSummary: true,
+			});
+		renderPage();
+
+		const loadEarlier = await screen.findByRole("button", {
+			name: "Load earlier messages",
+		});
+		const scroller = screen.getByTestId("lumi-message-scroller");
+		let scrollHeight = 500;
+		let scrollTop = 120;
+		Object.defineProperty(scroller, "scrollHeight", {
+			configurable: true,
+			get: () => scrollHeight,
+		});
+		Object.defineProperty(scroller, "scrollTop", {
+			configurable: true,
+			get: () => scrollTop,
+			set: (value: number) => {
+				scrollTop = value;
+			},
+		});
+		expect(
+			screen.getByText(
+				"Earlier messages remain available in the conversation history.",
+			),
+		).toBeInTheDocument();
+		fireEvent.click(loadEarlier);
+		scrollHeight = 700;
+
+		expect(await screen.findByText("Earlier message")).toBeInTheDocument();
+		expect(scroller.scrollTop).toBe(320);
+		expect(screen.getAllByText("Recent shared message")).toHaveLength(1);
+		expect(lumi.getLumiConversation).toHaveBeenNthCalledWith(
+			2,
+			session,
+			"conversation-1",
+			expect.any(AbortSignal),
+			"older-page-token",
+		);
+		expect(
+			screen.queryByRole("button", { name: "Load earlier messages" }),
+		).not.toBeInTheDocument();
 	});
 
 	it("renders streamed Markdown and replaces it with the exact completion without duplication", async () => {

@@ -21,6 +21,7 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
+	useLayoutEffect,
 	useRef,
 	useState,
 	Fragment,
@@ -48,6 +49,7 @@ import {
 	type LumiModelChoice,
 	type LumiModelOption,
 	type LumiSource,
+	type LumiStreamStatus,
 } from "@/lib/lumi";
 import type { AuthSession } from "@/lib/session";
 
@@ -57,6 +59,9 @@ type DetailState = {
 	id: string;
 	conversation: LumiConversation;
 	messages: LumiMessage[];
+	nextCursor: string | null;
+	hasMore: boolean;
+	hasSummary: boolean;
 };
 
 type ChoiceOverride = {
@@ -87,6 +92,24 @@ export function LumiPage({ session }: LumiPageProps) {
 	const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 	const [streamedAnswer, setStreamedAnswer] = useState("");
 	const [switchingToCpu, setSwitchingToCpu] = useState(false);
+	const [contextStageEntry, setContextStageEntry] = useState<{
+		conversationId: string;
+		stage: LumiStreamStatus;
+	} | null>(null);
+	const contextStage =
+		contextStageEntry?.conversationId === selectedId
+			? contextStageEntry.stage
+			: null;
+	const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
+	const historyLoading = Boolean(selectedId && historyLoadingId === selectedId);
+	const [historyErrorEntry, setHistoryErrorEntry] = useState<{
+		conversationId: string;
+		message: string;
+	} | null>(null);
+	const historyError =
+		historyErrorEntry?.conversationId === selectedId
+			? historyErrorEntry.message
+			: null;
 	const [sending, setSending] = useState(false);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [sendSequence, setSendSequence] = useState(0);
@@ -107,6 +130,12 @@ export function LumiPage({ session }: LumiPageProps) {
 	const messagesScrollRef = useRef<HTMLDivElement>(null);
 	const shouldFollowMessagesRef = useRef(true);
 	const activeRequest = useRef<AbortController | null>(null);
+	const historyRequest = useRef<AbortController | null>(null);
+	const pendingScrollRestore = useRef<{
+		conversationId: string;
+		scrollHeight: number;
+		scrollTop: number;
+	} | null>(null);
 	const { locale, t } = useI18n();
 	const returnTo = useMemo(
 		() => safeLumiReturnTo(searchParams.get("returnTo")),
@@ -142,6 +171,12 @@ export function LumiPage({ session }: LumiPageProps) {
 			? detailState.messages
 			: [];
 	const knownConversation = conversations.some((item) => item.id === selectedId);
+	const activeHasMore = Boolean(
+		detailState?.id === selectedId && detailState.hasMore,
+	);
+	const activeHasSummary = Boolean(
+		detailState?.id === selectedId && detailState.hasSummary,
+	);
 	const conversationIds = useMemo(
 		() => conversations.map((item) => item.id).join("\u0000"),
 		[conversations],
@@ -199,6 +234,9 @@ export function LumiPage({ session }: LumiPageProps) {
 					id: selectedId,
 					conversation: detail.conversation,
 					messages: detail.messages,
+					nextCursor: detail.nextCursor ?? null,
+					hasMore: detail.hasMore === true,
+					hasSummary: detail.hasSummary === true,
 				});
 				setConversations((current) =>
 					current.map((item) =>
@@ -225,6 +263,11 @@ export function LumiPage({ session }: LumiPageProps) {
 		t,
 		conversationIds,
 	]);
+
+	useEffect(() => {
+		historyRequest.current?.abort();
+		pendingScrollRestore.current = null;
+	}, [selectedId]);
 
 	useEffect(() => () => activeRequest.current?.abort(), []);
 
@@ -262,6 +305,22 @@ export function LumiPage({ session }: LumiPageProps) {
 		shouldFollowMessagesRef.current = true;
 	}, [selectedId]);
 
+	useLayoutEffect(() => {
+		const pending = pendingScrollRestore.current;
+		const container = messagesScrollRef.current;
+		if (
+			!pending ||
+			!container ||
+			pending.conversationId !== selectedId ||
+			historyLoading
+		) {
+			return;
+		}
+		container.scrollTop =
+			pending.scrollTop + (container.scrollHeight - pending.scrollHeight);
+		pendingScrollRestore.current = null;
+	}, [historyLoading, selectedId, visibleMessages.length]);
+
 	useEffect(() => {
 		if (!shouldFollowMessagesRef.current) return;
 		const frame = window.requestAnimationFrame(() => {
@@ -285,6 +344,80 @@ export function LumiPage({ session }: LumiPageProps) {
 		textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
 	}, [composer]);
 
+	const loadEarlierMessages = async () => {
+		const conversationId = selectedId;
+		const current = detailState;
+		if (
+			!conversationId ||
+			current?.id !== conversationId ||
+			!current.hasMore ||
+			!current.nextCursor ||
+			historyLoading
+		) {
+			return;
+		}
+		const container = messagesScrollRef.current;
+		if (container) {
+			pendingScrollRestore.current = {
+				conversationId,
+				scrollHeight: container.scrollHeight,
+				scrollTop: container.scrollTop,
+			};
+		}
+		shouldFollowMessagesRef.current = false;
+		setHistoryLoadingId(conversationId);
+		setHistoryErrorEntry(null);
+		const controller = new AbortController();
+		historyRequest.current?.abort();
+		historyRequest.current = controller;
+		try {
+			const page = await getLumiConversation(
+				session,
+				conversationId,
+				controller.signal,
+				current.nextCursor,
+			);
+			if (controller.signal.aborted || selectedId !== conversationId) return;
+			setDetailState((state) => {
+				if (state?.id !== conversationId) return state;
+				const knownIds = new Set(state.messages.map((message) => message.id));
+				const earlier = page.messages.filter((message) => {
+					if (knownIds.has(message.id)) return false;
+					knownIds.add(message.id);
+					return true;
+				});
+				return {
+					...state,
+					conversation: page.conversation,
+					messages: [...earlier, ...state.messages],
+					nextCursor: page.nextCursor ?? null,
+					hasMore: page.hasMore === true,
+					hasSummary: state.hasSummary || page.hasSummary === true,
+				};
+			});
+			setConversations((items) =>
+				items.map((item) =>
+					item.id === page.conversation.id ? page.conversation : item,
+				),
+			);
+		} catch (error) {
+			if (!controller.signal.aborted) {
+				pendingScrollRestore.current = null;
+				setHistoryErrorEntry({
+					conversationId,
+					message: requestMessage(error, t("lumiHistoryPageLoadFailed")),
+				});
+			}
+		} finally {
+			if (historyRequest.current === controller) {
+				historyRequest.current = null;
+				setHistoryLoadingId((current) =>
+					current === conversationId ? null : current,
+				);
+			}
+		}
+	};
+
 	const createConversation = () => {
 		const id = createConversationId();
 		activeRequest.current?.abort();
@@ -294,6 +427,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setChoiceNotice(null);
 		setStreamedAnswer("");
 		setSwitchingToCpu(false);
+		setContextStageEntry(null);
 		setChoiceOverrideEntry({
 			conversationId: id,
 			choice: { ...(selectedId === null ? choice : defaultChoice) },
@@ -312,6 +446,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setChoiceNotice(null);
 		setStreamedAnswer("");
 		setSwitchingToCpu(false);
+		setContextStageEntry(null);
 		setChoiceOverrideEntry({
 			conversationId: conversation.id,
 			choice: { model: conversation.model, thinking: conversation.thinking },
@@ -481,6 +616,7 @@ export function LumiPage({ session }: LumiPageProps) {
 		setSending(true);
 		setPendingMessage(message);
 		setStreamedAnswer("");
+		setContextStageEntry(null);
 		shouldFollowMessagesRef.current = true;
 		setSwitchingToCpu(false);
 		setSendError(null);
@@ -513,6 +649,7 @@ export function LumiPage({ session }: LumiPageProps) {
 				message,
 				(text) => {
 					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setContextStageEntry(null);
 						setSwitchingToCpu(false);
 						setStreamedAnswer((current) => current + text);
 					}
@@ -521,34 +658,43 @@ export function LumiPage({ session }: LumiPageProps) {
 				firstTurnChoice,
 				(reason) => {
 					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setContextStageEntry(null);
 						setStreamedAnswer("");
 						setSwitchingToCpu(reason === "cpu_fallback");
+					}
+				},
+				(stage) => {
+					if (!controller.signal.aborted && activeRequest.current === controller) {
+						setContextStageEntry(
+							stage === "generation" ? null : { conversationId: targetId, stage },
+						);
+						if (stage === "summarization") {
+							setDetailState((current) =>
+								current?.id === targetId ? { ...current, hasSummary: true } : current,
+							);
+						}
 					}
 				},
 			);
 			if (selectedId !== targetId && !isNewConversation) return;
 			const createdAt = new Date().toISOString();
-			const previousMessages =
-				detailState?.id === targetId ? detailState.messages : [];
-			const nextMessages: LumiMessage[] = [
-				...previousMessages,
-				{
-					id: `local-user-${sendId}`,
-					role: "user",
-					content: message,
-					createdAt,
-					references: [],
-					sources: [],
-				},
-				{
-					id: `local-assistant-${sendId}`,
-					role: "assistant",
-					content: result.answer.markdown,
-					createdAt,
-					references: result.answer.references,
-					sources: result.answer.sources,
-				},
-			];
+			const userMessage: LumiMessage = {
+				id: `local-user-${sendId}`,
+				role: "user",
+				content: message,
+				createdAt,
+				references: [],
+				sources: [],
+			};
+			const assistantMessage: LumiMessage = {
+				id: `local-assistant-${sendId}`,
+				role: "assistant",
+				content: result.answer.markdown,
+				createdAt,
+				references: result.answer.references,
+				sources: result.answer.sources,
+				finishReason: result.answer.finishReason ?? "stop",
+			};
 			setConversations((current) =>
 				[
 					result.conversation,
@@ -560,16 +706,30 @@ export function LumiPage({ session }: LumiPageProps) {
 				next.delete(targetId);
 				return next;
 			});
-			setDetailState({
-				id: targetId,
-				conversation: result.conversation,
-				messages: nextMessages,
+			setDetailState((current) => {
+				const previous =
+					current?.id === targetId
+						? current
+						: {
+								id: targetId,
+								conversation: result.conversation,
+								messages: [],
+								nextCursor: null,
+								hasMore: false,
+								hasSummary: false,
+							};
+				return {
+					...previous,
+					conversation: result.conversation,
+					messages: [...previous.messages, userMessage, assistantMessage],
+				};
 			});
 			setChoiceOverrideEntry(null);
 			setComposer("");
 			setPendingMessage(null);
 			setStreamedAnswer("");
 			setSwitchingToCpu(false);
+			setContextStageEntry(null);
 		} catch (error) {
 			if (!controller.signal.aborted)
 				setSendError(requestMessage(error, t("lumiSendFailed")));
@@ -578,6 +738,7 @@ export function LumiPage({ session }: LumiPageProps) {
 			setPendingMessage(null);
 			setStreamedAnswer("");
 			setSwitchingToCpu(false);
+			setContextStageEntry(null);
 			setSending(false);
 		}
 	};
@@ -893,6 +1054,31 @@ export function LumiPage({ session }: LumiPageProps) {
 							</div>
 						) : (
 							<div className="mx-auto flex w-full max-w-[620px] flex-col py-5">
+								{activeHasSummary && (
+									<p className="mb-3 rounded-lg border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-xs leading-5 text-white/45">
+										{t("lumiHistorySummaryNotice")}
+									</p>
+								)}
+								{activeHasMore && (
+									<div className="mb-3 flex flex-col items-center gap-1">
+										<button
+											type="button"
+											disabled={historyLoading || sending}
+											onClick={() => void loadEarlierMessages()}
+											className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-white/50 transition hover:border-white/15 hover:text-white/75 disabled:cursor-wait disabled:opacity-45"
+										>
+											{historyLoading && (
+												<LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+											)}
+											{t("lumiLoadEarlierMessages")}
+										</button>
+										{historyError && (
+											<p className="text-xs text-rose-200/75" role="alert">
+												{historyError}
+											</p>
+										)}
+									</div>
+								)}
 								{visibleMessages.map((message) => (
 									<ChatMessage key={message.id} message={message} session={session} />
 								))}
@@ -924,7 +1110,13 @@ export function LumiPage({ session }: LumiPageProps) {
 										role="status"
 									>
 										<LoaderCircle className="h-4 w-4 animate-spin text-violet-200/75" />
-										{switchingToCpu ? t("lumiSwitchingToCpu") : t("lumiThinkingStatus")}
+										{switchingToCpu
+											? t("lumiSwitchingToCpu")
+											: contextStage === "context_expansion"
+												? t("lumiExpandingChatMemory")
+												: contextStage === "summarization"
+													? t("lumiSummarizingEarlierMessages")
+													: t("lumiThinkingStatus")}
 									</div>
 								)}
 							</div>
@@ -1114,6 +1306,16 @@ function ChatMessage({
 			{isAssistant ? (
 				<div className="min-w-0 w-full text-sm leading-6 text-white/90">
 					<AnswerText message={message} session={session} />
+					{message.finishReason === "context_exhausted" && (
+						<p className="mt-2 text-xs text-amber-100/55" role="status">
+							{t("lumiIncompleteContext")}
+						</p>
+					)}
+					{message.finishReason === "deadline" && (
+						<p className="mt-2 text-xs text-amber-100/55" role="status">
+							{t("lumiIncompleteDeadline")}
+						</p>
+					)}
 					<AnswerMetadata sources={message.sources} />
 				</div>
 			) : (

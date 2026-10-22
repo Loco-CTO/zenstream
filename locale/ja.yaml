@@ -452,6 +452,7 @@ lumiConversationPanel: Lumiとの会話
 lumiPrivateHistory: 会話履歴はアカウント内でのみ表示されます。
 lumiModelsLoadFailed: Lumiモデルを読み込めませんでした。
 lumiHistoryLoadFailed: Lumiの会話を読み込めませんでした。
+lumiHistoryPageLoadFailed: 以前のメッセージを読み込めませんでした。
 lumiConversationLoadFailed: この会話を読み込めませんでした。
 lumiLoadingConversation: 会話を読み込み中…
 lumiWelcome: Lumiに何でも聞いてください
@@ -481,6 +482,12 @@ lumiMakeDefault: 既定に設定
 lumiDefaultSaved: 新しい会話の既定モデルを保存しました。
 lumiDefaultSaveFailed: 既定モデルを保存できませんでした。
 lumiThinkingStatus: Lumiが回答を考えています…
+lumiExpandingChatMemory: 会話の記憶を拡張しています…
+lumiSummarizingEarlierMessages: 以前のメッセージを要約しています…
+lumiLoadEarlierMessages: 以前のメッセージを読み込む
+lumiHistorySummaryNotice: 以前のメッセージは会話履歴から引き続き確認できます。
+lumiIncompleteContext: 利用できるコンテキストの上限に達したため、回答が途中の可能性があります。
+lumiIncompleteDeadline: ターンの時間制限に達したため、回答が途中の可能性があります。
 lumiSwitchingToCpu: CPUに切り替えています…
 lumiStopGenerating: 生成を停止
 lumiYou: あなた

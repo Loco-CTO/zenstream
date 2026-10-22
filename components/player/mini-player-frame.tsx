@@ -26,11 +26,7 @@ export function MiniPlayerFrame({
 }) {
 	const [placement, setPlacement] = useState<MiniPlacement>(readMiniPlacement);
 	const [viewport, setViewport] = useState({ width: 1280, height: 720 });
-	const [live, setLive] = useState<{
-		x: number;
-		y: number;
-		width: number;
-	} | null>(null);
+	const [live, setLive] = useState<ReturnType<typeof miniGeometry> | null>(null);
 	const frameRef = useRef<HTMLDivElement>(null);
 	const animationRef = useRef<Animation | null>(null);
 	const pendingSnap = useRef<{
@@ -139,6 +135,7 @@ export function MiniPlayerFrame({
 					),
 				),
 				width: geometry.width,
+				height: geometry.height,
 			});
 		}
 	}

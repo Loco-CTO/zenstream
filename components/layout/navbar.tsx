@@ -169,7 +169,7 @@ export function Navbar({
 							className="absolute left-0 right-0 top-14 z-10 md:left-1/2 md:right-auto md:top-1/2 md:w-[min(38rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2"
 						>
 							<div className="flex h-11 w-full items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-4 shadow-2xl shadow-black/25 backdrop-blur-xl focus-within:border-violet-400/40 md:max-w-[38rem]">
-								<Search className="h-[17px] w-[17px] shrink-0 text-white/40" />
+								<Search className="h-[17px] w-[17px] shrink-0 text-neutral-500" />
 								<input
 									name="query"
 									defaultValue={routeSearchQuery}
@@ -184,7 +184,7 @@ export function Navbar({
 										onClick={clearSearch}
 										className="shrink-0 text-white/35 transition hover:text-white/75"
 									>
-										<X className="h-4 w-4" />
+										<X className="h-4 w-4 text-neutral-500" />
 									</button>
 								)}
 							</div>
@@ -202,7 +202,7 @@ export function Navbar({
 							onClick={() => setSearchOpen(true)}
 							className="flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
 						>
-							<Search className="h-[22px] w-[22px]" />
+							<Search className="h-[22px] w-[22px] text-neutral-500" />
 						</button>
 						<div ref={profileRef} className="relative">
 							<button
@@ -241,7 +241,7 @@ export function Navbar({
 										onClick={() => setProfileOpen(false)}
 										className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-xs text-white/70 transition hover:bg-white/[0.06] hover:text-white"
 									>
-										<Settings className="h-3.5 w-3.5" />
+										<Settings className="h-3.5 w-3.5 text-neutral-500" />
 										{t("settings")}
 									</Link>
 									{lumiAvailable && (

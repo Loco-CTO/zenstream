@@ -108,7 +108,7 @@ export function SyncplayGroupMenu({
 					"flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition hover:bg-white/10 hover:text-white"
 				}
 			>
-				<Users className="h-[22px] w-[22px]" />
+				<Users className="h-[22px] w-[22px] text-neutral-500" />
 			</button>
 			{open && (
 				<div
@@ -197,7 +197,7 @@ export function SyncplayGroupMenu({
 															onClick={() => setShowGroupList(false)}
 															className="rounded-md p-1.5 text-white/45 transition hover:bg-white/10 hover:text-white"
 														>
-															<ChevronRight className="h-4 w-4" />
+															<ChevronRight className="h-4 w-4 text-neutral-500" />
 														</button>
 													)}
 													<button
@@ -207,17 +207,17 @@ export function SyncplayGroupMenu({
 																() => undefined,
 															)
 														}
-														className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${isActive ? "text-white/50 hover:bg-white/10 hover:text-red-200" : "bg-white text-black hover:bg-violet-100"}`}
+														className={`group flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${isActive ? "text-white/50 hover:bg-white/10 hover:text-red-200" : "bg-white text-black hover:bg-violet-100"}`}
 													>
 														{isActive ? (
 															<>
-																<X className="h-3 w-3" />
+																<X className="h-3 w-3 text-neutral-500 group-hover:text-red-200" />
 																{t("leaveGroup")}
 															</>
 														) : (
 															<>
 																{t("joinView")}
-																<ChevronRight className="h-3 w-3" />
+																<ChevronRight className="h-3 w-3 text-black" />
 															</>
 														)}
 													</button>
@@ -350,7 +350,7 @@ function ActiveGroupView({
 					aria-label={t("syncplayBackToGroups")}
 					className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
 				>
-					<ChevronLeft className="h-4 w-4" />
+					<ChevronLeft className="h-4 w-4 text-neutral-500" />
 				</button>
 				<div className="min-w-0 flex-1">
 					<p className="truncate text-sm font-semibold text-white">{group.name}</p>

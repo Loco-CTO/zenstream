@@ -14,7 +14,9 @@ export function MobileNav() {
 				href="/"
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/" ? "text-violet-400" : "text-white/30"}`}
 			>
-				<Home className="h-5 w-5" />
+				<Home
+					className={`h-5 w-5 ${pathname === "/" ? "text-violet-400" : "text-neutral-500"}`}
+				/>
 				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("home")}
 				</span>
@@ -23,7 +25,9 @@ export function MobileNav() {
 				href="/library"
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/library" ? "text-violet-400" : "text-white/30"}`}
 			>
-				<Library className="h-5 w-5" />
+				<Library
+					className={`h-5 w-5 ${pathname === "/library" ? "text-violet-400" : "text-neutral-500"}`}
+				/>
 				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("library")}
 				</span>
@@ -32,7 +36,9 @@ export function MobileNav() {
 				href="/my-lists"
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/my-lists" || pathname === "/favorites" || pathname.startsWith("/playlist/") || pathname.startsWith("/shared/playlist/") ? "text-violet-400" : "text-white/30"}`}
 			>
-				<LayoutGrid className="h-5 w-5" />
+				<LayoutGrid
+					className={`h-5 w-5 ${pathname === "/my-lists" || pathname === "/favorites" || pathname.startsWith("/playlist/") || pathname.startsWith("/shared/playlist/") ? "text-violet-400" : "text-neutral-500"}`}
+				/>
 				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("myLists")}
 				</span>
@@ -41,7 +47,9 @@ export function MobileNav() {
 				href="/calendar"
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/calendar" ? "text-violet-400" : "text-white/30"}`}
 			>
-				<CalendarDays className="h-5 w-5" />
+				<CalendarDays
+					className={`h-5 w-5 ${pathname === "/calendar" ? "text-violet-400" : "text-neutral-500"}`}
+				/>
 				<span className="text-xs font-medium uppercase tracking-[0.12em]">
 					{t("calendar")}
 				</span>

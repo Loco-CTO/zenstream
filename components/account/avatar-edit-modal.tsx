@@ -335,7 +335,7 @@ export function AvatarEditModal({
 						aria-label={t("close")}
 						className="shrink-0 rounded-lg p-2 text-white/45 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
 					>
-						<X className="h-5 w-5" />
+						<X className="h-5 w-5 text-neutral-500" />
 					</button>
 				</header>
 
@@ -503,7 +503,7 @@ export function AvatarEditModal({
 
 						<div className="border-t border-white/10 bg-white/[0.02] px-4 py-3 sm:px-6">
 							<div className="flex items-center gap-3">
-								<ZoomOut className="h-4 w-4 shrink-0 text-white/35" />
+								<ZoomOut className="h-4 w-4 shrink-0 text-neutral-500" />
 								<input
 									aria-label={t("avatarZoom")}
 									type="range"
@@ -514,7 +514,7 @@ export function AvatarEditModal({
 									onChange={(event) => updateZoom(Number(event.target.value))}
 									className="w-full accent-violet-300"
 								/>
-								<ZoomIn className="h-4 w-4 shrink-0 text-white/35" />
+								<ZoomIn className="h-4 w-4 shrink-0 text-neutral-500" />
 								<span className="w-12 text-right text-xs tabular-nums text-white/45">
 									{zoomPercent}%
 								</span>
@@ -565,7 +565,7 @@ export function AvatarEditModal({
 									aria-label={t("avatarRotateCounterClockwise")}
 									className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-2 text-xs font-medium text-white/55 transition hover:border-white/20 hover:bg-white/[0.04] hover:text-white disabled:opacity-40"
 								>
-									<RotateCcw className="h-3.5 w-3.5" />
+									<RotateCcw className="h-3.5 w-3.5 text-neutral-500" />
 									<span className="hidden md:inline">
 										{t("avatarRotateCounterClockwise")}
 									</span>
@@ -577,7 +577,7 @@ export function AvatarEditModal({
 									aria-label={t("avatarRotateClockwise")}
 									className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-2 text-xs font-medium text-white/55 transition hover:border-white/20 hover:bg-white/[0.04] hover:text-white disabled:opacity-40"
 								>
-									<RotateCw className="h-3.5 w-3.5" />
+									<RotateCw className="h-3.5 w-3.5 text-neutral-500" />
 									<span className="hidden md:inline">{t("avatarRotateClockwise")}</span>
 								</button>
 							</div>
@@ -590,7 +590,7 @@ export function AvatarEditModal({
 								disabled={saving}
 								className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white/45 transition hover:bg-white/[0.04] hover:text-white disabled:opacity-40"
 							>
-								<Upload className="h-3.5 w-3.5" />
+								<Upload className="h-3.5 w-3.5 text-neutral-500" />
 								{t("avatarChooseAnother")}
 							</button>
 							<div className="flex gap-2">

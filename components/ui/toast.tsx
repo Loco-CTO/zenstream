@@ -91,7 +91,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 							aria-label={t("toastDismiss")}
 							className="-mr-1 -mt-1 rounded p-1 text-white/55 transition hover:bg-white/10 hover:text-white"
 						>
-							<X className="h-4 w-4" />
+							<X className="h-4 w-4 text-neutral-500" />
 						</button>
 					</div>
 				))}

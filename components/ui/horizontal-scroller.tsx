@@ -154,7 +154,7 @@ export function HorizontalScroller({
 					onClick={() => scroll("left")}
 					className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-x-4 -translate-y-1/2 items-center justify-center rounded-full border border-white/12 bg-black/50 text-white/60 opacity-0 backdrop-blur transition group-hover:opacity-100"
 				>
-					<ChevronLeft className="h-3.5 w-3.5" />
+					<ChevronLeft className="h-3.5 w-3.5 text-neutral-500" />
 				</button>
 			)}
 			<div
@@ -226,7 +226,7 @@ export function HorizontalScroller({
 					onClick={() => scroll("right")}
 					className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-white/12 bg-black/50 text-white/60 opacity-0 backdrop-blur transition group-hover:opacity-100"
 				>
-					<ChevronRight className="h-3.5 w-3.5" />
+					<ChevronRight className="h-3.5 w-3.5 text-neutral-500" />
 				</button>
 			)}
 		</div>

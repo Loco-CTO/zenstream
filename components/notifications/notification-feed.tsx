@@ -483,7 +483,7 @@ export function NotificationRow({
 					onClick={() => setActionsOpen((value) => !value)}
 					className={`flex items-center justify-center rounded-full text-white/45 transition hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 ${compact ? "h-8 w-8" : "h-9 w-9"}`}
 				>
-					<MoreVertical className="h-4 w-4" />
+					<MoreVertical className="h-4 w-4 text-neutral-500" />
 				</button>
 				{actionsOpen && (
 					<div
@@ -499,7 +499,7 @@ export function NotificationRow({
 							}}
 							className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-white/70 transition hover:bg-white/[.08] hover:text-white ${compact ? "text-[10px]" : "text-xs"}`}
 						>
-							<ActionIcon className="h-3.5 w-3.5" />
+							<ActionIcon className="h-3.5 w-3.5 text-neutral-500" />
 							{actionLabel}
 						</button>
 						<button

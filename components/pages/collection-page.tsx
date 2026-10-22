@@ -36,7 +36,7 @@ export function CollectionPage({
 					aria-label={t("back")}
 					className="flex items-center gap-1 rounded-md px-2 py-2 text-xs uppercase tracking-wider text-white/60 hover:text-white"
 				>
-					<ChevronLeft className="h-4 w-4" />
+					<ChevronLeft className="h-4 w-4 text-neutral-500" />
 					{t("back")}
 				</button>
 				<div className="mt-3 flex items-start justify-between gap-3">

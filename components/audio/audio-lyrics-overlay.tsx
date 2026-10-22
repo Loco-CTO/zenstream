@@ -229,7 +229,7 @@ export function AudioLyricsOverlay({
 							onClick={requestClose}
 							className="rounded-full p-2 text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 						>
-							<ChevronDown className="h-5 w-5" />
+							<ChevronDown className="h-5 w-5 text-neutral-500" />
 						</button>
 					</div>
 					<nav
@@ -447,7 +447,7 @@ const NextUpPanel = memo(
 						}}
 						className="rounded p-1 text-white/30 transition hover:bg-red-400/15 hover:text-red-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 					>
-						<X className="h-3.5 w-3.5" />
+						<X className="h-3.5 w-3.5 text-neutral-500" />
 					</button>
 				</div>
 			);
@@ -579,7 +579,7 @@ function LyricsPanel({
 							onClick={() => setFollow(true)}
 							className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs text-white/70 backdrop-blur transition hover:border-white/30 hover:bg-black/75 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 						>
-							<LocateFixed className="h-3.5 w-3.5" />
+							<LocateFixed className="h-3.5 w-3.5 text-neutral-500" />
 							{t("resumeLyricFollow")}
 						</button>
 					</div>

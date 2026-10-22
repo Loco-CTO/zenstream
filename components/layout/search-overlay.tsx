@@ -143,7 +143,7 @@ export function SearchOverlay({
 			>
 				<form onSubmit={submit} className="relative">
 					<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-5 py-3.5 backdrop-blur-xl focus-within:border-violet-400/40">
-						<Search className="h-[18px] w-[18px] shrink-0 text-white/40" />
+						<Search className="h-[18px] w-[18px] shrink-0 text-neutral-500" />
 						<input
 							ref={inputRef}
 							value={query}
@@ -158,7 +158,7 @@ export function SearchOverlay({
 							onClick={onClose}
 							className="text-xs uppercase tracking-wider text-white/35 transition hover:text-white/70"
 						>
-							<X className="h-4 w-4" />
+							<X className="h-4 w-4 text-neutral-500" />
 						</button>
 					</div>
 					{(error || resultQuery) && (

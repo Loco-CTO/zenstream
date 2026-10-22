@@ -542,9 +542,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 						className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.035] text-white/45 transition hover:border-white/20 hover:text-white"
 					>
 						{sortOrder === "Ascending" ? (
-							<ArrowUp className="h-3.5 w-3.5" />
+							<ArrowUp className="h-3.5 w-3.5 text-neutral-500" />
 						) : (
-							<ArrowDown className="h-3.5 w-3.5" />
+							<ArrowDown className="h-3.5 w-3.5 text-neutral-500" />
 						)}
 					</button>
 					<Dropdown

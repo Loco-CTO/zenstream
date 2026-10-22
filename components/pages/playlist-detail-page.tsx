@@ -528,7 +528,7 @@ export function PlaylistDetailPage({
 				href="/my-lists?tab=playlists"
 				className="mb-7 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/45 hover:text-white"
 			>
-				<ArrowLeft className="h-4 w-4" />
+				<ArrowLeft className="h-4 w-4 text-neutral-500" />
 				{t("backToMyLists")}
 			</Link>
 			<header className="flex flex-col gap-6 sm:flex-row sm:items-end">
@@ -576,7 +576,7 @@ export function PlaylistDetailPage({
 						title={copied ? t("linkCopied") : t("copyShareLink")}
 						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 					>
-						<Share2 className="h-5 w-5" />
+						<Share2 className="h-5 w-5 text-neutral-500" />
 					</button>
 				)}
 				{playlist.isOwner && (
@@ -587,7 +587,7 @@ export function PlaylistDetailPage({
 						title={t("editPlaylist")}
 						className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/35 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
 					>
-						<SquarePen className="h-5 w-5" />
+						<SquarePen className="h-5 w-5 text-neutral-500" />
 					</button>
 				)}
 				{playlist.isOwner && (
@@ -851,7 +851,7 @@ const PlaylistTrackList = memo(function PlaylistTrackList({
 										onClick={() => void onRemove(entry.entryId)}
 										className="rounded p-1 text-white/35 transition hover:bg-white/[0.08] hover:text-white disabled:opacity-25"
 									>
-										<X className="h-4 w-4" />
+										<X className="h-4 w-4 text-neutral-500" />
 									</button>
 								)}
 							</div>
@@ -946,7 +946,7 @@ function EditPlaylistDialog({
 						onClick={onClose}
 						className="shrink-0 rounded-lg p-2 text-white/45 transition hover:bg-white/10 hover:text-white"
 					>
-						<X className="h-5 w-5" />
+						<X className="h-5 w-5 text-neutral-500" />
 					</button>
 				</div>
 

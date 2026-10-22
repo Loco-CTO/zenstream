@@ -278,6 +278,59 @@ describe("video player controls", () => {
 		return { view, onNext, onClose };
 	}
 
+	it("shows trickplay on the mini-player timeline when source previews are available", () => {
+		const { view } = renderEpisodePlayer({
+			withNext: false,
+			minimized: true,
+			initialStreams: {
+				source: {
+					Id: "source-1",
+					mode: "direct",
+					url: "/episode.mp4",
+					Trickplay: {
+						"120": {
+							frameWidth: 120,
+							frameHeight: 68,
+							columns: 10,
+							rows: 6,
+							intervalSeconds: 2,
+							frameCount: 60,
+							sheets: [{ index: 0, url: "/timeline-sheet.webp" }],
+						},
+					},
+				},
+				audio: [],
+				subtitles: [],
+				qualities: [],
+			} as ReturnType<typeof playbackStreams>,
+		});
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "duration", { configurable: true, value: 120 });
+		fireEvent.loadedMetadata(video);
+		const timeline = view.getByRole("slider", { name: "Seek" });
+		vi.spyOn(timeline, "getBoundingClientRect").mockReturnValue({
+			left: 0,
+			width: 120,
+			top: 0,
+			right: 120,
+			bottom: 20,
+			height: 20,
+			x: 0,
+			y: 0,
+			toJSON: () => ({}),
+		});
+		fireEvent(
+			timeline,
+			new MouseEvent("pointermove", { bubbles: true, clientX: 60 }),
+		);
+		expect(view.getByAltText("Timeline preview")).toHaveAttribute(
+			"src",
+			"/timeline-sheet.webp",
+		);
+		fireEvent.pointerLeave(timeline);
+		expect(view.queryByAltText("Timeline preview")).not.toBeInTheDocument();
+	});
+
 	it("keeps mini-player transport icons synchronized with the actual media element", async () => {
 		const { view } = renderEpisodePlayer({ withNext: false, minimized: true });
 		await flushPlayerEffects();

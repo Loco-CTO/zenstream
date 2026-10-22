@@ -4061,14 +4061,15 @@ export function VideoPlayer({
 					<div className="zenstream-mini-controls pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 opacity-0 transition-opacity duration-150">
 						<button
 							aria-label={t("expandPlayer")}
+							data-tooltip={t("expandPlayer")}
 							onClick={onExpand}
-							className="pointer-events-auto absolute left-2 top-2 flex h-9 items-center gap-1 rounded-full bg-black/40 px-2 text-xs hover:bg-white/20"
+							className="pointer-events-auto absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 hover:bg-white/20"
 						>
 							<Maximize size={18} />
-							{t("expandPlayer")}
 						</button>
 						<button
 							aria-label={t("close")}
+							data-tooltip={t("close")}
 							onClick={handleClose}
 							className="pointer-events-auto absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 hover:bg-white/20"
 						>

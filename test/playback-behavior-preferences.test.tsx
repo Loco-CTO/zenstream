@@ -126,6 +126,7 @@ describe("playback behavior preferences", () => {
 			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
 		).toBe(
 			JSON.stringify({
+				continueVideoInMiniPlayer: true,
 				autoplayNextEpisode: false,
 				autoplayBrowse: false,
 				useHeroTrailer: false,

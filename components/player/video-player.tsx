@@ -95,6 +95,9 @@ type Props = {
 	watchHistoryEnabled?: boolean;
 	watchHistoryLoaded?: boolean;
 	onClose: () => void;
+	onBack?: () => void;
+	minimized?: boolean;
+	onExpand?: () => void;
 	onNext?: (item: MediaItem) => void;
 	onPlayedChange?: (played: boolean) => void;
 };
@@ -552,6 +555,9 @@ export function VideoPlayer({
 	watchHistoryEnabled = true,
 	watchHistoryLoaded = false,
 	onClose,
+	onBack,
+	minimized = false,
+	onExpand,
 	onNext,
 	onPlayedChange,
 }: Props) {
@@ -2330,8 +2336,17 @@ export function VideoPlayer({
 			const spacedVtt = nativeSubtitleVttWithBottomSpacing(
 				vttData.text,
 				videoHeight,
-				style.bottomSpacing,
+				minimized ? Math.min(12, style.bottomSpacing) : style.bottomSpacing,
 				style.textScale,
+				minimized
+					? Math.min(
+							36,
+							Math.max(
+								10,
+								(nativeSubtitleViewportHeight(video) * style.textScale) / 2000,
+							),
+						) * 1.15
+					: undefined,
 			);
 			const nextBlobUrl = URL.createObjectURL(
 				new Blob([spacedVtt], { type: "text/vtt" }),
@@ -2367,6 +2382,7 @@ export function VideoPlayer({
 	}, [
 		nativeSubtitleTrackUrl,
 		nativeSubtitleVttData,
+		minimized,
 		style.bottomSpacing,
 		style.textScale,
 	]);
@@ -2385,8 +2401,17 @@ export function VideoPlayer({
 			applyNativeSubtitleBottomSpacing(
 				video,
 				selectedTrack,
-				style.bottomSpacing,
+				minimized ? Math.min(12, style.bottomSpacing) : style.bottomSpacing,
 				style.textScale,
+				minimized
+					? Math.min(
+							36,
+							Math.max(
+								10,
+								(nativeSubtitleViewportHeight(video) * style.textScale) / 2000,
+							),
+						) * 1.15
+					: undefined,
 			);
 		const showSelectedTrack = () => {
 			disableNativeSubtitleTracks(video, selectedTrack);
@@ -2413,6 +2438,7 @@ export function VideoPlayer({
 			resizeObserver?.disconnect();
 		};
 	}, [
+		minimized,
 		nativeSubtitleTrackSrc,
 		nativeSubtitleTrackUrl,
 		style.bottomSpacing,
@@ -2492,6 +2518,7 @@ export function VideoPlayer({
 	);
 
 	useEffect(() => {
+		if (minimized) return;
 		const { documentElement, body } = document;
 		const previousDocumentOverflow = documentElement.style.overflow;
 		const previousBodyOverflow = body.style.overflow;
@@ -2502,7 +2529,7 @@ export function VideoPlayer({
 			documentElement.style.overflow = previousDocumentOverflow;
 			body.style.overflow = previousBodyOverflow;
 		};
-	}, []);
+	}, [minimized]);
 
 	useEffect(() => {
 		const player = fullscreenHostRef?.current ?? playerRef.current;
@@ -2635,6 +2662,10 @@ export function VideoPlayer({
 		}
 	}
 	function handleVideoClick() {
+		if (minimized) {
+			togglePlay();
+			return;
+		}
 		if (touchVideoInteractionRef.current) {
 			touchVideoInteractionRef.current = false;
 			return;
@@ -2648,7 +2679,6 @@ export function VideoPlayer({
 		}, 250);
 	}
 	function handlePlay() {
-		setPlaying(true);
 		if (
 			!watchHistoryLoaded ||
 			!watchHistoryEnabled ||
@@ -2929,6 +2959,18 @@ export function VideoPlayer({
 		commitPendingSeek();
 	}
 	function handlePlayerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+		if (minimized) {
+			if ((event.target as Element).closest("input,button,a")) return;
+			if (event.key === " " || event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				togglePlay();
+			}
+			if (event.key.toLowerCase() === "f") {
+				event.preventDefault();
+				onExpand?.();
+			}
+			return;
+		}
 		showControls();
 		const target = event.target instanceof Element ? event.target : null;
 		const key = event.key;
@@ -3081,6 +3123,93 @@ export function VideoPlayer({
 		}
 	}
 
+	const timeline = (
+		<div className="relative mb-3 flex h-5 items-center">
+			<div
+				data-testid="player-timeline"
+				className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20"
+			>
+				{duration > 0 &&
+					displayedBufferedRanges.map(([start, end]) => (
+						<span
+							key={`${start}-${end}`}
+							data-testid="player-buffered-range"
+							className="absolute inset-y-0 bg-white/35"
+							style={{
+								left: `${(start / duration) * 100}%`,
+								width: `${((end - start) / duration) * 100}%`,
+							}}
+						/>
+					))}
+				<span
+					className="absolute inset-y-0 left-0 bg-violet-400"
+					style={{
+						width: `${duration > 0 ? (displayedCurrentTime / duration) * 100 : 0}%`,
+					}}
+				/>
+				{markers?.intro && duration > 0 && (
+					<span
+						className="absolute inset-y-0 bg-violet-300/90"
+						style={{
+							left: `${(markers.intro.start / duration) * 100}%`,
+							width: `${((markers.intro.end - markers.intro.start) / duration) * 100}%`,
+						}}
+					/>
+				)}
+				{markers?.outro && duration > 0 && (
+					<span
+						className="absolute inset-y-0 bg-violet-300/90"
+						style={{
+							left: `${(markers.outro.start / duration) * 100}%`,
+							width: `${((markers.outro.end - markers.outro.start) / duration) * 100}%`,
+						}}
+					/>
+				)}
+			</div>
+			<input
+				aria-label="Seek"
+				type="range"
+				min="0"
+				max={duration}
+				step="0.1"
+				value={Math.min(displayedCurrentTime, duration || displayedCurrentTime)}
+				className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
+				onPointerMove={previewTimeline}
+				onPointerLeave={() => {
+					setTimelinePreview(undefined);
+					setPreviewUnavailable(false);
+				}}
+				onPointerDown={previewTimeline}
+				onPointerUp={(event) => commitTimelineSeek(event.currentTarget.value)}
+				onBlur={(event) => commitTimelineSeek(event.currentTarget.value)}
+				onKeyUp={(event) => {
+					if (
+						["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(
+							event.key,
+						)
+					)
+						commitTimelineSeek(event.currentTarget.value);
+				}}
+				onInput={(event) => stageSeek(Number(event.currentTarget.value))}
+				onChange={(event) => stageSeek(Number(event.target.value))}
+			/>
+			{timelinePreview && (
+				<TrickplayBubble
+					preview={timelinePreview}
+					onError={() => {
+						setTimelinePreview(undefined);
+						setPreviewUnavailable(true);
+					}}
+				/>
+			)}
+			{previewUnavailable && (
+				<div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 rounded bg-black/90 px-3 py-2 text-xs text-white/65">
+					Preview unavailable
+				</div>
+			)}
+		</div>
+	);
+
 	return (
 		<div
 			ref={playerRef}
@@ -3088,7 +3217,7 @@ export function VideoPlayer({
 				fullscreenHostRef
 					? "absolute inset-0 h-full w-full"
 					: "fixed inset-0 z-[200] h-[100dvh]"
-			} overflow-hidden bg-black text-white ${controlsVisible ? "cursor-default" : "cursor-none"}`}
+			} overflow-hidden bg-black text-white ${minimized || controlsVisible ? "cursor-default" : "cursor-none"}`}
 			onPointerMove={showControls}
 			onPointerDown={(event) => {
 				showControls();
@@ -3101,6 +3230,7 @@ export function VideoPlayer({
 				event.preventDefault();
 				event.stopPropagation();
 			}}
+			style={minimized ? { containerType: "size" } : undefined}
 			onKeyDown={handlePlayerKeyDown}
 			tabIndex={0}
 		>
@@ -3160,16 +3290,18 @@ export function VideoPlayer({
 					</section>
 				</div>
 			)}
-			{style.renderer === "native" && <style>{nativeSubtitleCueCss(style)}</style>}
+			{style.renderer === "native" && (
+				<style>{nativeSubtitleCueCss(style, minimized)}</style>
+			)}
 			<video
 				ref={videoRef}
 				className="zenstream-video h-full w-full object-contain"
 				crossOrigin="use-credentials"
-				onPointerDown={handleVideoPointerDown}
+				onPointerDown={minimized ? undefined : handleVideoPointerDown}
 				playsInline
 				preload="auto"
 				onClick={handleVideoClick}
-				onDoubleClick={toggleFullscreen}
+				onDoubleClick={minimized ? undefined : toggleFullscreen}
 				muted={muted}
 				onLoadedMetadata={() => {
 					const value = videoRef.current?.duration ?? 0;
@@ -3298,12 +3430,16 @@ export function VideoPlayer({
 					}
 				}}
 				onTimeUpdate={() => {
+					const video = videoRef.current;
+					if (video) setPlaying(!video.paused && !video.ended);
 					const value = videoRef.current?.currentTime ?? 0;
 					setCurrentTime(
 						Number.isFinite(value) ? Math.min(value, duration || value) : 0,
 					);
 				}}
+				onEmptied={() => setPlaying(false)}
 				onEnded={() => {
+					setPlaying(false);
 					if (nextChecked && nextItem) {
 						if (autoplayNextEpisode) void playNext(true);
 						return;
@@ -3311,6 +3447,7 @@ export function VideoPlayer({
 					onClose();
 				}}
 				onPlay={(e) => {
+					setPlaying(!e.currentTarget.paused && !e.currentTarget.ended);
 					if (url && !mediaLoadActiveRef.current) return;
 					const logicalTime = e.currentTarget.currentTime;
 					const syncState = syncplayStateRef.current;
@@ -3346,6 +3483,7 @@ export function VideoPlayer({
 							.catch(() => undefined);
 				}}
 				onPlaying={(event) => {
+					setPlaying(!event.currentTarget.paused && !event.currentTarget.ended);
 					if (url && !mediaLoadActiveRef.current) return;
 					if (
 						!acknowledgeMediaReady(
@@ -3367,6 +3505,7 @@ export function VideoPlayer({
 					reportBuffering(false);
 				}}
 				onPause={(e) => {
+					setPlaying(false);
 					if (url && !mediaLoadActiveRef.current) return;
 					const logicalTime = e.currentTarget.currentTime;
 					reportCurrentProgress(e.currentTarget);
@@ -3390,7 +3529,7 @@ export function VideoPlayer({
 						playerDebug("video pause ignored during seek transition");
 						return;
 					}
-					setPlaying(false);
+
 					if (suppressSyncPauseRef.current) {
 						suppressSyncPauseRef.current = false;
 						return;
@@ -3455,548 +3594,511 @@ export function VideoPlayer({
 						cues={subtitleCueData.cues}
 						time={currentTime + offset}
 						style={style}
+						compact={minimized}
 					/>
 				)}
-			<div
-				className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`}
-			/>
-			<div
-				className={`absolute left-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex max-w-[calc(100%-4.5rem)] items-start gap-2 transition-opacity duration-300 sm:left-5 sm:top-5 sm:gap-3 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
-			>
-				<button
-					aria-label="Close player"
-					className="group pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white"
-					onClick={handleClose}
-				>
-					<ArrowLeft className="text-neutral-500 group-hover:text-white" />
-				</button>
-				<div className="min-w-0">
-					{item.Type === "Episode" && (
-						<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
-							{`${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
-						</p>
-					)}
-					{item.Name && (
-						<h1 className="mt-1 line-clamp-2 text-base font-semibold sm:text-lg">
-							{item.Name}
-						</h1>
-					)}
-				</div>
-			</div>
-			<div
-				className={`absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] transition-opacity duration-300 sm:right-5 sm:top-5 md:right-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
-			>
-				<SyncplayGroupMenu
-					userId={session.userId}
-					avatarVersion={session.avatarVersion}
-					playerContext
-					buttonClassName="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white/70 transition hover:bg-black/50 hover:text-white"
-				/>
-			</div>
-			{debugOpen && (
-				<div
-					data-testid="player-debug-panel"
-					className="pointer-events-none absolute left-3 top-[calc(4.5rem+env(safe-area-inset-top))] z-40 w-[min(29rem,calc(100vw-1.5rem))] rounded-lg border border-white/10 bg-[#10151bcc] px-3 py-2 font-mono text-[10px] leading-[1.35] text-white/85 shadow-2xl backdrop-blur-md sm:left-5 sm:top-24 md:left-10"
-				>
-					<div className="mb-1 text-[11px] font-semibold text-white">
-						Playback diagnostics
-					</div>
-					<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-						<span className="text-white/50">Mode</span>
-						<span>{debugSource?.mode ?? "negotiating"}</span>
-						<span className="text-white/50">Session</span>
-						<span>{debugSource?.sessionId ?? "direct/no session"}</span>
-						<span className="text-white/50">State</span>
-						<span>{debugSource?.sessionState ?? "ready"}</span>
-						<span className="text-white/50">Stream</span>
-						<span className="truncate" title={safePlayerUrl(url)}>
-							{safePlayerUrl(url)}
-						</span>
-						<span className="text-white/50">Source</span>
-						<span>
-							{debugSource?.Container ?? "-"} /{" "}
-							{debugSource?.Bitrate
-								? `${Math.round(debugSource.Bitrate / 1000)} kbps`
-								: "bitrate -"}
-						</span>
-						<span className="text-white/50">Video</span>
-						<span>
-							{debugVideoStream?.Codec ?? "-"} {debugVideoStream?.Width ?? "?"}x
-							{debugVideoStream?.Height ?? "?"}
-						</span>
-						<span className="text-white/50">Audio</span>
-						<span>
-							{debugAudioStream?.Codec ?? "-"} / {debugAudioStream?.Channels ?? "?"}ch
-						</span>
-						<span className="text-white/50">Position</span>
-						<span>
-							{displayedCurrentTime.toFixed(2)} /{" "}
-							{(duration || knownDuration || 0).toFixed(2)}s
-						</span>
-						<span className="text-white/50">Buffered</span>
-						<span>
-							{debugBufferedRanges.length
-								? debugBufferedRanges
-										.map(([start, end]) => `${start.toFixed(1)}-${end.toFixed(1)}`)
-										.join(" ")
-								: "none"}{" "}
-							({debugBufferAhead.toFixed(1)}s ahead)
-						</span>
-						<span className="text-white/50">Native</span>
-						<span>
-							{debugVideo?.paused ? "paused" : "playing"} / ready{" "}
-							{debugVideo?.readyState ?? 0} / network {debugVideo?.networkState ?? 0}
-						</span>
-						<span className="text-white/50">HLS</span>
-						<span>
-							manifest {debugStats.manifestParsed ? "yes" : "no"} / requested{" "}
-							{debugStats.fragmentsRequested} / buffered {debugStats.fragmentsBuffered}
-						</span>
-						<span className="text-white/50">Request</span>
-						<span className="truncate" title={debugStats.lastRequest || undefined}>
-							{debugStats.lastRequest || "-"}
-						</span>
-						<span className="text-white/50">Last segment</span>
-						<span className="truncate" title={debugStats.lastFragment || undefined}>
-							{debugStats.lastFragment || "-"}
-						</span>
-						<span className="text-white/50">Errors</span>
-						<span>{debugStats.lastHlsError || "-"}</span>
-						<span className="text-white/50">Native error</span>
-						<span>{debugStats.lastMediaErrorCode || "-"}</span>
-					</div>
-				</div>
-			)}
-			{(buffering || syncplayWaitingForMembers(syncplay.active, item.Id)) && (
-				<div
-					data-testid="player-loading"
-					className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 p-4 shadow-xl backdrop-blur-md"
-					role="status"
-					aria-label="Loading"
-				>
-					<LoaderCircle className="h-8 w-8 animate-spin text-white/85 drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]" />
-				</div>
-			)}
-			{error && (
-				<div
-					role="alert"
-					className="absolute left-1/2 top-1/2 flex -translate-x-1/2 flex-col items-center gap-3 rounded bg-black/70 px-4 py-3 text-sm text-red-200"
-				>
-					<p>{error}</p>
-				</div>
-			)}
-			<SkipMarkerActions
-				markers={markers}
-				currentTime={currentTime}
-				labelIntro={t("skipIntro")}
-				labelOutro={t("skipOutro")}
-				onSkip={skip}
-				disabled={Boolean(syncplay.active && !syncplay.canControl)}
-			/>
-			{nextUpVisible && nextItem && (
-				<div
-					data-testid="next-up"
-					className="zenstream-player-next-up absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 w-[min(calc(100vw-1.5rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:right-4 md:bottom-28 md:right-10"
-				>
-					<div className="h-1 bg-gradient-to-r from-violet-400 via-fuchsia-300 to-violet-400" />
-					<div className="p-4">
-						<div className="flex items-center justify-between gap-3">
-							<p className="text-[11px] font-semibold uppercase tracking-[.22em] text-violet-200">
-								{t("nextUp")}
-							</p>
-							<span className="text-[11px] text-white/45">
-								{nextItem.RunTimeTicks
-									? formatPlayerTime(nextItem.RunTimeTicks / 10_000_000)
-									: ""}
-							</span>
+			{!minimized && (
+				<>
+					<div
+						className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/85 transition-opacity duration-300 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "opacity-0"}`}
+					/>
+					<div
+						className={`absolute left-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex max-w-[calc(100%-4.5rem)] items-start gap-2 transition-opacity duration-300 sm:left-5 sm:top-5 sm:gap-3 md:left-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+					>
+						<button
+							aria-label="Back"
+							className="group pointer-events-auto rounded-full bg-black/30 p-2 text-white/70 hover:text-white"
+							onClick={onBack ?? handleClose}
+						>
+							<ArrowLeft className="text-neutral-500 group-hover:text-white" />
+						</button>
+						<div className="min-w-0">
+							{item.Type === "Episode" && (
+								<p className="truncate text-xs uppercase tracking-[.16em] text-white/55 sm:tracking-[.2em]">
+									{`${item.SeriesName ?? "Series"} · S${item.ParentIndexNumber ?? 0}:E${item.IndexNumber ?? 0}`}
+								</p>
+							)}
+							{item.Name && (
+								<h1 className="mt-1 line-clamp-2 text-base font-semibold sm:text-lg">
+									{item.Name}
+								</h1>
+							)}
 						</div>
-						<div className="mt-3 flex gap-3 sm:gap-3.5">
-							{(() => {
-								const image = landscapeImage(nextItem);
-								return image ? (
-									<div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl shadow-lg shadow-black/30 sm:h-[4.5rem] sm:w-36">
-										<BlurHashImage
-											image={image}
-											alt=""
-											sizes="(max-width: 639px) 96px, 144px"
-											className="h-full w-full object-cover"
+					</div>
+					<div
+						className={`absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] transition-opacity duration-300 sm:right-5 sm:top-5 md:right-10 md:top-8 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+					>
+						<SyncplayGroupMenu
+							userId={session.userId}
+							avatarVersion={session.avatarVersion}
+							playerContext
+							buttonClassName="flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white/70 transition hover:bg-black/50 hover:text-white"
+						/>
+					</div>
+					{debugOpen && (
+						<div
+							data-testid="player-debug-panel"
+							className="pointer-events-none absolute left-3 top-[calc(4.5rem+env(safe-area-inset-top))] z-40 w-[min(29rem,calc(100vw-1.5rem))] rounded-lg border border-white/10 bg-[#10151bcc] px-3 py-2 font-mono text-[10px] leading-[1.35] text-white/85 shadow-2xl backdrop-blur-md sm:left-5 sm:top-24 md:left-10"
+						>
+							<div className="mb-1 text-[11px] font-semibold text-white">
+								Playback diagnostics
+							</div>
+							<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+								<span className="text-white/50">Mode</span>
+								<span>{debugSource?.mode ?? "negotiating"}</span>
+								<span className="text-white/50">Session</span>
+								<span>{debugSource?.sessionId ?? "direct/no session"}</span>
+								<span className="text-white/50">State</span>
+								<span>{debugSource?.sessionState ?? "ready"}</span>
+								<span className="text-white/50">Stream</span>
+								<span className="truncate" title={safePlayerUrl(url)}>
+									{safePlayerUrl(url)}
+								</span>
+								<span className="text-white/50">Source</span>
+								<span>
+									{debugSource?.Container ?? "-"} /{" "}
+									{debugSource?.Bitrate
+										? `${Math.round(debugSource.Bitrate / 1000)} kbps`
+										: "bitrate -"}
+								</span>
+								<span className="text-white/50">Video</span>
+								<span>
+									{debugVideoStream?.Codec ?? "-"} {debugVideoStream?.Width ?? "?"}x
+									{debugVideoStream?.Height ?? "?"}
+								</span>
+								<span className="text-white/50">Audio</span>
+								<span>
+									{debugAudioStream?.Codec ?? "-"} / {debugAudioStream?.Channels ?? "?"}
+									ch
+								</span>
+								<span className="text-white/50">Position</span>
+								<span>
+									{displayedCurrentTime.toFixed(2)} /{" "}
+									{(duration || knownDuration || 0).toFixed(2)}s
+								</span>
+								<span className="text-white/50">Buffered</span>
+								<span>
+									{debugBufferedRanges.length
+										? debugBufferedRanges
+												.map(([start, end]) => `${start.toFixed(1)}-${end.toFixed(1)}`)
+												.join(" ")
+										: "none"}{" "}
+									({debugBufferAhead.toFixed(1)}s ahead)
+								</span>
+								<span className="text-white/50">Native</span>
+								<span>
+									{debugVideo?.paused ? "paused" : "playing"} / ready{" "}
+									{debugVideo?.readyState ?? 0} / network {debugVideo?.networkState ?? 0}
+								</span>
+								<span className="text-white/50">HLS</span>
+								<span>
+									manifest {debugStats.manifestParsed ? "yes" : "no"} / requested{" "}
+									{debugStats.fragmentsRequested} / buffered{" "}
+									{debugStats.fragmentsBuffered}
+								</span>
+								<span className="text-white/50">Request</span>
+								<span className="truncate" title={debugStats.lastRequest || undefined}>
+									{debugStats.lastRequest || "-"}
+								</span>
+								<span className="text-white/50">Last segment</span>
+								<span className="truncate" title={debugStats.lastFragment || undefined}>
+									{debugStats.lastFragment || "-"}
+								</span>
+								<span className="text-white/50">Errors</span>
+								<span>{debugStats.lastHlsError || "-"}</span>
+								<span className="text-white/50">Native error</span>
+								<span>{debugStats.lastMediaErrorCode || "-"}</span>
+							</div>
+						</div>
+					)}
+					{(buffering || syncplayWaitingForMembers(syncplay.active, item.Id)) && (
+						<div
+							data-testid="player-loading"
+							className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 p-4 shadow-xl backdrop-blur-md"
+							role="status"
+							aria-label="Loading"
+						>
+							<LoaderCircle className="h-8 w-8 animate-spin text-white/85 drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]" />
+						</div>
+					)}
+					{error && (
+						<div
+							role="alert"
+							className="absolute left-1/2 top-1/2 flex -translate-x-1/2 flex-col items-center gap-3 rounded bg-black/70 px-4 py-3 text-sm text-red-200"
+						>
+							<p>{error}</p>
+						</div>
+					)}
+					<SkipMarkerActions
+						markers={markers}
+						currentTime={currentTime}
+						labelIntro={t("skipIntro")}
+						labelOutro={t("skipOutro")}
+						onSkip={skip}
+						disabled={Boolean(syncplay.active && !syncplay.canControl)}
+					/>
+					{nextUpVisible && nextItem && (
+						<div
+							data-testid="next-up"
+							className="zenstream-player-next-up absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 w-[min(calc(100vw-1.5rem),380px)] overflow-hidden rounded-2xl border border-white/20 bg-black/60 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:right-4 md:bottom-28 md:right-10"
+						>
+							<div className="h-1 bg-gradient-to-r from-violet-400 via-fuchsia-300 to-violet-400" />
+							<div className="p-4">
+								<div className="flex items-center justify-between gap-3">
+									<p className="text-[11px] font-semibold uppercase tracking-[.22em] text-violet-200">
+										{t("nextUp")}
+									</p>
+									<span className="text-[11px] text-white/45">
+										{nextItem.RunTimeTicks
+											? formatPlayerTime(nextItem.RunTimeTicks / 10_000_000)
+											: ""}
+									</span>
+								</div>
+								<div className="mt-3 flex gap-3 sm:gap-3.5">
+									{(() => {
+										const image = landscapeImage(nextItem);
+										return image ? (
+											<div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl shadow-lg shadow-black/30 sm:h-[4.5rem] sm:w-36">
+												<BlurHashImage
+													image={image}
+													alt=""
+													sizes="(max-width: 639px) 96px, 144px"
+													className="h-full w-full object-cover"
+												/>
+											</div>
+										) : null;
+									})()}
+									<div className="min-w-0 self-center">
+										<p className="text-[11px] font-medium uppercase tracking-wider text-white/50">
+											S{nextItem.ParentIndexNumber ?? 0}:E
+											{nextItem.IndexNumber ?? 0}
+										</p>
+										<p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white">
+											{nextItem.Name}
+										</p>
+									</div>
+								</div>
+								<div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+									<button
+										type="button"
+										onClick={handleClose}
+										className="rounded-lg px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
+									>
+										{t("stopPlaying")}
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											void playNext();
+										}}
+										className="rounded-lg bg-violet-400 px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-violet-950/30 transition hover:bg-violet-300"
+									>
+										{t("playNext")}
+									</button>
+								</div>
+							</div>
+						</div>
+					)}
+					<div
+						className={`zenstream-player-controls absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
+					>
+						{timeline}
+						<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
+							<button
+								aria-label="Skip back 10 seconds"
+								aria-keyshortcuts="ArrowLeft J"
+								onClick={() => seek(-10)}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+							>
+								<SkipBack />
+							</button>
+							<button
+								aria-label={playing ? "Pause" : "Play"}
+								aria-keyshortcuts="Space K"
+								onClick={togglePlay}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+							>
+								{playing ? <Pause /> : <Play />}
+							</button>
+							<button
+								aria-label="Skip forward 10 seconds"
+								aria-keyshortcuts="ArrowRight L"
+								onClick={() => seek(10)}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+							>
+								<SkipForward />
+							</button>
+							<button
+								type="button"
+								data-testid="player-time"
+								aria-label={timeDisplayActionLabel}
+								aria-keyshortcuts="T"
+								aria-pressed={timeDisplayMode === "elapsed"}
+								title={timeDisplayActionLabel}
+								onClick={toggleTimeDisplay}
+								className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center px-1 text-xs tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60 sm:min-w-[6.25rem] sm:text-sm"
+							>
+								{timerText}
+							</button>
+							<span className="min-w-2 flex-1" />
+							{(info?.audio.length ?? 0) > 1 && (
+								<button
+									data-player-context-trigger
+									aria-label={t("audioTrack")}
+									aria-keyshortcuts="A"
+									onClick={() => {
+										setTrackMenu(trackMenu === "audio" ? null : "audio");
+										setSettingsOpen(false);
+									}}
+									className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
+								>
+									<AudioLines className="text-neutral-500 group-hover:text-white" />
+								</button>
+							)}
+							{(info?.subtitles.length ?? 0) > 0 && (
+								<button
+									data-player-context-trigger
+									aria-label={t("subtitleTrack")}
+									aria-keyshortcuts="S"
+									onClick={() => {
+										setTrackMenu(trackMenu === "subtitle" ? null : "subtitle");
+										setSettingsOpen(false);
+									}}
+									className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
+								>
+									<Captions className="text-neutral-500 group-hover:text-white" />
+								</button>
+							)}
+							<div className="group flex shrink-0 items-center gap-2">
+								<button
+									aria-label={muted ? "Unmute" : "Mute"}
+									aria-keyshortcuts="M"
+									onClick={() => setVideoMuted(!muted)}
+									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+								>
+									{muted ? <VolumeX /> : <Volume2 />}
+								</button>
+								<div className="relative h-5 w-0 shrink-0 overflow-hidden opacity-0 transition-[width,opacity] duration-200 group-hover:w-20 group-hover:opacity-100">
+									<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
+										<div
+											className="h-full bg-violet-300 transition-[width] duration-100"
+											style={{ width: `${(muted ? 0 : volume) * 100}%` }}
 										/>
 									</div>
-								) : null;
-							})()}
-							<div className="min-w-0 self-center">
-								<p className="text-[11px] font-medium uppercase tracking-wider text-white/50">
-									S{nextItem.ParentIndexNumber ?? 0}:E
-									{nextItem.IndexNumber ?? 0}
-								</p>
-								<p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white">
-									{nextItem.Name}
-								</p>
-							</div>
-						</div>
-						<div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
-							<button
-								type="button"
-								onClick={handleClose}
-								className="rounded-lg px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
-							>
-								{t("stopPlaying")}
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									void playNext();
-								}}
-								className="rounded-lg bg-violet-400 px-4 py-2 text-xs font-semibold text-black shadow-lg shadow-violet-950/30 transition hover:bg-violet-300"
-							>
-								{t("playNext")}
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
-			<div
-				className={`zenstream-player-controls absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
-			>
-				<div className="relative mb-3 flex h-5 items-center">
-					<div
-						data-testid="player-timeline"
-						className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded bg-white/20"
-					>
-						{duration > 0 &&
-							displayedBufferedRanges.map(([start, end]) => (
-								<span
-									key={`${start}-${end}`}
-									data-testid="player-buffered-range"
-									className="absolute inset-y-0 bg-white/35"
-									style={{
-										left: `${(start / duration) * 100}%`,
-										width: `${((end - start) / duration) * 100}%`,
-									}}
-								/>
-							))}
-						<span
-							className="absolute inset-y-0 left-0 bg-violet-400"
-							style={{
-								width: `${duration > 0 ? (displayedCurrentTime / duration) * 100 : 0}%`,
-							}}
-						/>
-						{markers?.intro && duration > 0 && (
-							<span
-								className="absolute inset-y-0 bg-violet-300/90"
-								style={{
-									left: `${(markers.intro.start / duration) * 100}%`,
-									width: `${((markers.intro.end - markers.intro.start) / duration) * 100}%`,
-								}}
-							/>
-						)}
-						{markers?.outro && duration > 0 && (
-							<span
-								className="absolute inset-y-0 bg-violet-300/90"
-								style={{
-									left: `${(markers.outro.start / duration) * 100}%`,
-									width: `${((markers.outro.end - markers.outro.start) / duration) * 100}%`,
-								}}
-							/>
-						)}
-					</div>
-					<input
-						aria-label="Seek"
-						type="range"
-						min="0"
-						max={duration}
-						step="0.1"
-						value={Math.min(displayedCurrentTime, duration || displayedCurrentTime)}
-						className="absolute inset-x-0 top-1/2 z-10 h-5 w-full -translate-y-1/2 cursor-pointer appearance-none bg-transparent accent-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
-						onPointerMove={previewTimeline}
-						onPointerLeave={() => {
-							setTimelinePreview(undefined);
-							setPreviewUnavailable(false);
-						}}
-						onPointerDown={previewTimeline}
-						onPointerUp={(event) => commitTimelineSeek(event.currentTarget.value)}
-						onBlur={(event) => commitTimelineSeek(event.currentTarget.value)}
-						onKeyUp={(event) => {
-							if (
-								[
-									"ArrowLeft",
-									"ArrowRight",
-									"Home",
-									"End",
-									"PageUp",
-									"PageDown",
-								].includes(event.key)
-							)
-								commitTimelineSeek(event.currentTarget.value);
-						}}
-						onInput={(event) => stageSeek(Number(event.currentTarget.value))}
-						onChange={(event) => stageSeek(Number(event.target.value))}
-					/>
-					{timelinePreview && (
-						<TrickplayBubble
-							preview={timelinePreview}
-							onError={() => {
-								setTimelinePreview(undefined);
-								setPreviewUnavailable(true);
-							}}
-						/>
-					)}
-					{previewUnavailable && (
-						<div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 rounded bg-black/90 px-3 py-2 text-xs text-white/65">
-							Preview unavailable
-						</div>
-					)}
-				</div>
-				<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
-					<button
-						aria-label="Skip back 10 seconds"
-						aria-keyshortcuts="ArrowLeft J"
-						onClick={() => seek(-10)}
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-					>
-						<SkipBack />
-					</button>
-					<button
-						aria-label={playing ? "Pause" : "Play"}
-						aria-keyshortcuts="Space K"
-						onClick={togglePlay}
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-					>
-						{playing ? <Pause /> : <Play />}
-					</button>
-					<button
-						aria-label="Skip forward 10 seconds"
-						aria-keyshortcuts="ArrowRight L"
-						onClick={() => seek(10)}
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-					>
-						<SkipForward />
-					</button>
-					<button
-						type="button"
-						data-testid="player-time"
-						aria-label={timeDisplayActionLabel}
-						aria-keyshortcuts="T"
-						aria-pressed={timeDisplayMode === "elapsed"}
-						title={timeDisplayActionLabel}
-						onClick={toggleTimeDisplay}
-						className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center px-1 text-xs tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60 sm:min-w-[6.25rem] sm:text-sm"
-					>
-						{timerText}
-					</button>
-					<span className="min-w-2 flex-1" />
-					{(info?.audio.length ?? 0) > 1 && (
-						<button
-							data-player-context-trigger
-							aria-label={t("audioTrack")}
-							aria-keyshortcuts="A"
-							onClick={() => {
-								setTrackMenu(trackMenu === "audio" ? null : "audio");
-								setSettingsOpen(false);
-							}}
-							className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
-						>
-							<AudioLines className="text-neutral-500 group-hover:text-white" />
-						</button>
-					)}
-					{(info?.subtitles.length ?? 0) > 0 && (
-						<button
-							data-player-context-trigger
-							aria-label={t("subtitleTrack")}
-							aria-keyshortcuts="S"
-							onClick={() => {
-								setTrackMenu(trackMenu === "subtitle" ? null : "subtitle");
-								setSettingsOpen(false);
-							}}
-							className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white md:h-auto md:w-auto"
-						>
-							<Captions className="text-neutral-500 group-hover:text-white" />
-						</button>
-					)}
-					<div className="group flex shrink-0 items-center gap-2">
-						<button
-							aria-label={muted ? "Unmute" : "Mute"}
-							aria-keyshortcuts="M"
-							onClick={() => setVideoMuted(!muted)}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-						>
-							{muted ? <VolumeX /> : <Volume2 />}
-						</button>
-						<div className="relative h-5 w-0 shrink-0 overflow-hidden opacity-0 transition-[width,opacity] duration-200 group-hover:w-20 group-hover:opacity-100">
-							<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
-								<div
-									className="h-full bg-violet-300 transition-[width] duration-100"
-									style={{ width: `${(muted ? 0 : volume) * 100}%` }}
-								/>
-							</div>
-							<input
-								aria-label="Volume"
-								type="range"
-								min="0"
-								max="1"
-								step="0.01"
-								value={muted ? 0 : volume}
-								onChange={(event) => {
-									setVideoVolume(Number(event.target.value));
-								}}
-								className="zenstream-player-volume-slider relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
-							/>
-						</div>
-					</div>
-					<button
-						data-player-context-trigger
-						aria-label={t("settings")}
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-						onClick={() => {
-							setSettingsOpen(!settingsOpen);
-							setSettingsSection("root");
-							setTrackMenu(null);
-						}}
-					>
-						<Settings />
-					</button>
-					{pipSupported && (
-						<button
-							aria-label={
-								isPictureInPicture ? t("exitPictureInPicture") : t("pictureInPicture")
-							}
-							aria-keyshortcuts="P"
-							onClick={togglePictureInPicture}
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-						>
-							<PictureInPicture />
-						</button>
-					)}
-					<button
-						aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-						aria-keyshortcuts="F"
-						onClick={toggleFullscreen}
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-					>
-						{isFullscreen ? <Minimize /> : <Maximize />}
-					</button>
-					{trackMenu === "audio" && (
-						<ChoicePanel
-							options={info!.audio.map((track) => ({
-								value: String(track.Index),
-								label: track.DisplayTitle ?? track.Language ?? t("audioTrack"),
-							}))}
-							value={audio}
-							onChange={(value) => chooseTrack("audio", value)}
-						/>
-					)}
-					{trackMenu === "subtitle" && (
-						<ChoicePanel
-							options={[
-								{ value: "", label: t("subtitlesOff") },
-								...info!.subtitles.map((track) => ({
-									value: String(track.Index),
-									label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack"),
-								})),
-							]}
-							value={subtitle}
-							onChange={(value) => chooseTrack("subtitle", value)}
-						/>
-					)}
-					{settingsOpen && (
-						<div
-							data-player-context
-							onPointerDown={(event) => event.stopPropagation()}
-							onClick={(event) => event.stopPropagation()}
-							className="zenstream-player-panel absolute bottom-full right-0 z-30 mb-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
-						>
-							{settingsSection === "root" && (
-								<div className="grid gap-1">
-									<MenuRow
-										label={t("quality")}
-										onClick={() => setSettingsSection("quality")}
-									/>
-									<MenuRow
-										label={t("speed")}
-										onClick={() => setSettingsSection("speed")}
-									/>
-									{style.renderer === "overlay" && (
-										<MenuRow
-											label={t("subtitleOffset")}
-											onClick={() => setSettingsSection("offset")}
-										/>
-									)}
-									<MenuRow
-										label={t("openKeyboardShortcuts")}
-										ariaKeyShortcuts="Shift+/"
-										onClick={openKeyboardHelp}
-									/>
-									<MenuRow
-										label={debugOpen ? "Hide diagnostics" : "Show diagnostics"}
-										onClick={() => {
-											setDebugOpen(!debugOpen);
-											setSettingsOpen(false);
+									<input
+										aria-label="Volume"
+										type="range"
+										min="0"
+										max="1"
+										step="0.01"
+										value={muted ? 0 : volume}
+										onChange={(event) => {
+											setVideoVolume(Number(event.target.value));
 										}}
+										className="zenstream-player-volume-slider relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
 									/>
 								</div>
-							)}
-							{settingsSection === "quality" && (
-								<SettingsSubmenu
-									title={t("quality")}
-									onBack={() => setSettingsSection("root")}
+							</div>
+							<button
+								data-player-context-trigger
+								aria-label={t("settings")}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+								onClick={() => {
+									setSettingsOpen(!settingsOpen);
+									setSettingsSection("root");
+									setTrackMenu(null);
+								}}
+							>
+								<Settings />
+							</button>
+							{pipSupported && (
+								<button
+									aria-label={
+										isPictureInPicture ? t("exitPictureInPicture") : t("pictureInPicture")
+									}
+									aria-keyshortcuts="P"
+									onClick={togglePictureInPicture}
+									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
 								>
-									<ChoicePanel
-										floating={false}
-										options={(info?.qualities ?? [0]).map((value) => ({
-											value: String(value),
-											label: value ? `${Math.round(value / 1_000_000)} Mbps` : "Auto",
-										}))}
-										value={quality}
-										onChange={chooseQuality}
-									/>
-								</SettingsSubmenu>
+									<PictureInPicture />
+								</button>
 							)}
-							{settingsSection === "speed" && (
-								<SettingsSubmenu
-									title={t("speed")}
-									onBack={() => setSettingsSection("root")}
-								>
-									<ChoicePanel
-										floating={false}
-										options={speeds.map((value) => ({
-											value: String(value),
-											label: `${value}x`,
-										}))}
-										value={speed}
-										onChange={(value) => {
-											setSpeed(value);
-											if (videoRef.current) videoRef.current.playbackRate = Number(value);
-										}}
-									/>
-								</SettingsSubmenu>
+							<button
+								aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+								aria-keyshortcuts="F"
+								onClick={toggleFullscreen}
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+							>
+								{isFullscreen ? <Minimize /> : <Maximize />}
+							</button>
+							{trackMenu === "audio" && (
+								<ChoicePanel
+									options={info!.audio.map((track) => ({
+										value: String(track.Index),
+										label: track.DisplayTitle ?? track.Language ?? t("audioTrack"),
+									}))}
+									value={audio}
+									onChange={(value) => chooseTrack("audio", value)}
+								/>
 							)}
-							{settingsSection === "offset" && (
-								<SettingsSubmenu
-									title={t("subtitleOffset")}
-									onBack={() => setSettingsSection("root")}
+							{trackMenu === "subtitle" && (
+								<ChoicePanel
+									options={[
+										{ value: "", label: t("subtitlesOff") },
+										...info!.subtitles.map((track) => ({
+											value: String(track.Index),
+											label: track.DisplayTitle ?? track.Language ?? t("subtitleTrack"),
+										})),
+									]}
+									value={subtitle}
+									onChange={(value) => chooseTrack("subtitle", value)}
+								/>
+							)}
+							{settingsOpen && (
+								<div
+									data-player-context
+									onPointerDown={(event) => event.stopPropagation()}
+									onClick={(event) => event.stopPropagation()}
+									className="zenstream-player-panel absolute bottom-full right-0 z-30 mb-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/20 bg-black/25 p-2 text-xs shadow-2xl backdrop-blur-xl"
 								>
-									<div className="grid gap-2">
-										<span className="text-white/60">
-											{offset > 0 ? "+" : ""}
-											{offset.toFixed(1)}s
-										</span>
-										<input
-											aria-label={t("subtitleOffset")}
-											type="range"
-											min="-5"
-											max="5"
-											step="0.1"
-											value={offset}
-											onChange={(event) => setOffset(Number(event.target.value))}
-											className="accent-violet-400"
-										/>
-									</div>
-								</SettingsSubmenu>
+									{settingsSection === "root" && (
+										<div className="grid gap-1">
+											<MenuRow
+												label={t("quality")}
+												onClick={() => setSettingsSection("quality")}
+											/>
+											<MenuRow
+												label={t("speed")}
+												onClick={() => setSettingsSection("speed")}
+											/>
+											{style.renderer === "overlay" && (
+												<MenuRow
+													label={t("subtitleOffset")}
+													onClick={() => setSettingsSection("offset")}
+												/>
+											)}
+											<MenuRow
+												label={t("openKeyboardShortcuts")}
+												ariaKeyShortcuts="Shift+/"
+												onClick={openKeyboardHelp}
+											/>
+											<MenuRow
+												label={debugOpen ? "Hide diagnostics" : "Show diagnostics"}
+												onClick={() => {
+													setDebugOpen(!debugOpen);
+													setSettingsOpen(false);
+												}}
+											/>
+										</div>
+									)}
+									{settingsSection === "quality" && (
+										<SettingsSubmenu
+											title={t("quality")}
+											onBack={() => setSettingsSection("root")}
+										>
+											<ChoicePanel
+												floating={false}
+												options={(info?.qualities ?? [0]).map((value) => ({
+													value: String(value),
+													label: value ? `${Math.round(value / 1_000_000)} Mbps` : "Auto",
+												}))}
+												value={quality}
+												onChange={chooseQuality}
+											/>
+										</SettingsSubmenu>
+									)}
+									{settingsSection === "speed" && (
+										<SettingsSubmenu
+											title={t("speed")}
+											onBack={() => setSettingsSection("root")}
+										>
+											<ChoicePanel
+												floating={false}
+												options={speeds.map((value) => ({
+													value: String(value),
+													label: `${value}x`,
+												}))}
+												value={speed}
+												onChange={(value) => {
+													setSpeed(value);
+													if (videoRef.current)
+														videoRef.current.playbackRate = Number(value);
+												}}
+											/>
+										</SettingsSubmenu>
+									)}
+									{settingsSection === "offset" && (
+										<SettingsSubmenu
+											title={t("subtitleOffset")}
+											onBack={() => setSettingsSection("root")}
+										>
+											<div className="grid gap-2">
+												<span className="text-white/60">
+													{offset > 0 ? "+" : ""}
+													{offset.toFixed(1)}s
+												</span>
+												<input
+													aria-label={t("subtitleOffset")}
+													type="range"
+													min="-5"
+													max="5"
+													step="0.1"
+													value={offset}
+													onChange={(event) => setOffset(Number(event.target.value))}
+													className="accent-violet-400"
+												/>
+											</div>
+										</SettingsSubmenu>
+									)}
+								</div>
 							)}
 						</div>
+					</div>
+				</>
+			)}
+			{minimized && (
+				<>
+					<div className="zenstream-mini-controls pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 opacity-0 transition-opacity duration-150">
+						<button
+							aria-label={t("expandPlayer")}
+							onClick={onExpand}
+							className="pointer-events-auto absolute left-2 top-2 flex h-9 items-center gap-1 rounded-full bg-black/40 px-2 text-xs hover:bg-white/20"
+						>
+							<Maximize size={18} />
+							{t("expandPlayer")}
+						</button>
+						<button
+							aria-label={t("close")}
+							onClick={handleClose}
+							className="pointer-events-auto absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 hover:bg-white/20"
+						>
+							<X size={20} />
+						</button>
+						<button
+							aria-label={playing ? "Pause" : "Play"}
+							onClick={togglePlay}
+							disabled={Boolean(syncplay.active && !syncplay.canControl)}
+							className="pointer-events-auto absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 hover:bg-white/20"
+						>
+							{playing ? <Pause /> : <Play />}
+						</button>
+					</div>
+					<div className="zenstream-mini-controls absolute inset-x-2 bottom-0 opacity-0 transition-opacity duration-150">
+						<div className="pointer-events-none mb-0.5 text-[10px] tabular-nums">
+							{timerText}
+						</div>
+						{timeline}
+					</div>
+					{error && (
+						<div
+							role="alert"
+							className="pointer-events-none absolute inset-x-2 top-14 text-center text-xs text-red-200"
+						>
+							{error}
+						</div>
 					)}
-				</div>
-			</div>
+				</>
+			)}
 		</div>
 	);
 }
@@ -4104,10 +4206,10 @@ function hexToRgba(hex: string, opacity: number) {
 	return `rgba(${red}, ${green}, ${blue}, ${opacity / 100})`;
 }
 
-export function nativeSubtitleCueCss(style: SubtitleStyle) {
+export function nativeSubtitleCueCss(style: SubtitleStyle, compact = false) {
 	const cue = "video.zenstream-video::cue";
 	const text = `${cue}(*)`;
-	const textStyle = `color: ${style.fontColor}; font-family: ${SUBTITLE_FONT_STACKS[style.fontFamily]}; font-size: clamp(16px, ${style.textScale / 20}vh, 72px); font-weight: ${style.bold ? 700 : 400}; line-height: 1.15; text-shadow: ${subtitleOuterShadow(style.borderSize, style.borderColor)}; white-space: pre-line;`;
+	const textStyle = `color: ${style.fontColor}; font-family: ${SUBTITLE_FONT_STACKS[style.fontFamily]}; font-size: ${compact ? `clamp(10px, ${style.textScale / 20}cqh, 36px)` : `clamp(16px, ${style.textScale / 20}vh, 72px)`}; font-weight: ${style.bold ? 700 : 400}; line-height: 1.15; text-shadow: ${subtitleOuterShadow(style.borderSize, style.borderColor)}; white-space: pre-line;`;
 	return `${cue} { ${textStyle} background-color: ${hexToRgba(style.backgroundColor, style.backgroundOpacity)}; } ${text} { ${textStyle} }`;
 }
 
@@ -4255,10 +4357,12 @@ export function CustomSubtitleCue({
 	cues,
 	time,
 	style,
+	compact = false,
 }: {
 	cues: SubtitleCue[];
 	time: number;
 	style: SubtitleStyle;
+	compact?: boolean;
 }) {
 	const activeCues = cues.filter(
 		(candidate) => time >= candidate.start && time < candidate.end,
@@ -4269,7 +4373,9 @@ export function CustomSubtitleCue({
 		color: style.fontColor,
 		backgroundColor: hexToRgba(style.backgroundColor, style.backgroundOpacity),
 		fontFamily: SUBTITLE_FONT_STACKS[style.fontFamily],
-		fontSize: `clamp(16px, ${style.textScale / 20}vh, 72px)`,
+		fontSize: compact
+			? `clamp(10px, ${style.textScale / 20}cqh, 36px)`
+			: `clamp(16px, ${style.textScale / 20}vh, 72px)`,
 		fontWeight: style.bold ? 700 : 400,
 		lineHeight: 1.15,
 		whiteSpace: "pre-line",
@@ -4280,7 +4386,9 @@ export function CustomSubtitleCue({
 		<div
 			data-testid="subtitle-overlay"
 			className="pointer-events-none absolute inset-x-4 z-10 flex flex-col items-center gap-1 text-center"
-			style={{ bottom: `${style.bottomSpacing}px` }}
+			style={{
+				bottom: `${compact ? Math.min(12, style.bottomSpacing) : style.bottomSpacing}px`,
+			}}
 			aria-live="off"
 		>
 			{activeCues.map((cue, index) => (

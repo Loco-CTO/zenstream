@@ -124,6 +124,7 @@ describe("SettingsPage", () => {
 			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
 		).toBe(
 			JSON.stringify({
+				continueVideoInMiniPlayer: true,
 				autoplayNextEpisode: false,
 				autoplayBrowse: false,
 				useHeroTrailer: true,
@@ -160,6 +161,7 @@ describe("SettingsPage", () => {
 			window.localStorage.getItem(playbackBehaviorStorageKey("user-1")),
 		).toBe(
 			JSON.stringify({
+				continueVideoInMiniPlayer: true,
 				autoplayNextEpisode: true,
 				autoplayBrowse: true,
 				useHeroTrailer: false,

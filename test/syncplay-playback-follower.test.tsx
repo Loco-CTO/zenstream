@@ -94,4 +94,29 @@ describe("SyncplayPlaybackFollower", () => {
 		);
 		expect(setWatchingTogether).not.toHaveBeenCalled();
 	});
+	it("keeps SyncPlay watching when Back leaves the route with a retained player", () => {
+		state.pathname = "/play/episode-2";
+		state.active = group();
+		const view = render(<SyncplayPlaybackFollower viewingItemId="episode-2" />);
+		state.pathname = "/library";
+		view.rerender(<SyncplayPlaybackFollower viewingItemId="episode-2" />);
+		expect(setWatchingTogether).not.toHaveBeenCalled();
+		expect(router.push).not.toHaveBeenCalled();
+	});
+	it("follows a new generation inside the mini-player without changing the browsing route", () => {
+		state.pathname = "/library";
+		state.active = group({ itemId: "episode-1", mediaGeneration: 1 });
+		const follow = vi.fn();
+		const view = render(
+			<SyncplayPlaybackFollower viewingItemId="episode-1" onFollowItem={follow} />,
+		);
+		state.active = group({ itemId: "episode-2", mediaGeneration: 2 });
+		view.rerender(
+			<SyncplayPlaybackFollower viewingItemId="episode-1" onFollowItem={follow} />,
+		);
+		expect(follow).toHaveBeenCalledOnce();
+		expect(follow).toHaveBeenCalledWith("episode-2");
+		expect(router.push).not.toHaveBeenCalled();
+		expect(setWatchingTogether).not.toHaveBeenCalled();
+	});
 });

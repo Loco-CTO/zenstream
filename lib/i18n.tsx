@@ -8,6 +8,10 @@ export const SUPPORTED_LOCALES = ["en", "ja"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 export const TRANSLATION_KEYS = [
+	"leavingVideoPlayer",
+	"continueInMiniPlayer",
+	"stopPlayback",
+	"expandPlayer",
 	"home",
 	"library",
 	"favorites",

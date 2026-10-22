@@ -10,6 +10,7 @@ import {
 } from "react";
 
 export type PlaybackBehaviorPreferences = {
+	continueVideoInMiniPlayer: boolean;
 	autoplayNextEpisode: boolean;
 	autoplayBrowse: boolean;
 	useHeroTrailer: boolean;
@@ -17,6 +18,7 @@ export type PlaybackBehaviorPreferences = {
 
 type PlaybackBehaviorPreferencesContext = PlaybackBehaviorPreferences & {
 	heroPreferenceRevision: number;
+	setContinueVideoInMiniPlayer: (value: boolean) => void;
 	setAutoplayNextEpisode: (value: boolean) => void;
 	setAutoplayBrowse: (value: boolean) => void;
 	setUseHeroTrailer: (value: boolean) => void;
@@ -24,6 +26,7 @@ type PlaybackBehaviorPreferencesContext = PlaybackBehaviorPreferences & {
 
 export const DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES: PlaybackBehaviorPreferences =
 	{
+		continueVideoInMiniPlayer: true,
 		autoplayNextEpisode: true,
 		autoplayBrowse: true,
 		useHeroTrailer: true,
@@ -41,6 +44,10 @@ function parsePreferences(value: string | null) {
 			return DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES;
 		const candidate = parsed as Partial<PlaybackBehaviorPreferences>;
 		return {
+			continueVideoInMiniPlayer:
+				typeof candidate.continueVideoInMiniPlayer === "boolean"
+					? candidate.continueVideoInMiniPlayer
+					: true,
 			autoplayNextEpisode:
 				typeof candidate.autoplayNextEpisode === "boolean"
 					? candidate.autoplayNextEpisode
@@ -88,6 +95,7 @@ function writePreferences(
 const Context = createContext<PlaybackBehaviorPreferencesContext>({
 	...DEFAULT_PLAYBACK_BEHAVIOR_PREFERENCES,
 	heroPreferenceRevision: 0,
+	setContinueVideoInMiniPlayer: () => undefined,
 	setAutoplayNextEpisode: () => undefined,
 	setAutoplayBrowse: () => undefined,
 	setUseHeroTrailer: () => undefined,
@@ -127,6 +135,10 @@ export function PlaybackBehaviorPreferencesProvider({
 		},
 		[userId],
 	);
+	const setContinueVideoInMiniPlayer = useCallback(
+		(value: boolean) => update("continueVideoInMiniPlayer", value),
+		[update],
+	);
 	const setAutoplayNextEpisode = useCallback(
 		(value: boolean) => update("autoplayNextEpisode", value),
 		[update],
@@ -148,6 +160,7 @@ export function PlaybackBehaviorPreferencesProvider({
 			value={{
 				...preferences,
 				heroPreferenceRevision,
+				setContinueVideoInMiniPlayer,
 				setAutoplayNextEpisode,
 				setAutoplayBrowse,
 				setUseHeroTrailer,

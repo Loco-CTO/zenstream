@@ -198,12 +198,14 @@ describe("video player controls", () => {
 		viewerSessionId,
 		initialStreams,
 		initialSubtitleStreamIndex,
+		minimized = false,
 	}: {
 		autoplayNextEpisode?: boolean;
 		withNext?: boolean;
 		viewerSessionId?: string;
 		initialStreams?: ReturnType<typeof playbackStreams>;
 		initialSubtitleStreamIndex?: number;
+		minimized?: boolean;
 	} = {}) {
 		const session = { token: "token", userId: "user", username: "Alex" };
 		const item = {
@@ -264,6 +266,7 @@ describe("video player controls", () => {
 									qualities: [],
 								} as ReturnType<typeof playbackStreams>)
 							}
+							minimized={minimized}
 							initialSubtitleStreamIndex={initialSubtitleStreamIndex}
 							onClose={onClose}
 							onNext={onNext}
@@ -274,6 +277,22 @@ describe("video player controls", () => {
 		);
 		return { view, onNext, onClose };
 	}
+
+	it("keeps mini-player transport icons synchronized with the actual media element", async () => {
+		const { view } = renderEpisodePlayer({ withNext: false, minimized: true });
+		await flushPlayerEffects();
+		const video = view.container.querySelector("video")!;
+		Object.defineProperty(video, "paused", { configurable: true, value: false });
+		Object.defineProperty(video, "ended", { configurable: true, value: false });
+		fireEvent.playing(video);
+		expect(view.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+		Object.defineProperty(video, "paused", { configurable: true, value: true });
+		fireEvent.pause(video);
+		expect(view.getByRole("button", { name: "Play" })).toBeInTheDocument();
+		Object.defineProperty(video, "paused", { configurable: true, value: false });
+		fireEvent.timeUpdate(video);
+		expect(view.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+	});
 
 	it("scopes transport, seek, and volume shortcuts to focused player content", async () => {
 		window.localStorage.setItem(

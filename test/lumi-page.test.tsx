@@ -274,6 +274,9 @@ describe("LumiPage", () => {
 				Id: "movie-1",
 				Name: "Arrival",
 				Type: "Movie",
+				ImageTags: {
+					Primary: "/api/catalog/items/movie-1/images/Primary",
+				},
 				ProductionYear: 2016,
 				OfficialRating: "PG-13",
 				CommunityRating: 7.9,

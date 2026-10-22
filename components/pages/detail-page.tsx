@@ -666,7 +666,7 @@ function ActionButton({
 			aria-label={label}
 			title={label}
 			onClick={onClick}
-			className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${active ? "border-violet-400/40 bg-violet-500/15 text-violet-300" : "border-white/15 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"}`}
+			className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${active ? "border-violet-400/40 bg-violet-500/15 text-violet-300" : "border-white/15 bg-white/5 text-neutral-500 hover:bg-white/10 hover:text-white"}`}
 		>
 			{icon}
 		</button>
@@ -889,7 +889,7 @@ function ItemActionButtons({
 	const buttonClass =
 		"flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-white/[.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/50";
 	const activeButtonClass = "text-violet-300 hover:text-white";
-	const inactiveButtonClass = "text-white/35 hover:text-white";
+	const inactiveButtonClass = "text-neutral-500 hover:text-white";
 	return (
 		<div className="flex shrink-0 items-center gap-0.5">
 			<button

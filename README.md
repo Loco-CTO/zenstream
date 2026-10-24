@@ -30,6 +30,52 @@ ZenStream has one Orchestrator backend and two clients:
 - [Android client](https://github.com/Loco-CTO/zenstream-mobile)
 - [Orchestrator](https://github.com/Loco-CTO/zenstream-orchestrator)
 
+## Demo screenshots
+
+Expand a view to preview it, then click the image to open the original PNG.
+
+<details>
+<summary><strong>Home</strong></summary>
+
+<p align="center"><a href="./screenshots/home-page.png"><img src="./screenshots/home-page.png" alt="ZenStream Web home page" width="960"></a></p>
+
+</details>
+
+<details>
+<summary><strong>Catalog</strong></summary>
+
+<p align="center"><a href="./screenshots/catalog-view.png"><img src="./screenshots/catalog-view.png" alt="ZenStream Web catalog" width="960"></a></p>
+
+</details>
+
+<details>
+<summary><strong>Series details</strong></summary>
+
+<p align="center"><a href="./screenshots/series-view.png"><img src="./screenshots/series-view.png" alt="ZenStream Web series details" width="960"></a></p>
+
+</details>
+
+<details>
+<summary><strong>Episode details</strong></summary>
+
+<p align="center"><a href="./screenshots/episode-view.png"><img src="./screenshots/episode-view.png" alt="ZenStream Web episode details" width="960"></a></p>
+
+</details>
+
+<details>
+<summary><strong>Video player</strong></summary>
+
+<p align="center"><a href="./screenshots/videoplayer.png"><img src="./screenshots/videoplayer.png" alt="ZenStream Web video player" width="960"></a></p>
+
+</details>
+
+<details>
+<summary><strong>Album details</strong></summary>
+
+<p align="center"><a href="./screenshots/album-view.png"><img src="./screenshots/album-view.png" alt="ZenStream Web album details" width="960"></a></p>
+
+</details>
+
 ## Configuration
 
 For local development, copy `.env.example` to `.env.local` and set `ZENSTREAM_ORCHESTRATOR_URL` to the Orchestrator address reachable from your browser.

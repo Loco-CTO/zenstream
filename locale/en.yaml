@@ -452,6 +452,7 @@ lumiConversationPanel: Lumi conversation
 lumiPrivateHistory: Your chat history is private to your account.
 lumiModelsLoadFailed: Could not load Lumi models.
 lumiHistoryLoadFailed: Could not load your Lumi conversations.
+lumiHistoryPageLoadFailed: Could not load earlier messages.
 lumiConversationLoadFailed: Could not load this conversation.
 lumiLoadingConversation: Loading conversation…
 lumiWelcome: Ask Lumi anything
@@ -481,6 +482,12 @@ lumiMakeDefault: Make default
 lumiDefaultSaved: Default model saved for new chats.
 lumiDefaultSaveFailed: Could not save the default model.
 lumiThinkingStatus: Lumi is thinking…
+lumiExpandingChatMemory: Expanding chat memory…
+lumiSummarizingEarlierMessages: Summarizing earlier messages…
+lumiLoadEarlierMessages: Load earlier messages
+lumiHistorySummaryNotice: Earlier messages remain available in the conversation history.
+lumiIncompleteContext: Lumi reached its available context limit; this answer may be incomplete.
+lumiIncompleteDeadline: Lumi reached the turn time limit; this answer may be incomplete.
 lumiSwitchingToCpu: Switching to CPU…
 lumiStopGenerating: Stop generating
 lumiYou: You

@@ -115,7 +115,7 @@ describe("smooth release alignment", () => {
 			value: vi.fn(),
 		});
 		const view = render(
-			<MiniPlayerFrame minimized title="Movie">
+			<MiniPlayerFrame minimized>
 				<div>Video</div>
 			</MiniPlayerFrame>,
 		);
@@ -132,6 +132,20 @@ describe("smooth release alignment", () => {
 		expect(keyframes[1].transform).toBe("translate(0px, 0px)");
 		expect(options.duration).toBe(280);
 		vi.unstubAllGlobals();
+	});
+});
+
+describe("video-only mini-player frame", () => {
+	it("uses the video aspect ratio without a title panel", () => {
+		const view = render(
+			<MiniPlayerFrame minimized>
+				<div>Video</div>
+			</MiniPlayerFrame>,
+		);
+		const frame = view.getByTestId("video-player-frame");
+
+		expect(frame.style.height).toBe("202.5px");
+		expect(frame.firstElementChild).toHaveClass("rounded-xl");
 	});
 });
 
@@ -168,6 +182,7 @@ describe("persistent video ownership", () => {
 			"data-minimized",
 			"true",
 		);
+		expect(view.queryByText("Movie")).not.toBeInTheDocument();
 		fireEvent.click(view.getByText("Expand"));
 		expect(mocks.push).toHaveBeenCalledWith("/play/movie-1?audio=2&subtitle=off");
 		view.rerender(<VideoPlaybackHost {...props} />);

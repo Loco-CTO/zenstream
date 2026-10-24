@@ -2,7 +2,6 @@ export type MiniCorner =
 	"top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type MiniPlacement = { corner: MiniCorner; width: number };
 export const MINI_PADDING = 16;
-export const MINI_TITLE_HEIGHT = 52;
 export const DEFAULT_MINI_PLACEMENT: MiniPlacement = {
 	corner: "bottom-right",
 	width: 360,
@@ -17,14 +16,14 @@ export function miniGeometry(
 		1,
 		Math.min(
 			viewport.width / 2 - MINI_PADDING,
-			((viewport.height / 2 - MINI_PADDING - MINI_TITLE_HEIGHT) * 16) / 9,
+			((viewport.height / 2 - MINI_PADDING) * 16) / 9,
 		),
 	);
 	const width = Math.min(
 		maximum,
 		Math.max(Math.min(240, maximum), placement.width),
 	);
-	const height = (width * 9) / 16 + MINI_TITLE_HEIGHT;
+	const height = (width * 9) / 16;
 	return {
 		width,
 		height,

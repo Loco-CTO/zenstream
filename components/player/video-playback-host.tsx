@@ -81,10 +81,7 @@ export function VideoPlaybackHost({
 	return (
 		<>
 			{follower}
-			<MiniPlayerFrame
-				minimized={minimized}
-				title={playback?.data.item.Name ?? ""}
-			>
+			<MiniPlayerFrame minimized={minimized}>
 				<div
 					ref={fullscreenHostRef}
 					data-testid="player-fullscreen-host"

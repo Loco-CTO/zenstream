@@ -32,8 +32,6 @@ ZenStream has one Orchestrator backend and two clients:
 
 ## Demo screenshots
 
-Expand a view to preview it, then click the image to open the original PNG.
-
 <details>
 <summary><strong>Home</strong></summary>
 

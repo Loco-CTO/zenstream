@@ -23,8 +23,6 @@ import {
 	PictureInPicture,
 	Play,
 	Settings,
-	SkipBack,
-	SkipForward,
 	Volume2,
 	VolumeX,
 	X,
@@ -3805,42 +3803,58 @@ export function VideoPlayer({
 					>
 						{timeline}
 						<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
-							<button
-								aria-label="Skip back 10 seconds"
-								aria-keyshortcuts="ArrowLeft J"
-								onClick={() => seek(-10)}
-								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-							>
-								<SkipBack />
-							</button>
-							<button
-								aria-label={playing ? "Pause" : "Play"}
-								aria-keyshortcuts="Space K"
-								onClick={togglePlay}
-								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-							>
-								{playing ? <Pause /> : <Play />}
-							</button>
-							<button
-								aria-label="Skip forward 10 seconds"
-								aria-keyshortcuts="ArrowRight L"
-								onClick={() => seek(10)}
-								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-							>
-								<SkipForward />
-							</button>
-							<button
-								type="button"
-								data-testid="player-time"
-								aria-label={timeDisplayActionLabel}
-								aria-keyshortcuts="T"
-								aria-pressed={timeDisplayMode === "elapsed"}
-								title={timeDisplayActionLabel}
-								onClick={toggleTimeDisplay}
-								className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center px-1 text-xs tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60 sm:min-w-[6.25rem] sm:text-sm"
-							>
-								{timerText}
-							</button>
+							<div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+								<button
+									aria-label={playing ? "Pause" : "Play"}
+									aria-keyshortcuts="Space K"
+									onClick={togglePlay}
+									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+								>
+									{playing ? <Pause /> : <Play />}
+								</button>
+								<div className="group flex shrink-0 items-center gap-2">
+									<button
+										aria-label={muted ? "Unmute" : "Mute"}
+										aria-keyshortcuts="M"
+										onClick={() => setVideoMuted(!muted)}
+										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
+									>
+										{muted ? <VolumeX /> : <Volume2 />}
+									</button>
+									<div className="relative h-5 w-0 shrink-0 overflow-hidden opacity-0 transition-[width,opacity] duration-200 group-hover:w-20 group-hover:opacity-100">
+										<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
+											<div
+												className="h-full bg-violet-300 transition-[width] duration-100"
+												style={{ width: `${(muted ? 0 : volume) * 100}%` }}
+											/>
+										</div>
+										<input
+											aria-label="Volume"
+											type="range"
+											min="0"
+											max="1"
+											step="0.01"
+											value={muted ? 0 : volume}
+											onChange={(event) => {
+												setVideoVolume(Number(event.target.value));
+											}}
+											className="zenstream-player-volume-slider relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
+										/>
+									</div>
+								</div>
+								<button
+									type="button"
+									data-testid="player-time"
+									aria-label={timeDisplayActionLabel}
+									aria-keyshortcuts="T"
+									aria-pressed={timeDisplayMode === "elapsed"}
+									title={timeDisplayActionLabel}
+									onClick={toggleTimeDisplay}
+									className="flex h-10 min-w-[5.5rem] shrink-0 items-center justify-center px-1 text-xs tabular-nums text-white/80 transition-colors hover:text-white/60 focus:outline-none focus-visible:text-white/60 sm:min-w-[6.25rem] sm:text-sm"
+								>
+									{timerText}
+								</button>
+							</div>
 							<span className="min-w-2 flex-1" />
 							{(info?.audio.length ?? 0) > 1 && (
 								<button
@@ -3870,36 +3884,6 @@ export function VideoPlayer({
 									<Captions className="text-neutral-500 group-hover:text-white" />
 								</button>
 							)}
-							<div className="group flex shrink-0 items-center gap-2">
-								<button
-									aria-label={muted ? "Unmute" : "Mute"}
-									aria-keyshortcuts="M"
-									onClick={() => setVideoMuted(!muted)}
-									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 md:h-auto md:w-auto"
-								>
-									{muted ? <VolumeX /> : <Volume2 />}
-								</button>
-								<div className="relative h-5 w-0 shrink-0 overflow-hidden opacity-0 transition-[width,opacity] duration-200 group-hover:w-20 group-hover:opacity-100">
-									<div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
-										<div
-											className="h-full bg-violet-300 transition-[width] duration-100"
-											style={{ width: `${(muted ? 0 : volume) * 100}%` }}
-										/>
-									</div>
-									<input
-										aria-label="Volume"
-										type="range"
-										min="0"
-										max="1"
-										step="0.01"
-										value={muted ? 0 : volume}
-										onChange={(event) => {
-											setVideoVolume(Number(event.target.value));
-										}}
-										className="zenstream-player-volume-slider relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent"
-									/>
-								</div>
-							</div>
 							<button
 								data-player-context-trigger
 								aria-label={t("settings")}

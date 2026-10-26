@@ -48,7 +48,7 @@ function restoreGestureVisuals(gesture: DragGesture) {
 export function useAudioRowReorder(
 	itemCount: number,
 	onReorder: (from: number, to: number) => void,
-	scope: "playlist" | "queue",
+	scope: "playlist" | "queue" | "home-settings",
 	enabled = true,
 ) {
 	const gestureRef = useRef<DragGesture | null>(null);
@@ -344,6 +344,11 @@ export function useAudioRowReorder(
 			)
 				return;
 			const target = event.target as Element;
+			if (
+				scope === "home-settings" &&
+				!target.closest("[data-audio-reorder-handle]")
+			)
+				return;
 			const row = target.closest<HTMLElement>(
 				`[data-audio-reorder-scope="${scope}"][data-audio-reorder-index]`,
 			);

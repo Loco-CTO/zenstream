@@ -1,4 +1,10 @@
 home: Home
+homeSectionsDescription: Drag sections to reorder them. Turn a section off to hide it from Home.
+loadingHomeSections: Loading Home sections…
+homeSectionsLoadFailed: Could not load Home sections.
+noHomeSections: No Home sections are available yet.
+reorderHomeSection: Drag to reorder {section}
+showHomeSection: Show {section} on Home
 library: Library
 favorites: Favorites
 myLists: My Lists

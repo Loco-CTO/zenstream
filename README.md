@@ -2,7 +2,7 @@
   <a href="./public/icon.png">
     <img src="./public/icon.png" alt="Logo" width="120" height="120">
   </a>
-  <h3 align="center">ZenStream Web</h3>
+  <h1 align="center">ZenStream Web</h1>
   <p align="center">
     A web client for <a href="https://github.com/Loco-CTO/zenstream">ZenStream</a>.
     <br />
@@ -84,7 +84,7 @@ For local development, copy `.env.example` to `.env.local` and set `ZENSTREAM_OR
 
 The container exposes the runtime Orchestrator URL to the browser before the app initializes and applies a Content Security Policy restricted to that configured origin. Artwork capability URLs remain direct requests to the Orchestrator.
 
-## Development
+## Quick start
 
 Start the Orchestrator first. Requires Node.js and pnpm.
 
@@ -108,7 +108,7 @@ To pin a version, set `ZENSTREAM_IMAGE=ghcr.io/loco-cto/zenstream:vX.Y.Z`. Image
 
 The Compose file keeps its local source build. Run `docker compose up -d --build` to build the checked-out source instead of pulling the configured image. Changing the Orchestrator URL does not require rebuilding.
 
-## Checks
+## Development checks
 
 ```sh
 pnpm format:check
@@ -116,6 +116,13 @@ pnpm lint
 pnpm test
 pnpm build
 ```
+
+## Developer documentation
+
+- [Documentation index](docs/README.md)
+- [Architecture and ownership](docs/architecture.md)
+- [Web interface design](docs/ui-design.md)
+- [Video and audio playback](docs/playback.md)
 
 ## Troubleshooting
 

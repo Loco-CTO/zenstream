@@ -2,10 +2,15 @@
 
 import Image from "next/image";
 import type { HomeData } from "@/lib/media-api";
-import { HOME_ROWS, pickHeroItem } from "@/lib/media";
+import { pickHeroItem } from "@/lib/media";
+import {
+	getHomeCarouselSections,
+	visibleHomeSections,
+} from "@/lib/home-layout";
 import { Hero } from "@/components/home/hero";
 import { MediaRow } from "@/components/home/media-row";
 import { useI18n } from "@/lib/i18n";
+import { useHomeLayoutPreferences } from "@/components/home-layout-preferences-provider";
 import type { AuthSession } from "@/lib/session";
 import { zenstreamVersion } from "@/lib/version";
 
@@ -17,95 +22,34 @@ export function HomePage({
 	session: AuthSession;
 }) {
 	const { t } = useI18n();
-	const videoLatestItems = uniqueItems(
-		(data.latestItems ?? []).filter((item) => !isAudioItem(item)),
+	const { preference } = useHomeLayoutPreferences();
+	const videoLatestItems = (data.latestItems ?? []).filter(
+		(item) => !isAudioItem(item),
 	);
 	const hero = pickHeroItem({ ...data, latestItems: videoLatestItems });
 	const heroItems =
 		videoLatestItems.length > 0 ? videoLatestItems : hero ? [hero] : [];
-	const mixedFavorites = uniqueItems(data.myList ?? []);
-	const favoriteMusic = uniqueItems(data.favoriteMusic ?? []).filter(
-		isAudioItem,
+	const sections = visibleHomeSections(
+		getHomeCarouselSections(data),
+		preference,
 	);
-	const videoFavorites = mixedFavorites.filter((item) => !isAudioItem(item));
-	const canonicalLibraryRows = (data.libraryRows ?? []).filter(
-		(section) =>
-			(section.titleKey === "newlyAddedOn" || section.titleKey === "topRated") &&
-			section.items.length > 0,
-	);
-	const hasCanonicalNewlyAdded = canonicalLibraryRows.some(
-		(section) => section.titleKey === "newlyAddedOn",
-	);
-	const legacyNewlyAdded = !hasCanonicalNewlyAdded
-		? (data.newlyAdded ?? [])
-				.filter((section) => section.items.length > 0)
-				.map((section) => ({
-					...section,
-					titleKey: "newlyAddedOn" as const,
-					stackEpisodes: false,
-					variant: "poster" as const,
-				}))
-		: [];
-	const libraryRows = [...legacyNewlyAdded, ...canonicalLibraryRows];
 
 	return (
 		<main className="pb-24 md:pb-0">
 			<Hero items={heroItems} session={session} />
 			<div className="relative z-10 mt-[-1.5rem] space-y-1">
-				{HOME_ROWS.slice(0, 2).map((row) => (
+				{sections.map((section) => (
 					<MediaRow
-						key={row.key}
-						title={t(row.titleKey)}
-						items={uniqueItems(data[row.key] ?? [])}
-						variant={row.variant}
-						session={session}
-					/>
-				))}
-				{(data.recommendations ?? []).length > 0 && (
-					<MediaRow
-						title={t("recommendationsForYou")}
-						items={uniqueItems(data.recommendations ?? [])}
-						variant="poster"
-						session={session}
-					/>
-				)}
-				{libraryRows.map((section) => (
-					<MediaRow
-						key={`${section.libraryId}:${section.titleKey}`}
-						title={t(
-							section.titleKey === "topRated" ? "topRatedOn" : "newlyAddedOn",
-							{ library: section.libraryName },
-						)}
-						items={uniqueItems(section.items)}
+						key={section.id}
+						title={
+							section.title ??
+							(section.titleKey ? t(section.titleKey, section.titleValues) : "")
+						}
+						items={section.items}
 						variant={section.variant ?? "poster"}
 						stackEpisodes={section.stackEpisodes}
 						session={session}
-						viewAllHref={undefined}
-					/>
-				))}
-				{favoriteMusic.length > 0 && (
-					<MediaRow
-						title={t("favoriteMusic")}
-						items={favoriteMusic}
-						variant="square"
-						session={session}
-						viewAllHref="/favorites"
-					/>
-				)}
-				<MediaRow
-					title={t("favorites")}
-					items={videoFavorites}
-					variant="poster"
-					session={session}
-					viewAllHref="/favorites"
-				/>
-				{(data.genreRows ?? []).map((section) => (
-					<MediaRow
-						key={`genre:${section.genre}`}
-						title={section.genre}
-						items={uniqueItems(section.items)}
-						variant="poster"
-						session={session}
+						viewAllHref={section.viewAllHref}
 					/>
 				))}
 			</div>
@@ -131,13 +75,4 @@ function isAudioItem(item: { Type?: string }) {
 		item.Type === "MusicAlbum" ||
 		item.Type === "Audio"
 	);
-}
-
-function uniqueItems<T extends { Id: string }>(items: T[]) {
-	const seen = new Set<string>();
-	return items.filter((item) => {
-		if (!item.Id || seen.has(item.Id)) return false;
-		seen.add(item.Id);
-		return true;
-	});
 }

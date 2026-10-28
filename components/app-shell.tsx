@@ -24,6 +24,7 @@ import {
 	primeResourceTicket,
 	revokeAuthSession,
 	validateBrowserSession,
+	orchestratorBaseUrl,
 	type AudioAlbumData,
 	type DetailData,
 	type HomeData,
@@ -124,6 +125,7 @@ import {
 } from "@/lib/preferences";
 import { SubtitlePreferencesProvider } from "@/components/subtitle-preferences-provider";
 import { PlaybackBehaviorPreferencesProvider } from "@/components/playback-behavior-preferences-provider";
+import { HomeLayoutPreferencesProvider } from "@/components/home-layout-preferences-provider";
 import { SyncplayProvider } from "@/lib/syncplay";
 import { ToastProvider } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -1205,26 +1207,32 @@ export function AppShell() {
 							>
 								<SyncplayProvider session={session}>
 									{pathname === "/settings" ? (
-										<SettingsPage
-											displayName={session.username}
+										<HomeLayoutPreferencesProvider
+											key={`${orchestratorBaseUrl()}:${session.userId}`}
+											serverUrl={orchestratorBaseUrl()}
 											userId={session.userId}
-											session={session}
-											avatarVersion={avatarVersion}
-											onAvatarVersionChange={handleAvatarVersionChange}
-											locale={effectiveLocale}
-											onLocaleChange={handleLocaleChange}
-											metadataLanguages={metadataLanguages}
-											metadataLanguage={metadataLanguage}
-											onMetadataLanguageChange={handleMetadataLanguageChange}
-											playbackPreference={playbackPreference}
-											onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
-											watchHistoryEnabled={watchHistoryEnabled}
-											onWatchHistoryChange={handleWatchHistoryChange}
-											onClearWatchHistory={handleClearWatchHistory}
-											onPlaybackPreferenceLoad={() => loadPreferences(session)}
-											onPasswordChanged={handlePasswordChanged}
-											onLogout={handleLogout}
-										/>
+										>
+											<SettingsPage
+												displayName={session.username}
+												userId={session.userId}
+												session={session}
+												avatarVersion={avatarVersion}
+												onAvatarVersionChange={handleAvatarVersionChange}
+												locale={effectiveLocale}
+												onLocaleChange={handleLocaleChange}
+												metadataLanguages={metadataLanguages}
+												metadataLanguage={metadataLanguage}
+												onMetadataLanguageChange={handleMetadataLanguageChange}
+												playbackPreference={playbackPreference}
+												onPlaybackPreferenceChange={handlePlaybackPreferenceChange}
+												watchHistoryEnabled={watchHistoryEnabled}
+												onWatchHistoryChange={handleWatchHistoryChange}
+												onClearWatchHistory={handleClearWatchHistory}
+												onPlaybackPreferenceLoad={() => loadPreferences(session)}
+												onPasswordChanged={handlePasswordChanged}
+												onLogout={handleLogout}
+											/>
+										</HomeLayoutPreferencesProvider>
 									) : (
 										<div className="relative min-h-screen bg-background text-foreground">
 											<Navbar
@@ -1316,7 +1324,13 @@ export function AppShell() {
 												pathname !== "/notifications" &&
 												pathname !== "/lumi" &&
 												pathname !== "/search" && (
-													<HomePage data={homeData} session={session} />
+													<HomeLayoutPreferencesProvider
+														key={`${orchestratorBaseUrl()}:${session.userId}`}
+														serverUrl={orchestratorBaseUrl()}
+														userId={session.userId}
+													>
+														<HomePage data={homeData} session={session} />
+													</HomeLayoutPreferencesProvider>
 												)}
 										</div>
 									)}

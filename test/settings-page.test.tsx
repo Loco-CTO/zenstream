@@ -1,16 +1,24 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "@/components/pages/settings-page";
 import {
 	PlaybackBehaviorPreferencesProvider,
 	playbackBehaviorStorageKey,
 } from "@/components/playback-behavior-preferences-provider";
+import { HomeLayoutPreferencesProvider } from "@/components/home-layout-preferences-provider";
 import {
 	SubtitlePreferencesProvider,
 	useSubtitlePreferences,
 } from "@/components/subtitle-preferences-provider";
 import { I18nProvider, translate } from "@/lib/i18n";
 import * as mediaApi from "@/lib/media-api";
+import { homeLayoutStorageKey } from "@/lib/home-layout";
 import { SUBTITLE_STYLE_STORAGE_KEY } from "@/lib/subtitle-preferences";
 
 const router = vi.hoisted(() => ({
@@ -167,6 +175,49 @@ describe("SettingsPage", () => {
 				useHeroTrailer: false,
 			}),
 		);
+	});
+
+	it("loads available Home rows and persists their visibility from Settings", async () => {
+		const homeData: mediaApi.HomeData = {
+			latestItems: [],
+			continueWatching: [{ Id: "continue", Type: "Movie" } as mediaApi.MediaItem],
+			nextUp: [],
+			libraryRows: [],
+		};
+		const fetchHome = vi
+			.spyOn(mediaApi, "fetchHomeData")
+			.mockResolvedValue(homeData);
+		const serverUrl = "https://server.example";
+		render(
+			<HomeLayoutPreferencesProvider serverUrl={serverUrl} userId="user-1">
+				<PlaybackBehaviorPreferencesProvider userId="user-1">
+					<SettingsPage
+						displayName="Alex"
+						userId="user-1"
+						session={session}
+						locale="en"
+						onLocaleChange={vi.fn()}
+						onLogout={() => undefined}
+					/>
+				</PlaybackBehaviorPreferencesProvider>
+			</HomeLayoutPreferencesProvider>,
+		);
+
+		openSection("Home");
+		const rowLabel = await screen.findByText("Continue watching");
+		const row = rowLabel.closest('[data-testid="home-layout-row"]');
+		expect(row).not.toBeNull();
+		const toggle = within(row as HTMLElement).getByRole("switch");
+		fireEvent.click(toggle);
+
+		await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "false"));
+		expect(row).toBeInTheDocument();
+		expect(
+			JSON.parse(
+				window.localStorage.getItem(homeLayoutStorageKey(serverUrl, "user-1"))!,
+			),
+		).toEqual({ order: [], hidden: ["home:continueWatching"] });
+		fetchHome.mockRestore();
 	});
 
 	it("shows only the server-provided playback languages and saves selections", async () => {

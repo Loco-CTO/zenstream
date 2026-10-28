@@ -1,4 +1,10 @@
 home: ホーム
+homeSectionsDescription: セクションをドラッグして並べ替えます。オフにするとホームから非表示になります。
+loadingHomeSections: ホームのセクションを読み込み中…
+homeSectionsLoadFailed: ホームのセクションを読み込めませんでした。
+noHomeSections: 現在、ホームに表示できるセクションはありません。
+reorderHomeSection: "ドラッグして並べ替え: {section}"
+showHomeSection: ホームに「{section}」を表示
 calendar: カレンダー
 calendarWeek: 週
 calendarMonth: 月

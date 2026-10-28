@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Copy, LogOut } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Copy,
+	GripVertical,
+	LogOut,
+} from "lucide-react";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Toggle } from "@/components/ui/toggle";
@@ -12,6 +18,8 @@ import { ClearWatchHistoryModal } from "@/components/account/clear-watch-history
 import { UserAvatar } from "@/components/account/user-avatar";
 import { useSubtitlePreferences } from "@/components/subtitle-preferences-provider";
 import { usePlaybackBehaviorPreferences } from "@/components/playback-behavior-preferences-provider";
+import { useHomeLayoutPreferences } from "@/components/home-layout-preferences-provider";
+import { useAudioRowReorder } from "@/components/audio/use-audio-row-reorder";
 import {
 	SUBTITLE_FONT_STACKS,
 	subtitleOuterShadow,
@@ -22,6 +30,8 @@ import type {
 	MetadataLanguagePreference,
 	PlaybackPreference,
 } from "@/lib/preferences";
+import { fetchHomeData, type HomeData } from "@/lib/media-api";
+import { getHomeCarouselSections, orderHomeSections } from "@/lib/home-layout";
 
 type SettingsPageProps = {
 	displayName: string;
@@ -273,6 +283,7 @@ export function SettingsPage({
 									/>
 								}
 							/>
+							<HomeSectionsEditor session={session} />
 						</SettingsSection>
 					)}
 
@@ -705,6 +716,136 @@ function SettingsSection({
 				{children}
 			</div>
 		</section>
+	);
+}
+
+function HomeSectionsEditor({ session }: { session?: AuthSession }) {
+	const { t } = useI18n();
+	const { preference, reorder, setHidden } = useHomeLayoutPreferences();
+	const [data, setData] = useState<Partial<HomeData> | null>(null);
+	const [loading, setLoading] = useState(Boolean(session));
+	const [error, setError] = useState(!session);
+
+	const requestSections = useCallback(
+		() =>
+			session
+				? fetchHomeData(session)
+				: Promise.reject(new Error("Session required")),
+		[session],
+	);
+
+	const loadSections = useCallback(() => {
+		if (!session) {
+			return;
+		}
+		setLoading(true);
+		setError(false);
+		void requestSections()
+			.then((result) => setData(result))
+			.catch(() => setError(true))
+			.finally(() => setLoading(false));
+	}, [requestSections, session]);
+
+	useEffect(() => {
+		if (!session) return;
+		let active = true;
+		void requestSections()
+			.then((result) => {
+				if (active) setData(result);
+			})
+			.catch(() => {
+				if (active) setError(true);
+			})
+			.finally(() => {
+				if (active) setLoading(false);
+			});
+		return () => {
+			active = false;
+		};
+	}, [requestSections, session]);
+
+	const sections = orderHomeSections(
+		getHomeCarouselSections(data ?? {}),
+		preference,
+	);
+	const reorderRows = useCallback(
+		(from: number, to: number) => {
+			const next = sections.map((section) => section.id);
+			const [moving] = next.splice(from, 1);
+			next.splice(to, 0, moving);
+			reorder(
+				sections.map((section) => section.id),
+				next,
+			);
+		},
+		[reorder, sections],
+	);
+	const drag = useAudioRowReorder(sections.length, reorderRows, "home-settings");
+	const hiddenIds = new Set(preference.hidden);
+
+	return (
+		<div className="border-t border-white/5 px-4 py-4">
+			<p className="mb-3 text-xs leading-5 text-white/35">
+				{t("homeSectionsDescription")}
+			</p>
+			{loading && (
+				<p className="py-3 text-sm text-white/45">{t("loadingHomeSections")}</p>
+			)}
+			{error && (
+				<div role="alert" className="flex items-center justify-between gap-3 py-3">
+					<p className="text-sm text-red-300">{t("homeSectionsLoadFailed")}</p>
+					<button
+						type="button"
+						onClick={loadSections}
+						className="rounded-lg px-3 py-2 text-xs font-medium text-violet-300 transition hover:bg-white/[0.06] hover:text-violet-200"
+					>
+						{t("retry")}
+					</button>
+				</div>
+			)}
+			{!loading && !error && sections.length === 0 && (
+				<p className="py-3 text-sm text-white/45">{t("noHomeSections")}</p>
+			)}
+			{!loading && !error && sections.length > 0 && (
+				<div
+					data-audio-reorder-list
+					onPointerDown={drag.onPointerDown}
+					onClickCapture={drag.onClickCapture}
+					className="space-y-2"
+				>
+					{sections.map((section, index) => {
+						const label =
+							section.title ??
+							(section.titleKey ? t(section.titleKey, section.titleValues) : "");
+						const visible = !hiddenIds.has(section.id);
+						return (
+							<div
+								key={section.id}
+								data-testid="home-layout-row"
+								data-audio-reorder-scope="home-settings"
+								data-audio-reorder-index={index}
+								className="flex min-h-14 items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-3"
+							>
+								<button
+									type="button"
+									data-audio-reorder-handle
+									aria-label={t("reorderHomeSection", { section: label })}
+									className="touch-none rounded p-1 text-white/30 transition hover:bg-white/[0.06] hover:text-white/70"
+								>
+									<GripVertical className="h-4 w-4" aria-hidden="true" />
+								</button>
+								<p className="min-w-0 flex-1 text-sm text-white/80">{label}</p>
+								<Toggle
+									label={t("showHomeSection", { section: label })}
+									checked={visible}
+									onChange={(nextVisible) => setHidden(section.id, !nextVisible)}
+								/>
+							</div>
+						);
+					})}
+				</div>
+			)}
+		</div>
 	);
 }
 

@@ -18,3 +18,8 @@ Use this index to find the design or behavior guide for the change. The code and
 
 - The [Orchestrator repository](https://github.com/Loco-CTO/zenstream-orchestrator) owns the public API implementation and canonical OpenAPI/fixture contract under `contracts/`.
 - This repository consumes those APIs through the client code in `lib/` and its contract tests.
+
+## Contributing and triage
+
+- [Contributing](../CONTRIBUTING.md)
+- [Issue and pull request triage](triage.md)

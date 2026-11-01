@@ -4380,7 +4380,7 @@ export function CustomSubtitleCue({
 	return (
 		<div
 			data-testid="subtitle-overlay"
-			className="pointer-events-none absolute inset-x-4 z-10 flex flex-col items-center gap-1 text-center"
+			className="pointer-events-none absolute inset-x-4 flex flex-col items-center gap-1 text-center"
 			style={{
 				bottom: `${compact ? Math.min(12, style.bottomSpacing) : style.bottomSpacing}px`,
 			}}

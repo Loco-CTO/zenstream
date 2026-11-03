@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsPage } from "@/components/pages/notifications-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
 import { I18nProvider } from "@/lib/i18n";
@@ -24,6 +24,11 @@ function item(id: string, readAt: string | null = null): NotificationItem {
 }
 
 describe("NotificationsPage", () => {
+	beforeEach(() => {
+		vi
+			.spyOn(notifications, "markAllNotificationsRead")
+			.mockResolvedValue({ unreadCount: 0 });
+	});
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -65,20 +70,44 @@ describe("NotificationsPage", () => {
 		);
 
 		await screen.findByRole("link", { name: "Episode one" });
+		expect(notifications.markAllNotificationsRead).toHaveBeenCalledWith(session);
 		const actions = screen.getByRole("button", { name: "Notification actions" });
 		expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
 
 		fireEvent.click(actions);
 		expect(
-			screen.getByRole("menuitem", { name: "Mark as read" }),
+			screen.getByRole("menuitem", { name: "Mark as unread" }),
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole("menuitem", { name: "Remove notification" }),
 		).toBeInTheDocument();
 
-		fireEvent.click(screen.getByRole("menuitem", { name: "Mark as read" }));
+		fireEvent.click(screen.getByRole("menuitem", { name: "Mark as unread" }));
 		await waitFor(() =>
-			expect(setNotificationRead).toHaveBeenCalledWith(session, "one", true),
+			expect(setNotificationRead).toHaveBeenCalledWith(session, "one", false),
 		);
+	});
+
+	it("keeps notifications unread if the automatic update fails", async () => {
+		vi
+			.mocked(notifications.markAllNotificationsRead)
+			.mockRejectedValue(new Error("offline"));
+		vi.spyOn(notifications, "getNotifications").mockResolvedValue({
+			items: [item("one")],
+			unreadCount: 1,
+			nextCursor: null,
+		});
+		render(
+			<I18nProvider locale="en">
+				<ProgressProvider>
+					<NotificationsPage session={session} />
+				</ProgressProvider>
+			</I18nProvider>,
+		);
+		await screen.findByRole("link", { name: "Episode one" });
+		fireEvent.click(screen.getByRole("button", { name: "Notification actions" }));
+		expect(
+			screen.getByRole("menuitem", { name: "Mark as read" }),
+		).toBeInTheDocument();
 	});
 });

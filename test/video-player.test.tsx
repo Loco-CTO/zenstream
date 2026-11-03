@@ -2148,6 +2148,21 @@ describe("video player controls", () => {
 			await flushPlayerEffects();
 			expect(view.getByTestId("subtitle-cue")).toHaveTextContent("Still here");
 
+			const subtitleOverlay = view.getByTestId("subtitle-overlay");
+			const controlsGradient = view.container.querySelector(".bg-gradient-to-b");
+			const controls = view.container.querySelector(".zenstream-player-controls");
+			expect(subtitleOverlay).not.toHaveClass("z-10");
+			expect(controlsGradient).not.toBeNull();
+			expect(controls).not.toBeNull();
+			expect(
+				subtitleOverlay.compareDocumentPosition(controlsGradient!) &
+					Node.DOCUMENT_POSITION_FOLLOWING,
+			).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+			expect(
+				controlsGradient!.compareDocumentPosition(controls!) &
+					Node.DOCUMENT_POSITION_FOLLOWING,
+			).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
 			fireEvent.click(view.getByRole("button", { name: "Subtitles" }));
 			fireEvent.click(view.getByRole("button", { name: "English" }));
 

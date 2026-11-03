@@ -73,39 +73,62 @@ export function useNotificationFeed(
 	const loadingMoreRef = useRef(false);
 	const generationRef = useRef(0);
 
-	const refresh = useCallback(async () => {
-		if (!session) return;
-		const generation = ++generationRef.current;
-		loadingRef.current = true;
-		loadingMoreRef.current = false;
-		nextCursorRef.current = null;
-		setLoading(true);
-		setLoadingMore(false);
-		setError(null);
-		const finish = start?.();
-		try {
-			const result = await getNotifications(session, 50);
-			if (generation !== generationRef.current) return;
-			setItems(dedupeItems(result.items));
-			setUnreadCount(result.unreadCount);
-			nextCursorRef.current = result.nextCursor;
-			setNextCursor(result.nextCursor);
-			setLoaded(true);
-		} catch (nextError) {
-			if (generation !== generationRef.current) return;
-			setError(
-				nextError instanceof Error
-					? nextError.message
-					: t("notificationsLoadFailed"),
-			);
-		} finally {
-			if (generation === generationRef.current) {
-				loadingRef.current = false;
-				setLoading(false);
+	const load = useCallback(
+		async (markOnOpen = false) => {
+			if (!session) return;
+			const generation = ++generationRef.current;
+			loadingRef.current = true;
+			loadingMoreRef.current = false;
+			nextCursorRef.current = null;
+			setLoading(true);
+			setLoadingMore(false);
+			setError(null);
+			const finish = start?.();
+			try {
+				const result = await getNotifications(session, 50);
+				let markedRead = false;
+				if (markOnOpen && result.unreadCount > 0) {
+					try {
+						await markAllNotificationsRead(session);
+						markedRead = true;
+					} catch {
+						// Keep the server's unread state when the update fails.
+					}
+				}
+				if (generation !== generationRef.current) return;
+				setItems(
+					dedupeItems(
+						markedRead
+							? result.items.map((item) => ({
+									...item,
+									readAt: item.readAt ?? new Date().toISOString(),
+								}))
+							: result.items,
+					),
+				);
+				setUnreadCount(markedRead ? 0 : result.unreadCount);
+				nextCursorRef.current = result.nextCursor;
+				setNextCursor(result.nextCursor);
+				setLoaded(true);
+			} catch (nextError) {
+				if (generation !== generationRef.current) return;
+				setError(
+					nextError instanceof Error
+						? nextError.message
+						: t("notificationsLoadFailed"),
+				);
+			} finally {
+				if (generation === generationRef.current) {
+					loadingRef.current = false;
+					setLoading(false);
+				}
+				finish?.();
 			}
-			finish?.();
-		}
-	}, [session, start, t]);
+		},
+		[session, start, t],
+	);
+
+	const refresh = useCallback(() => load(), [load]);
 
 	const loadMore = useCallback(async () => {
 		if (
@@ -145,10 +168,10 @@ export function useNotificationFeed(
 	useEffect(() => {
 		if (!enabled || !session) return;
 		const refreshTimer = window.setTimeout(() => {
-			void refresh();
+			void load(true);
 		}, 0);
 		return () => window.clearTimeout(refreshTimer);
-	}, [enabled, refresh, session]);
+	}, [enabled, load, session]);
 
 	const toggleRead = useCallback(
 		async (item: NotificationItem) => {

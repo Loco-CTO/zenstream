@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationMenu } from "@/components/notifications/notification-menu";
 import { I18nProvider } from "@/lib/i18n";
 import * as notifications from "@/lib/notifications";
@@ -31,6 +31,11 @@ function renderMenu() {
 }
 
 describe("NotificationMenu", () => {
+	beforeEach(() => {
+		vi
+			.spyOn(notifications, "markAllNotificationsRead")
+			.mockResolvedValue({ unreadCount: 0 });
+	});
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
@@ -129,7 +134,7 @@ describe("NotificationMenu", () => {
 		expect(screen.queryByTestId("notification-popup")).not.toBeInTheDocument();
 	});
 
-	it("marks an unread notification read and closes after navigation", async () => {
+	it("marks notifications read on opening and closes after navigation", async () => {
 		vi.spyOn(notifications, "getNotificationSummary").mockResolvedValue({
 			unreadCount: 1,
 		});
@@ -148,7 +153,8 @@ describe("NotificationMenu", () => {
 		fireEvent.click(link);
 
 		expect(link).toHaveAttribute("href", "/show/one");
-		expect(setNotificationRead).toHaveBeenCalledWith(session, "one", true);
+		expect(notifications.markAllNotificationsRead).toHaveBeenCalledWith(session);
+		expect(setNotificationRead).not.toHaveBeenCalled();
 		expect(screen.queryByTestId("notification-popup")).not.toBeInTheDocument();
 	});
 

@@ -1198,7 +1198,7 @@ export function LumiPage({ session }: LumiPageProps) {
 						aria-modal="true"
 						aria-labelledby="lumi-rename-title"
 						onSubmit={(event) => void renameConversation(event)}
-						className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151416] p-5 shadow-2xl shadow-black/60"
+						className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#151416] p-5 shadow-2xl shadow-black/60"
 					>
 						<h2 id="lumi-rename-title" className="text-base font-semibold text-white">
 							{t("lumiRenameChat")}
@@ -1245,7 +1245,7 @@ export function LumiPage({ session }: LumiPageProps) {
 						role="dialog"
 						aria-modal="true"
 						aria-labelledby="lumi-delete-title"
-						className="w-full max-w-md rounded-2xl border border-white/10 bg-[#151416] p-5 shadow-2xl shadow-black/60"
+						className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#151416] p-5 shadow-2xl shadow-black/60"
 					>
 						<h2 id="lumi-delete-title" className="text-base font-semibold text-white">
 							{t("lumiDeleteChat")}

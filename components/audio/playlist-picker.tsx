@@ -381,7 +381,7 @@ export function CreatePlaylistDialog({
 				aria-labelledby="new-playlist-title"
 				aria-busy={busy}
 				onSubmit={(event) => void submit(event)}
-				className="w-full max-w-md rounded-2xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-6"
+				className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:max-h-[calc(100dvh-3rem)] sm:p-6"
 			>
 				<div className="mb-5 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
 					<div className="min-w-0">

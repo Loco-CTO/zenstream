@@ -47,8 +47,8 @@ export function SyncplayGroupMenu({
 		setWatchingTogether,
 	} = useSyncplay();
 	const panelClass = playerContext
-		? "fixed inset-x-3 bottom-3 z-[90] max-h-[calc(100dvh-1.5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-[22rem] md:max-w-[calc(100vw-2rem)] md:overflow-hidden"
-		: "fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem)] w-auto max-w-none overflow-y-auto rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-[22rem] md:max-w-[calc(100vw-2rem)] md:overflow-hidden";
+		? "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-auto max-w-none overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(70dvh,calc(100dvh-6rem))] md:w-[22rem] md:max-w-[calc(100vw-2rem)]"
+		: "fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] max-h-[calc(100dvh-5rem-env(safe-area-inset-top))] w-auto max-w-none overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(70dvh,calc(100dvh-6rem))] md:w-[22rem] md:max-w-[calc(100vw-2rem)]";
 
 	useEffect(() => {
 		if (!open) return;

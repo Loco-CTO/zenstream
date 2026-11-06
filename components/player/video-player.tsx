@@ -3,6 +3,7 @@
 import {
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -579,6 +580,7 @@ export function VideoPlayer({
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const nativeSubtitleTrackRef = useRef<HTMLTrackElement>(null);
 	const playerRef = useRef<HTMLDivElement>(null);
+	const toolbarRef = useRef<HTMLDivElement>(null);
 	const keyboardHelpCloseButtonRef = useRef<HTMLButtonElement>(null);
 	const keyboardHelpWasOpenRef = useRef(false);
 	const lastSubtitleRef = useRef(
@@ -2500,6 +2502,31 @@ export function VideoPlayer({
 		return () => document.removeEventListener("pointerdown", closeMenus);
 	}, [settingsOpen, trackMenu]);
 
+	useLayoutEffect(() => {
+		const toolbar = toolbarRef.current;
+		const player = playerRef.current;
+		if ((!settingsOpen && !trackMenu) || minimized || !toolbar || !player) return;
+
+		const updatePanelSpace = () => {
+			const top = Math.max(0, player.getBoundingClientRect().top);
+			const space = Math.max(0, toolbar.getBoundingClientRect().top - top);
+			toolbar.style.setProperty("--player-panel-space", `${space}px`);
+		};
+		updatePanelSpace();
+		const observer =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(updatePanelSpace);
+		observer?.observe(toolbar);
+		observer?.observe(player);
+		window.addEventListener("resize", updatePanelSpace);
+		return () => {
+			observer?.disconnect();
+			window.removeEventListener("resize", updatePanelSpace);
+			toolbar.style.removeProperty("--player-panel-space");
+		};
+	}, [minimized, settingsOpen, trackMenu]);
+
 	useEffect(
 		() => () => {
 			if (controlsTimerRef.current) window.clearTimeout(controlsTimerRef.current);
@@ -3802,7 +3829,10 @@ export function VideoPlayer({
 						className={`zenstream-player-controls absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 transition-opacity duration-300 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-10 md:right-10 ${controlsVisible || settingsOpen || trackMenu ? "opacity-100" : "pointer-events-none opacity-0"}`}
 					>
 						{timeline}
-						<div className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3">
+						<div
+							ref={toolbarRef}
+							className="zenstream-player-toolbar relative flex flex-wrap items-center gap-1.5 sm:gap-3"
+						>
 							<div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
 								<button
 									aria-label={playing ? "Pause" : "Play"}

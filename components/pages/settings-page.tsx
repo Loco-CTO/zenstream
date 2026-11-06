@@ -1089,6 +1089,7 @@ function ColorControl({
 	const [open, setOpen] = useState(false);
 	const [position, setPosition] = useState<ColorPickerPosition>("below");
 	const controlRef = useRef<HTMLDivElement>(null);
+	const pickerRef = useRef<HTMLDivElement>(null);
 	const squareRef = useRef<HTMLDivElement>(null);
 	const hueRef = useRef<HTMLDivElement>(null);
 	const labelId = useId();
@@ -1099,6 +1100,36 @@ function ColorControl({
 	const [hexDraft, setHexDraft] = useState(() => value.toUpperCase());
 	const [copied, setCopied] = useState(false);
 	const vividColor = hsvToHex({ h: draftHsv.h, s: 1, v: 1 });
+	const updatePickerPosition = useCallback(() => {
+		const rect = controlRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		const edgeAndGap = 20;
+		const height = Math.min(
+			pickerRef.current?.scrollHeight ?? COLOR_PICKER_HEIGHT,
+			window.innerHeight * 0.7,
+		);
+		const below = window.innerHeight - rect.bottom - edgeAndGap;
+		const above = rect.top - edgeAndGap;
+		setPosition(below >= height ? "below" : above >= height ? "above" : "center");
+	}, []);
+
+	useEffect(() => {
+		if (!open) return;
+		updatePickerPosition();
+		const observer =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(updatePickerPosition);
+		if (controlRef.current) observer?.observe(controlRef.current);
+		if (pickerRef.current) observer?.observe(pickerRef.current);
+		window.addEventListener("resize", updatePickerPosition);
+		window.addEventListener("scroll", updatePickerPosition, true);
+		return () => {
+			observer?.disconnect();
+			window.removeEventListener("resize", updatePickerPosition);
+			window.removeEventListener("scroll", updatePickerPosition, true);
+		};
+	}, [open, updatePickerPosition]);
 
 	useEffect(() => {
 		if (!open) return;
@@ -1166,20 +1197,6 @@ function ColorControl({
 		commitDraftColor();
 	};
 
-	const openPicker = () => {
-		const rect = controlRef.current?.getBoundingClientRect();
-		if (!rect) return;
-		const below = window.innerHeight - rect.bottom;
-		const above = rect.top;
-		setPosition(
-			below >= COLOR_PICKER_HEIGHT
-				? "below"
-				: above >= COLOR_PICKER_HEIGHT
-					? "above"
-					: "center",
-		);
-	};
-
 	return (
 		<div ref={controlRef} className="relative shrink-0">
 			<span id={labelId} className="sr-only">
@@ -1201,7 +1218,7 @@ function ColorControl({
 						lastHueRef.current = next.h;
 						setDraftHsv(next);
 						setHexDraft(value.toUpperCase());
-						openPicker();
+						updatePickerPosition();
 						setOpen(true);
 					}
 				}}
@@ -1215,11 +1232,12 @@ function ColorControl({
 			</button>
 			{open && (
 				<div
+					ref={pickerRef}
 					role="dialog"
 					aria-labelledby={labelId}
-					className={`z-30 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl ${
+					className={`z-30 max-h-[min(70dvh,calc(100dvh-1.5rem))] w-64 max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl ${
 						position === "center"
-							? "fixed inset-x-3 top-1/2 max-h-[calc(100dvh-1.5rem)] -translate-y-1/2 overflow-y-auto"
+							? "fixed inset-x-3 top-1/2 -translate-y-1/2"
 							: position === "above"
 								? "absolute bottom-full right-0 mb-2"
 								: "absolute right-0 top-full mt-2"
@@ -1339,7 +1357,7 @@ type Hsv = { h: number; s: number; v: number };
 type Rgb = { r: number; g: number; b: number };
 type ColorPickerPosition = "above" | "below" | "center";
 
-const COLOR_PICKER_HEIGHT = 240;
+const COLOR_PICKER_HEIGHT = 260;
 
 function clamp(value: number) {
 	return Math.min(1, Math.max(0, value));

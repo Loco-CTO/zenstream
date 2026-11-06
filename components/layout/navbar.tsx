@@ -229,7 +229,7 @@ export function Navbar({
 							{profileOpen && (
 								<div
 									data-testid="profile-popup"
-									className="absolute right-0 top-full z-[90] mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-black/25 shadow-2xl shadow-black/40 backdrop-blur-xl"
+									className="absolute right-0 top-full z-[90] mt-2 max-h-[min(70dvh,calc(100dvh-5rem))] w-56 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/25 shadow-2xl shadow-black/40 backdrop-blur-xl"
 								>
 									<div className="border-b border-white/10 bg-white/[0.03] px-4 py-3">
 										<p className="truncate text-xs font-semibold text-white">

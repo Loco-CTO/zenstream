@@ -665,7 +665,7 @@ export function PlaylistDetailPage({
 			)}
 			{deleteOpen && (
 				<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm">
-					<div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#171719] p-5">
+					<div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-[#171719] p-5">
 						<h2 className="text-base font-bold text-white">{t("deletePlaylist")}</h2>
 						<p className="mt-2 text-sm text-white/55">
 							{t("deletePlaylistConfirm", { name: playlist.name })}
@@ -931,7 +931,7 @@ function EditPlaylistDialog({
 				aria-labelledby="edit-playlist-title"
 				aria-busy={busy}
 				onSubmit={(event) => void submit(event)}
-				className="w-full max-w-md rounded-2xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-6"
+				className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/35 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:max-h-[calc(100dvh-3rem)] sm:p-6"
 			>
 				<div className="mb-5 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
 					<h2

@@ -35,11 +35,13 @@ export function Dropdown({
 	const listboxId = useId();
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
+	const scrollActiveRef = useRef(false);
 	const [open, setOpen] = useState(false);
 	const [activeIndex, setActiveIndex] = useState(() =>
 		selectedIndex(options, value),
 	);
 	const [menuStyle, setMenuStyle] = useState<React.CSSProperties>();
+	const positioned = Boolean(menuStyle);
 	const selected = options.find((option) => option.value === value);
 
 	useEffect(() => {
@@ -47,29 +49,40 @@ export function Dropdown({
 
 		const positionMenu = () => {
 			const rect = triggerRef.current?.getBoundingClientRect();
-			if (!rect) return;
+			const menu = menuRef.current;
+			if (!rect || !menu) return;
 			const edge = 12;
+			const gap = 6;
+			const viewportHeight = window.innerHeight;
 			const width = Math.min(
 				Math.max(rect.width, 144),
-				Math.max(144, window.innerWidth - edge * 2),
-			);
-			const height = Math.min(
-				menuRef.current?.getBoundingClientRect().height ?? 256,
-				window.innerHeight - edge * 2,
+				Math.max(0, window.innerWidth - edge * 2),
 			);
 			const left = Math.min(
 				Math.max(rect.left, edge),
 				Math.max(edge, window.innerWidth - width - edge),
 			);
-			const opensBelow =
-				rect.bottom + 6 + height <= window.innerHeight - edge ||
-				rect.top <= height + 6 + edge;
+			const belowTop = Math.min(
+				Math.max(rect.bottom + gap, edge),
+				viewportHeight - edge,
+			);
+			const aboveBottom = Math.min(
+				Math.max(rect.top - gap, edge),
+				viewportHeight - edge,
+			);
+			const spaceBelow = Math.max(0, viewportHeight - edge - belowTop);
+			const spaceAbove = Math.max(0, aboveBottom - edge);
+			const desiredHeight = Math.min(menu.scrollHeight, viewportHeight * 0.7);
+			const opensBelow = spaceBelow >= desiredHeight || spaceBelow >= spaceAbove;
 			setMenuStyle({
 				left,
-				top: opensBelow ? rect.bottom + 6 : undefined,
-				bottom: opensBelow ? undefined : window.innerHeight - rect.top + 6,
+				top: opensBelow ? belowTop : undefined,
+				bottom: opensBelow ? undefined : viewportHeight - aboveBottom,
 				width,
-				maxHeight: `calc(100dvh - ${edge * 2}px)`,
+				maxHeight: Math.min(
+					viewportHeight * 0.7,
+					opensBelow ? spaceBelow : spaceAbove,
+				),
 			});
 		};
 		const closeOnOutsideClick = (event: PointerEvent) => {
@@ -79,19 +92,42 @@ export function Dropdown({
 				!document.getElementById(listboxId)?.contains(target)
 			) {
 				setOpen(false);
+				setMenuStyle(undefined);
 			}
 		};
 
 		positionMenu();
+		const observer =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(positionMenu);
+		if (triggerRef.current) observer?.observe(triggerRef.current);
+		if (menuRef.current) observer?.observe(menuRef.current);
 		document.addEventListener("pointerdown", closeOnOutsideClick);
 		window.addEventListener("resize", positionMenu);
 		window.addEventListener("scroll", positionMenu, true);
 		return () => {
+			observer?.disconnect();
 			document.removeEventListener("pointerdown", closeOnOutsideClick);
 			window.removeEventListener("resize", positionMenu);
 			window.removeEventListener("scroll", positionMenu, true);
 		};
-	}, [listboxId, open]);
+	}, [listboxId, open, options.length]);
+
+	useEffect(() => {
+		if (!open || !positioned || !scrollActiveRef.current) return;
+		const menu = menuRef.current;
+		const option = menu?.children[activeIndex] as HTMLElement | undefined;
+		if (!menu || !option) return;
+		const menuBounds = menu.getBoundingClientRect();
+		const optionBounds = option.getBoundingClientRect();
+		if (optionBounds.top < menuBounds.top) {
+			menu.scrollTop -= menuBounds.top - optionBounds.top;
+		} else if (optionBounds.bottom > menuBounds.bottom) {
+			menu.scrollTop += optionBounds.bottom - menuBounds.bottom;
+		}
+		scrollActiveRef.current = false;
+	}, [activeIndex, open, positioned]);
 
 	function moveActive(direction: 1 | -1) {
 		if (!options.length) return;
@@ -106,19 +142,25 @@ export function Dropdown({
 		if (option.disabled) return;
 		onChange(option.value);
 		setOpen(false);
+		setMenuStyle(undefined);
 		triggerRef.current?.focus();
 	}
 
 	function toggleMenu() {
-		setOpen((current) => {
-			if (!current) setActiveIndex(selectedIndex(options, value));
-			return !current;
-		});
+		if (open) {
+			setOpen(false);
+			setMenuStyle(undefined);
+		} else {
+			scrollActiveRef.current = true;
+			setActiveIndex(selectedIndex(options, value));
+			setOpen(true);
+		}
 	}
 
 	function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
 		if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 			event.preventDefault();
+			scrollActiveRef.current = true;
 			if (!open) {
 				setActiveIndex(selectedIndex(options, value));
 				setOpen(true);
@@ -127,12 +169,14 @@ export function Dropdown({
 			event.preventDefault();
 			if (open && options[activeIndex]) choose(options[activeIndex]);
 			else {
+				scrollActiveRef.current = true;
 				setActiveIndex(selectedIndex(options, value));
 				setOpen(true);
 			}
 		} else if (event.key === "Escape" && open) {
 			event.preventDefault();
 			setOpen(false);
+			setMenuStyle(undefined);
 		}
 	}
 
@@ -157,14 +201,13 @@ export function Dropdown({
 				/>
 			</button>
 			{open &&
-				menuStyle &&
 				createPortal(
 					<div
 						ref={menuRef}
 						id={listboxId}
 						role="listbox"
 						aria-label={props["aria-label"]}
-						style={menuStyle}
+						style={menuStyle ?? { visibility: "hidden" }}
 						className={panelClassName}
 					>
 						{options.map((option, index) => (
@@ -175,7 +218,10 @@ export function Dropdown({
 								role="option"
 								aria-selected={option.value === value}
 								disabled={option.disabled}
-								onPointerMove={() => !option.disabled && setActiveIndex(index)}
+								onPointerMove={() => {
+									scrollActiveRef.current = false;
+									if (!option.disabled) setActiveIndex(index);
+								}}
 								onClick={() => choose(option)}
 								className={`flex w-full items-center justify-between gap-4 rounded-md px-3 py-2 text-left text-xs transition ${
 									index === activeIndex

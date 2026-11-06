@@ -118,7 +118,7 @@ export function NotificationMenu({
 					aria-modal="false"
 					aria-labelledby="notification-menu-title"
 					data-testid="notification-popup"
-					className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] flex max-h-[calc(100dvh-5rem)] w-auto max-w-none flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-none md:w-[22rem] md:max-w-[calc(100vw-2rem)]"
+					className="fixed inset-x-3 top-[calc(4rem+env(safe-area-inset-top))] z-[90] flex max-h-[calc(100dvh-5rem-env(safe-area-inset-top))] w-auto max-w-none flex-col overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(70dvh,calc(100dvh-6rem))] md:w-[22rem] md:max-w-[calc(100vw-2rem)]"
 				>
 					<div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] px-3 pb-3 pt-2">
 						<div className="min-w-0 flex-1">

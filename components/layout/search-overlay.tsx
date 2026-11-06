@@ -134,7 +134,7 @@ export function SearchOverlay({
 	};
 	return (
 		<div
-			className="fixed inset-0 z-[100] flex flex-col items-center bg-black/80 px-4 pt-24 backdrop-blur-xl"
+			className="fixed inset-0 z-[100] flex flex-col items-center overflow-y-auto overscroll-contain bg-black/80 px-4 pb-4 pt-24 backdrop-blur-xl"
 			onClick={onClose}
 		>
 			<div
@@ -162,7 +162,7 @@ export function SearchOverlay({
 						</button>
 					</div>
 					{(error || resultQuery) && (
-						<div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-black/25 p-1 shadow-2xl backdrop-blur-xl">
+						<div className="mt-2 max-h-[min(60dvh,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/25 p-1 shadow-2xl backdrop-blur-xl">
 							{error && (
 								<p className="px-4 py-3 text-xs text-red-200/70">
 									{t("searchLoadFailed")}

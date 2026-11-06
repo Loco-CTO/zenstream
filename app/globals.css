@@ -145,9 +145,24 @@ body {
 	}
 }
 
+/* Keep every player menu within the space above its controls. */
+.zenstream-player-panel {
+	max-height: min(
+		70dvh,
+		max(
+			0px,
+			calc(
+				var(--player-panel-space, 70dvh) - 0.5rem -
+					max(0.75rem, env(safe-area-inset-top))
+			)
+		)
+	);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
 /* Player overlays stay inside the safe viewport on phones, including short
-   landscape viewports where an anchored menu can otherwise extend above the
-   screen or underneath the browser controls. */
+   landscape viewports. */
 @media (max-width: 767px) {
 	.zenstream-audio-player-bar {
 		padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
@@ -159,18 +174,19 @@ body {
 
 	.zenstream-player-panel {
 		position: fixed;
-		top: max(0.75rem, env(safe-area-inset-top));
+		top: auto;
 		right: max(0.75rem, env(safe-area-inset-right));
 		bottom: max(0.75rem, env(safe-area-inset-bottom));
 		left: max(0.75rem, env(safe-area-inset-left));
 		width: auto;
 		max-width: none;
-		max-height: calc(
-			100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+		max-height: min(
+			70dvh,
+			calc(
+				100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+			)
 		);
 		margin-bottom: 0;
-		overflow-y: auto;
-		overscroll-behavior: contain;
 	}
 
 	.zenstream-player-next-up {

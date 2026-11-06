@@ -66,7 +66,7 @@ export function ChangePasswordModal({
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="change-password-title"
-				className="w-full max-w-md rounded-2xl border border-white/10 bg-[#141414] p-5 shadow-2xl shadow-black/50 sm:p-7"
+				className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#141414] p-5 shadow-2xl shadow-black/50 sm:max-h-[calc(100dvh-3rem)] sm:p-7"
 			>
 				<div className="flex items-center justify-between gap-4">
 					<h2 id="change-password-title" className="text-lg font-bold text-white">

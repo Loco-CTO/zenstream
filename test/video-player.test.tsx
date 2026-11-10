@@ -2852,9 +2852,7 @@ describe("video player controls", () => {
 			"background-color: rgba(68, 85, 102, 0.4)",
 		);
 		expect(getByTestId("subtitle-overlay")).toHaveStyle({ bottom: "48px" });
-		expect(cues[0].getAttribute("style")).toContain(
-			'font-family: Georgia, "Times New Roman", serif',
-		);
+		expect(cues[0].style.fontFamily).toBe("Georgia, Times New Roman, serif");
 		expect(
 			nativeSubtitleCueCss({
 				renderer: "native",
@@ -2870,10 +2868,8 @@ describe("video player controls", () => {
 			}),
 		).toContain("font-size: clamp(16px, 8vh, 72px)");
 		expect(cues[0].getAttribute("style")).not.toContain("-webkit-text-stroke");
-		expect(cues[0].getAttribute("style")).toContain(
-			"text-shadow: -2px -2px 0 #112233",
-		);
-		expect(cues[0].getAttribute("style")).toContain("2px 2px 0 #112233");
+		expect(cues[0].style.textShadow).toContain("rgb(17, 34, 51) -2px -2px");
+		expect(cues[0].style.textShadow).toContain("rgb(17, 34, 51) 2px 2px");
 	});
 
 	it("renders trickplay previews above subtitles", () => {
@@ -3184,8 +3180,11 @@ describe("video player controls", () => {
 				style={DEFAULT_SUBTITLE_STYLE}
 			/>,
 		);
-		expect(getByTestId("subtitle-cue").getAttribute("style")).toContain(
-			"text-shadow: -2px -2px 0 #000000",
+		expect(getByTestId("subtitle-cue").style.textShadow).toContain(
+			"rgb(0, 0, 0) -2px -2px",
+		);
+		expect(getByTestId("subtitle-cue").style.textShadow).toContain(
+			"rgb(0, 0, 0) 2px 2px",
 		);
 	});
 

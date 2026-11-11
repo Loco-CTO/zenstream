@@ -2,7 +2,11 @@ import { getAudioLyrics, type AudioLyrics } from "@/lib/media-api";
 import type { AuthSession } from "@/lib/session";
 
 const MAX_ENTRIES = 48;
-const values = new Map<string, AudioLyrics | null>();
+const MISS_TTL_MS = 60_000;
+const values = new Map<
+	string,
+	{ lyrics: AudioLyrics | null; expiresAt: number }
+>();
 const inFlight = new Map<string, Promise<AudioLyrics | null>>();
 
 function cacheKey(session: AuthSession, itemId: string) {
@@ -11,7 +15,10 @@ function cacheKey(session: AuthSession, itemId: string) {
 
 function remember(key: string, value: AudioLyrics | null) {
 	values.delete(key);
-	values.set(key, value);
+	values.set(key, {
+		lyrics: value,
+		expiresAt: value ? Infinity : Date.now() + MISS_TTL_MS,
+	});
 	while (values.size > MAX_ENTRIES) {
 		const oldest = values.keys().next().value;
 		if (oldest === undefined) break;
@@ -24,12 +31,14 @@ export function loadAudioLyrics(
 	itemId: string,
 ): Promise<AudioLyrics | null> {
 	const key = cacheKey(session, itemId);
-	if (values.has(key)) return Promise.resolve(values.get(key) ?? null);
+	const cached = values.get(key);
+	if (cached && cached.expiresAt > Date.now())
+		return Promise.resolve(cached.lyrics);
 	const existing = inFlight.get(key);
 	if (existing) return existing;
 	const request = getAudioLyrics(session, itemId)
 		.then((lyrics) => {
-			remember(key, lyrics);
+			if (inFlight.get(key) === request) remember(key, lyrics);
 			return lyrics;
 		})
 		.finally(() => {
@@ -37,10 +46,6 @@ export function loadAudioLyrics(
 		});
 	inFlight.set(key, request);
 	return request;
-}
-
-export function prefetchAudioLyrics(session: AuthSession, itemId: string) {
-	void loadAudioLyrics(session, itemId).catch(() => undefined);
 }
 
 export function clearAudioLyricsCache() {

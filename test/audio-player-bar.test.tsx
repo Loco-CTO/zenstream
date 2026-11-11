@@ -781,15 +781,14 @@ describe("AudioPlayerBar", () => {
 		});
 		renderBar();
 		await screen.findByTestId("audio-player-bar");
-		await waitFor(() =>
-			expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-1"),
-		);
-		await waitFor(() =>
-			expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-2"),
-		);
+		expect(mediaApi.getAudioLyrics).not.toHaveBeenCalled();
+		fireEvent.click(screen.getAllByRole("button", { name: "Queue" })[0]);
+		const overlay = await screen.findByTestId("audio-lyrics-overlay");
+		expect(mediaApi.getAudioLyrics).not.toHaveBeenCalled();
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
-		const overlay = await screen.findByTestId("audio-lyrics-overlay");
+		expect(await screen.findByText("Plain lyrics")).toBeInTheDocument();
+		expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-1");
 		expect(screen.getByRole("tab", { name: "Lyrics" })).toHaveAttribute(
 			"aria-selected",
 			"true",
@@ -818,10 +817,29 @@ describe("AudioPlayerBar", () => {
 
 		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
 		expect(overlay).toBeInTheDocument();
+		expect(mediaApi.getAudioLyrics).toHaveBeenCalledTimes(1);
 		expect(screen.getByRole("tab", { name: "Lyrics" })).toHaveAttribute(
 			"aria-selected",
 			"true",
 		);
+	});
+
+	it("retries a temporary lyrics error from the visible panel", async () => {
+		vi
+			.mocked(mediaApi.getAudioLyrics)
+			.mockRejectedValueOnce(new Error("503"))
+			.mockResolvedValueOnce({
+				source: "netease",
+				timed: false,
+				language: null,
+				lines: [{ text: "Recovered lyrics" }],
+			});
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+		expect(await screen.findByText("Recovered lyrics")).toBeInTheDocument();
+		expect(mediaApi.getAudioLyrics).toHaveBeenCalledTimes(2);
 	});
 
 	it("opens local lyrics, follows playback, and keeps the player bar mounted", async () => {

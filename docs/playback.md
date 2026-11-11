@@ -6,7 +6,7 @@ Video playback is owned by the video player components and `lib/` playback helpe
 
 ## Audio behavior
 
-- Audio routes are `/album/:albumId` and `/artist/:artistId`. The provider owns the selected queue, current entry, shuffle/repeat pass, and lyrics prefetch.
+- Audio routes are `/album/:albumId` and `/artist/:artistId`. The provider owns the selected queue, current entry, and shuffle/repeat pass. The Lyrics tab requests lyrics from the Orchestrator when visible, with NetEase available as a fallback for tracks without embedded or sidecar lyrics.
 - Starting a specifically selected queue entry starts it at zero; selecting the current entry resumes it. Preserve the stable queue entry identity when reordering or changing routes.
 - Keep audio out of the video hero, SyncPlay, and full-screen video player.
 - Audio sound preferences are browser-local and stored separately from video sound preferences. They do not belong in Orchestrator account preferences.

@@ -32,7 +32,6 @@ import {
 	selectNextAudioQueueEntry,
 	selectPreviousAudioQueueEntry,
 } from "@/components/audio/audio-queue-logic";
-import { prefetchAudioLyrics } from "@/components/audio/audio-lyrics-cache";
 import {
 	readStoredAudioPlayerPreferences,
 	writeStoredAudioPlayerPreferences,
@@ -207,16 +206,6 @@ export function AudioPlayerProvider({
 
 	const currentEntry = queue[currentIndex] ?? null;
 	const currentTrack = currentEntry?.track ?? null;
-
-	useEffect(() => {
-		if (!currentEntry) return;
-		const candidates = [currentEntry, queue[currentIndex + 1]].filter(
-			(entry): entry is AudioQueueEntry => Boolean(entry),
-		);
-		for (const entry of candidates) {
-			prefetchAudioLyrics(session, entry.track.Id);
-		}
-	}, [currentEntry, currentIndex, queue, session]);
 
 	const sendPlayStart = useCallback(
 		(entry: AudioQueueEntry) => {

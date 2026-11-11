@@ -55,6 +55,7 @@ export function AudioLyricsOverlay({
 	});
 	const [follow, setFollow] = useState(true);
 	const [closing, setClosing] = useState(false);
+	const [retry, setRetry] = useState(0);
 	const lyrics = lyricsState.key === requestKey ? lyricsState.lyrics : null;
 	const loading = open && lyricsState.key !== requestKey;
 	const loadError = lyricsState.key === requestKey ? lyricsState.error : null;
@@ -66,6 +67,7 @@ export function AudioLyricsOverlay({
 	const closeTimerRef = useRef<number | null>(null);
 	const previousOpenRef = useRef(open);
 	const isOpen = open && !closing;
+	const lyricsVisible = isOpen && activeTab === "lyrics";
 
 	useEffect(() => {
 		if (!open) {
@@ -105,7 +107,7 @@ export function AudioLyricsOverlay({
 	}, []);
 
 	useEffect(() => {
-		if (!open || lyricsState.key === requestKey) return;
+		if (!lyricsVisible) return;
 		let active = true;
 		lineRefs.current = [];
 		void loadAudioLyrics(player.session, track.Id)
@@ -117,18 +119,18 @@ export function AudioLyricsOverlay({
 					error: null,
 				});
 			})
-			.catch((error: unknown) => {
+			.catch(() => {
 				if (!active) return;
 				setLyricsState({
 					key: requestKey,
 					lyrics: null,
-					error: error instanceof Error ? error.message : t("lyricsLoadFailed"),
+					error: t("lyricsLoadFailed"),
 				});
 			});
 		return () => {
 			active = false;
 		};
-	}, [lyricsState.key, open, player.session, requestKey, t, track.Id]);
+	}, [lyricsVisible, player.session, requestKey, retry, t, track.Id]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -317,6 +319,10 @@ export function AudioLyricsOverlay({
 								loading={loading}
 								loadError={loadError}
 								lyrics={lyrics}
+								onRetry={() => {
+									setLyricsState({ key: "", lyrics: null, error: null });
+									setRetry((attempt) => attempt + 1);
+								}}
 								panelRef={panelRef}
 								player={player}
 								setFollow={setFollow}
@@ -522,6 +528,7 @@ function LyricsPanel({
 	loading,
 	loadError,
 	lyrics,
+	onRetry,
 	panelRef,
 	player,
 	setFollow,
@@ -533,6 +540,7 @@ function LyricsPanel({
 	loading: boolean;
 	loadError: string | null;
 	lyrics: AudioLyrics | null;
+	onRetry: () => void;
 	panelRef: MutableRefObject<HTMLDivElement | null>;
 	player: AudioPlayer;
 	setFollow: (value: boolean) => void;
@@ -595,9 +603,18 @@ function LyricsPanel({
 						/>
 					</div>
 				) : loadError ? (
-					<p role="alert" className="py-10 text-center text-sm text-red-200/80">
-						{loadError}
-					</p>
+					<div className="space-y-2 py-10 text-center text-sm">
+						<p role="alert" className="text-red-200/80">
+							{loadError}
+						</p>
+						<button
+							type="button"
+							onClick={onRetry}
+							className="rounded-full border border-white/15 px-3 py-1.5 text-white/80 hover:border-white/30 hover:text-white"
+						>
+							{t("retry")}
+						</button>
+					</div>
 				) : !lyrics ? (
 					<p role="status" className="py-10 text-center text-sm text-white/45">
 						{t("lyricsUnavailable")}

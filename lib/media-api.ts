@@ -182,7 +182,7 @@ export type LyricLine = {
 };
 
 export type AudioLyrics = {
-	source: "embedded" | "sidecar";
+	source: "embedded" | "sidecar" | "netease";
 	timed: boolean;
 	language: string | null;
 	lines: LyricLine[];
@@ -1594,15 +1594,20 @@ export async function getAudioLyrics(
 ): Promise<AudioLyrics | null> {
 	const response = await catalogRequest<{
 		lyrics?: unknown;
-	}>(session, `/api/playback/items/${encodeURIComponent(itemId)}/lyrics`, {
-		signal,
-	});
+	}>(
+		session,
+		`/api/playback/items/${encodeURIComponent(itemId)}/lyrics?fallback=netease`,
+		{ signal },
+	);
 	return normalizeAudioLyrics(response.lyrics);
 }
 
 function normalizeAudioLyrics(value: unknown): AudioLyrics | null {
 	if (!isRecord(value) || !Array.isArray(value.lines)) return null;
-	const source = value.source === "embedded" ? "embedded" : "sidecar";
+	const source =
+		value.source === "embedded" || value.source === "netease"
+			? value.source
+			: "sidecar";
 	const lines = value.lines.flatMap((line): LyricLine[] => {
 		if (!isRecord(line) || typeof line.text !== "string") return [];
 		const result: LyricLine = { text: line.text };

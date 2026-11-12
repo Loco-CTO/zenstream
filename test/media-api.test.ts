@@ -254,7 +254,7 @@ describe("audio lyrics requests", () => {
 				JSON.stringify({
 					trackId: "track-1",
 					lyrics: {
-						source: "embedded",
+						source: "netease",
 						timed: true,
 						language: null,
 						lines: [
@@ -271,13 +271,15 @@ describe("audio lyrics requests", () => {
 		await expect(
 			getAudioLyrics(session, "track-1", controller.signal),
 		).resolves.toEqual({
-			source: "embedded",
+			source: "netease",
 			timed: true,
 			language: null,
 			lines: [{ text: "First", startSeconds: 1.25, endSeconds: 3.5 }],
 		});
 		const [url, init] = fetchMock.mock.calls[0] ?? [];
-		expect(String(url)).toContain("/api/playback/items/track-1/lyrics");
+		expect(String(url)).toContain(
+			"/api/playback/items/track-1/lyrics?fallback=netease",
+		);
 		expect((init as RequestInit | undefined)?.signal).toBeDefined();
 		expect((init as RequestInit | undefined)?.signal?.aborted).toBe(false);
 	});

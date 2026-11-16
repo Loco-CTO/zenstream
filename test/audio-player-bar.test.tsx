@@ -842,6 +842,39 @@ describe("AudioPlayerBar", () => {
 		expect(mediaApi.getAudioLyrics).toHaveBeenCalledTimes(2);
 	});
 
+	it("seeks to the exact lyric and starts its transition before the timestamp", async () => {
+		vi.mocked(mediaApi.getAudioLyrics).mockResolvedValue({
+			source: "sidecar",
+			timed: true,
+			language: null,
+			lines: [
+				{ text: "First line", startSeconds: 0 },
+				{ text: "Second line", startSeconds: 12.75 },
+			],
+		});
+		const view = renderBar();
+		await screen.findByTestId("audio-player-bar");
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		const second = await screen.findByRole("button", {
+			name: "Seek to lyric Second line",
+		});
+		const audio = view.container.querySelector("audio")!;
+		fireEvent.click(second);
+		expect(audio.currentTime).toBe(12.75);
+		expect(second).toHaveAttribute("aria-current", "true");
+
+		vi.useFakeTimers();
+		fireEvent.pause(audio);
+		audio.currentTime = 12.35;
+		fireEvent.timeUpdate(audio);
+		fireEvent.play(audio);
+		expect(second).not.toHaveAttribute("aria-current");
+		act(() => {
+			vi.advanceTimersByTime(120);
+		});
+		expect(second).toHaveAttribute("aria-current", "true");
+	});
+
 	it("opens local lyrics, follows playback, and keeps the player bar mounted", async () => {
 		vi.mocked(mediaApi.getAudioLyrics).mockResolvedValue({
 			source: "sidecar",

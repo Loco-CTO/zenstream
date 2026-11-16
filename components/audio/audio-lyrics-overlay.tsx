@@ -6,7 +6,6 @@ import {
 	memo,
 	useCallback,
 	useEffect,
-	useMemo,
 	useRef,
 	useState,
 	type MutableRefObject,
@@ -29,6 +28,7 @@ import { useAudioRowReorder } from "@/components/audio/use-audio-row-reorder";
 import { formatTrackArtists } from "@/lib/music";
 
 type OverlayTab = "nextUp" | "lyrics";
+const LYRIC_TRANSITION_MS = 300;
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
 type LyricsLoadState = {
 	key: string;
@@ -56,6 +56,11 @@ export function AudioLyricsOverlay({
 	const [follow, setFollow] = useState(true);
 	const [closing, setClosing] = useState(false);
 	const [retry, setRetry] = useState(0);
+	const [scheduledLine, setScheduledLine] = useState<{
+		lyrics: AudioLyrics;
+		position: number;
+		index: number;
+	} | null>(null);
 	const lyrics = lyricsState.key === requestKey ? lyricsState.lyrics : null;
 	const loading = open && lyricsState.key !== requestKey;
 	const loadError = lyricsState.key === requestKey ? lyricsState.error : null;
@@ -142,10 +147,35 @@ export function AudioLyricsOverlay({
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [isOpen, requestClose]);
 
-	const activeIndex = useMemo(
-		() => activeLyricIndex(lyrics, player.positionSeconds),
-		[lyrics, player.positionSeconds],
-	);
+	const transitionLead = player.isPlaying ? LYRIC_TRANSITION_MS / 1000 : 0;
+	const activeIndex =
+		player.isPlaying &&
+		scheduledLine?.lyrics === lyrics &&
+		scheduledLine.position === player.positionSeconds
+			? scheduledLine.index
+			: activeLyricIndex(lyrics, player.positionSeconds + transitionLead);
+
+	useEffect(() => {
+		if (!lyricsVisible || !lyrics?.timed || !player.isPlaying) return;
+		const position = player.positionSeconds;
+		const index = activeLyricIndex(lyrics, position + LYRIC_TRANSITION_MS / 1000);
+		const next = lyrics.lines.findIndex(
+			(line, lineIndex) => lineIndex > index && line.startSeconds !== undefined,
+		);
+		if (next < 0) return;
+		const start = lyrics.lines[next]?.startSeconds;
+		if (start === undefined) return;
+		const delay = Math.max(
+			0,
+			(start - LYRIC_TRANSITION_MS / 1000 - position) * 1000,
+		);
+		// Do not extrapolate indefinitely if playback stops reporting progress.
+		if (delay > 500) return;
+		const timer = window.setTimeout(() => {
+			setScheduledLine({ lyrics, position, index: next });
+		}, delay);
+		return () => window.clearTimeout(timer);
+	}, [lyrics, lyricsVisible, player.isPlaying, player.positionSeconds]);
 
 	useEffect(() => {
 		if (!follow || activeIndex < 0) return;
@@ -640,6 +670,7 @@ function LyricsPanel({
 										: `${t("seekToLyric")} ${line.text}`
 								}
 								aria-current={index === activeIndex ? "true" : undefined}
+								style={{ transitionDuration: `${LYRIC_TRANSITION_MS}ms` }}
 								className={`zenstream-audio-lyrics-line block w-full max-w-full origin-left transform-gpu whitespace-normal break-words text-left text-xl font-semibold leading-relaxed transition-[color,transform,opacity,scale] duration-300 ease-in-out md:text-2xl ${index === activeIndex ? "scale-[1.08] text-white" : "scale-100 text-white/35 hover:text-white/75"} disabled:cursor-default`}
 							>
 								{line.text}

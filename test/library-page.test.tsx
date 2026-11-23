@@ -14,6 +14,17 @@ import { ProgressProvider } from "@/components/status/progress-indicator";
 import { I18nProvider } from "@/lib/i18n";
 import * as jellyfin from "@/lib/media-api";
 
+const navigationMock = vi.hoisted(() => ({ useWindowSearch: false }));
+
+vi.mock("next/navigation", () => ({
+	useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+	usePathname: () => "/",
+	useSearchParams: () =>
+		new URLSearchParams(
+			navigationMock.useWindowSearch ? window.location.search : "",
+		),
+}));
+
 const session = { token: "token", userId: "user", username: "Alex" };
 const clientWidthDescriptor = Object.getOwnPropertyDescriptor(
 	HTMLElement.prototype,
@@ -59,6 +70,7 @@ function installIntersectionObserver(immediate = false) {
 describe("LibraryPage", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		navigationMock.useWindowSearch = false;
 		window.history.replaceState(null, "", "/library");
 		const storage = new Map<string, string>();
 		Object.defineProperty(window, "localStorage", {
@@ -244,6 +256,38 @@ describe("LibraryPage", () => {
 		expect(await screen.findByText("Title 79")).toBeInTheDocument();
 		expect(screen.getAllByRole("article").length).toBeLessThan(40);
 		expect(screen.getByTestId("virtual-media-grid").style.height).not.toBe("");
+	});
+
+	it("continues loading after the URL updates following the first page", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		navigationMock.useWindowSearch = true;
+		const getLibraryItems = vi
+			.spyOn(jellyfin, "getLibraryItems")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({
+				items: makeItems(40, 40),
+				totalRecordCount: 80,
+			});
+		const getLibraryViews = vi.mocked(jellyfin.getLibraryViews);
+		const view = renderLibrary();
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(window.location.search).toBe(
+				"?libraryId=shows&sortBy=lastAdded&sortOrder=descending",
+			),
+		);
+
+		await act(async () => view.rerender(libraryTree()));
+		await waitFor(() => expect(getLibraryViews).toHaveBeenCalledTimes(2));
+		await act(async () => triggerIntersection());
+
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ startIndex: 40 }),
+			),
+		);
 	});
 
 	it("prioritizes visible artwork and keeps the nearby row lazy", async () => {
@@ -685,9 +729,9 @@ describe("LibraryPage", () => {
 	});
 });
 
-function renderLibrary(withAudioPlayer = false) {
+function libraryTree(withAudioPlayer = false) {
 	const page = <LibraryPage session={session} />;
-	return render(
+	return (
 		<ProgressProvider>
 			<I18nProvider locale="en">
 				{withAudioPlayer ? (
@@ -696,8 +740,12 @@ function renderLibrary(withAudioPlayer = false) {
 					page
 				)}
 			</I18nProvider>
-		</ProgressProvider>,
+		</ProgressProvider>
 	);
+}
+
+function renderLibrary(withAudioPlayer = false) {
+	return render(libraryTree(withAudioPlayer));
 }
 
 function makeItems(count: number, offset = 0): jellyfin.MediaItem[] {

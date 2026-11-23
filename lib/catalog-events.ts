@@ -72,6 +72,7 @@ export function startCatalogEvents(session: AuthSession): () => void {
 				{ method: "POST" },
 			);
 			if (stopped) return;
+			const isReconnect = socket !== null;
 			socket = new WebSocket(catalogSocketUrl(ticket));
 			socket.onopen = () => {
 				retryDelay = 1_000;
@@ -81,6 +82,8 @@ export function startCatalogEvents(session: AuthSession): () => void {
 				if (event?.type === "catalog.status") {
 					if (statusReceived) return;
 					statusReceived = true;
+					// Only reconnects may have missed updates while the socket was away.
+					if (!isReconnect) return;
 					for (const change of catalogStatusChanges(event)) {
 						pendingEvents.set(`status:${change.libraryId}`, change);
 					}

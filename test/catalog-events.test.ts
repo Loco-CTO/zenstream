@@ -77,7 +77,7 @@ describe("catalog events", () => {
 		]);
 	});
 
-	it("ignores heartbeat statuses while preserving updates and reconnect invalidation", async () => {
+	it("ignores initial and heartbeat statuses while preserving updates and reconnect invalidation", async () => {
 		const changes: CatalogEvent[] = [];
 		const handleChange = (event: Event) => {
 			changes.push((event as CustomEvent<CatalogEvent>).detail);
@@ -96,20 +96,24 @@ describe("catalog events", () => {
 		firstSocket.emit(status);
 		firstSocket.emit(status);
 		await vi.advanceTimersByTimeAsync(250);
-		expect(changes).toHaveLength(1);
+		expect(changes).toHaveLength(0);
 
 		firstSocket.emit(
 			'{"type":"catalog.updated","libraryId":"tv","rootEntityId":"series-1","reason":"refresh"}',
 		);
 		await vi.advanceTimersByTimeAsync(250);
-		expect(changes).toHaveLength(2);
+		expect(changes).toMatchObject([{ rootEntityId: "series-1" }]);
 
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(1_000);
 		await vi.waitFor(() => expect(TestWebSocket.instances).toHaveLength(2));
 		TestWebSocket.instances[1].emit(status);
+		TestWebSocket.instances[1].emit(status);
 		await vi.advanceTimersByTimeAsync(250);
-		expect(changes).toHaveLength(3);
+		expect(changes).toMatchObject([
+			{ rootEntityId: "series-1" },
+			{ libraryId: "tv", generation: 7, rootEntityId: null, reason: "refresh" },
+		]);
 
 		stop();
 		window.removeEventListener("zenstream:catalog-changed", handleChange);

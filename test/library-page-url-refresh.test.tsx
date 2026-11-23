@@ -152,4 +152,3 @@ describe("LibraryPage URL updates", () => {
 		);
 	});
 });
-

@@ -17,7 +17,7 @@ import {
 } from "@/components/audio/audio-player-provider";
 import { I18nProvider } from "@/lib/i18n";
 import * as mediaApi from "@/lib/media-api";
-import type { MediaItem } from "@/lib/media-api";
+import type { AudioLyrics, MediaItem } from "@/lib/media-api";
 import {
 	AUDIO_PLAYER_PREFERENCES_STORAGE_KEY,
 	VIDEO_PLAYER_PREFERENCES_STORAGE_KEY,
@@ -834,12 +834,91 @@ describe("AudioPlayerBar", () => {
 				language: null,
 				lines: [{ text: "Recovered lyrics" }],
 			});
-		renderBar();
+		const view = renderBarWithStateProbe();
 		await screen.findByTestId("audio-player-bar");
+		const playerState = screen.getByTestId("player-state");
+		await waitFor(() =>
+			expect(playerState).toHaveAttribute("data-playing", "true"),
+		);
+		const audio = view.container.querySelector("audio")!;
+		const initialSource = audio.getAttribute("src");
+		const playCalls = vi.mocked(HTMLMediaElement.prototype.play).mock.calls
+			.length;
+		const pauseCalls = vi.mocked(HTMLMediaElement.prototype.pause).mock.calls
+			.length;
+
 		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			"Could not load lyrics.",
+		);
+		expect(playerState).toHaveAttribute("data-playing", "true");
+		expect(audio.getAttribute("src")).toBe(initialSource);
+		expect(vi.mocked(HTMLMediaElement.prototype.play)).toHaveBeenCalledTimes(
+			playCalls,
+		);
+		expect(vi.mocked(HTMLMediaElement.prototype.pause)).toHaveBeenCalledTimes(
+			pauseCalls,
+		);
+
 		fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
 		expect(await screen.findByText("Recovered lyrics")).toBeInTheDocument();
 		expect(mediaApi.getAudioLyrics).toHaveBeenCalledTimes(2);
+		expect(playerState).toHaveAttribute("data-playing", "true");
+		expect(audio.getAttribute("src")).toBe(initialSource);
+		expect(vi.mocked(HTMLMediaElement.prototype.play)).toHaveBeenCalledTimes(
+			playCalls,
+		);
+		expect(vi.mocked(HTMLMediaElement.prototype.pause)).toHaveBeenCalledTimes(
+			pauseCalls,
+		);
+	});
+
+	it("ignores a late lyrics response after switching tracks", async () => {
+		let resolveFirstLyrics!: (lyrics: AudioLyrics | null) => void;
+		let resolveSecondLyrics!: (lyrics: AudioLyrics | null) => void;
+		const firstLyrics = new Promise<AudioLyrics | null>((resolve) => {
+			resolveFirstLyrics = resolve;
+		});
+		const secondLyrics = new Promise<AudioLyrics | null>((resolve) => {
+			resolveSecondLyrics = resolve;
+		});
+		vi
+			.mocked(mediaApi.getAudioLyrics)
+			.mockImplementation((_session, trackId) =>
+				trackId === "track-1" ? firstLyrics : secondLyrics,
+			);
+		renderBar();
+		await screen.findByTestId("audio-player-bar");
+		fireEvent.click(screen.getAllByRole("button", { name: "Open lyrics" })[0]);
+		await waitFor(() =>
+			expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-1"),
+		);
+
+		fireEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
+		await waitFor(() =>
+			expect(mediaApi.getAudioLyrics).toHaveBeenCalledWith(session, "track-2"),
+		);
+		await act(async () => {
+			resolveFirstLyrics({
+				source: "netease",
+				timed: false,
+				language: null,
+				lines: [{ text: "Stale track lyrics" }],
+			});
+			await firstLyrics;
+		});
+		expect(screen.queryByText("Stale track lyrics")).not.toBeInTheDocument();
+
+		await act(async () => {
+			resolveSecondLyrics({
+				source: "netease",
+				timed: false,
+				language: null,
+				lines: [{ text: "Current track lyrics" }],
+			});
+			await secondLyrics;
+		});
+		expect(await screen.findByText("Current track lyrics")).toBeInTheDocument();
 	});
 
 	it("seeks to the exact lyric and starts its transition before the timestamp", async () => {

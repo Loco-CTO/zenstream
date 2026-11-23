@@ -99,6 +99,15 @@ body {
 	z-index: 1;
 }
 
+/* Let pointer adjustments reach the range track under its visible thumb. */
+input[type="range"]::-webkit-slider-thumb {
+	pointer-events: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+	pointer-events: none;
+}
+
 .zenstream-audio-volume-slider {
 	accent-color: rgb(245 245 245);
 }

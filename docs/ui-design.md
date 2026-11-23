@@ -55,7 +55,7 @@ Reuse an existing component when it fits. Extend the shared component when a reu
 ## Platform behavior and accessibility
 
 - Meet WCAG 2.2 AA for changed UI. Use semantic links, buttons, headings, labels, and status announcements; keep keyboard order aligned with the visual task.
-- Make controls keyboard, pointer, and touch usable. Provide visible focus, accessible icon names, and an alternative to dragging. Never expose functionality only on hover.
+- Make controls keyboard, pointer, and touch usable. Keep range-slider tracks targetable beneath their visible thumbs so users can make small pointer adjustments. Provide visible focus, accessible icon names, and an alternative to dragging. Never expose functionality only on hover.
 - Pointer targets must meet the 24 by 24 CSS pixel minimum or an applicable WCAG exception. Prefer larger, well-spaced targets for frequent touch actions; do not shrink the shared button geometry to fit more controls.
 - Check narrow mobile widths, short landscape windows, text zoom, and long translations. Menus and dialogs must fit the viewport, with focused controls clear of sticky navigation, safe areas, and persistent players.
 - Keep state legible without color alone. Check contrast on artwork, overlays, muted text, disabled controls, and focus indicators.

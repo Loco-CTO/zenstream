@@ -92,6 +92,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const [error, setError] = useState<string | null>(null);
 	const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 	const libraryRequestRef = useRef<AbortController | null>(null);
+	const loadedLibraryUserIdRef = useRef<string | null>(null);
 	const itemRequestRef = useRef<AbortController | null>(null);
 	const itemRequestGenerationRef = useRef(0);
 	const firstPageLoadingRef = useRef(false);
@@ -125,6 +126,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
 
 	const loadLibraries = useCallback(async () => {
+		const isInitialLoad = loadedLibraryUserIdRef.current !== session.userId;
 		libraryRequestRef.current?.abort();
 		const controller = new AbortController();
 		libraryRequestRef.current = controller;
@@ -134,11 +136,14 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			finish();
 			return;
 		}
-		setLoading(true);
-		setError(null);
+		if (isInitialLoad) {
+			setLoading(true);
+			setError(null);
+		}
 		try {
 			const nextLibraries = await getLibraryViews(session);
 			if (controller.signal.aborted) return;
+			loadedLibraryUserIdRef.current = session.userId;
 			setLibraries(nextLibraries);
 			setLibraryId((current) =>
 				nextLibraries.some((library) => library.Id === queryLibraryId)
@@ -149,7 +154,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			);
 			if (nextLibraries.length === 0) setLoading(false);
 		} catch (nextError) {
-			if (!controller.signal.aborted) {
+			if (!controller.signal.aborted && isInitialLoad) {
 				setError(
 					nextError instanceof Error ? nextError.message : "Library request failed.",
 				);

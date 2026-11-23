@@ -473,6 +473,7 @@ describe("LibraryPage URL updates", () => {
 			rejectRefresh(new Error("background library lookup failed"));
 			await Promise.resolve();
 		});
+		expect(screen.getByText("Title 0")).toBeInTheDocument();
 		await screen.findByTestId("library-load-more-sentinel");
 
 		act(() => triggerIntersection());

@@ -6,6 +6,27 @@ import {
 } from "@/lib/browser-device-profile";
 
 describe("browser playback capabilities", () => {
+	it("advertises HEVC only when the browser reports a supported HEVC codec", () => {
+		const unsupported = browserDeviceProfile({
+			canPlayType: (mime) =>
+				/avc1|audio\/mp4/.test(mime) ? "probably" : "",
+		});
+		const supported = browserDeviceProfile({
+			canPlayType: (mime) =>
+				/hvc1|hev1|avc1|audio\/mp4/.test(mime) ? "probably" : "",
+		});
+
+		const unsupportedVideo = unsupported.directPlayProfiles.find(
+			(entry) => entry.Type === "Video" && entry.Container === "mp4,m4v",
+		);
+		const supportedVideo = supported.directPlayProfiles.find(
+			(entry) => entry.Type === "Video" && entry.Container === "mp4,m4v",
+		);
+
+		expect(unsupportedVideo?.VideoCodec).toBe("h264");
+		expect(supportedVideo?.VideoCodec).toBe("hevc,h264");
+	});
+
 	it("does not advertise raw MPEG-TS as direct byte-range playback", () => {
 		const profile = browserDeviceProfile({ canPlayType: () => "probably" });
 

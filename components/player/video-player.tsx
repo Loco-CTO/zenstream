@@ -597,6 +597,7 @@ export function VideoPlayer({
 	});
 	const qualityRequestRef = useRef(0);
 	const sourceRef = useRef<MediaSource | undefined>(initialStreams?.source);
+	const initialStreamsRef = useRef(initialStreams);
 	const fallbackUsedRef = useRef(false);
 	const resumeTimeRef = useRef<number | null>(null);
 	const resumePlayingRef = useRef<boolean | null>(null);
@@ -1565,9 +1566,12 @@ export function VideoPlayer({
 		};
 	}, [syncplay.presence, syncplay.serverNow]);
 	useEffect(() => {
+		initialStreamsRef.current = initialStreams;
+	}, [initialStreams]);
+	useEffect(() => {
 		cancelPendingBufferingReport("item changed");
 		invalidateMediaLoad("item changed");
-		sourceRef.current = undefined;
+		sourceRef.current = initialStreamsRef.current?.source;
 		fallbackUsedRef.current = false;
 		resumeTimeRef.current = null;
 		resumePlayingRef.current = null;
@@ -1774,19 +1778,26 @@ export function VideoPlayer({
 							}
 						: parsed.source;
 				const next = { ...parsed, source };
+				const nextUrl = playbackUrl(next.source);
+				const previousSource = sourceRef.current;
+				const sourceChanged =
+					previousSource?.Id !== next.source?.Id ||
+					previousSource?.sessionId !== next.source?.sessionId ||
+					previousSource?.mode !== next.source?.mode ||
+					playbackUrl(previousSource) !== nextUrl;
 				playerDebug("playback source selected", {
 					mode: next.source?.mode,
 					sessionId: next.source?.sessionId,
 					sessionState: next.source?.sessionState,
 					url: next.source?.url,
 				});
-				invalidateMediaLoad("playback source changed");
+				if (sourceChanged) invalidateMediaLoad("playback source changed");
 				sourceRef.current = next.source;
 				// The first negotiation is automatic. A fallback is allowed exactly
 				// once for this source.
 				fallbackUsedRef.current = next.source?.mode === "video-transcode";
 				setInfo(next);
-				setUrl(playbackUrl(next.source));
+				setUrl(nextUrl);
 				setMarkers(markerData);
 				const initialAudio =
 					initialAudioStreamId == null
@@ -2291,6 +2302,9 @@ export function VideoPlayer({
 		item.Id,
 		savedPositionSeconds,
 		knownDuration,
+		info?.source?.Id,
+		info?.source?.sessionId,
+		info?.source?.mode,
 	]);
 
 	useEffect(() => {

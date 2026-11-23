@@ -1314,6 +1314,179 @@ describe("video player controls", () => {
 		expect(view.getByRole("alert")).toBeInTheDocument();
 	});
 
+	it("falls back to transcoding after a direct HEVC playback error", async () => {
+		const directStreams = {
+			source: {
+				Id: "source-hevc",
+				mode: "direct",
+				url: "/episode-hevc.mp4",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		const transcodedStreams = {
+			source: {
+				Id: "source-transcoded",
+				mode: "video-transcode",
+				url: "/episode-transcoded.mp4",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi
+			.mocked(playbackStreams)
+			.mockReturnValueOnce(directStreams)
+			.mockReturnValueOnce(transcodedStreams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		vi.mocked(getPlaybackInfo).mockResolvedValue({
+			source: transcodedStreams.source,
+		} as never);
+		const { view } = renderEpisodePlayer({
+			withNext: false,
+			initialStreams: directStreams,
+		});
+		await flushPlayerEffects();
+
+		fireEvent.error(view.container.querySelector("video")!);
+		await flushPlayerEffects();
+		await flushPlayerEffects();
+
+		expect(getPlaybackInfo).toHaveBeenCalledOnce();
+		expect(getPlaybackInfo).toHaveBeenCalledWith(
+			expect.anything(),
+			"episode-1",
+			expect.objectContaining({
+				sourceId: "source-hevc",
+				requestedMode: "video-transcode",
+			}),
+		);
+		expect(
+			view.container.querySelector("video")?.getAttribute("src"),
+		).toContain("/episode-transcoded.mp4");
+	});
+
+	it("retries a fatal HLS network interruption once before transcoding", async () => {
+		const previousMediaSource = Object.getOwnPropertyDescriptor(
+			window,
+			"MediaSource",
+		);
+		Object.defineProperty(window, "MediaSource", {
+			configurable: true,
+			value: {},
+		});
+		const listeners = new Map<string, (...args: unknown[]) => void>();
+		const hlsSupported = vi.spyOn(Hls, "isSupported").mockReturnValue(true);
+		const on = vi
+			.spyOn(Hls.prototype, "on")
+			.mockImplementation(function (this: Hls, event, listener) {
+				listeners.set(
+					event,
+					listener as unknown as (...args: unknown[]) => void,
+				);
+				return this;
+			});
+		const loadSource = vi
+			.spyOn(Hls.prototype, "loadSource")
+			.mockImplementation(() => undefined);
+		const attachMedia = vi
+			.spyOn(Hls.prototype, "attachMedia")
+			.mockImplementation(() => undefined);
+		const startLoad = vi
+			.spyOn(Hls.prototype, "startLoad")
+			.mockImplementation(() => undefined);
+		const destroy = vi
+			.spyOn(Hls.prototype, "destroy")
+			.mockImplementation(() => undefined);
+		const directStreams = {
+			source: {
+				Id: "source-hls",
+				mode: "direct",
+				url: "/episode-selected.m3u8",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		const transcodedStreams = {
+			source: {
+				Id: "source-transcoded",
+				mode: "video-transcode",
+				url: "/episode-transcoded.mp4",
+			},
+			audio: [],
+			subtitles: [],
+			qualities: [],
+		} as ReturnType<typeof playbackStreams>;
+		vi
+			.mocked(playbackStreams)
+			.mockReturnValueOnce(directStreams)
+			.mockReturnValueOnce(transcodedStreams);
+		vi.mocked(playbackUrl).mockImplementation((source) => source?.url ?? "");
+		vi.mocked(getPlaybackInfo).mockResolvedValue({
+			source: transcodedStreams.source,
+		} as never);
+		let unmount: (() => void) | undefined;
+
+		try {
+			const { view } = renderEpisodePlayer({
+				withNext: false,
+				initialStreams: directStreams,
+			});
+			unmount = view.unmount;
+			await flushPlayerEffects();
+
+			expect(loadSource).toHaveBeenCalledWith(directStreams.source?.url);
+			expect(attachMedia).toHaveBeenCalledOnce();
+			const onHlsError = listeners.get(Hls.Events.ERROR);
+			expect(onHlsError).toBeDefined();
+
+			const networkError = {
+				type: Hls.ErrorTypes.NETWORK_ERROR,
+				details: "fragLoadError",
+				fatal: true,
+			};
+			await act(async () => {
+				onHlsError?.(Hls.Events.ERROR, networkError);
+			});
+			expect(startLoad).toHaveBeenCalledOnce();
+			expect(getPlaybackInfo).not.toHaveBeenCalled();
+
+			await act(async () => {
+				onHlsError?.(Hls.Events.ERROR, networkError);
+				await Promise.resolve();
+			});
+			await flushPlayerEffects();
+			await flushPlayerEffects();
+
+			expect(startLoad).toHaveBeenCalledOnce();
+			expect(getPlaybackInfo).toHaveBeenCalledOnce();
+			expect(getPlaybackInfo).toHaveBeenCalledWith(
+				expect.anything(),
+				"episode-1",
+				expect.objectContaining({
+					sourceId: "source-hls",
+					requestedMode: "video-transcode",
+				}),
+			);
+			expect(
+				view.container.querySelector("video")?.getAttribute("src"),
+			).toContain("/episode-transcoded.mp4");
+		} finally {
+			unmount?.();
+			hlsSupported.mockRestore();
+			on.mockRestore();
+			loadSource.mockRestore();
+			attachMedia.mockRestore();
+			startLoad.mockRestore();
+			destroy.mockRestore();
+			if (previousMediaSource)
+				Object.defineProperty(window, "MediaSource", previousMediaSource);
+			else Reflect.deleteProperty(window, "MediaSource");
+		}
+	});
+
 	it("stops terminal viewer heartbeats without a redundant teardown", async () => {
 		vi
 			.mocked(heartbeatPlaybackViewer)

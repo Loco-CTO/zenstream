@@ -9,6 +9,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
+import { startCatalogEvents } from "@/lib/catalog-events";
 import * as jellyfin from "@/lib/media-api";
 import * as session from "@/lib/session";
 
@@ -404,6 +405,88 @@ describe("home screen", () => {
 		expect(
 			screen.queryByText("This signal is aborted without reason"),
 		).not.toBeInTheDocument();
+	});
+
+	it("keeps the first hero slide in rotation when the catalog socket connects", async () => {
+		const auth = { token: "token", userId: "hero-startup", username: "Alex" };
+		vi.spyOn(session, "getAuthSession").mockReturnValue(auth);
+		const candidates = Array.from({ length: 6 }, (_, index) => ({
+			id: `hero-${index + 1}`,
+			type: "movie",
+			name: `Feature ${index + 1}`,
+			metadata: { images: { Backdrop: { url: `/backdrop-${index + 1}` } } },
+		}));
+		let featuredRequests = 0;
+		vi
+			.spyOn(Math, "random")
+			.mockImplementation(() => (featuredRequests === 1 ? 0.99 : 0));
+		vi.mocked(fetch).mockImplementation(async (input) => {
+			const url = new URL(String(input));
+			if (url.pathname === "/api/auth/socket-ticket")
+				return Response.json({ ticket: "socket-ticket" });
+			if (url.searchParams.get("section") === "featured") {
+				featuredRequests += 1;
+				return Response.json({ latestItems: candidates });
+			}
+			return Response.json({});
+		});
+		const socket = {
+			onmessage: vi.fn<(message: { data: string }) => void>(),
+			close: vi.fn(),
+		};
+		const connect = vi.fn(function () {
+			return socket;
+		});
+		vi.stubGlobal("WebSocket", connect);
+		const stop = startCatalogEvents(auth);
+		try {
+			render(
+				<ProgressProvider>
+					<Page />
+				</ProgressProvider>,
+			);
+
+			const hero = within(
+				await screen.findByRole("region", { name: /featured title/i }),
+			);
+			expect(hero.getByRole("heading", { name: "Feature 6" })).toBeVisible();
+			const indicators = () =>
+				hero.getAllByRole("button", { name: /show slide/i });
+			const initialSlides = indicators().map((button) =>
+				button.getAttribute("aria-label"),
+			);
+			expect(initialSlides).toHaveLength(5);
+			expect(connect).toHaveBeenCalledTimes(1);
+
+			vi.useFakeTimers();
+			await act(async () => {
+				socket.onmessage({
+					data: JSON.stringify({
+						type: "catalog.status",
+						libraries: [{ id: "movies", catalogGeneration: 7 }],
+					}),
+				});
+				await vi.advanceTimersByTimeAsync(250);
+			});
+
+			expect(
+				indicators().map((button) => button.getAttribute("aria-label")),
+			).toEqual(initialSlides);
+			expect(featuredRequests).toBe(1);
+			expect(hero.getByRole("heading", { name: "Feature 6" })).toBeVisible();
+			fireEvent.click(
+				hero.getByRole("button", { name: /show previous featured slide/i }),
+			);
+			expect(hero.getByRole("heading", { name: "Feature 4" })).toBeVisible();
+			fireEvent.click(
+				hero.getByRole("button", { name: /show next featured slide/i }),
+			);
+			expect(hero.getByRole("heading", { name: "Feature 6" })).toBeVisible();
+		} finally {
+			stop();
+			vi.useRealTimers();
+			vi.unstubAllGlobals();
+		}
 	});
 
 	it("ignores intermediate scan catalog updates and refreshes when idle", async () => {

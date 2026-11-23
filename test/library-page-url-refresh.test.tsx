@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryPage } from "@/components/pages/library-page";
 import { ProgressProvider } from "@/components/status/progress-indicator";
@@ -6,10 +13,20 @@ import { I18nProvider } from "@/lib/i18n";
 import { getLibraryItems, getLibraryViews } from "@/lib/media-api";
 import type { MediaItem } from "@/lib/media-api";
 
-const navigationMock = vi.hoisted(() => ({ useWindowSearch: false }));
+const navigationMock = vi.hoisted(() => ({
+	useWindowSearch: false,
+	useRouterReplace: false,
+	routerReplace: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
-	useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+	useRouter: () => ({
+		push: vi.fn(),
+		back: vi.fn(),
+		replace: navigationMock.useRouterReplace
+			? navigationMock.routerReplace
+			: undefined,
+	}),
 	usePathname: () => "/",
 	useSearchParams: () =>
 		new URLSearchParams(
@@ -58,7 +75,12 @@ function installIntersectionObserver() {
 		class {
 			private active = true;
 
-			constructor(private readonly callback: IntersectionObserverCallback) {
+			constructor(private readonly callback: IntersectionObserverCallback) {}
+
+			observe(element: Element) {
+				this.active = true;
+				if (element.getAttribute("data-testid") !== "library-load-more-sentinel")
+					return;
 				trigger = () => {
 					if (!this.active) return;
 					this.callback(
@@ -66,10 +88,6 @@ function installIntersectionObserver() {
 						this as unknown as IntersectionObserver,
 					);
 				};
-			}
-
-			observe() {
-				this.active = true;
 			}
 
 			disconnect() {
@@ -84,6 +102,7 @@ describe("LibraryPage URL updates", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
 		navigationMock.useWindowSearch = false;
+		navigationMock.useRouterReplace = false;
 		window.history.replaceState(null, "", "/library");
 		const storage = new Map<string, string>();
 		Object.defineProperty(window, "localStorage", {
@@ -137,6 +156,270 @@ describe("LibraryPage URL updates", () => {
 
 		await screen.findByRole("button", { name: "Retry" });
 		expect(getLibraryItems).not.toHaveBeenCalled();
+		await act(async () => {
+			screen.getByRole("button", { name: "Retry" }).click();
+		});
+		await screen.findByText("Title 0");
+		expect(getLibraryViews).toHaveBeenCalledTimes(2);
+	});
+
+	it("aborts a queued library lookup when the page unmounts", async () => {
+		const view = render(libraryTree());
+
+		await Promise.resolve();
+		act(() => view.unmount());
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(getLibraryViews).not.toHaveBeenCalled();
+	});
+
+	it("uses the router to replace the URL when it is available", async () => {
+		navigationMock.useRouterReplace = true;
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await waitFor(() =>
+			expect(navigationMock.routerReplace).toHaveBeenCalledWith(
+				expect.stringContaining("libraryId=shows"),
+			),
+		);
+	});
+
+	it("retries the initial page after the library loads but its first page fails", async () => {
+		vi
+			.mocked(getLibraryItems)
+			.mockRejectedValueOnce(new Error("first page failed"))
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 });
+		render(libraryTree());
+
+		await screen.findByRole("button", { name: "Retry" });
+		await act(async () => {
+			screen.getByRole("button", { name: "Retry" }).click();
+		});
+		await screen.findByText("Title 0");
+		expect(
+			getLibraryItems.mock.calls.filter(([, options]) => options.startIndex === 0)
+				.length,
+		).toBeGreaterThanOrEqual(2);
+	});
+
+	it("shows a recoverable error when the first page is empty but reports items", async () => {
+		vi.mocked(getLibraryItems).mockResolvedValueOnce({
+			items: [],
+			totalRecordCount: 40,
+		});
+		render(libraryTree());
+
+		await screen.findByRole("button", { name: "Retry" });
+		expect(getLibraryItems).toHaveBeenCalledWith(
+			session,
+			expect.objectContaining({ startIndex: 0 }),
+		);
+	});
+
+	it("ignores a resolved first-page request after switching libraries", async () => {
+		let resolveShows!: (page: {
+			items: MediaItem[];
+			totalRecordCount: number;
+		}) => void;
+		vi.mocked(getLibraryViews).mockResolvedValueOnce([
+			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+		]);
+		vi.mocked(getLibraryItems).mockImplementation((_session, options) =>
+			options.parentId === "shows"
+				? new Promise((resolve) => {
+						resolveShows = resolve;
+					})
+				: Promise.resolve({ items: makeItems(1, 200), totalRecordCount: 1 }),
+		);
+		render(libraryTree());
+
+		await screen.findByRole("button", { name: "Movies" });
+		await waitFor(() => expect(resolveShows).toBeTypeOf("function"));
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		await screen.findByText("Title 200");
+
+		await act(async () => {
+			resolveShows({ items: makeItems(1, 100), totalRecordCount: 1 });
+		});
+		expect(screen.queryByText("Title 100")).not.toBeInTheDocument();
+	});
+
+	it("cleans up a first-page refresh canceled before its request starts", async () => {
+		const NativeAbortController = globalThis.AbortController;
+		const controllers: AbortController[] = [];
+		vi.stubGlobal(
+			"AbortController",
+			class extends NativeAbortController {
+				constructor() {
+					super();
+					controllers.push(this);
+				}
+			},
+		);
+		vi.mocked(getLibraryItems).mockResolvedValue({
+			items: makeItems(40),
+			totalRecordCount: 80,
+		});
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "shows", reason: "refresh" },
+				}),
+			);
+			controllers.at(-1)?.abort();
+			await Promise.resolve();
+		});
+
+		expect(getLibraryItems).toHaveBeenCalledTimes(1);
+	});
+
+	it("ignores a resolved next-page request after switching libraries", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		let resolveNextPage!: (page: {
+			items: MediaItem[];
+			totalRecordCount: number;
+		}) => void;
+		vi.mocked(getLibraryViews).mockResolvedValueOnce([
+			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+		]);
+		vi.mocked(getLibraryItems).mockImplementation((_session, options) => {
+			if (options.parentId === "movies") {
+				return Promise.resolve({
+					items: makeItems(1, 200),
+					totalRecordCount: 1,
+				});
+			}
+			if (options.startIndex === 0) {
+				return Promise.resolve({ items: makeItems(40), totalRecordCount: 80 });
+			}
+			return new Promise((resolve) => {
+				resolveNextPage = resolve;
+			});
+		});
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await screen.findByTestId("library-load-more-sentinel");
+		await act(async () => triggerIntersection());
+		await waitFor(() => expect(resolveNextPage).toBeTypeOf("function"));
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		await screen.findByText("Title 200");
+		await act(async () => {
+			resolveNextPage({ items: makeItems(40, 40), totalRecordCount: 80 });
+		});
+		expect(screen.queryByText("Title 40")).not.toBeInTheDocument();
+	});
+
+	it("retries a failed refresh and preserves loaded items", async () => {
+		vi
+			.mocked(getLibraryItems)
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockRejectedValueOnce("refresh failed")
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 });
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent("zenstream:catalog-changed", {
+					detail: { libraryId: "shows", reason: "refresh" },
+				}),
+			);
+			await Promise.resolve();
+		});
+		await screen.findByRole("button", { name: "Retry" });
+		expect(screen.getByText("Title 0")).toBeInTheDocument();
+		await act(async () => {
+			screen.getByRole("button", { name: "Retry" }).click();
+		});
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(([, options]) => options.startIndex === 0)
+					.length,
+			).toBeGreaterThanOrEqual(3),
+		);
+	});
+
+	it("stops pagination when an empty page confirms there are no more items", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		vi
+			.mocked(getLibraryItems)
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({ items: [], totalRecordCount: 40 });
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await screen.findByTestId("library-load-more-sentinel");
+		await act(async () => triggerIntersection());
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ startIndex: 40 }),
+			),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("button", { name: "Retry" }),
+			).not.toBeInTheDocument(),
+		);
+	});
+
+	it("blocks a short page while more library items remain", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		vi
+			.mocked(getLibraryItems)
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockResolvedValueOnce({ items: makeItems(1, 40), totalRecordCount: 80 });
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await screen.findByTestId("library-load-more-sentinel");
+		await act(async () => triggerIntersection());
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ startIndex: 40 }),
+			),
+		);
+		await screen.findByRole("button", { name: "Retry" });
+	});
+
+	it("retries a rejected next-page request", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		vi
+			.mocked(getLibraryItems)
+			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
+			.mockRejectedValueOnce(new Error("next page failed"))
+			.mockResolvedValueOnce({ items: makeItems(40, 40), totalRecordCount: 80 });
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		await screen.findByTestId("library-load-more-sentinel");
+		await act(async () => triggerIntersection());
+		await screen.findByRole("button", { name: "Retry" });
+		await act(async () => {
+			screen.getByRole("button", { name: "Retry" }).click();
+		});
+		await waitFor(() =>
+			expect(
+				getLibraryItems.mock.calls.filter(
+					([, options]) => options.startIndex === 40,
+				).length,
+			).toBeGreaterThanOrEqual(2),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("virtual-media-grid").style.height).toBe(
+				"28800px",
+			),
+		);
 	});
 
 	it("continues pagination after search params update to the current library", async () => {
@@ -181,3 +464,4 @@ describe("LibraryPage URL updates", () => {
 		);
 	});
 });
+

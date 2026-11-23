@@ -1362,9 +1362,9 @@ describe("video player controls", () => {
 				requestedMode: "video-transcode",
 			}),
 		);
-		expect(
-			view.container.querySelector("video")?.getAttribute("src"),
-		).toContain("/episode-transcoded.mp4");
+		expect(view.container.querySelector("video")?.getAttribute("src")).toContain(
+			"/episode-transcoded.mp4",
+		);
 	});
 
 	it("retries a fatal HLS network interruption once before transcoding", async () => {
@@ -1378,15 +1378,14 @@ describe("video player controls", () => {
 		});
 		const listeners = new Map<string, (...args: unknown[]) => void>();
 		const hlsSupported = vi.spyOn(Hls, "isSupported").mockReturnValue(true);
-		const on = vi
-			.spyOn(Hls.prototype, "on")
-			.mockImplementation(function (this: Hls, event, listener) {
-				listeners.set(
-					event,
-					listener as unknown as (...args: unknown[]) => void,
-				);
-				return this;
-			});
+		const on = vi.spyOn(Hls.prototype, "on").mockImplementation(function (
+			this: Hls,
+			event,
+			listener,
+		) {
+			listeners.set(event, listener as unknown as (...args: unknown[]) => void);
+			return this;
+		});
 		const loadSource = vi
 			.spyOn(Hls.prototype, "loadSource")
 			.mockImplementation(() => undefined);
@@ -1470,9 +1469,9 @@ describe("video player controls", () => {
 					requestedMode: "video-transcode",
 				}),
 			);
-			expect(
-				view.container.querySelector("video")?.getAttribute("src"),
-			).toContain("/episode-transcoded.mp4");
+			expect(view.container.querySelector("video")?.getAttribute("src")).toContain(
+				"/episode-transcoded.mp4",
+			);
 		} finally {
 			unmount?.();
 			hlsSupported.mockRestore();

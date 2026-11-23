@@ -8,8 +8,7 @@ import {
 describe("browser playback capabilities", () => {
 	it("advertises HEVC only when the browser reports a supported HEVC codec", () => {
 		const unsupported = browserDeviceProfile({
-			canPlayType: (mime) =>
-				/avc1|audio\/mp4/.test(mime) ? "probably" : "",
+			canPlayType: (mime) => (/avc1|audio\/mp4/.test(mime) ? "probably" : ""),
 		});
 		const supported = browserDeviceProfile({
 			canPlayType: (mime) =>

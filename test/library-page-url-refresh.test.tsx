@@ -158,6 +158,7 @@ describe("LibraryPage URL updates", () => {
 		expect(getLibraryItems).not.toHaveBeenCalled();
 		await act(async () => {
 			screen.getByRole("button", { name: "Retry" }).click();
+			await Promise.resolve();
 		});
 		await screen.findByText("Title 0");
 		expect(getLibraryViews).toHaveBeenCalledTimes(2);
@@ -197,11 +198,13 @@ describe("LibraryPage URL updates", () => {
 		await screen.findByRole("button", { name: "Retry" });
 		await act(async () => {
 			screen.getByRole("button", { name: "Retry" }).click();
+			await Promise.resolve();
 		});
 		await screen.findByText("Title 0");
 		expect(
-			getLibraryItems.mock.calls.filter(([, options]) => options.startIndex === 0)
-				.length,
+			vi
+				.mocked(getLibraryItems)
+				.mock.calls.filter(([, options]) => options.startIndex === 0).length,
 		).toBeGreaterThanOrEqual(2);
 	});
 
@@ -244,6 +247,7 @@ describe("LibraryPage URL updates", () => {
 
 		await act(async () => {
 			resolveShows({ items: makeItems(1, 100), totalRecordCount: 1 });
+			await Promise.resolve();
 		});
 		expect(screen.queryByText("Title 100")).not.toBeInTheDocument();
 	});
@@ -308,12 +312,16 @@ describe("LibraryPage URL updates", () => {
 
 		await screen.findByText("Title 0");
 		await screen.findByTestId("library-load-more-sentinel");
-		await act(async () => triggerIntersection());
+		await act(async () => {
+			triggerIntersection();
+			await Promise.resolve();
+		});
 		await waitFor(() => expect(resolveNextPage).toBeTypeOf("function"));
 		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
 		await screen.findByText("Title 200");
 		await act(async () => {
 			resolveNextPage({ items: makeItems(40, 40), totalRecordCount: 80 });
+			await Promise.resolve();
 		});
 		expect(screen.queryByText("Title 40")).not.toBeInTheDocument();
 	});
@@ -339,11 +347,13 @@ describe("LibraryPage URL updates", () => {
 		expect(screen.getByText("Title 0")).toBeInTheDocument();
 		await act(async () => {
 			screen.getByRole("button", { name: "Retry" }).click();
+			await Promise.resolve();
 		});
 		await waitFor(() =>
 			expect(
-				getLibraryItems.mock.calls.filter(([, options]) => options.startIndex === 0)
-					.length,
+				vi
+					.mocked(getLibraryItems)
+					.mock.calls.filter(([, options]) => options.startIndex === 0).length,
 			).toBeGreaterThanOrEqual(3),
 		);
 	});
@@ -358,7 +368,10 @@ describe("LibraryPage URL updates", () => {
 
 		await screen.findByText("Title 0");
 		await screen.findByTestId("library-load-more-sentinel");
-		await act(async () => triggerIntersection());
+		await act(async () => {
+			triggerIntersection();
+			await Promise.resolve();
+		});
 		await waitFor(() =>
 			expect(getLibraryItems).toHaveBeenCalledWith(
 				session,
@@ -382,7 +395,10 @@ describe("LibraryPage URL updates", () => {
 
 		await screen.findByText("Title 0");
 		await screen.findByTestId("library-load-more-sentinel");
-		await act(async () => triggerIntersection());
+		await act(async () => {
+			triggerIntersection();
+			await Promise.resolve();
+		});
 		await waitFor(() =>
 			expect(getLibraryItems).toHaveBeenCalledWith(
 				session,
@@ -403,16 +419,20 @@ describe("LibraryPage URL updates", () => {
 
 		await screen.findByText("Title 0");
 		await screen.findByTestId("library-load-more-sentinel");
-		await act(async () => triggerIntersection());
+		await act(async () => {
+			triggerIntersection();
+			await Promise.resolve();
+		});
 		await screen.findByRole("button", { name: "Retry" });
 		await act(async () => {
 			screen.getByRole("button", { name: "Retry" }).click();
+			await Promise.resolve();
 		});
 		await waitFor(() =>
 			expect(
-				getLibraryItems.mock.calls.filter(
-					([, options]) => options.startIndex === 40,
-				).length,
+				vi
+					.mocked(getLibraryItems)
+					.mock.calls.filter(([, options]) => options.startIndex === 40).length,
 			).toBeGreaterThanOrEqual(2),
 		);
 		await waitFor(() =>
@@ -464,3 +484,4 @@ describe("LibraryPage URL updates", () => {
 		);
 	});
 });
+

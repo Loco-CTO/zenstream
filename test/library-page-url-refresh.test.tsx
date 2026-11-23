@@ -129,8 +129,30 @@ describe("LibraryPage URL updates", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("shows an error when the initial library lookup fails", async () => {
+		vi
+			.mocked(getLibraryViews)
+			.mockRejectedValueOnce(new Error("initial library lookup failed"));
+		render(libraryTree());
+
+		await screen.findByRole("button", { name: "Retry" });
+		expect(getLibraryItems).not.toHaveBeenCalled();
+	});
+
 	it("continues pagination after search params update to the current library", async () => {
 		const triggerIntersection = installIntersectionObserver();
+		let rejectRefresh!: (error: Error) => void;
+		vi
+			.mocked(getLibraryViews)
+			.mockResolvedValueOnce([
+				{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+			])
+			.mockImplementationOnce(
+				() =>
+					new Promise((_resolve, reject) => {
+						rejectRefresh = reject;
+					}),
+			);
 		const view = render(libraryTree());
 
 		await screen.findByText("Title 0");
@@ -140,7 +162,14 @@ describe("LibraryPage URL updates", () => {
 
 		navigationMock.useWindowSearch = true;
 		act(() => view.rerender(libraryTree()));
-		await waitFor(() => expect(getLibraryViews).toHaveBeenCalledTimes(2));
+		await waitFor(() => {
+			expect(getLibraryViews).toHaveBeenCalledTimes(2);
+			expect(rejectRefresh).toBeTypeOf("function");
+		});
+		await act(async () => {
+			rejectRefresh(new Error("background library lookup failed"));
+			await Promise.resolve();
+		});
 		await screen.findByTestId("library-load-more-sentinel");
 
 		act(() => triggerIntersection());

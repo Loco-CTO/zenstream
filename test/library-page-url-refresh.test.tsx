@@ -271,17 +271,23 @@ describe("LibraryPage URL updates", () => {
 		render(libraryTree());
 
 		await screen.findByText("Title 0");
+		const controllersBeforeRefresh = controllers.length;
+		const itemRequestsBeforeRefresh =
+			vi.mocked(getLibraryItems).mock.calls.length;
 		await act(async () => {
 			window.dispatchEvent(
 				new CustomEvent("zenstream:catalog-changed", {
 					detail: { libraryId: "shows", reason: "refresh" },
 				}),
 			);
-			controllers.at(-1)?.abort();
+			controllers
+				.slice(controllersBeforeRefresh)
+				.forEach((controller) => controller.abort());
 			await Promise.resolve();
 		});
 
-		expect(getLibraryItems).toHaveBeenCalledTimes(1);
+		expect(controllers.length).toBeGreaterThan(controllersBeforeRefresh);
+		expect(getLibraryItems).toHaveBeenCalledTimes(itemRequestsBeforeRefresh);
 	});
 
 	it("ignores a resolved next-page request after switching libraries", async () => {

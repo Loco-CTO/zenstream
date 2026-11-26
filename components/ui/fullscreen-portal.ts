@@ -1,33 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-/** Keeps a stable portal root inside the active browser fullscreen element. */
-export function useFullscreenPortalTarget() {
-	const [target, setTarget] = useState<HTMLDivElement | null>(null);
+let portalTarget: HTMLDivElement | null = null;
+let subscribers = 0;
 
-	useEffect(() => {
-		const root = document.createElement("div");
-		root.dataset.fullscreenPortalRoot = "";
-		root.style.display = "contents";
+/** Moves the shared portal root into the active fullscreen element. */
+function moveToActiveFullscreenElement() {
+	if (!portalTarget) return;
+	const parent = document.fullscreenElement ?? document.body;
+	if (parent && portalTarget.parentNode !== parent) {
+		parent.appendChild(portalTarget);
+	}
+}
 
-		const moveToActiveFullscreenElement = () => {
-			const parent = document.fullscreenElement ?? document.body;
-			if (root.parentNode !== parent) parent.appendChild(root);
-		};
+function getSnapshot() {
+	return portalTarget;
+}
 
+function getServerSnapshot() {
+	return null;
+}
+
+function subscribe(listener: () => void) {
+	if (typeof document === "undefined") return () => {};
+	subscribers += 1;
+
+	if (!portalTarget) {
+		portalTarget = document.createElement("div");
+		portalTarget.dataset.fullscreenPortalRoot = "";
+		portalTarget.style.display = "contents";
 		moveToActiveFullscreenElement();
 		document.addEventListener("fullscreenchange", moveToActiveFullscreenElement);
-		setTarget(root);
+	}
 
-		return () => {
+	listener();
+
+	return () => {
+		subscribers -= 1;
+		if (subscribers === 0 && portalTarget) {
 			document.removeEventListener(
 				"fullscreenchange",
 				moveToActiveFullscreenElement,
 			);
-			root.remove();
-		};
-	}, []);
+			portalTarget.remove();
+			portalTarget = null;
+		}
+	};
+}
 
-	return target;
+/** Keeps shared overlay portals inside the active browser fullscreen element. */
+export function useFullscreenPortalTarget() {
+	return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

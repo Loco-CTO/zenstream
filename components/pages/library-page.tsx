@@ -240,7 +240,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		options: CatalogFilterOptions | null;
 	} | null>(null);
 	const filterOptions =
-		filterOptionsState?.libraryId === activeLibrary?.Id
+		filterOptionsState && filterOptionsState.libraryId === activeLibrary?.Id
 			? filterOptionsState.options
 			: null;
 

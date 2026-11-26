@@ -49,6 +49,7 @@ Reuse an existing component when it fits. Extend the shared component when a reu
 - Provide immediate pressed, selected, pending, and completed feedback. Disable only the action that cannot safely repeat while it is pending; keep navigation and recovery available.
 - Keep useful content visible during refresh where safe. Distinguish initial loading, an empty library, no filter matches, permission limits, and a failed request.
 - Errors should name the failed task and offer a useful next step. Retain form values after failure and put field errors beside labeled fields; never rely on a disappearing toast for essential recovery.
+- Keep shared overlays such as tooltips, toast feedback, menus, and dialogs inside the active fullscreen element. Browser fullscreen displays that element and its descendants above the rest of the page, regardless of `z-index`.
 - Follow the existing form save model. State whether a setting saves immediately or needs Save; expose unsaved changes when leaving could lose work. Use confirmations for consequential destructive actions, not routine navigation.
 - Dialogs need a clear title, an obvious exit, sensible initial focus, contained keyboard focus, and focus restoration on close. Do not silently discard edited values through accidental backdrop dismissal.
 

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
+import { useFullscreenPortalTarget } from "@/components/ui/fullscreen-portal";
 
 export type DropdownOption = {
 	value: string;
@@ -32,6 +33,7 @@ export function Dropdown({
 	className = "",
 	...props
 }: DropdownProps) {
+	const portalTarget = useFullscreenPortalTarget();
 	const listboxId = useId();
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -104,15 +106,17 @@ export function Dropdown({
 		if (triggerRef.current) observer?.observe(triggerRef.current);
 		if (menuRef.current) observer?.observe(menuRef.current);
 		document.addEventListener("pointerdown", closeOnOutsideClick);
+		document.addEventListener("fullscreenchange", positionMenu);
 		window.addEventListener("resize", positionMenu);
 		window.addEventListener("scroll", positionMenu, true);
 		return () => {
 			observer?.disconnect();
 			document.removeEventListener("pointerdown", closeOnOutsideClick);
+			document.removeEventListener("fullscreenchange", positionMenu);
 			window.removeEventListener("resize", positionMenu);
 			window.removeEventListener("scroll", positionMenu, true);
 		};
-	}, [listboxId, open, options.length]);
+	}, [listboxId, open, options.length, portalTarget]);
 
 	useEffect(() => {
 		if (!open || !positioned || !scrollActiveRef.current) return;
@@ -201,6 +205,7 @@ export function Dropdown({
 				/>
 			</button>
 			{open &&
+				portalTarget &&
 				createPortal(
 					<div
 						ref={menuRef}
@@ -239,7 +244,7 @@ export function Dropdown({
 							</button>
 						))}
 					</div>,
-					document.body,
+					portalTarget,
 				)}
 		</>
 	);

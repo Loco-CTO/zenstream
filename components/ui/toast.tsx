@@ -10,7 +10,9 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, CircleAlert, X } from "lucide-react";
+import { useFullscreenPortalTarget } from "@/components/ui/fullscreen-portal";
 import { useI18n } from "@/lib/i18n";
 
 type ToastVariant = "success" | "error";
@@ -26,6 +28,7 @@ const TOAST_DURATION = 5_000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
 	const { t } = useI18n();
+	const portalTarget = useFullscreenPortalTarget();
 	const [toasts, setToasts] = useState<Toast[]>([]);
 	const nextId = useRef(0);
 	const timers = useRef(new Map<number, number>());
@@ -68,34 +71,38 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	return (
 		<ToastContext.Provider value={value}>
 			{children}
-			<div
-				className="pointer-events-none fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-[400] flex max-h-[calc(100dvh-6rem)] w-auto flex-col gap-2 overflow-y-auto sm:bottom-4 sm:left-auto sm:right-4 sm:max-h-none sm:w-[min(24rem,calc(100vw-2rem))]"
-				aria-live="polite"
-				aria-atomic="false"
-			>
-				{toasts.map((toast) => (
+			{portalTarget &&
+				createPortal(
 					<div
-						key={toast.id}
-						role={toast.variant === "error" ? "alert" : "status"}
-						className="pointer-events-auto flex items-start gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white shadow-2xl shadow-black/40 backdrop-blur-xl"
+						className="pointer-events-none fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-[400] flex max-h-[calc(100dvh-6rem)] w-auto flex-col gap-2 overflow-y-auto sm:bottom-4 sm:left-auto sm:right-4 sm:max-h-none sm:w-[min(24rem,calc(100vw-2rem))]"
+						aria-live="polite"
+						aria-atomic="false"
 					>
-						{toast.variant === "success" ? (
-							<CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
-						) : (
-							<CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
-						)}
-						<p className="min-w-0 flex-1">{toast.message}</p>
-						<button
-							type="button"
-							onClick={() => dismiss(toast.id)}
-							aria-label={t("toastDismiss")}
-							className="-mr-1 -mt-1 rounded p-1 text-white/55 transition hover:bg-white/10 hover:text-white"
-						>
-							<X className="h-4 w-4 text-neutral-500" />
-						</button>
-					</div>
-				))}
-			</div>
+						{toasts.map((toast) => (
+							<div
+								key={toast.id}
+								role={toast.variant === "error" ? "alert" : "status"}
+								className="pointer-events-auto flex items-start gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white shadow-2xl shadow-black/40 backdrop-blur-xl"
+							>
+								{toast.variant === "success" ? (
+									<CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
+								) : (
+									<CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+								)}
+								<p className="min-w-0 flex-1">{toast.message}</p>
+								<button
+									type="button"
+									onClick={() => dismiss(toast.id)}
+									aria-label={t("toastDismiss")}
+									className="-mr-1 -mt-1 rounded p-1 text-white/55 transition hover:bg-white/10 hover:text-white"
+								>
+									<X className="h-4 w-4 text-neutral-500" />
+								</button>
+							</div>
+						))}
+					</div>,
+					portalTarget,
+				)}
 		</ToastContext.Provider>
 	);
 }

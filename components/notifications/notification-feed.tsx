@@ -428,6 +428,8 @@ export function NotificationRow({
 	const thumbnail = item.thumbnail?.url
 		? catalogImage(item.thumbnail.url, item.thumbnail.blurHash)
 		: null;
+	const thumbnailClassName = notificationThumbnailClass(item.kind, compact);
+	const thumbnailSizes = notificationThumbnailSizes(item.kind, compact);
 	const ActionIcon = item.readAt ? Mail : MailOpen;
 	const actionLabel = t(item.readAt ? "markUnread" : "markRead");
 	const parsedDate = new Date(item.createdAt);
@@ -454,14 +456,14 @@ export function NotificationRow({
 		>
 			<div
 				data-testid={`notification-thumbnail-${item.id}`}
-				className={`relative mt-0.5 shrink-0 overflow-hidden border ${compact ? "h-9 w-16 rounded-lg" : "h-14 w-24 rounded-xl sm:h-16 sm:w-28"} ${item.readAt ? "border-white/10 bg-white/[.045]" : "border-violet-300/20 bg-violet-300/10"}`}
+				className={`relative mt-0.5 shrink-0 overflow-hidden border ${thumbnailClassName} ${compact ? "rounded-lg" : "rounded-xl"} ${item.readAt ? "border-white/10 bg-white/[.045]" : "border-violet-300/20 bg-violet-300/10"}`}
 			>
 				{thumbnail && (
 					<BlurHashImage
 						image={thumbnail}
 						alt=""
 						aria-hidden="true"
-						sizes={compact ? "64px" : "(max-width: 639px) 96px, 112px"}
+						sizes={thumbnailSizes}
 						className="h-full w-full object-cover"
 					/>
 				)}
@@ -542,4 +544,18 @@ export function NotificationRow({
 			</div>
 		</article>
 	);
+}
+
+function notificationThumbnailClass(kind: string, compact: boolean) {
+	if (kind === "new_release")
+		return compact ? "aspect-square w-12" : "aspect-square w-16";
+	if (kind === "new_movie")
+		return compact ? "aspect-[2/3] w-11" : "aspect-[2/3] w-16";
+	return compact ? "aspect-video w-16" : "aspect-video w-24 sm:w-28";
+}
+
+function notificationThumbnailSizes(kind: string, compact: boolean) {
+	if (kind === "new_release") return compact ? "48px" : "64px";
+	if (kind === "new_movie") return compact ? "44px" : "64px";
+	return compact ? "64px" : "(max-width: 639px) 96px, 112px";
 }

@@ -472,7 +472,20 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 					status?.kind === "upNext" ? status.nextEpisode : undefined;
 				const episodeImage = nextEpisode ? landscapeImage(nextEpisode) : null;
 				const image = episodeImage ?? seriesPosterImage(item);
-				const portraitSeries = item.Type === "Series" && !episodeImage;
+				const musicArtwork =
+					item.Type === "MusicArtist" ||
+					item.Type === "MusicAlbum" ||
+					item.Type === "Audio";
+				const artworkClassName = episodeImage
+					? "aspect-video w-32"
+					: musicArtwork
+						? "aspect-square w-20"
+						: "aspect-[2/3] w-14";
+				const artworkSizes = episodeImage
+					? "128px"
+					: musicArtwork
+						? "80px"
+						: "56px";
 				const position = savedPlaybackPositionSeconds(item);
 				const duration =
 					item.UserData?.DurationSeconds ?? item.DurationSeconds ?? 0;
@@ -488,13 +501,13 @@ function WatchlistSection({ session }: { session: AuthSession }) {
 					<div key={item.Id} className="flex min-h-28 items-center gap-4 py-4">
 						<Link
 							href={href}
-							className={`relative ${portraitSeries ? "aspect-[2/3] w-14" : "h-20 w-32"} shrink-0 overflow-hidden rounded-lg bg-white/[0.04]`}
+							className={`relative ${artworkClassName} shrink-0 overflow-hidden rounded-lg bg-white/[0.04]`}
 						>
 							{image ? (
 								<BlurHashImage
 									image={image}
 									alt={episodeImage ? (nextEpisode?.Name ?? item.Name) : item.Name}
-									sizes={portraitSeries ? "56px" : "128px"}
+									sizes={artworkSizes}
 									className="h-full w-full object-cover"
 								/>
 							) : (

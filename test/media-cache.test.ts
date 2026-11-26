@@ -41,6 +41,24 @@ afterEach(() => {
 });
 
 describe("media client cache", () => {
+	it("bounds resolved entries and keeps recently used requests", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(() => Promise.resolve(jsonResponse({ items: [] })));
+
+		for (let index = 0; index < 64; index += 1) {
+			await getFavoriteItems(session, { sortBy: `sort-${index}` });
+		}
+
+		await getFavoriteItems(session, { sortBy: "sort-0" });
+		await getFavoriteItems(session, { sortBy: "sort-64" });
+		expect(fetchMock).toHaveBeenCalledTimes(65);
+
+		await getFavoriteItems(session, { sortBy: "sort-0" });
+		await getFavoriteItems(session, { sortBy: "sort-1" });
+		expect(fetchMock).toHaveBeenCalledTimes(66);
+	});
+
 	it("clears the resolved hero trailer cache with media caches", async () => {
 		const item: MediaItem = {
 			Id: "movie-1",

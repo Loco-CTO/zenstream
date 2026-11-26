@@ -21,6 +21,7 @@ import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import {
 	getLibraryItems,
 	getLibraryViews,
+	landscapeImage,
 	posterImage,
 	type LibrarySortBy,
 	type LibraryView,
@@ -737,7 +738,12 @@ function VirtualMediaGrid({
 		width > 0 ? (width - GRID_GAP * (columns - 1)) / columns : minCardWidth;
 	const cardTextHeight = music ? MUSIC_CARD_TEXT_HEIGHT : CARD_TEXT_HEIGHT;
 	const rowGap = music ? MUSIC_ROW_GAP : GRID_GAP;
-	const rowHeight = cardWidth * (music ? 1 : 1.5) + cardTextHeight + rowGap;
+	const episodeOnly =
+		!music && items.length > 0 && items.every((item) => item.Type === "Episode");
+	const rowHeight =
+		cardWidth * (music ? 1 : episodeOnly ? 9 / 16 : 1.5) +
+		cardTextHeight +
+		rowGap;
 	const rowCount = Math.ceil(items.length / columns);
 	const relativeTop = Math.max(0, viewport.scrollY - containerTop);
 	const measuredVisibleStartRow = Math.max(
@@ -815,7 +821,9 @@ function LibraryCard({
 }) {
 	if (music)
 		return <SquareAudioCard item={item} session={session} className="w-full" />;
-	const image = posterImage(item);
+	const isEpisode = item.Type === "Episode";
+	const image = isEpisode ? landscapeImage(item) : posterImage(item);
+	const artworkAspectClassName = isEpisode ? "aspect-video" : "aspect-[2/3]";
 	const secondary =
 		item.Type === "BoxSet"
 			? item.CollectionYearRange
@@ -830,7 +838,9 @@ function LibraryCard({
 		<article className="group/card min-w-0 cursor-pointer select-none">
 			<div className="relative">
 				<Link href={href} className="block">
-					<div className="relative aspect-[2/3] overflow-hidden rounded-sm bg-[var(--c-card-thumb)]">
+					<div
+						className={`relative ${artworkAspectClassName} overflow-hidden rounded-sm bg-[var(--c-card-thumb)]`}
+					>
 						{image && (
 							<BlurHashImage
 								image={image}
@@ -867,7 +877,7 @@ function LibraryCard({
 					title={item.Name}
 					item={item}
 					session={session}
-					className="inset-x-0 top-0 aspect-[2/3]"
+					className={`inset-x-0 top-0 ${artworkAspectClassName}`}
 				/>
 			</div>
 		</article>

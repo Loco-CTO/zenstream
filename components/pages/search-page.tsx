@@ -453,7 +453,7 @@ function SearchResultRow({
 			>
 				<div
 					data-testid="search-result-artwork"
-					className={`relative shrink-0 overflow-hidden rounded-md bg-[var(--c-card-thumb)] ${posterArtwork ? "aspect-[2/3] w-12 sm:w-14" : "aspect-square w-12 sm:w-14"}`}
+					className={`relative shrink-0 overflow-hidden rounded-md bg-[var(--c-card-thumb)] ${item.Type === "Episode" ? "aspect-video w-12 sm:w-14" : posterArtwork ? "aspect-[2/3] w-12 sm:w-14" : "aspect-square w-12 sm:w-14"}`}
 				>
 					{image ? (
 						<BlurHashImage
@@ -525,7 +525,7 @@ function findFeaturedItem(items: MediaItem[]) {
 }
 
 function rowImage(item: MediaItem) {
-	return posterImage(item);
+	return item.Type === "Episode" ? landscapeImage(item) : posterImage(item);
 }
 
 function isPosterResult(item: MediaItem) {

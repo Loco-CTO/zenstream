@@ -96,6 +96,10 @@ describe("BlurHashImage", () => {
 
 		fireEvent.load(image);
 		await waitFor(() => expect(placeholder).toHaveClass("opacity-0"));
+		expect((placeholder as HTMLElement).style.backgroundImage).toBe("");
+		expect(
+			(placeholder as HTMLElement).style.getPropertyValue("--blurhash-image"),
+		).toBe("");
 	});
 
 	it("reports failures and replaces broken artwork with a clipped placeholder", () => {

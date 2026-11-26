@@ -328,12 +328,55 @@ export type ArtworkType = "Primary" | "Backdrop" | "Logo" | "Banner";
 
 const LIST_CACHE_TTL_MS = 30_000;
 const DETAIL_CACHE_TTL_MS = 120_000;
+const MAX_CLIENT_CACHE_ENTRIES = 64;
 const clientCache = new Map<string, { expiresAt: number; value: unknown }>();
+let clientCacheExpiryTimer: number | undefined;
 const clientInFlight = new Map<
 	string,
 	{ promise: Promise<unknown>; controller: AbortController }
 >();
 const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();
+
+function pruneExpiredClientCache(now: number) {
+	for (const [key, cached] of clientCache) {
+		if (cached.expiresAt <= now) clientCache.delete(key);
+	}
+}
+
+function scheduleClientCacheExpiry() {
+	if (typeof window === "undefined") return;
+	if (clientCacheExpiryTimer !== undefined)
+		window.clearTimeout(clientCacheExpiryTimer);
+	clientCacheExpiryTimer = undefined;
+
+	let nextExpiry = Number.POSITIVE_INFINITY;
+	for (const cached of clientCache.values()) {
+		nextExpiry = Math.min(nextExpiry, cached.expiresAt);
+	}
+	if (!Number.isFinite(nextExpiry)) return;
+
+	clientCacheExpiryTimer = window.setTimeout(
+		() => {
+			clientCacheExpiryTimer = undefined;
+			pruneExpiredClientCache(Date.now());
+			scheduleClientCacheExpiry();
+		},
+		Math.max(0, nextExpiry - Date.now()),
+	);
+}
+
+function cacheClientResponse(key: string, value: unknown, ttl: number) {
+	const now = Date.now();
+	pruneExpiredClientCache(now);
+	clientCache.delete(key);
+	clientCache.set(key, { expiresAt: now + ttl, value });
+	while (clientCache.size > MAX_CLIENT_CACHE_ENTRIES) {
+		const oldestKey = clientCache.keys().next().value;
+		if (oldestKey === undefined) break;
+		clientCache.delete(oldestKey);
+	}
+	scheduleClientCacheExpiry();
+}
 
 function combinedSignal(
 	external: AbortSignal | undefined,
@@ -350,7 +393,15 @@ async function cachedClientRequest<T>(
 	reuseInFlight = true,
 ): Promise<T> {
 	const cached = clientCache.get(key);
-	if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+	if (cached && cached.expiresAt > Date.now()) {
+		clientCache.delete(key);
+		clientCache.set(key, cached);
+		return cached.value as T;
+	}
+	if (cached) {
+		clientCache.delete(key);
+		scheduleClientCacheExpiry();
+	}
 	const pending = clientInFlight.get(key);
 	if (reuseInFlight && pending) return pending.promise as Promise<T>;
 	if (pending) pending.controller.abort();
@@ -359,7 +410,7 @@ async function cachedClientRequest<T>(
 		.then(() => loader(controller.signal))
 		.then((value) => {
 			if (clientInFlight.get(key)?.controller === controller) {
-				clientCache.set(key, { expiresAt: Date.now() + ttl, value });
+				cacheClientResponse(key, value, ttl);
 			}
 			return value;
 		});
@@ -416,6 +467,7 @@ export function clearMediaClientCache(
 		clientInFlight.delete(key);
 	}
 	heroTrailerCache.clear();
+	scheduleClientCacheExpiry();
 }
 
 export type ImageBlurHashes = Partial<

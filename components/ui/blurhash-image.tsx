@@ -18,6 +18,7 @@ type BlurHashImageProps = Omit<
 };
 
 const PLACEHOLDER_SIZE = 16;
+const MAX_BLUR_HASH_CACHE_ENTRIES = 128;
 const blurHashDataUrlCache = new Map<string, string | null>();
 
 export function BlurHashImage({
@@ -39,24 +40,23 @@ export function BlurHashImage({
 	const failed = failedSrc === image.src;
 	const resolvedWidth = width ?? image.width;
 	const resolvedHeight = height ?? image.height;
-	const placeholder = useMemo(
-		() => blurHashToDataUrl(image.blurHash),
-		[image.blurHash],
-	);
+	const placeholder = loaded ? null : blurHashToDataUrl(image.blurHash);
 
 	return (
 		<>
-			{placeholder && (
+			{image.blurHash && (
 				<div
 					aria-hidden="true"
 					className={`pointer-events-none absolute inset-0 h-full w-full scale-105 bg-cover bg-center [clip-path:inset(0)] blur-xl transition-opacity duration-150 ${
 						loaded ? "opacity-0" : "opacity-100"
 					}`}
 					style={
-						{
-							"--blurhash-image": `url("${placeholder}")`,
-							backgroundImage: "var(--blurhash-image)",
-						} as CSSProperties
+						placeholder
+							? ({
+									"--blurhash-image": `url("${placeholder}")`,
+									backgroundImage: "var(--blurhash-image)",
+								} as CSSProperties)
+							: undefined
 					}
 				/>
 			)}
@@ -135,7 +135,10 @@ export function BlurHashGlow({
 function blurHashToDataUrl(blurHash?: string | null) {
 	if (!blurHash) return null;
 	if (blurHashDataUrlCache.has(blurHash)) {
-		return blurHashDataUrlCache.get(blurHash) ?? null;
+		const cached = blurHashDataUrlCache.get(blurHash) ?? null;
+		blurHashDataUrlCache.delete(blurHash);
+		blurHashDataUrlCache.set(blurHash, cached);
+		return cached;
 	}
 
 	try {
@@ -149,10 +152,19 @@ function blurHashToDataUrl(blurHash?: string | null) {
 		}
 		const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PLACEHOLDER_SIZE} ${PLACEHOLDER_SIZE}" shape-rendering="crispEdges">${rects}</svg>`;
 		const url = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-		blurHashDataUrlCache.set(blurHash, url);
+		cacheBlurHashDataUrl(blurHash, url);
 		return url;
 	} catch {
-		blurHashDataUrlCache.set(blurHash, null);
+		cacheBlurHashDataUrl(blurHash, null);
 		return null;
+	}
+}
+
+function cacheBlurHashDataUrl(blurHash: string, url: string | null) {
+	blurHashDataUrlCache.set(blurHash, url);
+	while (blurHashDataUrlCache.size > MAX_BLUR_HASH_CACHE_ENTRIES) {
+		const oldestBlurHash = blurHashDataUrlCache.keys().next().value;
+		if (oldestBlurHash === undefined) return;
+		blurHashDataUrlCache.delete(oldestBlurHash);
 	}
 }

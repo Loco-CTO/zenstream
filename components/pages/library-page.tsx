@@ -235,8 +235,14 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		selectedFilters.albumArtists.length > 0 ||
 		selectedFilters.albumTypes.length > 0;
 	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
-	const [filterOptions, setFilterOptions] =
-		useState<CatalogFilterOptions | null>(null);
+	const [filterOptionsState, setFilterOptions] = useState<{
+		libraryId: string;
+		options: CatalogFilterOptions | null;
+	} | null>(null);
+	const filterOptions =
+		filterOptionsState?.libraryId === activeLibrary?.Id
+			? filterOptionsState.options
+			: null;
 
 	const supportsLastAdded =
 		activeLibrary?.SupportsLastAdded ??
@@ -299,10 +305,6 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		},
 		[replaceQuery],
 	);
-
-	useEffect(() => {
-		setFilterOptions(null);
-	}, [activeLibrary?.Id]);
 
 	const loadLibraries = useCallback(async () => {
 		const isInitialLoad = loadedLibraryUserIdRef.current !== session.userId;
@@ -502,7 +504,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					setLoadedCount(page.items.length);
 				}
 				setTotal(page.totalRecordCount);
-				setFilterOptions(page.filterOptions ?? null);
+				setFilterOptions({
+					libraryId: activeLibrary.Id,
+					options: page.filterOptions ?? null,
+				});
 				loadMoreBlockedRef.current = false;
 				setLoadMoreError(null);
 				loadedQueryRef.current = queryKey;

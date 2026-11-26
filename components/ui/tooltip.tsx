@@ -41,6 +41,7 @@ function cancelFrame(frame: number) {
 type TooltipTarget = {
 	target: HTMLButtonElement;
 	label: string;
+	shortcuts: string[][];
 };
 
 export type TooltipPosition = {
@@ -120,6 +121,15 @@ function tooltipLabel(button: HTMLButtonElement) {
 		button.getAttribute("aria-label")?.trim() ||
 		null
 	);
+}
+
+/** Reads alternatives and key combinations from a button's ARIA shortcuts. */
+function tooltipShortcuts(button: HTMLButtonElement) {
+	return (button.getAttribute("aria-keyshortcuts") ?? "")
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean)
+		.map((shortcut) => shortcut.split("+").filter(Boolean));
 }
 
 /** Localizes legacy English player labels while preserving localized labels. */
@@ -210,6 +220,7 @@ export function Tooltip() {
 			setActiveTooltip({
 				target: trigger,
 				label: localizeTooltipLabel(label, t),
+				shortcuts: tooltipShortcuts(trigger),
 			});
 		};
 		/** Hides the tooltip after the pointer leaves its button. */
@@ -242,6 +253,7 @@ export function Tooltip() {
 						setActiveTooltip({
 							target: button,
 							label: localizeTooltipLabel(label, t),
+							shortcuts: tooltipShortcuts(button),
 						});
 					else hide();
 				}
@@ -253,7 +265,12 @@ export function Tooltip() {
 			.forEach(migrateNativeTitle);
 		observer.observe(document.body, {
 			attributes: true,
-			attributeFilter: ["title", "aria-label", "data-tooltip"],
+			attributeFilter: [
+				"title",
+				"aria-label",
+				"data-tooltip",
+				"aria-keyshortcuts",
+			],
 			childList: true,
 			subtree: true,
 		});
@@ -336,7 +353,38 @@ export function Tooltip() {
 			className="pointer-events-none fixed z-[9999] w-max max-w-[calc(100vw-1rem)] rounded-md border border-white/15 bg-neutral-950/95 px-2.5 py-1.5 text-xs leading-4 whitespace-normal text-white shadow-xl shadow-black/40"
 			style={{ left: 0, top: 0, visibility: "hidden" }}
 		>
-			{active.label}
+			<span>{active.label}</span>
+			{active.shortcuts.length > 0 && (
+				<span className="ml-2 inline-flex items-center gap-1 whitespace-nowrap">
+					{active.shortcuts.map((keys, shortcutIndex) => (
+						<span
+							key={`${shortcutIndex}-${keys.join("+")}`}
+							className="inline-flex items-center gap-0.5"
+						>
+							{shortcutIndex > 0 && (
+								<span aria-hidden="true" className="text-white/45">
+									/
+								</span>
+							)}
+							{keys.map((key, keyIndex) => (
+								<span
+									key={`${shortcutIndex}-${keyIndex}-${key}`}
+									className="inline-flex items-center gap-0.5"
+								>
+									{keyIndex > 0 && (
+										<span aria-hidden="true" className="text-white/45">
+											+
+										</span>
+									)}
+									<kbd className="inline-flex min-h-4 min-w-4 items-center justify-center rounded border border-white/25 bg-white/10 px-1 font-mono text-[10px] font-medium leading-none text-white/85 shadow-[inset_0_-1px_0_rgba(255,255,255,0.12)]">
+										{key}
+									</kbd>
+								</span>
+							))}
+						</span>
+					))}
+				</span>
+			)}
 			<span
 				aria-hidden="true"
 				data-tooltip-arrow

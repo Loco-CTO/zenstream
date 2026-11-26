@@ -106,6 +106,36 @@ describe("global tooltip", () => {
 		expect(screen.getByRole("tooltip")).toHaveTextContent("10秒戻る");
 	});
 
+	it("shows each keyboard shortcut as a keycap and updates it while hovered", async () => {
+		render(
+			<>
+				<Tooltip />
+				<button aria-label="Play" aria-keyshortcuts="Space K">
+					<svg aria-hidden="true" />
+				</button>
+			</>,
+		);
+		const button = screen.getByRole("button", { name: "Play" });
+
+		fireEvent.pointerOver(button, { pointerType: "mouse" });
+		act(() => vi.advanceTimersByTime(350));
+		act(() => vi.advanceTimersByTime(16));
+
+		const tooltip = screen.getByRole("tooltip");
+		expect(tooltip).toHaveTextContent("Play");
+		expect(
+			[...tooltip.querySelectorAll("kbd")].map((key) => key.textContent),
+		).toEqual(["Space", "K"]);
+
+		button.setAttribute("aria-keyshortcuts", "Shift+/");
+		await act(async () => {
+			await Promise.resolve();
+		});
+		expect(
+			[...tooltip.querySelectorAll("kbd")].map((key) => key.textContent),
+		).toEqual(["Shift", "/"]);
+	});
+
 	it("migrates titles from inserted icon buttons and tracks active label changes", async () => {
 		render(
 			<>

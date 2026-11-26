@@ -386,6 +386,35 @@ bazarrDownloadFailed: Could not download that subtitle
 muteTrailer: Mute trailer
 unmuteTrailer: Unmute trailer
 sortBy: Sort by
+libraryFilters: Filters
+filterGenre: Genre
+filterOfficialRating: Official rating
+filterSearchGenres: Search genres
+filterSearchRatings: Search ratings
+filterYearRange: Year range
+filterYearFrom: From year
+filterYearTo: To year
+filterWatchState: Watch status
+filterAny: Any
+filterWatched: Watched
+filterUnwatched: Unwatched
+filterFavoritesOnly: Favorites only
+filterArtist: Artist
+filterAlbumArtist: Album artist
+filterAlbumType: Album type
+filterSearchArtists: Search artists
+filterSearchAlbumArtists: Search album artists
+filterSearchAlbumTypes: Search album types
+filterNoArtists: No artists available
+filterNoAlbumArtists: No album artists available
+filterNoAlbumTypes: No album types available
+filterNoGenres: No genres available
+filterNoRatings: No official ratings available
+filterNoOptionsMatch: No matching options
+filterNoResults: No titles match these filters
+filterNoResultsHint: Try removing one or more filters.
+clearFilters: Clear filters
+applyFilters: Apply filters
 sortAscending: Sort ascending
 sortDescending: Sort descending
 sortRating: Rating

@@ -58,6 +58,7 @@ export type CatalogItem = {
 		show?: string;
 		label?: string;
 		tags?: string[];
+		genres?: string[];
 		communityRating?: number;
 		officialRating?: string;
 		people?: Array<Record<string, unknown>>;
@@ -286,7 +287,7 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 		DurationSeconds: durationSeconds,
 		CommunityRating: item.metadata.communityRating,
 		OfficialRating: item.metadata.officialRating,
-		Genres: item.metadata.tags,
+		Genres: item.metadata.genres ?? item.metadata.tags,
 		People: people,
 		RemoteTrailers: trailers,
 		ImageTags: {

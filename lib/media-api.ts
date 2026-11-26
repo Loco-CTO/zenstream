@@ -524,6 +524,27 @@ export interface LibraryView extends MediaItem {
 export interface LibraryPage {
 	items: MediaItem[];
 	totalRecordCount: number;
+	filterOptions?: CatalogFilterOptions;
+}
+
+export interface CatalogFilterOptions {
+	genres: string[];
+	officialRatings: string[];
+	artists: string[];
+	albumArtists: string[];
+	albumTypes: string[];
+}
+
+export interface CatalogFilters {
+	genres: string[];
+	officialRatings: string[];
+	yearFrom: number | null;
+	yearTo: number | null;
+	watchState: "watched" | "unwatched" | null;
+	favoritesOnly: boolean;
+	artists: string[];
+	albumArtists: string[];
+	albumTypes: string[];
 }
 
 export type SearchResultType =
@@ -1127,6 +1148,16 @@ export async function getLibraryItems(
 		limit?: number;
 		sortBy: LibrarySortBy;
 		sortOrder: "Ascending" | "Descending";
+		genres?: string[];
+		officialRatings?: string[];
+		yearFrom?: number | null;
+		yearTo?: number | null;
+		watchState?: "watched" | "unwatched" | null;
+		favoritesOnly?: boolean;
+		artists?: string[];
+		albumArtists?: string[];
+		albumTypes?: string[];
+		includeFilterOptions?: boolean;
 		signal?: AbortSignal;
 	},
 ): Promise<LibraryPage> {
@@ -1139,19 +1170,53 @@ export async function getLibraryItems(
 		sortOrder: options.sortOrder.toLowerCase(),
 	});
 	params.set("libraryId", options.parentId);
+	for (const genre of options.genres ?? []) params.append("genre", genre);
+	for (const rating of options.officialRatings ?? [])
+		params.append("officialRating", rating);
+	if (options.yearFrom != null) params.set("yearFrom", String(options.yearFrom));
+	if (options.yearTo != null) params.set("yearTo", String(options.yearTo));
+	if (options.watchState) params.set("watchState", options.watchState);
+	if (options.favoritesOnly) params.set("favoritesOnly", "true");
+	for (const artist of options.artists ?? []) params.append("artist", artist);
+	for (const artist of options.albumArtists ?? [])
+		params.append("albumArtist", artist);
+	for (const albumType of options.albumTypes ?? [])
+		params.append("albumType", albumType);
+	if (options.includeFilterOptions) params.set("includeFilterOptions", "true");
 	const endpoint = options.collectionType === "music" ? "music/albums" : "items";
+	const filterKey = JSON.stringify([
+		[...(options.genres ?? [])].sort((left, right) => left.localeCompare(right)),
+		[...(options.officialRatings ?? [])].sort((left, right) =>
+			left.localeCompare(right),
+		),
+		options.yearFrom ?? null,
+		options.yearTo ?? null,
+		options.watchState ?? null,
+		Boolean(options.favoritesOnly),
+		[...(options.artists ?? [])].sort((left, right) =>
+			left.localeCompare(right),
+		),
+		[...(options.albumArtists ?? [])].sort((left, right) =>
+			left.localeCompare(right),
+		),
+		[...(options.albumTypes ?? [])].sort((left, right) =>
+			left.localeCompare(right),
+		),
+	]);
 	return cachedClientRequest(
-		`library:${session.userId}:${options.parentId}:${options.collectionType ?? ""}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}`,
+		`library:${session.userId}:${options.parentId}:${options.collectionType ?? ""}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}:${filterKey}:options=${Boolean(options.includeFilterOptions)}`,
 		async (signal) => {
 			const result = await catalogRequest<{
 				items: CatalogItem[];
 				total: number;
+				filterOptions?: CatalogFilterOptions;
 			}>(session, `/api/catalog/${endpoint}?${params}`, {
 				signal: combinedSignal(options.signal, signal),
 			});
 			return {
 				items: result.items.map(toMediaItem),
 				totalRecordCount: result.total,
+				filterOptions: result.filterOptions,
 			};
 		},
 		LIST_CACHE_TTL_MS,

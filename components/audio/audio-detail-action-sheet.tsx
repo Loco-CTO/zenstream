@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useFullscreenPortalTarget } from "@/components/ui/fullscreen-portal";
 import {
 	BlurHashImage,
 	MediaPlaceholder,
@@ -21,6 +22,7 @@ export function AudioDetailActionSheet({
 	onClose: () => void;
 }) {
 	const { t } = useI18n();
+	const portalTarget = useFullscreenPortalTarget();
 	const image = seriesPosterImage(item);
 
 	useEffect(() => {
@@ -31,7 +33,7 @@ export function AudioDetailActionSheet({
 		return () => document.removeEventListener("keydown", onKeyDown);
 	}, [onClose]);
 
-	if (typeof document === "undefined") return null;
+	if (!portalTarget) return null;
 	return createPortal(
 		<div className="fixed inset-0 z-[110] flex items-end justify-center">
 			<button
@@ -75,7 +77,7 @@ export function AudioDetailActionSheet({
 				</div>
 			</section>
 		</div>,
-		document.body,
+		portalTarget,
 	);
 }
 

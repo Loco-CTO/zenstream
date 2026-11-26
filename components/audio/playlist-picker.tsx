@@ -25,6 +25,7 @@ import {
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
 import { Toggle } from "@/components/ui/toggle";
+import { useFullscreenPortalTarget } from "@/components/ui/fullscreen-portal";
 
 export function PlaylistPicker({
 	session,
@@ -49,6 +50,7 @@ export function PlaylistPicker({
 	triggerClassName?: string;
 }) {
 	const { t } = useI18n();
+	const portalTarget = useFullscreenPortalTarget();
 	const [open, setOpen] = useState(false);
 	const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
 	const [pendingMembership, setPendingMembership] = useState<
@@ -99,6 +101,7 @@ export function PlaylistPicker({
 		};
 
 		updatePosition();
+		document.addEventListener("fullscreenchange", updatePosition);
 		window.addEventListener("resize", updatePosition);
 		window.addEventListener("scroll", updatePosition, true);
 		const resizeObserver =
@@ -109,6 +112,7 @@ export function PlaylistPicker({
 		if (pickerRef.current) resizeObserver?.observe(pickerRef.current);
 
 		return () => {
+			document.removeEventListener("fullscreenchange", updatePosition);
 			window.removeEventListener("resize", updatePosition);
 			window.removeEventListener("scroll", updatePosition, true);
 			resizeObserver?.disconnect();
@@ -229,7 +233,7 @@ export function PlaylistPicker({
 				)}
 			</button>
 			{open &&
-				typeof document !== "undefined" &&
+				portalTarget &&
 				createPortal(
 					<div
 						ref={pickerRef}
@@ -309,7 +313,7 @@ export function PlaylistPicker({
 							</p>
 						)}
 					</div>,
-					document.body,
+					portalTarget,
 				)}
 			{creating && (
 				<CreatePlaylistDialog
@@ -338,6 +342,7 @@ export function CreatePlaylistDialog({
 	onCreated: (playlist: Playlist) => void;
 }) {
 	const { t } = useI18n();
+	const portalTarget = useFullscreenPortalTarget();
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [isPrivate, setIsPrivate] = useState(true);
@@ -366,7 +371,7 @@ export function CreatePlaylistDialog({
 
 	const privacyLabel = t(isPrivate ? "privatePlaylist" : "publicPlaylist");
 
-	if (typeof document === "undefined") return null;
+	if (!portalTarget) return null;
 
 	return createPortal(
 		<div
@@ -474,6 +479,6 @@ export function CreatePlaylistDialog({
 				</div>
 			</form>
 		</div>,
-		document.body,
+		portalTarget,
 	);
 }

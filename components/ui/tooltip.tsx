@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useFullscreenPortalTarget } from "@/components/ui/fullscreen-portal";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 const TOOLTIP_ID = "zenstream-global-tooltip";
@@ -167,6 +168,7 @@ function updateDescribedBy(button: HTMLButtonElement, add: boolean) {
 /** Renders the single viewport-aware tooltip for hovered buttons. */
 export function Tooltip() {
 	const { t } = useI18n();
+	const portalTarget = useFullscreenPortalTarget();
 	const [active, setActive] = useState<TooltipTarget | null>(null);
 	const activeRef = useRef<TooltipTarget | null>(null);
 	const hoveredTargetRef = useRef<HTMLButtonElement | null>(null);
@@ -335,16 +337,18 @@ export function Tooltip() {
 		};
 
 		schedulePosition();
+		document.addEventListener("fullscreenchange", schedulePosition);
 		window.addEventListener("resize", schedulePosition);
 		window.addEventListener("scroll", schedulePosition, true);
 		return () => {
 			if (frame !== undefined) cancelFrame(frame);
+			document.removeEventListener("fullscreenchange", schedulePosition);
 			window.removeEventListener("resize", schedulePosition);
 			window.removeEventListener("scroll", schedulePosition, true);
 		};
-	}, [active]);
+	}, [active, portalTarget]);
 
-	if (!active || typeof document === "undefined") return null;
+	if (!active || !portalTarget) return null;
 	return createPortal(
 		<div
 			id={TOOLTIP_ID}
@@ -392,6 +396,6 @@ export function Tooltip() {
 				style={{ left: "50%" }}
 			/>
 		</div>,
-		document.body,
+		portalTarget,
 	);
 }

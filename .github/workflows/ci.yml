@@ -12,6 +12,11 @@ on:
         required: false
         default: false
         type: boolean
+      release_image_runs_compose_smoke:
+        description: Run Compose smoke on the release image in the calling workflow
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
   pull_request:
@@ -59,16 +64,17 @@ jobs:
             echo "::notice::Orchestrator fixtures are not on main yet; shared API fixture tests will run after the Orchestrator contract PR is merged."
           fi
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11.10.0
-
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
           package-manager-cache: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.10.0
+          cache: true
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -93,9 +99,31 @@ jobs:
       - name: Build web client
         run: pnpm build
 
-      - name: Smoke production Docker Compose image
+      - name: Set up Docker Buildx
+        if: ${{ !inputs.release_image_runs_compose_smoke }}
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the production image from Docker Compose
+        if: ${{ !inputs.release_image_runs_compose_smoke }}
+        uses: docker/bake-action@v7
         env:
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+          ZENSTREAM_IMAGE: zenstream:ci-smoke
+          ZENSTREAM_ORCHESTRATOR_URL: http://127.0.0.1:9088
+        with:
+          source: .
+          files: docker-compose.yml
+          targets: zenstream
+          load: true
+          set: |
+            zenstream.cache-from=type=gha,scope=web-amd64
+            zenstream.cache-to=type=gha,scope=web-amd64,mode=max,ignore-error=true
+
+      - name: Smoke production Docker Compose image
+        if: ${{ !inputs.release_image_runs_compose_smoke }}
+        env:
+          ZENSTREAM_IMAGE: zenstream:ci-smoke
           NEXT_PUBLIC_ZSO_URL: http://127.0.0.1:9088
           ZENSTREAM_ORCHESTRATOR_URL: http://127.0.0.1:9088
           ZENSTREAM_PORT: "19086"
-        run: bash ./scripts/smoke-docker.sh
+        run: bash ./scripts/smoke-docker.sh --prebuilt

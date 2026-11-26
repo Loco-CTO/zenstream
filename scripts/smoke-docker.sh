@@ -13,7 +13,19 @@ trap cleanup EXIT
 export NEXT_PUBLIC_ZSO_URL="${NEXT_PUBLIC_ZSO_URL:-http://127.0.0.1:9088}"
 export ZENSTREAM_PORT="$port"
 
-docker compose --project-name "$project_name" up --build --detach zenstream
+case "${1:-}" in
+  --prebuilt)
+    : "${ZENSTREAM_IMAGE:?Set ZENSTREAM_IMAGE to the locally built image}"
+    docker compose --project-name "$project_name" up --no-build --pull never --detach zenstream
+    ;;
+  "")
+    docker compose --project-name "$project_name" up --build --detach zenstream
+    ;;
+  *)
+    echo "Usage: $0 [--prebuilt]" >&2
+    exit 2
+    ;;
+esac
 
 deadline=$((SECONDS + 120))
 while (( SECONDS < deadline )); do

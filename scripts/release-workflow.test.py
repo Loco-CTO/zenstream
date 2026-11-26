@@ -76,6 +76,15 @@ class CandidateFirstWorkflowTest(unittest.TestCase):
         self.assertRegex(arm64, r"(?m)^    runs-on: ubuntu-24\.04-arm$")
         self.assertNotIn("docker/setup-qemu-action@", arm64)
 
+    def test_release_compose_smokes_the_image_that_will_be_published(self) -> None:
+        workflow = RELEASE.read_text(encoding="utf-8")
+        amd64 = job_block(workflow, "image-amd64")
+        self.assertIn("release_image_runs_compose_smoke: true", job_block(workflow, "validate"))
+        self.assertIn("tags: zenstream:amd64", amd64)
+        self.assertIn("ZENSTREAM_IMAGE: zenstream:amd64", amd64)
+        self.assertLess(amd64.index("smoke-docker.sh --prebuilt"), amd64.index("docker save"))
+        self.assertIn("image-amd64", job_block(workflow, "publish").splitlines()[0])
+
     def test_candidate_ref_cleanup_receives_candidate_ref(self) -> None:
         workflow = RELEASE.read_text(encoding="utf-8")
         promote = job_block(workflow, "promote")

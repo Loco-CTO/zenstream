@@ -18,7 +18,7 @@ import {
 	Volume2,
 	VolumeX,
 } from "lucide-react";
-import { type ReactNode } from "react";
+import { type KeyboardEvent, type ReactNode } from "react";
 import { useAudioPlayer } from "@/components/audio/audio-player-provider";
 import { seriesPosterImage, type MediaItem } from "@/lib/media-api";
 import {
@@ -30,6 +30,65 @@ import { AudioLyricsOverlay } from "@/components/audio/audio-lyrics-overlay";
 import { formatTrackArtists } from "@/lib/music";
 
 type AudioPlayer = ReturnType<typeof useAudioPlayer>;
+
+/** Handles keyboard shortcuts while focus is within the audio player bar. */
+function handleAudioPlayerKeyDown(
+	event: KeyboardEvent<HTMLDivElement>,
+	player: AudioPlayer,
+) {
+	const target = event.target instanceof Element ? event.target : null;
+	if (!target || event.ctrlKey || event.metaKey || event.altKey) return;
+	if (target.closest("input, textarea, select, [contenteditable='true']")) return;
+
+	const key = event.key;
+	const lowerKey = key.toLowerCase();
+	const isNextTrackShortcut = event.shiftKey && lowerKey === "n";
+	const isPreviousTrackShortcut = event.shiftKey && lowerKey === "p";
+	if (event.shiftKey && !isNextTrackShortcut && !isPreviousTrackShortcut) return;
+
+	const repeatableKeys = [
+		"ArrowLeft",
+		"ArrowRight",
+		"ArrowUp",
+		"ArrowDown",
+		"j",
+		"J",
+		"l",
+		"L",
+	];
+	if (event.repeat && !repeatableKeys.includes(key)) return;
+	if (key === " " && target.closest("button, a")) return;
+
+	if (isPreviousTrackShortcut || isNextTrackShortcut) {
+		if (!player.currentTrack || player.isLoading || player.queue.length <= 1) return;
+		event.preventDefault();
+		if (isPreviousTrackShortcut) player.playPrevious();
+		else player.playNext();
+	} else if (key === " " || (!event.shiftKey && lowerKey === "k")) {
+		if (!player.currentTrack || player.isLoading) return;
+		event.preventDefault();
+		if (player.autoplayBlocked) player.resume();
+		else player.togglePlay();
+	} else if (key === "ArrowLeft" || (!event.shiftKey && lowerKey === "j")) {
+		const duration = player.durationSeconds || player.currentTrack?.DurationSeconds || 0;
+		if (!player.currentTrack || player.isLoading || duration <= 0) return;
+		event.preventDefault();
+		player.seek(Math.max(0, player.positionSeconds - 10));
+	} else if (key === "ArrowRight" || (!event.shiftKey && lowerKey === "l")) {
+		const duration = player.durationSeconds || player.currentTrack?.DurationSeconds || 0;
+		if (!player.currentTrack || player.isLoading || duration <= 0) return;
+		event.preventDefault();
+		player.seek(Math.min(duration, player.positionSeconds + 10));
+	} else if (key === "ArrowUp" || key === "ArrowDown") {
+		event.preventDefault();
+		const direction = key === "ArrowUp" ? 1 : -1;
+		if (!player.muted || direction > 0)
+			player.setVolume((player.muted ? 0 : player.volume) + direction * 0.05);
+	} else if (!event.shiftKey && lowerKey === "m") {
+		event.preventDefault();
+		player.toggleMuted();
+	}
+}
 
 type TransportLabels = {
 	shuffle: string;
@@ -105,6 +164,7 @@ export function AudioPlayerBar() {
 
 			<div
 				data-testid="audio-player-bar"
+				onKeyDown={(event) => handleAudioPlayerKeyDown(event, player)}
 				className="zenstream-audio-player-bar fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[75] h-[5.75rem] overflow-visible border-t border-white/5 bg-[#090909]/[0.98] px-2 backdrop-blur-2xl md:bottom-0 md:h-20 md:px-4"
 			>
 				<div className="relative hidden h-full min-w-0 grid-cols-[minmax(11rem,1fr)_minmax(15rem,40rem)_minmax(11rem,1fr)] items-center gap-3 md:grid lg:gap-5">
@@ -318,6 +378,7 @@ function TransportControls({
 			)}
 			<IconButton
 				label={labels.previous}
+				ariaKeyShortcuts="Shift+P"
 				onClick={player.playPrevious}
 				disabled={disabled || player.queue.length <= 1}
 				compact={compact}
@@ -326,6 +387,7 @@ function TransportControls({
 			</IconButton>
 			<IconButton
 				label={playLabel}
+				ariaKeyShortcuts="Space K"
 				onClick={player.autoplayBlocked ? player.resume : player.togglePlay}
 				primary
 				disabled={disabled}
@@ -341,6 +403,7 @@ function TransportControls({
 			</IconButton>
 			<IconButton
 				label={labels.next}
+				ariaKeyShortcuts="Shift+N"
 				onClick={player.playNext}
 				disabled={disabled || player.queue.length <= 1}
 				compact={compact}
@@ -486,6 +549,7 @@ function ActionControls({
 			<div className="flex shrink-0 items-center gap-1">
 				<IconButton
 					label={player.muted ? labels.unmute : labels.mute}
+					ariaKeyShortcuts="M"
 					onClick={player.toggleMuted}
 					compact={compact}
 				>
@@ -512,6 +576,7 @@ function ActionControls({
 
 function IconButton({
 	label,
+	ariaKeyShortcuts,
 	onClick,
 	children,
 	primary = false,
@@ -520,6 +585,7 @@ function IconButton({
 	compact = false,
 }: {
 	label: string;
+	ariaKeyShortcuts?: string;
 	onClick: () => void;
 	children: ReactNode;
 	primary?: boolean;
@@ -531,6 +597,7 @@ function IconButton({
 		<button
 			type="button"
 			aria-label={label}
+			aria-keyshortcuts={ariaKeyShortcuts}
 			aria-pressed={pressed || undefined}
 			onClick={onClick}
 			disabled={disabled}

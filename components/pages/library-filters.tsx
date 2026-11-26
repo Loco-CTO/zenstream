@@ -63,11 +63,7 @@ export function LibraryFilters({
 
 	function toggleFilter(
 		field:
-			| "genres"
-			| "officialRatings"
-			| "artists"
-			| "albumArtists"
-			| "albumTypes",
+			"genres" | "officialRatings" | "artists" | "albumArtists" | "albumTypes",
 		option: string,
 	) {
 		setDraft((current) => {
@@ -94,9 +90,7 @@ export function LibraryFilters({
 					? Math.min(yearFrom, yearTo)
 					: yearFrom,
 			yearTo:
-				yearFrom !== null && yearTo !== null
-					? Math.max(yearFrom, yearTo)
-					: yearTo,
+				yearFrom !== null && yearTo !== null ? Math.max(yearFrom, yearTo) : yearTo,
 			watchState: next.watchState,
 			favoritesOnly: next.favoritesOnly,
 			artists: [...next.artists].sort((left, right) => left.localeCompare(right)),
@@ -212,9 +206,7 @@ export function LibraryFilters({
 									onChange={(event) =>
 										setDraft((current) => ({
 											...current,
-											yearFrom: event.target.value
-												? Number(event.target.value)
-												: null,
+											yearFrom: event.target.value ? Number(event.target.value) : null,
 										}))
 									}
 									className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] px-2 text-xs text-white outline-none focus:border-white/25"
@@ -230,9 +222,7 @@ export function LibraryFilters({
 									onChange={(event) =>
 										setDraft((current) => ({
 											...current,
-											yearTo: event.target.value
-												? Number(event.target.value)
-												: null,
+											yearTo: event.target.value ? Number(event.target.value) : null,
 										}))
 									}
 									className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] px-2 text-xs text-white outline-none focus:border-white/25"
@@ -247,11 +237,13 @@ export function LibraryFilters({
 								{t("filterWatchState")}
 							</h2>
 							<div className="flex flex-wrap gap-2">
-								{([
-									{ value: null, label: t("filterAny") },
-									{ value: "watched", label: t("filterWatched") },
-									{ value: "unwatched", label: t("filterUnwatched") },
-								] as const).map((option) => (
+								{(
+									[
+										{ value: null, label: t("filterAny") },
+										{ value: "watched", label: t("filterWatched") },
+										{ value: "unwatched", label: t("filterUnwatched") },
+									] as const
+								).map((option) => (
 									<button
 										key={option.label}
 										type="button"
@@ -264,8 +256,8 @@ export function LibraryFilters({
 										}
 										className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
 											draft.watchState === option.value
-											? "border-white/25 bg-white/[.08] text-white"
-											: "border-white/10 text-white/55 hover:text-white"
+												? "border-white/25 bg-white/[.08] text-white"
+												: "border-white/10 text-white/55 hover:text-white"
 										}`}
 									>
 										{option.label}

@@ -1193,9 +1193,7 @@ export async function getLibraryItems(
 		options.yearTo ?? null,
 		options.watchState ?? null,
 		Boolean(options.favoritesOnly),
-		[...(options.artists ?? [])].sort((left, right) =>
-			left.localeCompare(right),
-		),
+		[...(options.artists ?? [])].sort((left, right) => left.localeCompare(right)),
 		[...(options.albumArtists ?? [])].sort((left, right) =>
 			left.localeCompare(right),
 		),

@@ -286,7 +286,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			if (applicableFilters.watchState)
 				params.set("watchState", applicableFilters.watchState);
 			if (applicableFilters.favoritesOnly) params.set("favoritesOnly", "true");
-			for (const artist of applicableFilters.artists) params.append("artist", artist);
+			for (const artist of applicableFilters.artists)
+				params.append("artist", artist);
 			for (const artist of applicableFilters.albumArtists)
 				params.append("albumArtist", artist);
 			for (const albumType of applicableFilters.albumTypes)

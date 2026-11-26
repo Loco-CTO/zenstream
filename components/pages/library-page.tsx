@@ -18,12 +18,15 @@ import {
 	MediaPlaceholder,
 } from "@/components/ui/blurhash-image";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
+import { LibraryFilters } from "@/components/pages/library-filters";
 import {
 	getLibraryItems,
 	getLibraryViews,
 	landscapeImage,
 	posterImage,
 	type LibrarySortBy,
+	type CatalogFilterOptions,
+	type CatalogFilters,
 	type LibraryView,
 	type MediaItem,
 } from "@/lib/media-api";
@@ -33,6 +36,37 @@ import { useSortPreference } from "@/lib/sort-preferences";
 import { progressPercent } from "@/lib/media";
 
 const PAGE_SIZE = 40;
+const FILTER_QUERY_KEYS = [
+	"genre",
+	"officialRating",
+	"yearFrom",
+	"yearTo",
+	"watchState",
+	"favoritesOnly",
+	"artist",
+	"albumArtist",
+	"albumType",
+] as const;
+
+function parseFilterYear(value: string | null) {
+	if (!value?.trim()) return null;
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function emptyCatalogFilters(): CatalogFilters {
+	return {
+		genres: [],
+		officialRatings: [],
+		yearFrom: null,
+		yearTo: null,
+		watchState: null,
+		favoritesOnly: false,
+		artists: [],
+		albumArtists: [],
+		albumTypes: [],
+	};
+}
 const CARD_MIN_WIDTH = 200;
 const MOBILE_CARD_MIN_WIDTH = 132;
 const MUSIC_CARD_MIN_WIDTH = 184;
@@ -105,10 +139,112 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const queryLibraryId = searchParams.get("libraryId") ?? "";
 	const querySortBy = searchParams.get("sortBy") as LibrarySortBy | null;
 	const querySortOrder = searchParams.get("sortOrder");
-	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
-
+	const queryGenresKey = JSON.stringify(
+		searchParams
+			.getAll("genre")
+			.filter(Boolean)
+			.sort((left, right) => left.localeCompare(right)),
+	);
+	const queryRatingsKey = JSON.stringify(
+		searchParams
+			.getAll("officialRating")
+			.filter(Boolean)
+			.sort((left, right) => left.localeCompare(right)),
+	);
+	const queryArtistsKey = JSON.stringify(
+		searchParams
+			.getAll("artist")
+			.filter(Boolean)
+			.sort((left, right) => left.localeCompare(right)),
+	);
+	const queryAlbumArtistsKey = JSON.stringify(
+		searchParams
+			.getAll("albumArtist")
+			.filter(Boolean)
+			.sort((left, right) => left.localeCompare(right)),
+	);
+	const queryAlbumTypesKey = JSON.stringify(
+		searchParams
+			.getAll("albumType")
+			.filter(Boolean)
+			.sort((left, right) => left.localeCompare(right)),
+	);
 	const activeLibrary = libraries.find((library) => library.Id === libraryId);
 	const isMusicLibrary = activeLibrary?.CollectionType === "music";
+	const selectedGenres = useMemo(
+		() => JSON.parse(queryGenresKey) as string[],
+		[queryGenresKey],
+	);
+	const selectedOfficialRatings = useMemo(
+		() => JSON.parse(queryRatingsKey) as string[],
+		[queryRatingsKey],
+	);
+	const selectedArtists = useMemo(
+		() => JSON.parse(queryArtistsKey) as string[],
+		[queryArtistsKey],
+	);
+	const selectedAlbumArtists = useMemo(
+		() => JSON.parse(queryAlbumArtistsKey) as string[],
+		[queryAlbumArtistsKey],
+	);
+	const selectedAlbumTypes = useMemo(
+		() => JSON.parse(queryAlbumTypesKey) as string[],
+		[queryAlbumTypesKey],
+	);
+	const selectedYearFrom = parseFilterYear(searchParams.get("yearFrom"));
+	const selectedYearTo = parseFilterYear(searchParams.get("yearTo"));
+	const watchStateParam = searchParams.get("watchState");
+	const selectedWatchState =
+		watchStateParam === "watched" || watchStateParam === "unwatched"
+			? watchStateParam
+			: null;
+	const selectedFavoritesOnly = searchParams.get("favoritesOnly") === "true";
+	const selectedFilters = useMemo<CatalogFilters>(
+		() => ({
+			genres: selectedGenres,
+			officialRatings: isMusicLibrary ? [] : selectedOfficialRatings,
+			yearFrom: selectedYearFrom,
+			yearTo: selectedYearTo,
+			watchState: isMusicLibrary ? null : selectedWatchState,
+			favoritesOnly: selectedFavoritesOnly,
+			artists: isMusicLibrary ? selectedArtists : [],
+			albumArtists: isMusicLibrary ? selectedAlbumArtists : [],
+			albumTypes: isMusicLibrary ? selectedAlbumTypes : [],
+		}),
+		[
+			isMusicLibrary,
+			selectedGenres,
+			selectedOfficialRatings,
+			selectedYearFrom,
+			selectedYearTo,
+			selectedWatchState,
+			selectedFavoritesOnly,
+			selectedArtists,
+			selectedAlbumArtists,
+			selectedAlbumTypes,
+		],
+	);
+	const queryFilterKey = JSON.stringify(selectedFilters);
+	const hasActiveFilters =
+		selectedFilters.genres.length > 0 ||
+		selectedFilters.officialRatings.length > 0 ||
+		selectedFilters.yearFrom !== null ||
+		selectedFilters.yearTo !== null ||
+		selectedFilters.watchState !== null ||
+		selectedFilters.favoritesOnly ||
+		selectedFilters.artists.length > 0 ||
+		selectedFilters.albumArtists.length > 0 ||
+		selectedFilters.albumTypes.length > 0;
+	const validQuerySort = SORTS.some((item) => item.value === querySortBy);
+	const [filterOptionsState, setFilterOptions] = useState<{
+		libraryId: string;
+		options: CatalogFilterOptions | null;
+	} | null>(null);
+	const filterOptions =
+		filterOptionsState && filterOptionsState.libraryId === activeLibrary?.Id
+			? filterOptionsState.options
+			: null;
+
 	const supportsLastAdded =
 		activeLibrary?.SupportsLastAdded ??
 		activeLibrary?.CollectionType !== "movies";
@@ -125,6 +261,52 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		[isMusicLibrary, supportsLastAdded],
 	);
 	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
+	const replaceQuery = useCallback(
+		(params: URLSearchParams) => {
+			const nextUrl = `/library?${params.toString()}`;
+			if (window.location.pathname + window.location.search === nextUrl) return;
+			if (typeof router.replace === "function") router.replace(nextUrl);
+			else window.history.replaceState(null, "", nextUrl);
+		},
+		[router],
+	);
+	const applyFilters = useCallback(
+		(filters: CatalogFilters) => {
+			const applicableFilters = isMusicLibrary
+				? { ...filters, officialRatings: [], watchState: null }
+				: { ...filters, artists: [], albumArtists: [], albumTypes: [] };
+			const params = new URLSearchParams(window.location.search);
+			for (const key of FILTER_QUERY_KEYS) params.delete(key);
+			for (const genre of applicableFilters.genres) params.append("genre", genre);
+			for (const rating of applicableFilters.officialRatings)
+				params.append("officialRating", rating);
+			if (applicableFilters.yearFrom !== null)
+				params.set("yearFrom", String(applicableFilters.yearFrom));
+			if (applicableFilters.yearTo !== null)
+				params.set("yearTo", String(applicableFilters.yearTo));
+			if (applicableFilters.watchState)
+				params.set("watchState", applicableFilters.watchState);
+			if (applicableFilters.favoritesOnly) params.set("favoritesOnly", "true");
+			for (const artist of applicableFilters.artists)
+				params.append("artist", artist);
+			for (const artist of applicableFilters.albumArtists)
+				params.append("albumArtist", artist);
+			for (const albumType of applicableFilters.albumTypes)
+				params.append("albumType", albumType);
+			replaceQuery(params);
+		},
+		[isMusicLibrary, replaceQuery],
+	);
+	const selectLibrary = useCallback(
+		(nextLibraryId: string) => {
+			setLibraryId(nextLibraryId);
+			const params = new URLSearchParams(window.location.search);
+			params.set("libraryId", nextLibraryId);
+			for (const key of FILTER_QUERY_KEYS) params.delete(key);
+			replaceQuery(params);
+		},
+		[replaceQuery],
+	);
 
 	const loadLibraries = useCallback(async () => {
 		const isInitialLoad = loadedLibraryUserIdRef.current !== session.userId;
@@ -219,18 +401,11 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 			}
 			return;
 		}
-		const params = new URLSearchParams();
+		const params = new URLSearchParams(searchParams.toString());
 		params.set("libraryId", activeLibrary.Id);
 		params.set("sortBy", selectedSort);
 		params.set("sortOrder", sortOrder.toLowerCase());
-		const nextUrl = `/library?${params.toString()}`;
-		if (window.location.pathname + window.location.search !== nextUrl) {
-			if (typeof router.replace === "function") {
-				router.replace(nextUrl);
-			} else {
-				window.history.replaceState(null, "", nextUrl);
-			}
-		}
+		replaceQuery(params);
 	}, [
 		activeLibrary,
 		availableSorts,
@@ -240,7 +415,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		querySortBy,
 		querySortOrder,
 		validQuerySort,
-		router,
+		replaceQuery,
+		searchParams,
 		setSort,
 		sortBy,
 		sortOrder,
@@ -263,7 +439,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	const loadFirstPage = useCallback(
 		async (force = false) => {
 			if (!activeLibrary) return;
-			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}`;
+			const queryKey = `${activeLibrary.Id}:${sortBy}:${sortOrder}:${queryFilterKey}`;
 			const preserveCurrentItems = force && loadedQueryRef.current === queryKey;
 			if (!force && loadedQueryRef.current === queryKey) return;
 			const requestGeneration = ++itemRequestGenerationRef.current;
@@ -308,6 +484,8 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					limit: PAGE_SIZE,
 					sortBy,
 					sortOrder,
+					...selectedFilters,
+					includeFilterOptions: true,
 					signal: controller.signal,
 				});
 				if (
@@ -328,6 +506,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					setLoadedCount(page.items.length);
 				}
 				setTotal(page.totalRecordCount);
+				setFilterOptions({
+					libraryId: activeLibrary.Id,
+					options: page.filterOptions ?? null,
+				});
 				loadMoreBlockedRef.current = false;
 				setLoadMoreError(null);
 				loadedQueryRef.current = queryKey;
@@ -356,7 +538,16 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				finish();
 			}
 		},
-		[activeLibrary, session, sortBy, sortOrder, start, t],
+		[
+			activeLibrary,
+			queryFilterKey,
+			selectedFilters,
+			session,
+			sortBy,
+			sortOrder,
+			start,
+			t,
+		],
 	);
 
 	useEffect(() => {
@@ -370,7 +561,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		loadingMoreRef.current = false;
 		loadMoreBlockedRef.current = true;
 		requestedOffsetsRef.current.clear();
-	}, [activeLibrary?.Id, sortBy, sortOrder]);
+	}, [activeLibrary?.Id, queryFilterKey, selectedFilters, sortBy, sortOrder]);
 
 	useEffect(() => {
 		// A library or sort change replaces the current result set.
@@ -427,6 +618,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				limit: PAGE_SIZE,
 				sortBy,
 				sortOrder,
+				...selectedFilters,
 				signal: controller.signal,
 			});
 			if (
@@ -480,6 +672,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		}
 	}, [
 		activeLibrary,
+		selectedFilters,
 		loadedCount,
 		loading,
 		session,
@@ -512,7 +705,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					<button
 						key={library.Id}
 						type="button"
-						onClick={() => setLibraryId(library.Id)}
+						onClick={() => selectLibrary(library.Id)}
 						className={`shrink-0 rounded-lg px-5 py-2 text-sm font-semibold transition ${
 							library.Id === libraryId
 								? "bg-white/10 text-white shadow-lg shadow-black/30"
@@ -534,6 +727,21 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					</p>
 				</div>
 				<div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+					<LibraryFilters
+						options={
+							filterOptions ?? {
+								genres: [],
+								officialRatings: [],
+								artists: [],
+								albumArtists: [],
+								albumTypes: [],
+							}
+						}
+						value={selectedFilters}
+						isMusicLibrary={isMusicLibrary}
+						onApply={applyFilters}
+						disabled={!activeLibrary || filterOptions === null}
+					/>
 					<button
 						type="button"
 						aria-label={
@@ -575,6 +783,20 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 				/>
 			) : !loading && libraries.length === 0 ? (
 				<EmptyState title={t("noLibraries")} detail={t("noLibrariesHint")} />
+			) : !loading && items.length === 0 && hasActiveFilters ? (
+				<div className="flex flex-col items-center gap-3 py-16 text-center">
+					<EmptyState
+						title={t("filterNoResults")}
+						detail={t("filterNoResultsHint")}
+					/>
+					<button
+						type="button"
+						onClick={() => applyFilters(emptyCatalogFilters())}
+						className="rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+					>
+						{t("clearFilters")}
+					</button>
+				</div>
 			) : !loading && items.length === 0 ? (
 				<EmptyState
 					title={isMusicLibrary ? t("audioEmpty") : t("emptyLibrary")}

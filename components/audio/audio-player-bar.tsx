@@ -38,7 +38,8 @@ function handleAudioPlayerKeyDown(
 ) {
 	const target = event.target instanceof Element ? event.target : null;
 	if (!target || event.ctrlKey || event.metaKey || event.altKey) return;
-	if (target.closest("input, textarea, select, [contenteditable='true']")) return;
+	if (target.closest("input, textarea, select, [contenteditable='true']"))
+		return;
 
 	const key = event.key;
 	const lowerKey = key.toLowerCase();
@@ -60,7 +61,8 @@ function handleAudioPlayerKeyDown(
 	if (key === " " && target.closest("button, a")) return;
 
 	if (isPreviousTrackShortcut || isNextTrackShortcut) {
-		if (!player.currentTrack || player.isLoading || player.queue.length <= 1) return;
+		if (!player.currentTrack || player.isLoading || player.queue.length <= 1)
+			return;
 		event.preventDefault();
 		if (isPreviousTrackShortcut) player.playPrevious();
 		else player.playNext();
@@ -70,12 +72,14 @@ function handleAudioPlayerKeyDown(
 		if (player.autoplayBlocked) player.resume();
 		else player.togglePlay();
 	} else if (key === "ArrowLeft" || (!event.shiftKey && lowerKey === "j")) {
-		const duration = player.durationSeconds || player.currentTrack?.DurationSeconds || 0;
+		const duration =
+			player.durationSeconds || player.currentTrack?.DurationSeconds || 0;
 		if (!player.currentTrack || player.isLoading || duration <= 0) return;
 		event.preventDefault();
 		player.seek(Math.max(0, player.positionSeconds - 10));
 	} else if (key === "ArrowRight" || (!event.shiftKey && lowerKey === "l")) {
-		const duration = player.durationSeconds || player.currentTrack?.DurationSeconds || 0;
+		const duration =
+			player.durationSeconds || player.currentTrack?.DurationSeconds || 0;
 		if (!player.currentTrack || player.isLoading || duration <= 0) return;
 		event.preventDefault();
 		player.seek(Math.min(duration, player.positionSeconds + 10));

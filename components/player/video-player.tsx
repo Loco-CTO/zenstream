@@ -4090,6 +4090,7 @@ export function VideoPlayer({
 					<div className="zenstream-mini-controls pointer-events-none absolute inset-0 bg-black/55 opacity-0 transition-opacity duration-150">
 						<button
 							aria-label={t("expandPlayer")}
+							aria-keyshortcuts="F"
 							data-tooltip={t("expandPlayer")}
 							onClick={onExpand}
 							className="pointer-events-auto absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/20 focus-visible:bg-white/20"
@@ -4106,6 +4107,7 @@ export function VideoPlayer({
 						</button>
 						<button
 							aria-label={playing ? "Pause" : "Play"}
+							aria-keyshortcuts="Space K"
 							onClick={togglePlay}
 							disabled={Boolean(syncplay.active && !syncplay.canControl)}
 							className="pointer-events-auto absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/20 focus-visible:bg-white/20"

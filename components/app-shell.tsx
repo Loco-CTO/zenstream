@@ -219,7 +219,10 @@ export function AppShell() {
 	const [audioAlbumData, setAudioAlbumData] = useState<AudioAlbumData | null>(
 		null,
 	);
-	const [artistData, setArtistData] = useState<ArtistData | null>(null);
+	const [artistRoute, setArtistRoute] = useState<{
+		requestedId: string;
+		data: ArtistData;
+	} | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
 	const [errorPathname, setErrorPathname] = useState<string | null>(null);
@@ -637,7 +640,7 @@ export function AppShell() {
 				setStatus("loading");
 				setError(null);
 				setAudioAlbumData(null);
-				setArtistData(null);
+				setArtistRoute(null);
 			}
 			try {
 				void primeArtworkTicket(nextSession);
@@ -694,7 +697,7 @@ export function AppShell() {
 				setStatus("loading");
 				setError(null);
 				setAudioAlbumData(null);
-				setArtistData(null);
+				setArtistRoute(null);
 			}
 			try {
 				void primeArtworkTicket(nextSession);
@@ -705,7 +708,7 @@ export function AppShell() {
 					controller.signal,
 				);
 				if (isCurrent()) {
-					setArtistData(data);
+					setArtistRoute({ requestedId: requestedArtistId, data });
 					if (!preserveCurrent) setStatus("ready");
 				}
 			} catch (loadError) {
@@ -1316,9 +1319,9 @@ export function AppShell() {
 													<AudioAlbumPage data={audioAlbumData} session={session} />
 												)}
 											{renderStatus === "ready" &&
-												artistData &&
-												artistId === artistData.artist.Id && (
-													<ArtistPage data={artistData} session={session} />
+												artistRoute &&
+												artistId === artistRoute.requestedId && (
+													<ArtistPage data={artistRoute.data} session={session} />
 												)}
 											{pathname === "/library" && <LibraryPage session={session} />}
 											{pathname === "/favorites" && (

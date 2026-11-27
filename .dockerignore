@@ -3,6 +3,9 @@ node_modules
 out
 dist
 coverage
+_contracts
+bin/deepsource
+public/sw.js
 .env*
 *.log
 *.tsbuildinfo

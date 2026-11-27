@@ -30,6 +30,7 @@ This repository owns the ZenStream browser client. The Orchestrator owns catalog
 - `pnpm lint` — run ESLint.
 - `pnpm test` — run Vitest.
 - `pnpm build` — build the Next.js application.
+- Pull request CI runs the production Docker Compose smoke against its local CI image. The release workflow runs the same smoke against the exact amd64 image it publishes.
 
 ## Documentation conventions
 

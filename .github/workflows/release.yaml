@@ -48,11 +48,13 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
           version: 11.10.0
+          cache: true
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -209,6 +211,7 @@ jobs:
     with:
       candidate_sha: ${{ needs.candidate.outputs.sha }}
       skip_coverage_upload: true
+      release_image_runs_compose_smoke: true
 
   image-amd64:
     needs: candidate
@@ -223,15 +226,25 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build amd64 release image
+        uses: docker/build-push-action@v7
         env:
-          ARCH: amd64
-          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
-          VERSION: ${{ needs.candidate.outputs.version }}
-        run: |
-          docker buildx build --platform linux/amd64 --load \
-            --label "org.opencontainers.image.revision=$CANDIDATE_SHA" \
-            --label "org.opencontainers.image.version=$VERSION" \
-            --tag "zenstream:$ARCH" .
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: zenstream:amd64
+          labels: |
+            org.opencontainers.image.revision=${{ needs.candidate.outputs.sha }}
+            org.opencontainers.image.version=${{ needs.candidate.outputs.version }}
+          cache-from: type=gha,scope=web-amd64
+          cache-to: type=gha,scope=web-amd64,mode=max,ignore-error=true
+
+      - name: Smoke-test amd64 Docker Compose deployment
+        env:
+          ZENSTREAM_IMAGE: zenstream:amd64
+          ZENSTREAM_ORCHESTRATOR_URL: http://127.0.0.1:9088
+        run: bash scripts/smoke-docker.sh --prebuilt
 
       - name: Smoke-test amd64 runtime configuration
         env:
@@ -261,14 +274,19 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build arm64 release image
+        uses: docker/build-push-action@v7
         env:
-          CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
-          VERSION: ${{ needs.candidate.outputs.version }}
-        run: |
-          docker buildx build --platform linux/arm64 --load \
-            --label "org.opencontainers.image.revision=$CANDIDATE_SHA" \
-            --label "org.opencontainers.image.version=$VERSION" \
-            --tag zenstream:arm64 .
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          tags: zenstream:arm64
+          labels: |
+            org.opencontainers.image.revision=${{ needs.candidate.outputs.sha }}
+            org.opencontainers.image.version=${{ needs.candidate.outputs.version }}
+          cache-from: type=gha,scope=web-arm64
+          cache-to: type=gha,scope=web-arm64,mode=max,ignore-error=true
 
       - name: Smoke-test arm64 runtime configuration
         env:

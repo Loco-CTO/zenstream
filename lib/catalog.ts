@@ -29,6 +29,7 @@ export type CatalogItem = {
 	seasonId?: string | null;
 	albumId?: string | null;
 	artistId?: string | null;
+	artistCredits?: Array<Record<string, unknown>>;
 	type: "movie" | "series" | "season" | "episode" | "collection" | string;
 	name: string;
 	seasonNumber?: number | null;
@@ -224,10 +225,12 @@ export function toMediaItem(item: CatalogItem): MediaItem {
 	const productionYear = metadataYear(item.metadata.year, releaseDate);
 	const audioArtists =
 		item.metadata.artists ?? item.metadata.contributingArtists;
-	const artistCredits = musicArtistCredits(
-		item.metadata.artists,
-		item.metadata.contributingArtists,
-	);
+	const artistCredits = item.artistCredits
+		? musicArtistCredits(item.artistCredits)
+		: musicArtistCredits(
+				item.metadata.artists,
+				item.metadata.contributingArtists,
+			);
 	const albumId = item.albumId ?? item.metadata.albumId;
 	const durationSeconds =
 		typeof item.durationSeconds === "number"

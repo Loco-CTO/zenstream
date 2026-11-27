@@ -76,10 +76,10 @@ function albumData(name: string) {
 	};
 }
 
-function artistData(name: string) {
+function artistData(name: string, id = "artist-1") {
 	return {
 		artist: {
-			Id: "artist-1",
+			Id: id,
 			Name: name,
 			Type: "MusicArtist",
 		} as MediaItem,
@@ -200,5 +200,39 @@ describe("audio album route refreshes", () => {
 				"Artist after scan",
 			),
 		);
+	});
+
+	it("renders an artist alias and clears its content when opening another artist", async () => {
+		navigation.pathname = "/artist/musicbrainz-credit-id";
+		const nextArtist = deferred<ReturnType<typeof artistData>>();
+		const fetchArtist = vi
+			.spyOn(mediaApi, "fetchArtistData")
+			.mockResolvedValueOnce(artistData("Artist from credit"))
+			.mockReturnValueOnce(nextArtist.promise);
+		const { rerender } = render(
+			<ProgressProvider>
+				<AppShell />
+			</ProgressProvider>,
+		);
+		expect(await screen.findByTestId("artist-page")).toHaveTextContent(
+			"Artist from credit",
+		);
+		expect(fetchArtist).toHaveBeenCalledWith(
+			expect.anything(),
+			"musicbrainz-credit-id",
+			expect.any(AbortSignal),
+		);
+
+		navigation.pathname = "/artist/another-artist";
+		rerender(
+			<ProgressProvider>
+				<AppShell />
+			</ProgressProvider>,
+		);
+		expect(screen.queryByTestId("artist-page")).toBeNull();
+		await act(async () =>
+			nextArtist.resolve(artistData("Another artist", "another-artist")),
+		);
+		expect(screen.getByTestId("artist-page")).toHaveTextContent("Another artist");
 	});
 });

@@ -321,9 +321,16 @@ describe("audio artist requests", () => {
 							libraryId: "music-library",
 							type: "track",
 							name: "Track 1",
+							artistCredits: [
+								{ id: "artist-expanded", name: "Featured Artist" },
+								{ name: "Unindexed Artist" },
+							],
 							metadata: {
 								title: "Track 1",
-								artists: [{ id: "artist-expanded", name: "Featured Artist" }],
+								artists: [
+									{ id: "mb-featured", name: "Featured Artist" },
+									{ id: "mb-unindexed", name: "Unindexed Artist" },
+								],
 							},
 						},
 					],
@@ -359,7 +366,10 @@ describe("audio artist requests", () => {
 				{
 					Id: "track-1",
 					Type: "Audio",
-					ArtistCredits: [{ Id: "artist-expanded", Name: "Featured Artist" }],
+					ArtistCredits: [
+						{ Id: "artist-expanded", Name: "Featured Artist" },
+						{ Name: "Unindexed Artist" },
+					],
 				},
 			],
 			appearsIn: [{ Id: "album-1", Type: "MusicAlbum" }],

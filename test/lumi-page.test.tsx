@@ -328,7 +328,7 @@ describe("LumiPage", () => {
 			name: "Arrival",
 		});
 		expect(poster).toHaveClass("h-full", "w-full", "object-cover");
-		expect(poster.parentElement).toHaveClass(
+		expect(poster.closest(".self-stretch")).toHaveClass(
 			"self-stretch",
 			"min-h-[144px]",
 			"sm:min-h-[180px]",

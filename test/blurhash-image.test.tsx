@@ -54,7 +54,10 @@ describe("BlurHashImage", () => {
 		const image = container.querySelector("img");
 		expect(image?.getAttribute("src")).toContain("w=320");
 		expect(image?.getAttribute("src")).not.toContain("av=");
-		expect(image?.getAttribute("srcset")).toContain("w=160");
+		const source = container.querySelector("picture > source");
+		expect(source).toHaveAttribute("sizes", "200px");
+		expect(source?.getAttribute("srcset")).toContain("w=160 160w");
+		expect(source?.getAttribute("srcset")).toContain("w=320 320w");
 	});
 
 	it("clips the placeholder to the artwork bounds", () => {

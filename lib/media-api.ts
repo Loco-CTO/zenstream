@@ -333,7 +333,11 @@ const clientCache = new Map<string, { expiresAt: number; value: unknown }>();
 let clientCacheExpiryTimer: number | undefined;
 const clientInFlight = new Map<
 	string,
-	{ promise: Promise<unknown>; controller: AbortController }
+	{
+		promise: Promise<unknown>;
+		controller: AbortController;
+		reusable: boolean;
+	}
 >();
 const heroTrailerCache = new Map<string, Promise<HeroTrailer | null>>();
 
@@ -386,24 +390,30 @@ function combinedSignal(
 	return AbortSignal.any([external, internal]);
 }
 
+function readClientCache<T>(key: string): T | undefined {
+	const cached = clientCache.get(key);
+	if (!cached) return;
+	clientCache.delete(key);
+	if (cached.expiresAt <= Date.now()) {
+		scheduleClientCacheExpiry();
+		return;
+	}
+	clientCache.set(key, cached);
+	return cached.value as T;
+}
+
 async function cachedClientRequest<T>(
 	key: string,
 	loader: (signal: AbortSignal) => Promise<T>,
 	ttl = LIST_CACHE_TTL_MS,
 	reuseInFlight = true,
+	joinPrefetch = false,
 ): Promise<T> {
-	const cached = clientCache.get(key);
-	if (cached && cached.expiresAt > Date.now()) {
-		clientCache.delete(key);
-		clientCache.set(key, cached);
-		return cached.value as T;
-	}
-	if (cached) {
-		clientCache.delete(key);
-		scheduleClientCacheExpiry();
-	}
+	const cached = readClientCache<T>(key);
+	if (cached !== undefined) return cached;
 	const pending = clientInFlight.get(key);
-	if (reuseInFlight && pending) return pending.promise as Promise<T>;
+	if (pending && (reuseInFlight || (joinPrefetch && pending.reusable)))
+		return pending.promise as Promise<T>;
 	if (pending) pending.controller.abort();
 	const controller = new AbortController();
 	const request = Promise.resolve()
@@ -419,7 +429,11 @@ async function cachedClientRequest<T>(
 			clientInFlight.delete(key);
 		}
 	});
-	clientInFlight.set(key, { promise: trackedRequest, controller });
+	clientInFlight.set(key, {
+		promise: trackedRequest,
+		controller,
+		reusable: reuseInFlight,
+	});
 	return trackedRequest;
 }
 
@@ -434,6 +448,7 @@ export function clearMediaClientCache(
 		if (options?.preserveHome && key.startsWith("home:")) return false;
 		if (!scope?.libraryId && !scope?.rootEntityId) return true;
 		if (/^(home|search|libraries|favorites):/.test(key)) return true;
+		if (scope.libraryId && key.startsWith("detail-header:")) return true;
 		if (scope.libraryId && key.includes(`:${scope.libraryId}:`)) return true;
 		if (
 			scope.rootEntityId &&
@@ -731,7 +746,7 @@ function resourceSessionKey(session: AuthSession | null | undefined) {
 }
 
 export function clearMediaClientSession() {
-	clearMediaClientCache();
+	clearMediaClientCache(undefined, { abortInFlight: true });
 	resourceTicket = null;
 	artworkTicket = null;
 }
@@ -1040,14 +1055,16 @@ export async function fetchHomeData(
 				});
 			};
 
-			const featured = await section<{ latestItems?: CatalogItem[] }>(
+			const featured = section<{ latestItems?: CatalogItem[] }>(
 				"featured",
 				25,
-			);
-			const latestItems = selectRandomHeroItems(
-				(featured.latestItems ?? []).map(toMediaItem),
-			);
-			onSection?.({ latestItems });
+			).then((featured) => {
+				const latestItems = selectRandomHeroItems(
+					(featured.latestItems ?? []).map(toMediaItem),
+				);
+				onSection?.({ latestItems });
+				return latestItems;
+			});
 
 			const rest = await Promise.all([
 				section<{ continueWatching?: CatalogItem[] }>("continueWatching", 18),
@@ -1068,7 +1085,9 @@ export async function fetchHomeData(
 					}>;
 				}>("derived", 18),
 				getLibraryViews(session),
+				featured,
 			]);
+			const latestItems = rest[5];
 			const continueWatching = (rest[0].continueWatching ?? []).map(toMediaItem);
 			const nextUp = (rest[1].nextUp ?? []).map(toMediaItem);
 			const recommendations = (rest[2].recommendations ?? []).map(toMediaItem);
@@ -1163,32 +1182,35 @@ export function getFavoriteItems(
 }
 
 export async function getLibraryViews(session: AuthSession) {
-	return cachedClientRequest(`libraries:${session.userId}`, async () => {
-		const result = await catalogRequest<{
-			libraries: Array<{
-				id: string;
-				name: string;
-				type: string;
-				supportsLastAdded?: boolean;
-				catalogGeneration?: number;
-			}>;
-		}>(session, "/api/catalog/libraries");
-		return result.libraries.map((library) => ({
-			Id: library.id,
-			Name: library.name,
-			Type: "CollectionFolder",
-			CollectionType:
-				library.type === "tv_series"
-					? "tvshows"
-					: library.type === "movies"
-						? "movies"
-						: library.type === "music"
-							? "music"
-							: "boxsets",
-			SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
-			CatalogGeneration: library.catalogGeneration ?? 0,
-		})) as LibraryView[];
-	});
+	return cachedClientRequest(
+		`libraries:${resourceSessionKey(session)}`,
+		async (signal) => {
+			const result = await catalogRequest<{
+				libraries: Array<{
+					id: string;
+					name: string;
+					type: string;
+					supportsLastAdded?: boolean;
+					catalogGeneration?: number;
+				}>;
+			}>(session, "/api/catalog/libraries", { signal });
+			return result.libraries.map((library) => ({
+				Id: library.id,
+				Name: library.name,
+				Type: "CollectionFolder",
+				CollectionType:
+					library.type === "tv_series"
+						? "tvshows"
+						: library.type === "movies"
+							? "movies"
+							: library.type === "music"
+								? "music"
+								: "boxsets",
+				SupportsLastAdded: library.supportsLastAdded ?? library.type !== "movies",
+				CatalogGeneration: library.catalogGeneration ?? 0,
+			})) as LibraryView[];
+		},
+	);
 }
 
 export async function getLibraryItems(
@@ -1211,6 +1233,7 @@ export async function getLibraryItems(
 		albumTypes?: string[];
 		includeFilterOptions?: boolean;
 		signal?: AbortSignal;
+		reuseLoadedPages?: boolean;
 	},
 ): Promise<LibraryPage> {
 	const limit = options.limit ?? 40;
@@ -1253,8 +1276,30 @@ export async function getLibraryItems(
 			left.localeCompare(right),
 		),
 	]);
+	const keyForOffset = (offset: number) =>
+		`library:${resourceSessionKey(session)}:${options.parentId}:${options.collectionType ?? ""}:${offset}:${limit}:${options.sortBy}:${options.sortOrder}:${filterKey}:options=${Boolean(options.includeFilterOptions)}`;
+	const key = keyForOffset(options.startIndex);
+	const first =
+		options.reuseLoadedPages && options.startIndex === 0
+			? readClientCache<LibraryPage>(key)
+			: undefined;
+	if (first && first.items.length === limit) {
+		const items = [...first.items];
+		// Rebuild the already-loaded part of this exact query in one render.
+		for (let offset = limit; offset < first.totalRecordCount; offset += limit) {
+			const following = readClientCache<LibraryPage>(keyForOffset(offset));
+			if (
+				!following ||
+				following.totalRecordCount !== first.totalRecordCount ||
+				following.items.length !== Math.min(limit, first.totalRecordCount - offset)
+			)
+				break;
+			items.push(...following.items);
+		}
+		return { ...first, items };
+	}
 	return cachedClientRequest(
-		`library:${session.userId}:${options.parentId}:${options.collectionType ?? ""}:${options.startIndex}:${limit}:${options.sortBy}:${options.sortOrder}:${filterKey}:options=${Boolean(options.includeFilterOptions)}`,
+		key,
 		async (signal) => {
 			const result = await catalogRequest<{
 				items: CatalogItem[];
@@ -1284,7 +1329,7 @@ export async function fetchAudioAlbumData(
 	requestSignal?: AbortSignal,
 ): Promise<AudioAlbumData> {
 	return cachedClientRequest(
-		`audio-album:${session.userId}:${albumId}`,
+		`audio-album:${resourceSessionKey(session)}:${albumId}`,
 		async (signal) => {
 			const result = await catalogRequest<{
 				album: CatalogItem;
@@ -1305,6 +1350,7 @@ export async function fetchAudioAlbumData(
 		},
 		DETAIL_CACHE_TTL_MS,
 		!requestSignal,
+		true,
 	);
 }
 
@@ -1314,7 +1360,7 @@ export async function fetchArtistData(
 	requestSignal?: AbortSignal,
 ): Promise<ArtistData> {
 	return cachedClientRequest(
-		`audio-artist:${session.userId}:${artistId}`,
+		`audio-artist:${resourceSessionKey(session)}:${artistId}`,
 		async (signal) => {
 			const result = await catalogRequest<{
 				artist: CatalogItem;
@@ -1341,6 +1387,7 @@ export async function fetchArtistData(
 		},
 		DETAIL_CACHE_TTL_MS,
 		!requestSignal,
+		true,
 	);
 }
 
@@ -1364,6 +1411,40 @@ export async function fetchArtistTracks(
 	);
 }
 
+function getDetailHeader(
+	session: AuthSession,
+	itemId: string,
+	seasonId?: string,
+	requestSignal?: AbortSignal,
+) {
+	const params = new URLSearchParams({ section: "header" });
+	if (seasonId) params.set("seasonId", seasonId);
+	return cachedClientRequest(
+		`detail-header:${resourceSessionKey(session)}:${itemId}:${seasonId ?? ""}`,
+		(signal) =>
+			catalogRequest<{
+				item: CatalogItem;
+				backgroundItem?: CatalogItem | null;
+				seasons: CatalogItem[];
+			}>(
+				session,
+				`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${params}`,
+				{ signal: combinedSignal(requestSignal, signal) },
+			),
+		DETAIL_CACHE_TTL_MS,
+		!requestSignal,
+		true,
+	);
+}
+
+export async function prefetchDetailHeader(
+	session: AuthSession,
+	itemId: string,
+	seasonId?: string,
+) {
+	await getDetailHeader(session, itemId, seasonId);
+}
+
 export async function fetchDetailData(
 	session: AuthSession,
 	itemId: string,
@@ -1372,20 +1453,17 @@ export async function fetchDetailData(
 	onSection?: (section: Partial<DetailData>) => void,
 ): Promise<DetailData> {
 	const data = await cachedClientRequest(
-		`detail:${session.userId}:${itemId}:${requestedSeasonId ?? ""}`,
+		`detail:${resourceSessionKey(session)}:${itemId}:${requestedSeasonId ?? ""}`,
 		async (signal) => {
-			const params = new URLSearchParams({ section: "header" });
-			if (requestedSeasonId) params.set("seasonId", requestedSeasonId);
+			const routeSignal = combinedSignal(requestSignal, signal);
 			try {
-				const header = await catalogRequest<{
-					item: CatalogItem;
-					backgroundItem?: CatalogItem | null;
-					seasons: CatalogItem[];
-				}>(
+				const header = await getDetailHeader(
 					session,
-					`/api/catalog/items/${encodeURIComponent(itemId)}/detail?${params}`,
-					{ signal: combinedSignal(requestSignal, signal) },
+					itemId,
+					requestedSeasonId,
+					routeSignal,
 				);
+				routeSignal.throwIfAborted();
 				const initial: DetailData = {
 					item: toMediaItem(header.item),
 					backgroundItem: header.backgroundItem

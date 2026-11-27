@@ -50,6 +50,8 @@ export function WideCard({
 			<div className="relative">
 				<Link
 					href={detailHref(item)}
+					prefetch={false}
+					data-prefetch-media
 					aria-label={item.Name}
 					draggable={false}
 					className="block"
@@ -107,6 +109,8 @@ export function PosterCard({
 			<div className="relative">
 				<Link
 					href={detailHref(item)}
+					prefetch={false}
+					data-prefetch-media
 					aria-label={item.Name}
 					draggable={false}
 					className="block"
@@ -155,7 +159,13 @@ export function StackedPosterCard({
 	return (
 		<article className="group/card w-[148px] shrink-0 cursor-pointer select-none sm:w-[180px] md:w-[200px]">
 			<div className="relative">
-				<Link href={detailHref(item)} draggable={false} className="block">
+				<Link
+					href={detailHref(item)}
+					prefetch={false}
+					data-prefetch-media
+					draggable={false}
+					className="block"
+				>
 					<div className="relative">
 						{stacked && (
 							<>
@@ -218,10 +228,15 @@ export function SquareAudioCard({
 	item,
 	session,
 	className = "",
+	artworkLoading,
 }: {
 	item: MediaItem;
 	session: AuthSession;
 	className?: string;
+	artworkLoading?: Pick<
+		React.ComponentProps<typeof BlurHashImage>,
+		"loading" | "fetchPriority"
+	>;
 }) {
 	const image = seriesPosterImage(item);
 	const { playTrack } = useAudioPlayer();
@@ -241,6 +256,8 @@ export function SquareAudioCard({
 			<div className="relative">
 				<Link
 					href={href}
+					prefetch={false}
+					data-prefetch-media
 					aria-label={item.Name}
 					draggable={false}
 					className="block"
@@ -250,6 +267,7 @@ export function SquareAudioCard({
 							<BlurHashImage
 								image={image}
 								alt={item.Name}
+								{...artworkLoading}
 								useArtworkVariants
 								draggable={false}
 								sizes="(max-width: 639px) 148px, (max-width: 767px) 180px, 220px"
@@ -392,6 +410,8 @@ function CardText({ item }: { item: MediaItem }) {
 			<div className="mt-2 min-w-0">
 				<Link
 					href={`/show/${item.SeriesId}`}
+					prefetch={false}
+					data-prefetch-media
 					className="block truncate text-xs font-medium text-white/80 hover:underline focus:outline-none focus-visible:underline"
 				>
 					{item.SeriesName ?? "Series"}
@@ -399,6 +419,8 @@ function CardText({ item }: { item: MediaItem }) {
 				<Link
 					aria-label="Episode details"
 					href={detailHref(item)}
+					prefetch={false}
+					data-prefetch-media
 					className="mt-0.5 block truncate text-xs text-white/50 transition-colors hover:text-white/90 focus:outline-none focus-visible:text-white/90 focus-visible:underline"
 				>
 					{episodeLabel(item)}

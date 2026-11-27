@@ -23,6 +23,7 @@ export function MobileNav() {
 			</Link>
 			<Link
 				href="/library"
+				data-prefetch-media
 				className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-0.5 py-2 ${pathname === "/library" ? "text-violet-400" : "text-white/30"}`}
 			>
 				<Library

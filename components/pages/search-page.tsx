@@ -47,13 +47,25 @@ const FILTER_LABEL_KEYS: Record<SearchFilter, TranslationKey> = {
 export function SearchPage({
 	session,
 	query,
+	initialFilter,
 }: {
 	session: AuthSession;
 	query: string;
+	initialFilter?: string | null;
 }) {
 	const { locale, t } = useI18n();
 	const { start } = useProgress();
-	const [selectedFilter, setSelectedFilter] = useState<SearchFilter>("all");
+	const [selectedFilter, setSelectedFilter] = useState<SearchFilter>(
+		() => FILTER_ORDER.find((filter) => filter === initialFilter) ?? "all",
+	);
+	const selectFilter = (filter: SearchFilter) => {
+		setSelectedFilter(filter);
+		const url = new URL(window.location.href);
+		if (url.pathname !== "/search") return;
+		if (filter === "all") url.searchParams.delete("type");
+		else url.searchParams.set("type", filter);
+		window.history.replaceState(null, "", url);
+	};
 	const [items, setItems] = useState<MediaItem[]>([]);
 	const [facets, setFacets] = useState<SearchFacets>(() => emptySearchFacets());
 	const [total, setTotal] = useState(0);
@@ -246,7 +258,7 @@ export function SearchPage({
 								role="tab"
 								aria-selected={activeFilter === filter}
 								aria-label={`${t(FILTER_LABEL_KEYS[filter])} ${facets[filter]}`}
-								onClick={() => setSelectedFilter(filter)}
+								onClick={() => selectFilter(filter)}
 								className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/70 ${
 									activeFilter === filter
 										? "border-white bg-white text-black"
@@ -399,6 +411,8 @@ function SearchFeatured({
 	return (
 		<Link
 			href={searchItemHref(item)}
+			prefetch={false}
+			data-prefetch-media
 			aria-label={item.Name}
 			data-testid="search-featured"
 			className="group relative isolate block w-full aspect-[4/3] min-h-56 overflow-hidden rounded-xl bg-[var(--c-card-thumb)] md:aspect-[3/1] md:min-h-64"
@@ -406,6 +420,8 @@ function SearchFeatured({
 			<BlurHashImage
 				image={image}
 				alt={item.Name}
+				loading="eager"
+				fetchPriority="high"
 				sizes="(max-width: 896px) calc(100vw - 2rem), 896px"
 				className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
 			/>
@@ -448,6 +464,8 @@ function SearchResultRow({
 		>
 			<Link
 				href={searchItemHref(item)}
+				prefetch={false}
+				data-prefetch-media
 				aria-label={item.Name}
 				className={`group flex items-center gap-3 py-3 transition hover:bg-white/[0.025] sm:gap-4 sm:px-2 ${posterArtwork ? "min-h-[96px] sm:min-h-[108px]" : "min-h-[76px]"}`}
 			>
@@ -459,6 +477,7 @@ function SearchResultRow({
 						<BlurHashImage
 							image={image}
 							alt=""
+							useArtworkVariants
 							sizes="(max-width: 639px) 48px, 56px"
 							className="h-full w-full object-cover"
 						/>

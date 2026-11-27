@@ -4,6 +4,7 @@ import {
 	createContext,
 	useCallback,
 	useContext,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -28,9 +29,10 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 			setActive(tasks.current.size > 0);
 		};
 	}, []);
+	const value = useMemo(() => ({ start }), [start]);
 
 	return (
-		<ProgressContext.Provider value={{ start }}>
+		<ProgressContext.Provider value={value}>
 			<div
 				role="progressbar"
 				aria-label="Loading"

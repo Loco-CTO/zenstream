@@ -40,7 +40,42 @@ export function BlurHashImage({
 	const failed = failedSrc === image.src;
 	const resolvedWidth = width ?? image.width;
 	const resolvedHeight = height ?? image.height;
+	const resolvedSizes = sizes ?? (fill ? "100vw" : undefined);
 	const placeholder = loaded ? null : blurHashToDataUrl(image.blurHash);
+	const variants = useMemo(() => {
+		if (!useArtworkVariants) return null;
+		const small = artworkVariantUrl(image.src, 160);
+		const medium = artworkVariantUrl(image.src, 320);
+		return small === medium ? null : { small, medium };
+	}, [image.src, useArtworkVariants]);
+	const artwork = (
+		<Image
+			{...props}
+			unoptimized
+			src={variants?.medium ?? image.src}
+			alt={alt}
+			fill={fill}
+			{...(fill
+				? {}
+				: {
+						width: resolvedWidth ?? 1,
+						height: resolvedHeight ?? 1,
+					})}
+			sizes={resolvedSizes}
+			loading={props.loading ?? "lazy"}
+			decoding={props.decoding ?? "async"}
+			fetchPriority={props.fetchPriority ?? "low"}
+			className={className}
+			onError={(event) => {
+				setFailedSrc(image.src);
+				onError?.(event);
+			}}
+			onLoad={(event) => {
+				setLoadedSrc(image.src);
+				onLoad?.(event);
+			}}
+		/>
+	);
 
 	return (
 		<>
@@ -62,41 +97,19 @@ export function BlurHashImage({
 			)}
 			{failed ? (
 				<MediaPlaceholder />
+			) : variants ? (
+				<picture className={fill ? "absolute inset-0" : undefined}>
+					<source
+						srcSet={`${variants.small} 160w, ${variants.medium} 320w`}
+						sizes={resolvedSizes ?? `${resolvedWidth ?? 320}px`}
+					/>
+					{artwork}
+				</picture>
 			) : (
-				<Image
-					{...props}
-					loader={useArtworkVariants ? artworkVariantLoader : undefined}
-					unoptimized={!useArtworkVariants}
-					src={image.src}
-					alt={alt}
-					fill={fill}
-					{...(fill
-						? {}
-						: {
-								width: resolvedWidth ?? 1,
-								height: resolvedHeight ?? 1,
-							})}
-					sizes={sizes ?? (fill ? "100vw" : undefined)}
-					loading={props.loading ?? "lazy"}
-					decoding={props.decoding ?? "async"}
-					fetchPriority={props.fetchPriority ?? "low"}
-					className={className}
-					onError={(event) => {
-						setFailedSrc(image.src);
-						onError?.(event);
-					}}
-					onLoad={(event) => {
-						setLoadedSrc(image.src);
-						onLoad?.(event);
-					}}
-				/>
+				artwork
 			)}
 		</>
 	);
-}
-
-function artworkVariantLoader({ src, width }: { src: string; width: number }) {
-	return artworkVariantUrl(src, width <= 160 ? 160 : 320);
 }
 
 export function MediaPlaceholder() {

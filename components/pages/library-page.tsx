@@ -262,10 +262,10 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 	);
 	const isSortAvailable = availableSorts.some((item) => item.value === sortBy);
 	const replaceQuery = useCallback(
-		(params: URLSearchParams) => {
+		(params: URLSearchParams, options?: { scroll?: boolean }) => {
 			const nextUrl = `/library?${params.toString()}`;
 			if (window.location.pathname + window.location.search === nextUrl) return;
-			if (typeof router.replace === "function") router.replace(nextUrl);
+			if (typeof router.replace === "function") router.replace(nextUrl, options);
 			else window.history.replaceState(null, "", nextUrl);
 		},
 		[router],
@@ -405,7 +405,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		params.set("libraryId", activeLibrary.Id);
 		params.set("sortBy", selectedSort);
 		params.set("sortOrder", sortOrder.toLowerCase());
-		replaceQuery(params);
+		replaceQuery(params, { scroll: false });
 	}, [
 		activeLibrary,
 		availableSorts,
@@ -487,6 +487,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 					...selectedFilters,
 					includeFilterOptions: true,
 					signal: controller.signal,
+					reuseLoadedPages: !force,
 				});
 				if (
 					controller.signal.aborted ||
@@ -1005,13 +1006,17 @@ function VirtualMediaGrid({
 					gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
 				}}
 			>
-				{rowItems.map((item) => (
+				{rowItems.map((item, column) => (
 					<LibraryCard
 						key={item.Id}
 						item={item}
 						session={session}
 						music={music}
-						loadingPolicy={loadingPolicy}
+						loadingPolicy={
+							column === 0 || loadingPolicy.fetchPriority !== "high"
+								? loadingPolicy
+								: { ...loadingPolicy, fetchPriority: "auto" }
+						}
 					/>
 				))}
 			</div>,
@@ -1042,7 +1047,14 @@ function LibraryCard({
 	loadingPolicy: ArtworkLoadingPolicy;
 }) {
 	if (music)
-		return <SquareAudioCard item={item} session={session} className="w-full" />;
+		return (
+			<SquareAudioCard
+				item={item}
+				session={session}
+				className="w-full"
+				artworkLoading={loadingPolicy}
+			/>
+		);
 	const isEpisode = item.Type === "Episode";
 	const image = isEpisode ? landscapeImage(item) : posterImage(item);
 	const artworkAspectClassName = isEpisode ? "aspect-video" : "aspect-[2/3]";
@@ -1059,7 +1071,7 @@ function LibraryCard({
 	return (
 		<article className="group/card min-w-0 cursor-pointer select-none">
 			<div className="relative">
-				<Link href={href} className="block">
+				<Link href={href} prefetch={false} data-prefetch-media className="block">
 					<div
 						className={`relative ${artworkAspectClassName} overflow-hidden rounded-sm bg-[var(--c-card-thumb)]`}
 					>

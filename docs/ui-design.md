@@ -24,6 +24,7 @@ Reuse an existing component when it fits. Extend the shared component when a reu
 - Keep global destinations, labels, relative order, and active-state treatment consistent with the shared navigation. Place actions that affect one item beside that item.
 - Use a page for a destination people revisit or link to, tabs for peer views within a destination, a menu for short contextual actions, and a dialog for a bounded task. Avoid nested dialogs and competing navigation bars.
 - Preserve browser Back/Forward, meaningful URLs, and normal link behavior. Opening a detail or secondary surface should retain the originating query, filters, and list position where that flow supports returning.
+- In dense browse grids, prefetch on pointer or keyboard intent. Keep the document position per history entry and restore it after the destination has enough content. Sort and filter URL replacements should preserve the current scroll position.
 - Make Back, Close, and Cancel do what their labels imply. Closing a temporary surface returns to its caller; it should not unexpectedly send people Home or clear their work.
 - Keep common tasks directly discoverable. Secondary actions may use an overflow menu, but essential actions must not depend on hover, remembering a gesture, or guessing an unlabeled icon.
 - Use the fewest understandable steps. Do not combine unrelated settings into one screen just to reduce clicks. Follow [playback ownership](playback.md) when navigation intersects active media.

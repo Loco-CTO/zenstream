@@ -618,6 +618,7 @@ function DetailArtwork({
 			<BlurHashImage
 				image={image}
 				alt={item.Name}
+				useArtworkVariants
 				sizes={episode ? "320px" : "160px"}
 				className="h-full w-full object-cover"
 			/>

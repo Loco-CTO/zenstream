@@ -16,6 +16,7 @@ This repository owns the ZenStream browser client. The Orchestrator owns catalog
 ## Important boundaries
 
 - Browser requests go through the Orchestrator client APIs. Do not add direct provider or database access.
+- The persistent app shell owns browse-route prefetch and document scroll restoration. Keep speculative catalog reads in the in-memory client cache, and route interactions in the page components.
 - Private artwork uses the authenticated Orchestrator image routes and a session-bound in-memory capability. Do not add private artwork to a persistent browser or service-worker cache.
 - Browser-local sound and playback-behavior preferences remain separate from account preferences; see `docs/playback.md`.
 - Audio and video have separate route and player ownership. Read `docs/playback.md` before changing either player or queue behavior.

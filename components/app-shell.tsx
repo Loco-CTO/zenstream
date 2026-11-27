@@ -17,6 +17,8 @@ import {
 	fetchHomeData,
 	fetchAudioAlbumData,
 	fetchArtistData,
+	getLibraryViews,
+	prefetchDetailHeader,
 	clearMediaClientCache,
 	clearMediaClientSession,
 	clearWatchHistory,
@@ -38,6 +40,8 @@ import {
 } from "@/lib/session";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Navbar } from "@/components/layout/navbar";
+import { useNavigationPrefetch } from "@/components/layout/use-navigation-prefetch";
+import { useRouteScrollRestoration } from "@/components/layout/use-route-scroll-restoration";
 const HomePage = dynamic(
 	() => import("@/components/pages/home-page").then((m) => m.HomePage),
 	{ ssr: false },
@@ -210,7 +214,6 @@ export function AppShell() {
 
 	const [avatarVersion, setAvatarVersion] = useState<string | null>(null);
 	const [homeData, setHomeData] = useState<HomeData | null>(null);
-	const [searchData, setSearchData] = useState<string | null>(null);
 
 	const [detailData, setDetailData] = useState<DetailData | null>(null);
 	const [audioAlbumData, setAudioAlbumData] = useState<AudioAlbumData | null>(
@@ -219,6 +222,7 @@ export function AppShell() {
 	const [artistData, setArtistData] = useState<ArtistData | null>(null);
 	const [status, setStatus] = useState<AppStatus>("checking");
 	const [error, setError] = useState<string | null>(null);
+	const [errorPathname, setErrorPathname] = useState<string | null>(null);
 	const [locale, setLocale] = useState<Locale>("en");
 	const [localePreferenceLoaded, setLocalePreferenceLoaded] = useState(false);
 	const storedLocale = useSyncExternalStore(
@@ -288,7 +292,7 @@ export function AppShell() {
 	});
 	const bootstrapInFlight = useRef<Promise<AuthSession | null> | null>(null);
 	const authExpiryHandled = useRef<AuthSession | null>(null);
-	const homeLoadInFlight = useRef(false);
+	const homeLoadInFlight = useRef<number | null>(null);
 	const homeTrailingRefresh = useRef(false);
 	const homeTrailingRequest = useRef<{
 		session: AuthSession;
@@ -394,8 +398,9 @@ export function AppShell() {
 			const isCurrent = () =>
 				sessionRef.current === nextSession &&
 				requestedGeneration === routeLoadGeneration.current;
-			if (homeLoadInFlight.current) {
-				if (sessionRef.current === nextSession) homeTrailingRefresh.current = true;
+			if (homeLoadInFlight.current !== null) {
+				if (homeLoadInFlight.current === requestedGeneration)
+					homeTrailingRefresh.current = true;
 				else
 					homeTrailingRequest.current = {
 						session: nextSession,
@@ -403,7 +408,7 @@ export function AppShell() {
 					};
 				return;
 			}
-			homeLoadInFlight.current = true;
+			homeLoadInFlight.current = requestedGeneration;
 			const hasExistingHome = homeDataRef.current !== null;
 			const finishProgress = start();
 			if (!hasExistingHome) {
@@ -436,6 +441,7 @@ export function AppShell() {
 					} catch (err) {
 						if (homeTrailingRefresh.current) continue;
 						if (!hasExistingHome && isCurrent()) {
+							setErrorPathname("/");
 							setError(
 								err instanceof Error ? err.message : "Could not load your library.",
 							);
@@ -444,7 +450,7 @@ export function AppShell() {
 					}
 				} while (homeTrailingRefresh.current);
 			} finally {
-				homeLoadInFlight.current = false;
+				homeLoadInFlight.current = null;
 				finishProgress();
 				const trailing = homeTrailingRequest.current;
 				homeTrailingRequest.current = null;
@@ -476,6 +482,48 @@ export function AppShell() {
 	const searchQuery = searchParams.get("q") ?? "";
 	const serializedSearch = searchParams.toString();
 	const currentSearch = serializedSearch ? `?${serializedSearch}` : "";
+	const routeError = renderStatus === "error" && errorPathname === pathname;
+	useRouteScrollRestoration(`${pathname}${currentSearch}`, session?.userId);
+
+	const prefetchRoute = useCallback(
+		(url: URL) => {
+			if (!session) return;
+			if (url.pathname === "/library") {
+				return Promise.all([
+					import("@/components/pages/library-page"),
+					getLibraryViews(session),
+				]);
+			}
+			const itemId = detailIdFromPath(url.pathname);
+			if (itemId) {
+				const page = url.pathname.startsWith("/collection/")
+					? import("@/components/pages/collection-page")
+					: import("@/components/pages/detail-page");
+				return Promise.all([
+					page,
+					prefetchDetailHeader(
+						session,
+						itemId,
+						url.searchParams.get("seasonId") ?? undefined,
+					),
+				]);
+			}
+			const albumId = audioAlbumIdFromPath(url.pathname);
+			if (albumId)
+				return Promise.all([
+					import("@/components/pages/audio-album-page"),
+					fetchAudioAlbumData(session, albumId),
+				]);
+			const targetArtistId = artistIdFromPath(url.pathname);
+			if (targetArtistId)
+				return Promise.all([
+					import("@/components/pages/artist-page"),
+					fetchArtistData(session, targetArtistId),
+				]);
+		},
+		[session],
+	);
+	useNavigationPrefetch(session ? prefetchRoute : null);
 
 	const fetchDetailPayload = useCallback(
 		async (
@@ -486,7 +534,6 @@ export function AppShell() {
 		) => {
 			void primeArtworkTicket(nextSession);
 			void primeResourceTicket(nextSession);
-			if (pathname === "/search") return null;
 			return playId
 				? fetchPlayData(nextSession, itemId)
 				: fetchDetailData(
@@ -497,7 +544,7 @@ export function AppShell() {
 						onSection,
 					);
 		},
-		[pathname, playId],
+		[playId],
 	);
 	const loadDetail = useCallback(
 		async (
@@ -518,21 +565,18 @@ export function AppShell() {
 				setError(null);
 			}
 			try {
-				if (pathname === "/search") {
-					if (isCurrent()) {
-						setSearchData(searchQuery);
-						setStatus("ready");
-					}
-					return;
-				}
 				const nextData = await fetchDetailPayload(
 					nextSession,
 					itemId,
 					loadController.signal,
 					(section) => {
 						if (!isCurrent()) return;
-						setDetailData(
-							(current) => ({ ...(current ?? {}), ...section }) as DetailData,
+						setDetailData((current) =>
+							section.item
+								? (section as DetailData)
+								: current?.item.Id === itemId
+									? { ...current, ...section }
+									: current,
 						);
 						if (section.item) setStatus("ready");
 					},
@@ -551,6 +595,7 @@ export function AppShell() {
 					}
 				}
 				if (isCurrent()) {
+					setErrorPathname(pathname);
 					setError(
 						err instanceof Error ? err.message : "Could not load this title.",
 					);
@@ -562,7 +607,7 @@ export function AppShell() {
 				finishProgress();
 			}
 		},
-		[fetchDetailPayload, pathname, searchQuery, start],
+		[fetchDetailPayload, pathname, start],
 	);
 	useEffect(() => {
 		loadDetailRef.current = loadDetail;
@@ -608,6 +653,7 @@ export function AppShell() {
 				}
 			} catch (loadError) {
 				if (!preserveCurrent && !controller.signal.aborted && isCurrent()) {
+					setErrorPathname(pathname);
 					setError(
 						loadError instanceof Error
 							? loadError.message
@@ -621,7 +667,7 @@ export function AppShell() {
 				finishProgress();
 			}
 		},
-		[start],
+		[pathname, start],
 	);
 
 	const loadArtist = useCallback(
@@ -664,6 +710,7 @@ export function AppShell() {
 				}
 			} catch (loadError) {
 				if (!preserveCurrent && !controller.signal.aborted && isCurrent()) {
+					setErrorPathname(pathname);
 					setError(
 						loadError instanceof Error
 							? loadError.message
@@ -677,7 +724,7 @@ export function AppShell() {
 				finishProgress();
 			}
 		},
-		[start],
+		[pathname, start],
 	);
 
 	const refreshDetail = useCallback(
@@ -774,7 +821,6 @@ export function AppShell() {
 			loadedPreferencesSession.current = session;
 			loadPreferences(session);
 		}
-		const finishProgress = start();
 		void (async () => {
 			if (audioAlbumId) {
 				await loadAudioAlbum(session, audioAlbumId, generation);
@@ -788,10 +834,7 @@ export function AppShell() {
 				pathname === "/notifications" ||
 				pathname === "/lumi"
 			) {
-				if (generation === routeLoadGeneration.current) {
-					if (pathname === "/search") setSearchData(searchQuery);
-					setStatus("ready");
-				}
+				if (generation === routeLoadGeneration.current) setStatus("ready");
 			} else if (
 				pathname === "/library" ||
 				pathname === "/favorites" ||
@@ -804,7 +847,6 @@ export function AppShell() {
 				void primeResourceTicket(session);
 				if (generation === routeLoadGeneration.current) setStatus("ready");
 			} else await loadHome(session, generation);
-			finishProgress();
 		})();
 		return () => {
 			detailLoadController.current?.abort();
@@ -823,9 +865,7 @@ export function AppShell() {
 		pathname,
 		playlistId,
 		sharedPlaylistToken,
-		searchQuery,
 		session,
-		start,
 	]);
 
 	useEffect(() => {
@@ -856,7 +896,6 @@ export function AppShell() {
 			clearAuthCookies();
 			clearMediaClientSession();
 			clearPreferenceCache();
-			clearMediaClientCache(undefined, { abortInFlight: true });
 			routeLoadGeneration.current += 1;
 			preferencesGeneration.current += 1;
 			localeMutationGeneration.current += 1;
@@ -887,7 +926,6 @@ export function AppShell() {
 			homeTrailingRequest.current = null;
 			setHomeData(null);
 			setDetailData(null);
-			setSearchData(null);
 			setError(null);
 			setStatus("login");
 			return activeSession;
@@ -1243,7 +1281,7 @@ export function AppShell() {
 												session={session}
 											/>
 											<MobileNav />
-											{renderStatus === "error" && (
+											{routeError && (
 												<ErrorPanel
 													titleKey={
 														audioAlbumId || artistId
@@ -1256,7 +1294,8 @@ export function AppShell() {
 													onRetry={() => {
 														if (audioAlbumId) void loadAudioAlbum(session, audioAlbumId);
 														else if (artistId) void loadArtist(session, artistId);
-														else if (detailId) void loadDetail(session, detailId);
+														else if (detailId || playId)
+															void loadDetail(session, detailId ?? playId!);
 														else void loadHome(session);
 													}}
 												/>
@@ -1264,51 +1303,50 @@ export function AppShell() {
 
 											{renderStatus === "ready" &&
 												detailData &&
-												detailId &&
+												detailId === detailData.item.Id &&
 												!playId &&
 												(detailData.item.Type === "BoxSet" ? (
 													<CollectionPage initialData={detailData} session={session} />
 												) : (
 													<DetailPage initialData={detailData} session={session} />
 												))}
-											{renderStatus === "ready" && audioAlbumId && audioAlbumData && (
-												<AudioAlbumPage data={audioAlbumData} session={session} />
-											)}
-											{renderStatus === "ready" && artistId && artistData && (
-												<ArtistPage data={artistData} session={session} />
-											)}
-											{renderStatus === "ready" && pathname === "/library" && (
-												<LibraryPage session={session} />
-											)}
-											{renderStatus === "ready" && pathname === "/favorites" && (
+											{renderStatus === "ready" &&
+												audioAlbumData &&
+												audioAlbumId === audioAlbumData.album.Id && (
+													<AudioAlbumPage data={audioAlbumData} session={session} />
+												)}
+											{renderStatus === "ready" &&
+												artistData &&
+												artistId === artistData.artist.Id && (
+													<ArtistPage data={artistData} session={session} />
+												)}
+											{pathname === "/library" && <LibraryPage session={session} />}
+											{pathname === "/favorites" && (
 												<FavoritesPage session={session} initialTab={listsTab} />
 											)}
-											{renderStatus === "ready" && pathname === "/my-lists" && (
+											{pathname === "/my-lists" && (
 												<FavoritesPage session={session} initialTab={listsTab} />
 											)}
-											{renderStatus === "ready" && playlistId && (
+											{playlistId && (
 												<PlaylistDetailPage session={session} playlistId={playlistId} />
 											)}
-											{renderStatus === "ready" && sharedPlaylistToken && (
+											{sharedPlaylistToken && (
 												<PlaylistDetailPage
 													session={session}
 													shareToken={sharedPlaylistToken}
 												/>
 											)}
-											{renderStatus === "ready" && pathname === "/calendar" && (
-												<CalendarPage session={session} />
-											)}
-											{renderStatus === "ready" && pathname === "/notifications" && (
+											{pathname === "/calendar" && <CalendarPage session={session} />}
+											{pathname === "/notifications" && (
 												<NotificationsPage session={session} />
 											)}
-											{renderStatus === "ready" && pathname === "/lumi" && (
-												<LumiPage session={session} />
-											)}
-											{renderStatus === "ready" && pathname === "/search" && (
+											{pathname === "/lumi" && <LumiPage session={session} />}
+											{pathname === "/search" && (
 												<SearchPage
-													key={searchData ?? searchQuery}
+													key={searchQuery}
 													session={session}
-													query={searchData ?? searchQuery}
+													query={searchQuery}
+													initialFilter={searchParams.get("type")}
 												/>
 											)}
 											{homeData &&
@@ -1335,7 +1373,7 @@ export function AppShell() {
 										</div>
 									)}
 									<VideoPlaybackHost
-										playId={renderStatus === "error" ? null : playId}
+										playId={routeError ? null : playId}
 										data={detailData}
 										ready={renderStatus === "ready"}
 										search={currentSearch}

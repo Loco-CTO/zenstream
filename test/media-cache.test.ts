@@ -6,6 +6,7 @@ import {
 	getFavoriteItems,
 	getLibraryItems,
 	getSearchPage,
+	prefetchDetailHeader,
 	type MediaItem,
 } from "@/lib/media-api";
 
@@ -18,7 +19,7 @@ function jsonResponse(value: unknown) {
 	});
 }
 
-function listResponse(id: string) {
+function listResponse(id: string, total = 1) {
 	return jsonResponse({
 		items: [
 			{
@@ -29,7 +30,7 @@ function listResponse(id: string) {
 				metadata: {},
 			},
 		],
-		total: 1,
+		total,
 		page: 1,
 		pageSize: 20,
 	});
@@ -57,6 +58,84 @@ describe("media client cache", () => {
 		await getFavoriteItems(session, { sortBy: "sort-0" });
 		await getFavoriteItems(session, { sortBy: "sort-1" });
 		expect(fetchMock).toHaveBeenCalledTimes(66);
+	});
+
+	it("reuses an in-flight prefetched detail header for a navigation", async () => {
+		let finishHeader!: (response: Response) => void;
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation((input) => {
+				const url = String(input);
+				if (url.includes("section=header"))
+					return new Promise<Response>((resolve) => {
+						finishHeader = resolve;
+					});
+				return Promise.resolve(jsonResponse({}));
+			});
+		const prefetch = prefetchDetailHeader(session, "title");
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+		const onSection = vi.fn();
+		const navigation = fetchDetailData(
+			session,
+			"title",
+			undefined,
+			new AbortController().signal,
+			onSection,
+		);
+		finishHeader(
+			jsonResponse({
+				item: {
+					id: "title",
+					libraryId: "movies",
+					type: "movie",
+					name: "Title",
+					metadata: {},
+				},
+				seasons: [],
+			}),
+		);
+		await prefetch;
+		await expect(navigation).resolves.toMatchObject({ item: { Id: "title" } });
+		expect(onSection).toHaveBeenCalledWith(
+			expect.objectContaining({
+				item: expect.objectContaining({ Id: "title" }),
+			}),
+		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) =>
+				String(url).includes("section=header"),
+			),
+		).toHaveLength(1);
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
+	it("reuses consecutive cached library pages for the same session and sort", async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValueOnce(listResponse("one", 3))
+			.mockResolvedValueOnce(listResponse("two", 3))
+			.mockResolvedValueOnce(listResponse("fresh"));
+		const query = {
+			parentId: "movies",
+			startIndex: 0,
+			limit: 1,
+			sortBy: "title",
+			sortOrder: "Ascending",
+		} as const;
+		await getLibraryItems(session, query);
+		await getLibraryItems(session, { ...query, startIndex: 1 });
+		const restored = await getLibraryItems(session, {
+			...query,
+			reuseLoadedPages: true,
+		});
+		expect(restored.items.map((item) => item.Id)).toEqual(["one", "two"]);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const differentSession = await getLibraryItems(
+			{ ...session, token: "new-token" },
+			{ ...query, reuseLoadedPages: true },
+		);
+		expect(differentSession.items.map((item) => item.Id)).toEqual(["fresh"]);
+		expect(fetchMock).toHaveBeenCalledTimes(3);
 	});
 
 	it("clears the resolved hero trailer cache with media caches", async () => {

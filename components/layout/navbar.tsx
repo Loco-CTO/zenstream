@@ -145,6 +145,7 @@ export function Navbar({
 						</Link>
 						<Link
 							href="/library"
+							data-prefetch-media
 							className={`rounded px-3 py-1.5 text-sm font-medium tracking-wide ${pathname === "/library" ? "text-white" : "text-white/35 hover:text-white/70"}`}
 						>
 							{t("library")}

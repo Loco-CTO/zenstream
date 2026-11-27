@@ -92,7 +92,13 @@ export function MediaBannerCard({
 		"group/banner relative my-3 grid w-full grid-cols-[96px_minmax(0,1fr)] items-stretch overflow-hidden rounded-xl border border-white/10 bg-[#111115] shadow-lg shadow-black/20 transition hover:border-violet-200/25 hover:bg-[#17161b] sm:grid-cols-[120px_minmax(0,1fr)]";
 
 	return href ? (
-		<Link href={href} aria-label={item.Name} className={className}>
+		<Link
+			href={href}
+			prefetch={false}
+			data-prefetch-media
+			aria-label={item.Name}
+			className={className}
+		>
 			{content}
 		</Link>
 	) : (

@@ -184,6 +184,7 @@ describe("LibraryPage URL updates", () => {
 		await waitFor(() =>
 			expect(navigationMock.routerReplace).toHaveBeenCalledWith(
 				expect.stringContaining("libraryId=shows"),
+				{ scroll: false },
 			),
 		);
 	});

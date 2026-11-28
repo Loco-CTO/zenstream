@@ -258,6 +258,44 @@ describe("LibraryPage URL updates", () => {
 		expect(screen.queryByText("Title 100")).not.toBeInTheDocument();
 	});
 
+	it("reloads a previously loaded library after interrupting a switch", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		let moviesSignal: AbortSignal | undefined;
+		vi.mocked(getLibraryViews).mockResolvedValueOnce([
+			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+		]);
+		vi.mocked(getLibraryItems).mockImplementation((_session, options) => {
+			if (options.parentId === "movies") {
+				moviesSignal = options.signal;
+				return new Promise(() => {});
+			}
+			return Promise.resolve({
+				items: makeItems(40, options.startIndex ?? 0),
+				totalRecordCount: 80,
+			});
+		});
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		await waitFor(() => {
+			expect(moviesSignal).toBeDefined();
+			expect(screen.queryByText("Title 0")).not.toBeInTheDocument();
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Shows" }));
+
+		await screen.findByText("Title 0");
+		expect(moviesSignal?.aborted).toBe(true);
+		act(() => triggerIntersection());
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ parentId: "shows", startIndex: 40 }),
+			),
+		);
+	});
+
 	it("cleans up a first-page refresh canceled before its request starts", async () => {
 		const NativeAbortController = globalThis.AbortController;
 		const controllers: AbortController[] = [];

@@ -555,6 +555,9 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		// Invalidate the previous request immediately. Sort preferences are
 		// hydrated asynchronously when a library changes, so the next request
 		// may not start until the following render.
+		// Returning to the old query must reload it if the new query already
+		// discarded its rows, or was canceled before it could finish.
+		loadedQueryRef.current = "";
 		itemRequestGenerationRef.current += 1;
 		itemRequestRef.current?.abort();
 		itemRequestRef.current = null;
@@ -562,7 +565,7 @@ export function LibraryPage({ session }: { session: AuthSession }) {
 		loadingMoreRef.current = false;
 		loadMoreBlockedRef.current = true;
 		requestedOffsetsRef.current.clear();
-	}, [activeLibrary?.Id, queryFilterKey, selectedFilters, sortBy, sortOrder]);
+	}, [activeLibrary?.Id, queryFilterKey, sortBy, sortOrder]);
 
 	useEffect(() => {
 		// A library or sort change replaces the current result set.

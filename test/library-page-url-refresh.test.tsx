@@ -99,8 +99,13 @@ function installIntersectionObserver() {
 }
 
 describe("LibraryPage URL updates", () => {
+	let triggerIntersection: ReturnType<typeof installIntersectionObserver>;
+
 	beforeEach(() => {
 		vi.resetAllMocks();
+		// jsdom has no layout, so the scroll fallback would treat the sentinel
+		// as visible and race the refresh tests for the next mocked response.
+		triggerIntersection = installIntersectionObserver();
 		navigationMock.useWindowSearch = false;
 		navigationMock.useRouterReplace = false;
 		window.history.replaceState(null, "", "/library");
@@ -253,6 +258,44 @@ describe("LibraryPage URL updates", () => {
 		expect(screen.queryByText("Title 100")).not.toBeInTheDocument();
 	});
 
+	it("reloads a previously loaded library after interrupting a switch", async () => {
+		const triggerIntersection = installIntersectionObserver();
+		let moviesSignal: AbortSignal | undefined;
+		vi.mocked(getLibraryViews).mockResolvedValueOnce([
+			{ Id: "shows", Name: "Shows", CollectionType: "tvshows" },
+			{ Id: "movies", Name: "Movies", CollectionType: "movies" },
+		]);
+		vi.mocked(getLibraryItems).mockImplementation((_session, options) => {
+			if (options.parentId === "movies") {
+				moviesSignal = options.signal;
+				return new Promise(() => {});
+			}
+			return Promise.resolve({
+				items: makeItems(40, options.startIndex ?? 0),
+				totalRecordCount: 80,
+			});
+		});
+		render(libraryTree());
+
+		await screen.findByText("Title 0");
+		fireEvent.click(screen.getByRole("button", { name: "Movies" }));
+		await waitFor(() => {
+			expect(moviesSignal).toBeDefined();
+			expect(screen.queryByText("Title 0")).not.toBeInTheDocument();
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Shows" }));
+
+		await screen.findByText("Title 0");
+		expect(moviesSignal?.aborted).toBe(true);
+		act(() => triggerIntersection());
+		await waitFor(() =>
+			expect(getLibraryItems).toHaveBeenCalledWith(
+				session,
+				expect.objectContaining({ parentId: "shows", startIndex: 40 }),
+			),
+		);
+	});
+
 	it("cleans up a first-page refresh canceled before its request starts", async () => {
 		const NativeAbortController = globalThis.AbortController;
 		const controllers: AbortController[] = [];
@@ -292,7 +335,6 @@ describe("LibraryPage URL updates", () => {
 	});
 
 	it("ignores a resolved next-page request after switching libraries", async () => {
-		const triggerIntersection = installIntersectionObserver();
 		let resolveNextPage!: (page: {
 			items: MediaItem[];
 			totalRecordCount: number;
@@ -351,6 +393,11 @@ describe("LibraryPage URL updates", () => {
 			await Promise.resolve();
 		});
 		await screen.findByRole("button", { name: "Retry" });
+		expect(getLibraryItems).toHaveBeenNthCalledWith(
+			2,
+			session,
+			expect.objectContaining({ startIndex: 0, reuseLoadedPages: false }),
+		);
 		expect(screen.getByText("Title 0")).toBeInTheDocument();
 		await act(async () => {
 			screen.getByRole("button", { name: "Retry" }).click();
@@ -358,15 +405,17 @@ describe("LibraryPage URL updates", () => {
 		});
 		await waitFor(() =>
 			expect(
-				vi
-					.mocked(getLibraryItems)
-					.mock.calls.filter(([, options]) => options.startIndex === 0).length,
-			).toBeGreaterThanOrEqual(3),
+				screen.queryByRole("button", { name: "Retry" }),
+			).not.toBeInTheDocument(),
+		);
+		expect(getLibraryItems).toHaveBeenNthCalledWith(
+			3,
+			session,
+			expect.objectContaining({ startIndex: 0, reuseLoadedPages: false }),
 		);
 	});
 
 	it("stops pagination when an empty page confirms there are no more items", async () => {
-		const triggerIntersection = installIntersectionObserver();
 		vi
 			.mocked(getLibraryItems)
 			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
@@ -393,7 +442,6 @@ describe("LibraryPage URL updates", () => {
 	});
 
 	it("blocks a short page while more library items remain", async () => {
-		const triggerIntersection = installIntersectionObserver();
 		vi
 			.mocked(getLibraryItems)
 			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
@@ -416,7 +464,6 @@ describe("LibraryPage URL updates", () => {
 	});
 
 	it("retries a rejected next-page request", async () => {
-		const triggerIntersection = installIntersectionObserver();
 		vi
 			.mocked(getLibraryItems)
 			.mockResolvedValueOnce({ items: makeItems(40), totalRecordCount: 80 })
@@ -450,7 +497,6 @@ describe("LibraryPage URL updates", () => {
 	});
 
 	it("continues pagination after search params update to the current library", async () => {
-		const triggerIntersection = installIntersectionObserver();
 		let rejectRefresh!: (error: Error) => void;
 		vi
 			.mocked(getLibraryViews)
